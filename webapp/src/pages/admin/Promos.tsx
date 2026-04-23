@@ -7,7 +7,7 @@ export default function Promos() {
   const [searchTerm, setSearchTerm] = useState("")
   const { data: promos, loading, error, refetch } = useAdminPromos()
   const [isToggling, setIsToggling] = useState<string | null>(null)
-  
+
   // Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
@@ -69,7 +69,7 @@ export default function Promos() {
     }
   }
 
-  const filteredPromos = (promos || []).filter(p => 
+  const filteredPromos = (promos || []).filter(p =>
     p.code.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
@@ -100,20 +100,20 @@ export default function Promos() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Promo Code</label>
-                  <ClayInput 
-                    required 
-                    placeholder="E.g. SUMMER50" 
+                  <ClayInput
+                    required
+                    placeholder="E.g. SUMMER50"
                     className="uppercase font-bold"
                     value={formData.code}
-                    onChange={e => setFormData({...formData, code: e.target.value})}
+                    onChange={e => setFormData({ ...formData, code: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Discount Type</label>
-                  <select 
+                  <select
                     className="clay-input w-full font-bold"
                     value={formData.discountType}
-                    onChange={e => setFormData({...formData, discountType: e.target.value})}
+                    onChange={e => setFormData({ ...formData, discountType: e.target.value })}
                   >
                     <option value="FLAT">Flat Amount (₹)</option>
                     <option value="PERCENTAGE">Percentage (%)</option>
@@ -124,21 +124,21 @@ export default function Promos() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Value</label>
-                  <ClayInput 
-                    required 
-                    type="number" 
+                  <ClayInput
+                    required
+                    type="number"
                     placeholder="Amount or %"
                     value={formData.discountValue}
-                    onChange={e => setFormData({...formData, discountValue: e.target.value})}
+                    onChange={e => setFormData({ ...formData, discountValue: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Min Order Amount</label>
-                  <ClayInput 
-                    type="number" 
+                  <ClayInput
+                    type="number"
                     placeholder="₹ 0"
                     value={formData.minOrderAmount}
-                    onChange={e => setFormData({...formData, minOrderAmount: e.target.value})}
+                    onChange={e => setFormData({ ...formData, minOrderAmount: e.target.value })}
                   />
                 </div>
               </div>
@@ -146,44 +146,44 @@ export default function Promos() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Usage Limit (Global)</label>
-                  <ClayInput 
-                    type="number" 
+                  <ClayInput
+                    type="number"
                     placeholder="Unlimited"
                     value={formData.usageLimit}
-                    onChange={e => setFormData({...formData, usageLimit: e.target.value})}
+                    onChange={e => setFormData({ ...formData, usageLimit: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Limit Per User</label>
-                  <ClayInput 
-                    type="number" 
+                  <ClayInput
+                    type="number"
                     placeholder="1"
                     value={formData.usagePerUser}
-                    onChange={e => setFormData({...formData, usagePerUser: e.target.value})}
+                    onChange={e => setFormData({ ...formData, usagePerUser: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Expiry Date</label>
-                <ClayInput 
+                <ClayInput
                   type="date"
                   value={formData.expiryDate}
-                  onChange={e => setFormData({...formData, expiryDate: e.target.value})}
+                  onChange={e => setFormData({ ...formData, expiryDate: e.target.value })}
                 />
               </div>
 
               <div className="pt-4 flex gap-3">
-                <ClayButton 
-                  type="button" 
-                  variant="secondary" 
+                <ClayButton
+                  type="button"
+                  variant="secondary"
                   className="flex-1 font-bold"
                   onClick={() => setIsModalOpen(false)}
                 >
                   Cancel
                 </ClayButton>
-                <ClayButton 
-                  type="submit" 
+                <ClayButton
+                  type="submit"
                   disabled={isCreating}
                   className="flex-1 font-bold gap-2"
                 >
@@ -269,8 +269,8 @@ export default function Promos() {
                       {promo.expiryDate ? new Date(promo.expiryDate).toLocaleDateString() : "No Expiry"}
                     </td>
                     <td className="px-6 py-5 text-right">
-                      <ClayButton 
-                        variant="ghost" 
+                      <ClayButton
+                        variant="ghost"
                         onClick={() => handleToggle(promo.id)}
                         disabled={isToggling === promo.id}
                         className={`text-xs font-black uppercase tracking-widest ${promo.isActive ? 'text-rose-500' : 'text-emerald-600'}`}

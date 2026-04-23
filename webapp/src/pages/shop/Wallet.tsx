@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   useWallet,
   useWalletTransactions,
@@ -167,9 +166,9 @@ export default function WalletPage() {
           </ClayCard>
         ) : (
           <div className="space-y-2">
-            {transactions.map((tx) => (
+            {transactions.map((tx: any) => (
               <ClayCard key={tx.id} className="flex items-center gap-3 py-3 px-4">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0
                   ${tx.type === 'CREDIT' ? 'bg-green-100' : 'bg-red-100'}`}>
                   {tx.type === 'CREDIT'
                     ? <ArrowDownLeft className="w-4 h-4 text-green-600" />
