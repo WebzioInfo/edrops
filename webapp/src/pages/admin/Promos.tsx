@@ -77,7 +77,7 @@ export default function Promos() {
     <div className="space-y-6">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white font-black italic">Promos & Discounts</h1>
+          <h1 className="text-3xl tracking-tight text-slate-900 dark:text-white font-black italic">Promos & Discounts</h1>
           <p className="text-slate-500 mt-2">Manage promo codes, view usage, and configure rules.</p>
         </div>
         <ClayButton onClick={() => setIsModalOpen(true)} className="gap-2 font-bold px-6">
