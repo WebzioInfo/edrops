@@ -1,7 +1,9 @@
 import { cn } from '../../../lib/utils';
 import { forwardRef } from 'react';
 
-const ClayInput = forwardRef(({ className, type = 'text', ...props }, ref) => {
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+const ClayInput = forwardRef<HTMLInputElement, InputProps>(({ className, type = 'text', ...props }, ref) => {
   return (
     <input
       type={type}

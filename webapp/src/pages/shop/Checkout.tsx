@@ -4,7 +4,7 @@ import useCartStore from '../../store/useCartStore';
 import ClayCard from '../../components/shop/ui/ClayCard';
 import ClayButton from '../../components/shop/ui/ClayButton';
 import { MapPin, Clock, CreditCard, CheckCircle2, ArrowLeft, Plus, Ticket, X } from 'lucide-react';
-import { useMyAddresses, usePlaceOrder, useValidatePromo, useWallet } from '../../lib/shopApi';
+import { useMyAddresses, usePlaceOrder, useValidatePromo, useWallet, api } from '../../lib/shopApi';
 
 declare global {
   interface Window {
@@ -34,7 +34,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [orderPlaced, setOrderPlaced] = useState(false);
-  const [placedOrderId, setPlacedOrderId] = useState(null);
+  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
 
   // Form state
   const [selectedAddressId, setSelectedAddressId] = useState('');
@@ -121,13 +121,13 @@ export default function Checkout() {
           paymentMethod === 'wallet' ? 'WALLET' :
             'RAZORPAY',
       notes: `Slot: ${selectedSlot}`,
-      items: items.map((i) => ({ productId: i.id, quantity: i.quantity })),
+      items: items.map((i: any) => ({ productId: i.id, quantity: i.quantity })),
     };
 
     if (paymentMethod === 'razorpay') {
       // First create the E-Drops order, then open Razorpay
       const order = await placeOrder.mutateAsync({ ...orderData, paymentMethod: 'RAZORPAY' });
-      await handleRazorpayCheckout(order.id, order.payableAmount);
+      await handleRazorpayCheckout(order.id);
       return;
     }
 
@@ -137,13 +137,13 @@ export default function Checkout() {
         clearCart();
         setOrderPlaced(true);
       },
-      onError: (err) => {
+      onError: (err: any) => {
         alert(err.response?.data?.message || 'Failed to place order. Please try again.');
       },
     });
   };
 
-  const handleRazorpayCheckout = async (orderId, totalAmount) => {
+  const handleRazorpayCheckout = async (orderId: string) => {
     const loaded = await loadRazorpay();
     if (!loaded) {
       alert('Failed to load Razorpay. Please check your internet connection.');
@@ -161,7 +161,7 @@ export default function Checkout() {
         name: rzpData.name,
         description: rzpData.description,
         order_id: rzpData.razorpayOrderId,
-        handler: async (response) => {
+        handler: async (response: any) => {
           try {
             // 2. Verify payment on our backend
             await api.post('/payments/razorpay/verify', {
@@ -175,7 +175,7 @@ export default function Checkout() {
             clearCart();
             setPlacedOrderId(orderId);
             setOrderPlaced(true);
-          } catch (err) {
+          } catch (err: any) {
             alert('Payment verification failed! Please contact support.');
             console.error(err);
           }
@@ -190,7 +190,7 @@ export default function Checkout() {
 
       const rzp = new window.Razorpay(options);
       rzp.open();
-    } catch (err) {
+    } catch (err: any) {
       alert('Failed to initialize payment. Please try again.');
       console.error(err);
     }
@@ -251,7 +251,7 @@ export default function Checkout() {
               </button>
             </ClayCard>
           ) : (
-            addresses.map((addr) => (
+            addresses.map((addr: any) => (
               <ClayCard
                 key={addr.id}
                 className={`cursor-pointer transition-all ${selectedAddressId === addr.id ? 'border-2 border-primary bg-primary/5' : ''}`}
@@ -265,7 +265,7 @@ export default function Checkout() {
                     <p className="text-sm font-medium mt-2">{addr.line1}{addr.line2 ? `, ${addr.line2}` : ''}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{addr.city}, {addr.district} – {addr.pincode}</p>
                   </div>
-                  <div className={`w-5 h-5 rounded-full border-2 mt-1 flex items-center justify-center flex-shrink-0
+                  <div className={`w-5 h-5 rounded-full border-2 mt-1 flex items-center justify-center shrink-0
                     ${selectedAddressId === addr.id ? 'border-primary' : 'border-muted'}`}>
                     {selectedAddressId === addr.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                   </div>
@@ -284,7 +284,7 @@ export default function Checkout() {
         <div className="space-y-3">
           <h3 className="font-semibold text-lg ml-1">Delivery Slot</h3>
           <div className="grid grid-cols-1 gap-3">
-            {DELIVERY_SLOTS.map((slot) => (
+            {DELIVERY_SLOTS.map((slot: any) => (
               <ClayCard
                 key={slot.id}
                 className={`cursor-pointer transition-all ${selectedSlot === slot.id ? 'border-2 border-primary bg-primary/5' : ''}`}
@@ -400,7 +400,7 @@ export default function Checkout() {
           {/* Order Summary */}
           <ClayCard className="bg-primary/5">
             <h4 className="font-semibold mb-3 text-sm">Order Summary</h4>
-            {items.map((item) => (
+            {items.map((item: any) => (
               <div key={item.id} className="flex justify-between text-sm mb-1.5">
                 <span className="text-muted-foreground">{item.name} ×{item.quantity}</span>
                 <span>₹{item.price * item.quantity}</span>

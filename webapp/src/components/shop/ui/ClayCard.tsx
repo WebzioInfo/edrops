@@ -1,7 +1,9 @@
 import { cn } from '../../../lib/utils';
 import { forwardRef } from 'react';
 
-const ClayCard = forwardRef(({ className, children, ...props }, ref) => {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {}
+
+const ClayCard = forwardRef<HTMLDivElement, CardProps>(({ className, children, ...props }, ref) => {
   return (
     <div
       ref={ref}

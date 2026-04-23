@@ -32,7 +32,7 @@ function loadRazorpay() {
 export default function WalletPage() {
   const [page, setPage] = useState(1);
   const [customAmount, setCustomAmount] = useState('');
-  const [selectedAmount, setSelectedAmount] = useState(null);
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
 
   const { data: wallet, isLoading: walletLoading } = useWallet();
   const { data: txData, isLoading: txLoading } = useWalletTransactions(page);
@@ -66,7 +66,7 @@ export default function WalletPage() {
       name: order.name,
       description: order.description,
       order_id: order.razorpayOrderId,
-      handler: async (response) => {
+      handler: async (response: any) => {
         await verifyRecharge.mutateAsync({
           amount,
           razorpayOrderId: order.razorpayOrderId,
@@ -90,7 +90,7 @@ export default function WalletPage() {
       <h2 className="text-2xl font-bold ml-1">Wallet</h2>
 
       {/* Balance Card */}
-      <ClayCard className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-center py-8">
+      <ClayCard className="bg-linear-to-br from-primary to-primary/80 text-primary-foreground text-center py-8">
         <div className="flex items-center justify-center gap-2 mb-2">
           <Wallet className="w-5 h-5 opacity-80" />
           <span className="text-sm opacity-80 font-medium">Available Balance</span>
@@ -186,7 +186,7 @@ export default function WalletPage() {
                     })}
                   </p>
                 </div>
-                <span className={`font-bold text-sm flex-shrink-0
+                <span className={`font-bold text-sm shrink-0
                   ${tx.type === 'CREDIT' ? 'text-green-600' : 'text-red-500'}`}>
                   {tx.type === 'CREDIT' ? '+' : '-'}₹{Number(tx.amount)}
                 </span>

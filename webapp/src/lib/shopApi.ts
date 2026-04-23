@@ -167,14 +167,14 @@ export const useWalletTransactions = (page = 1) =>
 
 export const useCreateRechargeOrder = () =>
   useMutation({
-    mutationFn: (amount) =>
+    mutationFn: (amount: number) =>
       api.post('/payments/wallet/create-recharge', { amount }).then((r) => r.data),
   });
 
 export const useVerifyWalletRecharge = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) =>
+    mutationFn: (data: any) =>
       api.post('/payments/wallet/verify-recharge', data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wallet'] });
@@ -206,10 +206,10 @@ export const useAddAddress = () => {
 // PAYMENTS (Razorpay order checkout)
 // ─────────────────────────────────────────────
 
-export const createRazorpayOrder = (orderId) =>
+export const createRazorpayOrder = (orderId: string) =>
   api.post(`/payments/razorpay/create/${orderId}`).then((r) => r.data);
 
-export const verifyRazorpayPayment = (data) =>
+export const verifyRazorpayPayment = (data: any) =>
   api.post('/payments/razorpay/verify', data).then((r) => r.data);
 
 // ─────────────────────────────────────────────
