@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
+  --font-sans: 'Outfit', sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+}
+
+@layer base {
+  :root {
+    --background: #F1F5F9;
+    --foreground: #0f172a;
+    --card: #E6EDF5;
+    --card-foreground: #0f172a;
+    --primary: #4F8CFF;
+    --primary-foreground: #ffffff;
+    --muted: #e2e8f0;
+    --muted-foreground: #64748b;
+  }
+
+  .dark {
+    --background: #0f172a;
+    --foreground: #f8fafc;
+    --card: #1e293b;
+    --card-foreground: #f8fafc;
+    --primary: #4F8CFF;
+    --primary-foreground: #ffffff;
+    --muted: #334155;
+    --muted-foreground: #94a3b8;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+/* Claymorphism Core Utilities */
+.clay-card {
+  @apply bg-card rounded-2xl p-6 transition-all;
+  box-shadow: 6px 6px 12px #d1d9e6,-6px -6px 12px #ffffff;
+}
+
+.dark .clay-card {
+  box-shadow: 6px 6px 12px #0a0b10,-6px -6px 12px #1e202d;
+}
+
+.clay-btn {
+  @apply bg-primary text-primary-foreground font-medium rounded-full px-6 py-2 transition-all active:scale-95;
+  box-shadow: 4px 4px 8px #d1d9e6,-4px -4px 8px #ffffff;
+}
+
+.clay-btn:active {
+  box-shadow: inset 4px 4px 8px rgba(0,0,0,0.1),inset -4px -4px 8px rgba(255,255,255,0.7);
+}
+
+.dark .clay-btn {
+  box-shadow: 4px 4px 8px #0a0b10,-4px -4px 8px #1e202d;
+}
+
+.dark .clay-btn:active {
+  box-shadow: inset 4px 4px 8px rgba(0,0,0,0.3),inset -4px -4px 8px rgba(255,255,255,0.1);
+}
+
+.clay-input {
+  @apply bg-background rounded-xl px-4 py-3 outline-none transition-all placeholder:text-muted-foreground;
+  box-shadow: inset 4px 4px 8px #d1d9e6,inset -4px -4px 8px #ffffff;
+}
+
+.clay-input:focus {
+  @apply ring-2 ring-primary/20;
+}
+
+.dark .clay-input {
+  box-shadow: inset 4px 4px 8px #0a0b10,inset -4px -4px 8px #1e202d;
+}

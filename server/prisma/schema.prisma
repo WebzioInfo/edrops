@@ -1,0 +1,724 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  DISTRIBUTOR
+  DELIVERY_PARTNER
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  ASSIGNED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  FAILED
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  WALLET
+  RAZORPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum DiscountType {
+  FLAT
+  PERCENTAGE
+}
+
+enum ReferenceType {
+  ORDER
+  SUBSCRIPTION
+  TOPUP
+}
+
+enum TransactionStatus {
+  SUCCESS
+  FAILED
+  PENDING
+}
+
+enum StockMovementType {
+  INBOUND
+  OUTBOUND
+  ADJUSTMENT
+  DAMAGE
+  RETURN
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  PENDING_PAYMENT
+  CANCELLED
+  EXPIRED
+}
+
+enum OrderType {
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+enum SubscriptionFrequency {
+  DAILY
+  ALTERNATE_DAYS
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum JarStatus {
+  WITH_CUSTOMER
+  IN_GODOWN
+  DAMAGED
+  LOST
+}
+
+enum DeliveryAssignmentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SettlementStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ─────────────────────────────────────────────
+// Core: Users & Addresses
+// ─────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(cuid())
+  phone          String    @unique
+  email          String?   @unique
+  name           String
+  role           Role
+  password       String
+  isActive       Boolean   @default(true)
+  jarsHeld       Int       @default(0)
+  depositBalance Decimal   @default(0) @db.Decimal(10, 2)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  addresses      Address[]
+  orders         Order[]
+  wallet         Wallet?
+  subscriptions  Subscription[]
+  supportTickets SupportTicket[]
+  transactions   Transaction[]
+  promoUsages    PromoUsage[]
+
+  // Role-specific relations
+  distributor     Distributor?
+  deliveryPartner DeliveryPartner?
+
+  @@index([phone])
+  @@index([role])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Address {
+  id        String    @id @default(cuid())
+  userId    String
+  label     String    @default("Home")
+  line1     String
+  line2     String?
+  city      String
+  district  String
+  state     String    @default("Kerala")
+  pincode   String
+  landmark  String?
+  latitude  Float?
+  longitude Float?
+  isDefault Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user   User    @relation(fields: [userId], references: [id])
+  orders Order[]
+
+  @@index([userId])
+  @@index([pincode])
+  @@map("addresses")
+}
+
+// ─────────────────────────────────────────────
+// Products & Brands
+// ─────────────────────────────────────────────
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  logo        String?
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  products Product[]
+
+  @@map("brands")
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  brandId     String
+  name        String
+  description String?
+  sku         String    @unique
+  price       Decimal   @db.Decimal(10, 2)
+  deposit     Decimal   @default(0) @db.Decimal(10, 2)
+  imageUrl    String?
+  weightLitre Float?
+  isJar       Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  brand             Brand              @relation(fields: [brandId], references: [id])
+  orderItems        OrderItem[]
+  subscriptionItems SubscriptionItem[]
+  inventoryItems    Inventory[]
+
+  @@index([brandId])
+  @@index([sku])
+  @@map("products")
+}
+
+// ─────────────────────────────────────────────
+// Orders
+// ─────────────────────────────────────────────
+
+model Order {
+  id                String        @id @default(cuid())
+  userId            String
+  addressId         String
+  subscriptionId    String?
+  type              OrderType     @default(ONE_TIME)
+  routeId           String?
+  distributorId     String?
+  deliveryPartnerId String?
+  batchId           String?
+  status            OrderStatus   @default(PENDING)
+  totalAmount       Decimal       @db.Decimal(10, 2)
+  depositAmount     Decimal       @default(0) @db.Decimal(10, 2)
+  discountAmount    Decimal       @default(0) @db.Decimal(10, 2)
+  payableAmount     Decimal       @db.Decimal(10, 2)
+  paymentMethod     PaymentMethod @default(CASH)
+  paymentStatus     PaymentStatus @default(PENDING)
+  codCollected      Decimal?      @db.Decimal(10, 2)
+  proofUrl          String?
+  jarsReturned      Int           @default(0)
+  notes             String?
+  deliveredAt       DateTime?
+  scheduledAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+
+  user            User             @relation(fields: [userId], references: [id])
+  address         Address          @relation(fields: [addressId], references: [id])
+  subscription    Subscription?    @relation(fields: [subscriptionId], references: [id])
+  route           Route?           @relation(fields: [routeId], references: [id])
+  distributor     Distributor?     @relation(fields: [distributorId], references: [id])
+  deliveryPartner DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
+  batch           OrderBatch?      @relation(fields: [batchId], references: [id])
+  items           OrderItem[]
+  payment         Payment?
+  jarLifecycles   JarLifecycle[]
+  promoUsages     PromoUsage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([status, scheduledAt])
+  @@index([routeId])
+  @@index([distributorId])
+  @@index([deliveryPartnerId])
+  @@index([scheduledAt])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+  deposit    Decimal @default(0) @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────
+// Subscriptions
+// ─────────────────────────────────────────────
+
+model Subscription {
+  id               String                @id @default(cuid())
+  userId           String
+  status           SubscriptionStatus    @default(ACTIVE)
+  frequency        SubscriptionFrequency @default(DAILY)
+  startDate        DateTime
+  endDate          DateTime?
+  nextDeliveryDate DateTime?
+  skipDates        String[]              @default([])
+  pausedAt         DateTime?
+  resumedAt        DateTime?
+  totalAmount      Decimal               @db.Decimal(10, 2)
+  notes            String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  deletedAt        DateTime?
+
+  user     User                  @relation(fields: [userId], references: [id])
+  items    SubscriptionItem[]
+  schedule SubscriptionSchedule?
+  orders   Order[]
+  promoUsages PromoUsage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([nextDeliveryDate])
+  @@index([userId, status, nextDeliveryDate])
+  @@index([status, nextDeliveryDate])
+  @@map("subscriptions")
+}
+
+model SubscriptionItem {
+  id             String  @id @default(cuid())
+  subscriptionId String
+  productId      String
+  quantity       Int
+  unitPrice      Decimal @db.Decimal(10, 2)
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id])
+
+  @@index([subscriptionId])
+  @@map("subscription_items")
+}
+
+model SubscriptionSchedule {
+  id             String     @id @default(cuid())
+  subscriptionId String     @unique
+  customDays     Int[]      @default([])
+  skipDates      DateTime[] @default([])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("subscription_schedules")
+}
+
+// ─────────────────────────────────────────────
+// Routes & Logistics
+// ─────────────────────────────────────────────
+
+model Route {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  area        String
+  district    String
+  pincodes    String[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  orders           Order[]
+  distributors     Distributor[]
+  deliveryPartners DeliveryPartner[]
+  orderBatches     OrderBatch[]
+
+  @@index([district])
+  @@map("routes")
+}
+
+model Distributor {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  routeId        String?
+  commissionRate Decimal   @default(10) @db.Decimal(5, 2)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  user              User               @relation(fields: [userId], references: [id])
+  route             Route?             @relation(fields: [routeId], references: [id])
+  orders            Order[]
+  deliveryPartners  DeliveryPartner[]
+  inventoryRequests InventoryRequest[]
+  settlements       Settlement[]
+
+  @@index([routeId])
+  @@map("distributors")
+}
+
+model DeliveryPartner {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  distributorId String?
+  routeId       String?
+  vehicleType   String?
+  licenseNumber String?
+  isFreelance   Boolean   @default(false)
+  isAvailable   Boolean   @default(true)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  user        User         @relation(fields: [userId], references: [id])
+  distributor Distributor? @relation(fields: [distributorId], references: [id])
+  route       Route?       @relation(fields: [routeId], references: [id])
+  orders      Order[]
+  settlements Settlement[]
+
+  @@index([distributorId])
+  @@index([routeId])
+  @@map("delivery_partners")
+}
+
+// ─────────────────────────────────────────────
+// Godown (Warehouse) & Inventory
+// ─────────────────────────────────────────────
+
+model Godown {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  district  String
+  managerId String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inventories Inventory[]
+  batches     Batch[]
+
+  @@map("godowns")
+}
+
+model Inventory {
+  id        String   @id @default(cuid())
+  godownId  String
+  productId String
+  quantity  Int      @default(0)
+  minStock  Int      @default(10)
+  updatedAt DateTime @updatedAt
+
+  godown  Godown  @relation(fields: [godownId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([godownId, productId])
+  @@index([godownId])
+  @@index([productId])
+  @@map("inventories")
+}
+
+model Batch {
+  id          String    @id @default(cuid())
+  godownId    String
+  batchNumber String    @unique
+  supplier    String?
+  quantity    Int
+  costPerUnit Decimal   @db.Decimal(10, 2)
+  receivedAt  DateTime  @default(now())
+  expiryDate  DateTime?
+  notes       String?
+
+  godown         Godown          @relation(fields: [godownId], references: [id])
+  stockMovements StockMovement[]
+
+  @@index([godownId])
+  @@map("batches")
+}
+
+model StockMovement {
+  id          String            @id @default(cuid())
+  batchId     String?
+  productId   String?
+  godownId    String?
+  type        StockMovementType
+  quantity    Int
+  reason      String?
+  performedBy String?
+  createdAt   DateTime          @default(now())
+
+  batch Batch? @relation(fields: [batchId], references: [id])
+
+  @@index([batchId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+model InventoryRequest {
+  id            String   @id @default(cuid())
+  distributorId String
+  productId     String
+  quantity      Int
+  status        String   @default("PENDING")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  distributor Distributor @relation(fields: [distributorId], references: [id])
+
+  @@index([distributorId])
+  @@map("inventory_requests")
+}
+
+// ─────────────────────────────────────────────
+// Jar Lifecycle (Deposit Tracking)
+// ─────────────────────────────────────────────
+
+model Jar {
+  id           String    @id @default(cuid())
+  serialNumber String    @unique
+  productId    String?
+  status       JarStatus @default(IN_GODOWN)
+  customerId   String?
+  depositPaid  Decimal   @default(0) @db.Decimal(10, 2)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lifecycles JarLifecycle[]
+
+  @@index([status])
+  @@index([customerId])
+  @@map("jars")
+}
+
+model JarLifecycle {
+  id          String   @id @default(cuid())
+  jarId       String?
+  orderId     String?
+  customerId  String
+  action      String // DELIVERED, COLLECTED, DAMAGED, LOST
+  quantity    Int      @default(1)
+  deposit     Decimal  @default(0) @db.Decimal(10, 2)
+  penalty     Decimal  @default(0) @db.Decimal(10, 2)
+  performedBy String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  jar   Jar?   @relation(fields: [jarId], references: [id])
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@index([customerId])
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("jar_lifecycles")
+}
+
+model OrderBatch {
+  id            String   @id @default(cuid())
+  routeId       String
+  scheduledDate DateTime
+  deliverySlot  String // e.g., "6AM-10AM"
+  status        String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  route  Route   @relation(fields: [routeId], references: [id])
+  orders Order[]
+
+  @@index([routeId])
+  @@index([scheduledDate])
+  @@map("order_batches")
+}
+
+model Settlement {
+  id            String           @id @default(cuid())
+  partnerId     String
+  distributorId String
+  amount        Decimal          @db.Decimal(10, 2)
+  status        SettlementStatus @default(PENDING)
+  notes         String?
+  verifiedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  deliveryPartner DeliveryPartner @relation(fields: [partnerId], references: [id])
+  distributor     Distributor     @relation(fields: [distributorId], references: [id])
+
+  @@index([partnerId])
+  @@index([distributorId])
+  @@map("settlements")
+}
+
+// ─────────────────────────────────────────────
+// Payments & Wallet
+// ─────────────────────────────────────────────
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  amount            Decimal       @db.Decimal(10, 2)
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([status])
+  @@map("payments")
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Decimal  @default(0) @db.Decimal(10, 2)
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+
+  @@map("wallets")
+}
+
+model Transaction {
+  id             String          @id @default(cuid())
+  walletId       String
+  userId         String
+  type           TransactionType
+  amount         Decimal         @db.Decimal(10, 2)
+  description    String?
+  referenceType  ReferenceType   @default(ORDER)
+  referenceId    String?
+  status         TransactionStatus @default(SUCCESS)
+  closingBalance Decimal         @default(0) @db.Decimal(10, 2)
+  createdAt      DateTime        @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+// ─────────────────────────────────────────────
+// CRM – Support Tickets
+// ─────────────────────────────────────────────
+
+model SupportTicket {
+  id          String       @id @default(cuid())
+  userId      String
+  subject     String
+  description String
+  status      TicketStatus @default(OPEN)
+  priority    String       @default("MEDIUM")
+  resolvedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+// ─────────────────────────────────────────────
+// Promo Engine
+// ─────────────────────────────────────────────
+
+model PromoCode {
+  id                String       @id @default(cuid())
+  code              String       @unique
+  discountType      DiscountType
+  discountValue     Decimal      @db.Decimal(10, 2)
+  minOrderAmount    Decimal      @default(0) @db.Decimal(10, 2)
+  maxDiscountAmount Decimal?     @db.Decimal(10, 2)
+  usageLimit        Int?
+  usagePerUser      Int          @default(1)
+  usedCount         Int          @default(0)
+  expiryDate        DateTime?
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  usages PromoUsage[]
+
+  @@index([code])
+  @@map("promo_codes")
+}
+
+model PromoUsage {
+  id               String   @id @default(cuid())
+  userId           String
+  promoId          String
+  orderId          String?
+  subscriptionId   String?
+  discountApplied  Decimal  @db.Decimal(10, 2)
+  usedAt           DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id])
+  promoCode    PromoCode     @relation(fields: [promoId], references: [id])
+  order        Order?        @relation(fields: [orderId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([userId, promoId])
+  @@map("promo_usages")
+}
