@@ -1,0 +1,607 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+  DELIVERY_PARTNER
+  CUSTOMER
+}
+
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  MANAGE
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  IN_TRANSIT
+  DELIVERED
+  SKIPPED
+  FAILED
+  RESCHEDULED
+}
+
+enum TransactionType {
+  RECHARGE
+  CONSUMPTION
+  REFUND
+  BONUS
+  DEPOSIT_PAYMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  DELIVERY_UPDATE
+  LOW_BALANCE
+  RECHARGE_SUCCESS
+  PROMOTION
+  SYSTEM
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+enum WalletTransactionType {
+  TOP_UP
+  DEDUCTION
+  REFUND
+  BONUS
+  TRANSFER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum PromoType {
+  FIXED_DISCOUNT
+  PERCENTAGE
+  FREE_JARS
+  WALLET_BONUS
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+model User {
+  id                   String    @id @default(uuid())
+  email                String?   @unique
+  passwordHash         String
+  role                 UserRole  @default(CUSTOMER)
+  firstName            String
+  lastName             String
+  phone                String    @unique
+  phoneVerified        Boolean   @default(false)
+  phoneVerifiedAt      DateTime?
+  isActive             Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+
+  customer        Customer?
+  staff           Staff?
+  admin           Admin?
+  deliveryPartner DeliveryPartner?
+
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  ticketReplies TicketReply[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  permissions Permission[]
+}
+
+model Permission {
+  id       String           @id @default(uuid())
+  roleId   String
+  role     Role             @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  resource String // e.g., 'DELIVERY', 'CUSTOMER', 'JAR_PACK'
+  action   PermissionAction
+}
+
+model Customer {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referralCode String?   @unique
+  referredById String?
+  referredBy   Customer? @relation("ReferralRelation", fields: [referredById], references: [id])
+  referrals    Customer[] @relation("ReferralRelation")
+
+  addresses        Address[]
+  transactions     Transaction[]
+  deliveries       Delivery[]
+  packagePurchases PackagePurchase[]
+
+  wallet           Wallet?
+  jarBalance       JarBalance?
+  jarDeposit       JarDeposit?
+  jarOwnership     JarOwnership?
+  deliverySchedule DeliverySchedule?
+
+  payments         Payment[]
+  promoRedemptions PromoRedemption[]
+  rewardsGiven     ReferralReward[]     @relation("ReferralRewardProvider")
+  rewardsReceived  ReferralReward[]     @relation("ReferralRewardReceiver")
+  supportTickets   SupportTicket[]
+  healthMetrics    CustomerHealth?
+  forecast         ConsumptionForecast?
+
+  @@index([userId])
+}
+
+model Staff {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branchId     String?
+  branch       Branch? @relation(fields: [branchId], references: [id])
+  vehicleType  String?
+  vehiclePlate String?
+
+  confirmedReports DeliveryReport[]
+}
+
+model DeliveryPartner {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleType  String?
+  vehiclePlate String?
+
+  assignments DeliveryAssignment[]
+}
+
+model Admin {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level  Int    @default(1)
+}
+
+model Branch {
+  id          String  @id @default(uuid())
+  name        String
+  location    String
+  contactInfo String?
+  staff       Staff[]
+}
+
+model Address {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label      String? // e.g., 'Home', 'Office'
+  street     String
+  city       String
+  state      String
+  zipCode    String
+  country    String   @default("India")
+  isDefault  Boolean  @default(false)
+  latitude   Float?
+  longitude  Float?
+
+  deliveries Delivery[]
+}
+
+model Package {
+  id              String    @id @default(uuid())
+  name            String
+  description     String?
+  jarCount        Int
+  price           Float
+  originalPrice   Float?
+  discountPercent Float?
+  offerLabel      String?
+  isActive        Boolean   @default(true)
+  displayOrder    Int       @default(0)
+  packageColor    String?   // e.g. "blue", "emerald", "amber"
+  packageBadge    String?   // e.g. "Best Value", "Starter Pack"
+  startDate       DateTime?
+  endDate         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  purchases   PackagePurchase[]
+
+  @@index([isActive])
+}
+
+model PackagePurchase {
+  id            String        @id @default(uuid())
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  packageId     String
+  package       Package       @relation(fields: [packageId], references: [id])
+  amount        Float
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentId     String?       // Stripe/Razorpay reference
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([paymentId])
+  @@index([customerId])
+  @@index([paymentStatus])
+}
+
+model DeliverySchedule {
+  id         String                 @id @default(uuid())
+  customerId String                 @unique
+  customer   Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  isActive   Boolean                @default(true)
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+  rules      DeliveryScheduleRule[]
+
+  @@index([customerId])
+}
+
+model DeliveryScheduleRule {
+  id                 String           @id @default(uuid())
+  deliveryScheduleId String
+  deliverySchedule   DeliverySchedule @relation(fields: [deliveryScheduleId], references: [id], onDelete: Cascade)
+  type               String // "WEEKLY" or "INTERVAL"
+  dayOfWeek          Int? // 0=Sunday, 1=Monday... for WEEKLY
+  quantity           Int
+  intervalDays       Int? // For INTERVAL (e.g. 3 for every 3 days)
+  customNotes        String? // For CUSTOM rules
+  startDate          DateTime         @default(now())
+}
+
+model Delivery {
+  id               String              @id @default(uuid())
+  customerId       String
+  customer         Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  addressId        String
+  address          Address             @relation(fields: [addressId], references: [id])
+  scheduledFor     DateTime            @db.Date
+  requiredQuantity Int
+  status           DeliveryStatus      @default(PENDING)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  assignment       DeliveryAssignment?
+  report           DeliveryReport?
+
+  @@unique([customerId, scheduledFor])
+  @@index([status])
+}
+
+model DeliveryAssignment {
+  id                String          @id @default(uuid())
+  deliveryId        String          @unique
+  delivery          Delivery        @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryPartnerId String
+  deliveryPartner   DeliveryPartner @relation(fields: [deliveryPartnerId], references: [id])
+  assignedAt        DateTime        @default(now())
+}
+
+model DeliveryReport {
+  id                  String    @id @default(uuid())
+  deliveryId          String    @unique
+  delivery            Delivery  @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  partnerDeliveredQty Int
+  partnerEmptyCollected Int
+  partnerNotes        String?
+  partnerSubmittedAt  DateTime  @default(now())
+  confirmedDeliveredQty Int?
+  confirmedEmptyCollected Int?
+  confirmedDamagedQty   Int?     @default(0)
+  staffNotes          String?
+  confirmedAt         DateTime?
+  confirmedById       String?
+  confirmedBy         Staff?    @relation(fields: [confirmedById], references: [id])
+}
+
+model JarBalance {
+  id             String   @id @default(uuid())
+  customerId     String   @unique
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  availableJars  Int      @default(0)
+  totalPurchased Int      @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model JarDeposit {
+  id            String   @id @default(uuid())
+  customerId    String   @unique
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  maxActiveJars Int      @default(0)
+  depositPaid   Float    @default(0.0)
+  depositDue    Float    @default(0.0)
+  updatedAt     DateTime @updatedAt
+}
+
+model JarOwnership {
+  id              String   @id @default(uuid())
+  customerId      String   @unique
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  companyJarsHeld Int      @default(0)
+  ownedJars       Int      @default(0)
+  updatedAt       DateTime @updatedAt
+}
+
+model Transaction {
+  id            String          @id @default(uuid())
+  customerId    String
+  customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type          TransactionType
+  amountJars    Int             @default(0)
+  amountMoney   Float           @default(0.0)
+  balanceBefore Int
+  balanceAfter  Int
+  referenceId   String?
+  description   String?
+  createdAt     DateTime        @default(now())
+
+  @@index([customerId])
+  @@index([type])
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  status    NotificationStatus @default(UNREAD)
+  link      String?
+  createdAt DateTime           @default(now())
+
+  @@index([userId])
+}
+
+model Settings {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  dateRange   String?
+  data        Json
+  generatedAt DateTime @default(now())
+}
+
+model AnalyticsSnapshot {
+  id                  String   @id @default(uuid())
+  date                DateTime @db.Date
+  totalCustomers      Int
+  activeSchedules     Int      @default(0)
+  totalJarsDelivered  Int
+  totalRevenue        Float
+  createdAt           DateTime @default(now())
+
+  @@unique([date])
+}
+
+model Wallet {
+  id         String              @id @default(uuid())
+  customerId String              @unique
+  customer   Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  balance    Float               @default(0.0)
+  currency   String              @default("INR")
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id            String                @id @default(uuid())
+  walletId      String
+  wallet        Wallet                @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type          WalletTransactionType
+  amount        Float
+  balanceBefore Float
+  balanceAfter  Float
+  referenceId   String?
+  description   String?
+  createdAt     DateTime              @default(now())
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  customerId  String
+  customer    Customer      @relation(fields: [customerId], references: [id])
+  amount      Float
+  currency    String        @default("INR")
+  status      PaymentStatus @default(PENDING)
+  provider    String        @default("RAZORPAY")
+  providerId  String?
+  receiptId   String?
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  logs        PaymentLog[]
+}
+
+model PaymentLog {
+  id        String   @id @default(uuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  status    String
+  payload   Json?
+  createdAt DateTime @default(now())
+}
+
+model PromoCampaign {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  isActive    Boolean     @default(true)
+  codes       PromoCode[]
+  createdAt   DateTime    @default(now())
+}
+
+model PromoCode {
+  id            String            @id @default(uuid())
+  code          String            @unique
+  campaignId    String
+  campaign      PromoCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  type          PromoType
+  discountValue Float?
+  bonusJars     Int?
+  maxUses       Int?
+  currentUses   Int               @default(0)
+  isActive      Boolean           @default(true)
+  redemptions   PromoRedemption[]
+}
+
+model PromoRedemption {
+  id          String    @id @default(uuid())
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  redeemedAt  DateTime  @default(now())
+}
+
+model ReferralTier {
+  id            String  @id @default(uuid())
+  name          String
+  requiredCount Int
+  bonusJars     Int     @default(0)
+  walletBonus   Float   @default(0.0)
+  isActive      Boolean @default(true)
+}
+
+model ReferralReward {
+  id          String   @id @default(uuid())
+  referrerId  String
+  referrer    Customer @relation("ReferralRewardProvider", fields: [referrerId], references: [id])
+  refereeId   String
+  referee     Customer @relation("ReferralRewardReceiver", fields: [refereeId], references: [id])
+  rewardGiven Boolean  @default(false)
+  jarsAdded   Int      @default(0)
+  walletAdded Float    @default(0.0)
+  createdAt   DateTime @default(now())
+}
+
+model SupportTicket {
+  id          String         @id @default(uuid())
+  customerId  String
+  customer    Customer       @relation(fields: [customerId], references: [id])
+  subject     String
+  description String
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  replies     TicketReply[]
+}
+
+model TicketReply {
+  id         String        @id @default(uuid())
+  ticketId   String
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User          @relation(fields: [userId], references: [id])
+  message    String
+  isInternal Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+}
+
+model CustomerHealth {
+  id             String   @id @default(uuid())
+  customerId     String   @unique
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  healthScore    Int      @default(100)
+  retentionRisk  String   @default("LOW")
+  lastCalculated DateTime @default(now())
+}
+
+model ConsumptionForecast {
+  id                      String    @id @default(uuid())
+  customerId              String    @unique
+  customer                Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  avgJarsPerWeek          Float     @default(0.0)
+  estimatedDepletionDate  DateTime?
+  nextRecommendedRecharge DateTime?
+  updatedAt               DateTime  @updatedAt
+}
+
+model Inventory {
+  id          String   @id @default(uuid())
+  filledJars  Int      @default(0)
+  emptyJars   Int      @default(0)
+  damagedJars Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model InventoryLog {
+  id          String   @id @default(uuid())
+  action      String   // "PRODUCTION", "DELIVERY", "RETURN", "DAMAGE_REMOVAL"
+  filledQty   Int      @default(0)
+  emptyQty    Int      @default(0)
+  damagedQty  Int      @default(0)
+  referenceId String?  // ID of the delivery or purchase
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -1,0 +1,44 @@
+---
+export interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  canonicalURL: string;
+}
+
+const { title, description, image = '/og-image.png', canonicalURL } = Astro.props;
+---
+
+<!-- Global Metadata -->
+<title>{title} | Edrops</title>
+<meta name="title" content={`${title} | Edrops`} />
+<meta name="description" content={description} />
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content={canonicalURL} />
+<meta property="og:title" content={`${title} | Edrops`} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={new URL(image, Astro.site || 'https://edrops.in')} />
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image" />
+<meta property="twitter:url" content={canonicalURL} />
+<meta property="twitter:title" content={`${title} | Edrops`} />
+<meta property="twitter:description" content={description} />
+<meta property="twitter:image" content={new URL(image, Astro.site || 'https://edrops.in')} />
+
+<!-- Schema.org for Google -->
+<script type="application/ld+json" set:html={JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Edrops",
+  "operatingSystem": "Web",
+  "applicationCategory": "BusinessApplication",
+  "description": "Smart Water Delivery Subscription Platform",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+})} />

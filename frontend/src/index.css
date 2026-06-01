@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-edrops-blue: #2D79A8;
+  --color-edrops-orange: #F69C14;
+  --color-edrops-ocean: #245361;
+  --color-edrops-light: #BBDFF2;
+  --color-edrops-sky: #7EBFE4;
+  --color-edrops-aqua: #33BFD0;
+  --color-edrops-primary: #2D79A8;
+  
+  --font-sans: 'Outfit', sans-serif;
+
+  --color-background: #ffffff;
+  --color-foreground: #245361; /* Deep Ocean for text contrast */
+  --color-border: #BBDFF2;
+  --color-input: #BBDFF2;
+  --color-ring: #33BFD0;
+  
+  --color-primary: #2D79A8;
+  --color-primary-foreground: #ffffff;
+  
+  --color-secondary: #BBDFF2;
+  --color-secondary-foreground: #245361;
+  
+  --color-accent: #F69C14;
+  --color-accent-foreground: #ffffff;
+  
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  
+  --color-popover: #ffffff;
+  --color-popover-foreground: #245361;
+  
+  --color-card: #ffffff;
+  --color-card-foreground: #245361;
+}
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #245361;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+/* Claymorphism Core Utilities */
+.clay-card {
+  @apply rounded-2xl p-6 transition-all;
+  box-shadow: 6px 6px 12px #d1d9e6,-6px -6px 12px #ffffff;
+}
+
+.clay-card:not([class*="bg-"]) {
+  @apply bg-card;
+}
+
+.dark .clay-card {
+  box-shadow: 6px 6px 12px #0a0b10,-6px -6px 12px #1e202d;
+}
+
+.clay-btn {
+  @apply bg-primary text-primary-foreground font-medium rounded-full px-6 py-2 transition-all active:scale-95 flex items-center justify-center gap-2;
+  box-shadow: 4px 4px 8px #d1d9e6,-4px -4px 8px #ffffff;
+}
+
+.clay-btn:active {
+  box-shadow: inset 4px 4px 8px rgba(0,0,0,0.1),inset -4px -4px 8px rgba(255,255,255,0.7);
+}
+
+.dark .clay-btn {
+  box-shadow: 4px 4px 8px #0a0b10,-4px -4px 8px #1e202d;
+}
+
+.dark .clay-btn:active {
+  box-shadow: inset 4px 4px 8px rgba(0,0,0,0.3),inset -4px -4px 8px rgba(255,255,255,0.1);
+}
+
+.clay-input {
+  @apply bg-background rounded-xl px-4 py-3 outline-none transition-all placeholder:text-muted-foreground;
+  box-shadow: inset 4px 4px 8px #d1d9e6,inset -4px -4px 8px #ffffff;
+}
+
+.clay-input:focus {
+  @apply ring-2 ring-primary/20;
+}
+
+.dark .clay-input {
+  box-shadow: inset 4px 4px 8px #0a0b10,inset -4px -4px 8px #1e202d;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.water-gradient {
+  background: linear-gradient(135deg, var(--color-edrops-aqua) 0%, var(--color-edrops-blue) 100%);
+}
+
+.water-shell {
+  background: linear-gradient(135deg, rgba(51, 191, 208, 0.12) 0%, rgba(45, 121, 168, 0.12) 100%);
+  border: 1px solid rgba(187, 223, 242, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 20px 40px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(45, 121, 168, 0.05);
+}
+
+.sun-gradient {
+  background: linear-gradient(135deg, var(--color-edrops-orange) 0%, #d97706 100%);
+}
+
+.ocean-gradient {
+  background: linear-gradient(135deg, var(--color-edrops-ocean) 0%, var(--color-edrops-blue) 100%);
+}
+
+.wave-mask {
+  background: var(--color-edrops-light);
+  mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1440 320' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='black' fill-opacity='1' d='M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+  mask-size: cover;
+  mask-repeat: no-repeat;
+  mask-position: bottom;
+}

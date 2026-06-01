@@ -1,0 +1,23 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({ params: { slug: post.id.replace(/\.md$/, '') }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+<BaseLayout title={`${post.data.title} | Edrops`} description={post.data.description}>
+  <main class="mx-auto max-w-3xl px-5 py-20 text-edrops-ocean">
+    <a href="/blog" class="font-black text-edrops-primary">Edrops Blog</a>
+    <p class="mt-8 text-xs font-black uppercase tracking-[0.22em] text-edrops-primary">{post.data.category}</p>
+    <h1 class="mt-4 text-5xl font-black tracking-tight">{post.data.title}</h1>
+    <article class="mt-10 text-lg font-medium leading-9 text-edrops-ocean/70">
+      <Content />
+    </article>
+    <a href="/contact" class="mt-10 inline-flex rounded-full sun-gradient px-7 py-4 text-sm font-black text-white">Book demo</a>
+  </main>
+</BaseLayout>

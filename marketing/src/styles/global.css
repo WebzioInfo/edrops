@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme {
+  --color-edrops-primary: #2D79A8;
+  --color-edrops-primary-hover: #26668e;
+  --color-edrops-primary-active: #1f5373;
+  --color-edrops-secondary: #F69C14;
+  --color-edrops-secondary-hover: #db8910;
+  --color-edrops-secondary-active: #b5710d;
+  --color-edrops-ocean: #245361;
+  --color-edrops-light: #BBDFF2;
+  --color-edrops-sky: #7EBFE4;
+  --color-edrops-aqua: #33BFD0;
+  --color-edrops-surface: #FFFFFF;
+  --color-edrops-surface-alt: #F4FAFE;
+  --color-edrops-border: #BBDFF2;
+  --color-edrops-text: #245361;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, rgba(187, 223, 242, 0.44), transparent 30rem),
+    radial-gradient(circle at 90% 10%, rgba(51, 191, 208, 0.18), transparent 26rem),
+    linear-gradient(180deg, #f8fdff 0%, #edf8fd 45%, #ffffff 100%);
+}
+
+@layer utilities {
+  .glass-effect {
+    @apply bg-white/70 backdrop-blur-2xl border border-white/70;
+    box-shadow: 0 24px 80px rgba(36, 83, 97, 0.12);
+  }
+
+  .premium-card {
+    @apply bg-white/75 backdrop-blur-xl border border-white/80 rounded-[2rem];
+    box-shadow: 0 18px 50px rgba(45, 121, 168, 0.14);
+  }
+
+  .water-shell {
+    background:
+      radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.92), transparent 18rem),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(235, 248, 253, 0.68));
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    box-shadow: 0 24px 80px rgba(36, 83, 97, 0.12);
+  }
+
+  .water-gradient {
+    background: linear-gradient(135deg, #2D79A8 0%, #33BFD0 48%, #BBDFF2 100%);
+  }
+
+  .ocean-gradient {
+    background: linear-gradient(135deg, #245361 0%, #2D79A8 58%, #33BFD0 100%);
+  }
+
+  .sun-gradient {
+    background: linear-gradient(135deg, #F69C14 0%, #ffc567 100%);
+  }
+
+  .wave-mask {
+    background-image:
+      radial-gradient(ellipse at 20% 10%, rgba(255, 255, 255, 0.65) 0 18%, transparent 19%),
+      linear-gradient(135deg, rgba(45, 121, 168, 0.1), rgba(51, 191, 208, 0.08));
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #245361 0%, #2D79A8 58%, #33BFD0 100%);
+  }
+}
