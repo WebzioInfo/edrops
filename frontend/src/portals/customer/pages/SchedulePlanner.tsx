@@ -64,7 +64,7 @@ export default function SchedulePlanner() {
               const qtys: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
               rules.forEach(r => {
                 if (r.dayOfWeek !== undefined && r.dayOfWeek !== null) {
-                  qtys[r.dayOfWeek] = r.quantity;
+                  qtys[r.dayOfWeek] = r.quantity || 0;
                 }
               });
               setWeeklyQtys(qtys);
