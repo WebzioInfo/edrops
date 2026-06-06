@@ -1,9 +1,23 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { UserRole } from '@prisma/client';
+import { Roles, RolesGuard } from '../auth/roles.guard';
 import { RoleService } from './role.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 
 @Controller('role')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles(UserRole.ADMIN)
 export class RoleController {
   constructor(private readonly roleService: RoleService) {}
 
@@ -19,16 +33,16 @@ export class RoleController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.roleService.findOne(+id);
+    return this.roleService.findOne(id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
-    return this.roleService.update(+id, updateRoleDto);
+    return this.roleService.update(id, updateRoleDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.roleService.remove(+id);
+    return this.roleService.remove(id);
   }
 }

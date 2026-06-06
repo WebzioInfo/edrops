@@ -12,7 +12,10 @@ export class ReportService {
   }
 
   findAll() {
-    return this.prisma.report.findMany({ orderBy: { generatedAt: 'desc' }, take: 100 });
+    return this.prisma.report.findMany({
+      orderBy: { generatedAt: 'desc' },
+      take: 100,
+    });
   }
 
   findOne(id: string | number) {
@@ -20,7 +23,10 @@ export class ReportService {
   }
 
   update(id: string | number, updateReportDto: UpdateReportDto) {
-    return this.prisma.report.update({ where: { id: String(id) }, data: updateReportDto as any });
+    return this.prisma.report.update({
+      where: { id: String(id) },
+      data: updateReportDto as any,
+    });
   }
 
   remove(id: string | number) {

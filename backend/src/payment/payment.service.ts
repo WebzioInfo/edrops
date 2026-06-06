@@ -1,154 +1,150 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentStatus, WalletTransactionType } from '@prisma/client';
-import Razorpay from 'razorpay';
-import * as crypto from 'crypto';
+import { PaymentStatus } from '@prisma/client';
+import { RazorpayProvider } from './providers/razorpay.provider';
 
 @Injectable()
 export class PaymentService {
-  private razorpay: any;
   private readonly logger = new Logger(PaymentService.name);
 
-  constructor(private prisma: PrismaService) {
-    this.razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID as string,
-      key_secret: process.env.RAZORPAY_SECRET as string,
-    });
-  }
+  constructor(
+    private prisma: PrismaService,
+    private razorpayProvider: RazorpayProvider,
+  ) {}
 
-  async createOrder(customerId: string, amount: number) {
-    if (!Number.isFinite(amount) || amount <= 0) {
+  async createPaymentIntent(params: {
+    customerId: string;
+    amount: number;
+    orderId?: string;
+    rechargeId?: string;
+    description?: string;
+  }) {
+    if (!Number.isFinite(params.amount) || params.amount <= 0) {
       throw new BadRequestException('Payment amount must be positive');
     }
 
     const payment = await this.prisma.payment.create({
       data: {
-        customerId,
-        amount,
-        status: PaymentStatus.PENDING,
+        customerId: params.customerId,
+        amount: params.amount,
+        orderId: params.orderId,
+        description: params.description,
+        status: PaymentStatus.CREATED,
+        provider: this.razorpayProvider.getProviderName(),
       },
     });
 
     try {
-      const order = await this.razorpay.orders.create({
-        amount: Math.round(amount * 100),
-        currency: 'INR',
-        receipt: payment.id,
+      const orderInfo = await this.razorpayProvider.createOrder({
+        amount: params.amount,
+        receiptId: payment.id,
       });
 
       await this.prisma.payment.update({
         where: { id: payment.id },
-        data: { providerId: order.id },
+        data: {
+          providerId: orderInfo.providerOrderId,
+          status: PaymentStatus.PENDING,
+        },
       });
 
-      return { orderId: order.id, paymentId: payment.id, amount: order.amount };
+      return {
+        orderId: orderInfo.providerOrderId,
+        paymentId: payment.id,
+        amount: orderInfo.amount,
+      };
     } catch (error) {
-      this.logger.error('Failed to create Razorpay order', error);
-      throw new InternalServerErrorException('Payment gateway error');
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.FAILED },
+      });
+      throw error;
     }
   }
 
-  async verifyWebhook(signature: string, payload: any) {
-    if (!signature) {
-      throw new UnauthorizedException('Missing Razorpay signature');
-    }
+  async verifyPayment(
+    payload: {
+      razorpay_order_id: string;
+      razorpay_payment_id: string;
+      razorpay_signature: string;
+    },
+    customerId?: string,
+  ) {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+      payload;
 
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET as string;
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(JSON.stringify(payload))
-      .digest('hex');
-
-    if (expectedSignature === signature) {
-      if (payload.event === 'payment.captured' || payload.event === 'order.paid') {
-        await this.processPaymentSuccess(payload.payload.payment.entity);
-      }
-      return { success: true };
-    }
-    
-    throw new UnauthorizedException('Invalid webhook signature');
-  }
-
-  async verifyPayment(customerId: string, payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = payload;
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       throw new BadRequestException('Missing signature details');
     }
 
-    const secret = process.env.RAZORPAY_SECRET as string;
-    if (!secret) {
-      throw new InternalServerErrorException('Razorpay credentials not configured');
-    }
+    const isValid = this.razorpayProvider.verifyPaymentSignature({
+      providerOrderId: razorpay_order_id,
+      providerPaymentId: razorpay_payment_id,
+      signature: razorpay_signature,
+    });
 
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(razorpay_order_id + '|' + razorpay_payment_id)
-      .digest('hex');
-
-    if (expectedSignature !== razorpay_signature) {
+    if (!isValid) {
       throw new BadRequestException('Invalid signature verification failed');
     }
 
-    await this.processPaymentSuccess({
-      order_id: razorpay_order_id,
-      id: razorpay_payment_id
-    });
-
     const payment = await this.prisma.payment.findFirst({
-      where: { providerId: razorpay_order_id }
-    });
-    return payment;
-  }
-
-  private async processPaymentSuccess(paymentEntity: any) {
-    const providerId = paymentEntity.order_id;
-    
-    const payment = await this.prisma.payment.findFirst({
-      where: { providerId }
+      where: { providerId: razorpay_order_id },
     });
 
-    if (!payment || payment.status === PaymentStatus.SUCCESS) {
-      return;
+    if (!payment) throw new BadRequestException('Payment not found');
+    if (customerId && payment.customerId !== customerId) {
+      throw new UnauthorizedException(
+        'Payment does not belong to this customer',
+      );
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.payment.update({
+    return this.prisma.$transaction(async (tx) => {
+      const existingAttempt = await tx.paymentAttempt.findFirst({
+        where: {
+          paymentId: payment.id,
+          providerId: razorpay_payment_id,
+        },
+      });
+
+      if (!existingAttempt) {
+        await tx.paymentAttempt.create({
+          data: {
+            paymentId: payment.id,
+            providerId: razorpay_payment_id,
+            status: 'SUCCESS',
+          },
+        });
+      }
+
+      const updatedPayment = await tx.payment.update({
         where: { id: payment.id },
         data: { status: PaymentStatus.SUCCESS },
       });
 
-      let wallet = await tx.wallet.findUnique({ where: { customerId: payment.customerId } });
-      if (!wallet) {
-        wallet = await tx.wallet.create({ data: { customerId: payment.customerId, balance: 0 } });
+      if (payment.orderId) {
+        await tx.order.update({
+          where: { id: payment.orderId },
+          data: { status: 'CONFIRMED', paymentStatus: PaymentStatus.SUCCESS },
+        });
       }
 
-      const balanceBefore = wallet.balance;
-      const balanceAfter = balanceBefore + payment.amount;
-
-      await tx.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: balanceAfter },
-      });
-
-      await tx.walletTransaction.create({
+      await tx.paymentAuditLog.create({
         data: {
-          walletId: wallet.id,
-          type: WalletTransactionType.TOP_UP,
-          amount: payment.amount,
-          balanceBefore,
-          balanceAfter,
-          referenceId: payment.id,
-          description: 'Wallet top-up via Razorpay',
+          paymentId: payment.id,
+          action: 'CLIENT_SIGNATURE_VERIFIED',
+          previousStatus: payment.status,
+          newStatus: PaymentStatus.SUCCESS,
+          notes: `Verified Razorpay payment ${razorpay_payment_id}`,
         },
       });
 
-      await tx.paymentLog.create({
-        data: {
-          paymentId: payment.id,
-          status: 'SUCCESS',
-          payload: paymentEntity,
-        }
-      });
+      return updatedPayment;
     });
   }
 }

@@ -25,7 +25,7 @@ export class SettingsService {
         const res = await tx.settings.upsert({
           where: { key },
           update: { value },
-          create: { key, value }
+          create: { key, value },
         });
         results.push(res);
       }
@@ -38,7 +38,10 @@ export class SettingsService {
   }
 
   findAll() {
-    return this.prisma.settings.findMany({ orderBy: { key: 'asc' }, take: 100 });
+    return this.prisma.settings.findMany({
+      orderBy: { key: 'asc' },
+      take: 100,
+    });
   }
 
   findOne(id: string | number) {
@@ -46,7 +49,10 @@ export class SettingsService {
   }
 
   update(id: string | number, updateSettingDto: UpdateSettingDto) {
-    return this.prisma.settings.update({ where: { id: String(id) }, data: updateSettingDto as any });
+    return this.prisma.settings.update({
+      where: { id: String(id) },
+      data: updateSettingDto as any,
+    });
   }
 
   remove(id: string | number) {

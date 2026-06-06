@@ -20,7 +20,8 @@ export class HealthController {
   @ApiOperation({ summary: 'Check database connection health' })
   @ApiResponse({
     status: 200,
-    description: 'Database is connected (or connected with pending migrations).',
+    description:
+      'Database is connected (or connected with pending migrations).',
     schema: {
       example: {
         status: 'healthy',
@@ -37,7 +38,8 @@ export class HealthController {
   })
   @ApiResponse({
     status: 503,
-    description: 'Database authentication failed, disconnected, or other error.',
+    description:
+      'Database authentication failed, disconnected, or other error.',
     schema: {
       example: {
         status: 'error',
@@ -87,7 +89,8 @@ export class HealthController {
           {
             status: 'error',
             database: 'authentication_failed',
-            reason: health.error ?? 'Database credentials are invalid or missing.',
+            reason:
+              health.error ?? 'Database credentials are invalid or missing.',
             fix: 'Check DATABASE_URL in backend/.env — verify host, user, and password match your Supabase project.',
             ...meta,
           },

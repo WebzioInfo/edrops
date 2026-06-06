@@ -9,7 +9,7 @@ export class InventoryService {
     let status = await this.prisma.inventory.findFirst();
     if (!status) {
       status = await this.prisma.inventory.create({
-        data: { filledJars: 0, emptyJars: 0, damagedJars: 0 }
+        data: { filledJars: 0, emptyJars: 0, damagedJars: 0 },
       });
     }
     return status;
@@ -18,35 +18,38 @@ export class InventoryService {
   async getLogs() {
     return this.prisma.inventoryLog.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 100
+      take: 100,
     });
   }
 
   async addProduction(qty: number) {
-    if (qty <= 0) throw new BadRequestException('Production quantity must be positive');
+    if (qty <= 0)
+      throw new BadRequestException('Production quantity must be positive');
 
     return this.prisma.$transaction(async (tx) => {
-      let statusRows = await tx.$queryRawUnsafe<any[]>(
-        `SELECT * FROM "Inventory" FOR UPDATE LIMIT 1`
+      const statusRows = await tx.$queryRawUnsafe<any[]>(
+        `SELECT * FROM "Inventory" FOR UPDATE LIMIT 1`,
       );
       let status = statusRows[0];
       if (!status) {
         status = await tx.inventory.create({
-          data: { filledJars: 0, emptyJars: 0, damagedJars: 0 }
+          data: { filledJars: 0, emptyJars: 0, damagedJars: 0 },
         });
       }
 
       // Production converts empty jars into filled jars
       if (status.emptyJars < qty) {
-        throw new BadRequestException(`Insufficient empty jars in warehouse (Available: ${status.emptyJars}, Required: ${qty})`);
+        throw new BadRequestException(
+          `Insufficient empty jars in warehouse (Available: ${status.emptyJars}, Required: ${qty})`,
+        );
       }
 
       const updated = await tx.inventory.update({
         where: { id: status.id },
         data: {
           filledJars: status.filledJars + qty,
-          emptyJars: status.emptyJars - qty
-        }
+          emptyJars: status.emptyJars - qty,
+        },
       });
 
       await tx.inventoryLog.create({
@@ -54,8 +57,8 @@ export class InventoryService {
           action: 'PRODUCTION',
           filledQty: qty,
           emptyQty: -qty,
-          description: `Produced ${qty} filled jars from empty stock`
-        }
+          description: `Produced ${qty} filled jars from empty stock`,
+        },
       });
 
       return updated;
@@ -66,29 +69,29 @@ export class InventoryService {
     if (qty <= 0) throw new BadRequestException('Quantity must be positive');
 
     return this.prisma.$transaction(async (tx) => {
-      let statusRows = await tx.$queryRawUnsafe<any[]>(
-        `SELECT * FROM "Inventory" FOR UPDATE LIMIT 1`
+      const statusRows = await tx.$queryRawUnsafe<any[]>(
+        `SELECT * FROM "Inventory" FOR UPDATE LIMIT 1`,
       );
       let status = statusRows[0];
       if (!status) {
         status = await tx.inventory.create({
-          data: { filledJars: 0, emptyJars: 0, damagedJars: 0 }
+          data: { filledJars: 0, emptyJars: 0, damagedJars: 0 },
         });
       }
 
       const updated = await tx.inventory.update({
         where: { id: status.id },
         data: {
-          filledJars: status.filledJars + qty
-        }
+          filledJars: status.filledJars + qty,
+        },
       });
 
       await tx.inventoryLog.create({
         data: {
           action: 'PRODUCTION',
           filledQty: qty,
-          description: `Direct replenishment of ${qty} filled jars`
-        }
+          description: `Direct replenishment of ${qty} filled jars`,
+        },
       });
 
       return updated;
@@ -99,50 +102,56 @@ export class InventoryService {
     if (qty <= 0) throw new BadRequestException('Quantity must be positive');
 
     return this.prisma.$transaction(async (tx) => {
-      let statusRows = await tx.$queryRawUnsafe<any[]>(
-        `SELECT * FROM "Inventory" FOR UPDATE LIMIT 1`
+      const statusRows = await tx.$queryRawUnsafe<any[]>(
+        `SELECT * FROM "Inventory" FOR UPDATE LIMIT 1`,
       );
       let status = statusRows[0];
       if (!status) {
         status = await tx.inventory.create({
-          data: { filledJars: 0, emptyJars: 0, damagedJars: 0 }
+          data: { filledJars: 0, emptyJars: 0, damagedJars: 0 },
         });
       }
 
       if (type === 'FILLED') {
-        if (status.filledJars < qty) throw new BadRequestException('Insufficient filled jars to report damage');
+        if (status.filledJars < qty)
+          throw new BadRequestException(
+            'Insufficient filled jars to report damage',
+          );
         const updated = await tx.inventory.update({
           where: { id: status.id },
           data: {
             filledJars: status.filledJars - qty,
-            damagedJars: status.damagedJars + qty
-          }
+            damagedJars: status.damagedJars + qty,
+          },
         });
         await tx.inventoryLog.create({
           data: {
             action: 'DAMAGE_REMOVAL',
             filledQty: -qty,
             damagedQty: qty,
-            description: `Reported ${qty} filled jars as damaged`
-          }
+            description: `Reported ${qty} filled jars as damaged`,
+          },
         });
         return updated;
       } else {
-        if (status.emptyJars < qty) throw new BadRequestException('Insufficient empty jars to report damage');
+        if (status.emptyJars < qty)
+          throw new BadRequestException(
+            'Insufficient empty jars to report damage',
+          );
         const updated = await tx.inventory.update({
           where: { id: status.id },
           data: {
             emptyJars: status.emptyJars - qty,
-            damagedJars: status.damagedJars + qty
-          }
+            damagedJars: status.damagedJars + qty,
+          },
         });
         await tx.inventoryLog.create({
           data: {
             action: 'DAMAGE_REMOVAL',
             emptyQty: -qty,
             damagedQty: qty,
-            description: `Reported ${qty} empty jars as damaged`
-          }
+            description: `Reported ${qty} empty jars as damaged`,
+          },
         });
         return updated;
       }

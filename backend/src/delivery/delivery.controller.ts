@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { DeliveryService } from './delivery.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -27,6 +36,11 @@ export class DeliveryController {
     return this.deliveryService.findByPartner(req.user.id);
   }
 
+  @Get('history')
+  findMyHistory(@Request() req) {
+    return this.deliveryService.findHistoryByCustomerUser(req.user.id);
+  }
+
   @Get('customer/:customerId')
   findByCustomer(@Param('customerId') customerId: string) {
     return this.deliveryService.findByCustomer(customerId);
@@ -38,15 +52,29 @@ export class DeliveryController {
   }
 
   @Post(':id/report')
-  submitReport(@Param('id') id: string, @Body() body: { deliveredQty: number; emptyCollected: number; notes?: string }) {
+  submitReport(
+    @Param('id') id: string,
+    @Body()
+    body: { deliveredQty: number; emptyCollected: number; notes?: string },
+  ) {
     return this.deliveryService.submitReport(id, body);
   }
 
   @Post(':id/confirm')
-  confirm(@Param('id') id: string, @Body() body: { deliveredQty: number; emptyCollected: number; damagedQty: number; notes?: string }, @Request() req) {
+  confirm(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      deliveredQty: number;
+      emptyCollected: number;
+      damagedQty: number;
+      notes?: string;
+    },
+    @Request() req,
+  ) {
     return this.deliveryService.confirm(id, {
       ...body,
-      staffId: req.user.id // Staff identifier from JWT token context
+      staffId: req.user.id, // Staff identifier from JWT token context
     });
   }
 

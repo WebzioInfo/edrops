@@ -26,17 +26,18 @@ export class DeliveryEngine {
         rules: true,
         customer: {
           include: {
-            addresses: true
-          }
-        }
-      }
+            addresses: true,
+          },
+        },
+      },
     });
 
     let generatedCount = 0;
 
     for (const schedule of schedules) {
       const customer = schedule.customer;
-      const defaultAddress = customer.addresses.find(a => a.isDefault) || customer.addresses[0];
+      const defaultAddress =
+        customer.addresses.find((a) => a.isDefault) || customer.addresses[0];
       if (!defaultAddress) continue;
 
       // Check if a delivery already exists for today to prevent double-generation
@@ -45,9 +46,9 @@ export class DeliveryEngine {
           customerId: customer.id,
           scheduledFor: {
             gte: startOfDay,
-            lte: endOfDay
-          }
-        }
+            lte: endOfDay,
+          },
+        },
       });
       if (existing) continue;
 
@@ -77,8 +78,8 @@ export class DeliveryEngine {
               addressId: defaultAddress.id,
               scheduledFor: startOfDay,
               requiredQuantity: todayQty,
-              status: DeliveryStatus.PENDING
-            }
+              status: DeliveryStatus.PENDING,
+            },
           });
           generatedCount++;
         } catch (err: any) {
@@ -97,19 +98,21 @@ export class DeliveryEngine {
   // 2. Staff manual assignment
   async assignDelivery(deliveryId: string, deliveryPartnerId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const delivery = await tx.delivery.findUnique({ where: { id: deliveryId } });
+      const delivery = await tx.delivery.findUnique({
+        where: { id: deliveryId },
+      });
       if (!delivery) throw new BadRequestException('Delivery not found');
 
       // Create or update assignment
       await tx.deliveryAssignment.upsert({
         where: { deliveryId },
         update: { deliveryPartnerId },
-        create: { deliveryId, deliveryPartnerId }
+        create: { deliveryId, deliveryPartnerId },
       });
 
       return tx.delivery.update({
         where: { id: deliveryId },
-        data: { status: DeliveryStatus.ASSIGNED }
+        data: { status: DeliveryStatus.ASSIGNED },
       });
     });
   }
@@ -119,10 +122,12 @@ export class DeliveryEngine {
     deliveryId: string,
     partnerDeliveredQty: number,
     partnerEmptyCollected: number,
-    partnerNotes?: string
+    partnerNotes?: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const delivery = await tx.delivery.findUnique({ where: { id: deliveryId } });
+      const delivery = await tx.delivery.findUnique({
+        where: { id: deliveryId },
+      });
       if (!delivery) throw new BadRequestException('Delivery not found');
 
       await tx.deliveryReport.upsert({
@@ -131,19 +136,19 @@ export class DeliveryEngine {
           partnerDeliveredQty,
           partnerEmptyCollected,
           partnerNotes,
-          partnerSubmittedAt: new Date()
+          partnerSubmittedAt: new Date(),
         },
         create: {
           deliveryId,
           partnerDeliveredQty,
           partnerEmptyCollected,
-          partnerNotes
-        }
+          partnerNotes,
+        },
       });
 
       return tx.delivery.update({
         where: { id: deliveryId },
-        data: { status: DeliveryStatus.DELIVERED }
+        data: { status: DeliveryStatus.DELIVERED },
       });
     });
   }
@@ -155,19 +160,21 @@ export class DeliveryEngine {
     confirmedEmptyCollected: number,
     confirmedDamagedQty: number,
     staffNotes?: string,
-    staffId?: string
+    staffId?: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const delivery = await tx.delivery.findUnique({
         where: { id: deliveryId },
-        include: { report: true }
+        include: { report: true },
       });
 
       if (!delivery) throw new BadRequestException('Delivery not found');
 
       // Prevent double confirmations
       if (delivery.status === DeliveryStatus.DELIVERED) {
-        throw new BadRequestException('Delivery has already been confirmed and completed.');
+        throw new BadRequestException(
+          'Delivery has already been confirmed and completed.',
+        );
       }
 
       const customerId = delivery.customerId;
@@ -175,15 +182,15 @@ export class DeliveryEngine {
       // Row-locking to prevent concurrent conflicts and race conditions
       await tx.$executeRawUnsafe(
         `SELECT id FROM "JarBalance" WHERE "customerId" = $1 FOR UPDATE`,
-        customerId
+        customerId,
       );
       await tx.$executeRawUnsafe(
         `SELECT id FROM "JarOwnership" WHERE "customerId" = $1 FOR UPDATE`,
-        customerId
+        customerId,
       );
       await tx.$executeRawUnsafe(
         `SELECT id FROM "JarDeposit" WHERE "customerId" = $1 FOR UPDATE`,
-        customerId
+        customerId,
       );
 
       // Lock warehouse inventory row
@@ -191,35 +198,48 @@ export class DeliveryEngine {
       if (firstInventory) {
         await tx.$executeRawUnsafe(
           `SELECT id FROM "Inventory" WHERE id = $1 FOR UPDATE`,
-          firstInventory.id
+          firstInventory.id,
         );
       }
 
       // 1. Fetch balance, deposit, and ownership records (initialize if missing)
-      let jarBalance = await tx.jarBalance.findUnique({ where: { customerId } });
+      let jarBalance = await tx.jarBalance.findUnique({
+        where: { customerId },
+      });
       if (!jarBalance) {
         jarBalance = await tx.jarBalance.create({
-          data: { customerId, availableJars: 0, totalPurchased: 0 }
+          data: { customerId, availableJars: 0, totalPurchased: 0 },
         });
       }
 
-      let jarOwnership = await tx.jarOwnership.findUnique({ where: { customerId } });
+      let jarOwnership = await tx.jarOwnership.findUnique({
+        where: { customerId },
+      });
       if (!jarOwnership) {
         jarOwnership = await tx.jarOwnership.create({
-          data: { customerId, companyJarsHeld: 0, ownedJars: 0 }
+          data: { customerId, companyJarsHeld: 0, ownedJars: 0 },
         });
       }
 
-      let jarDeposit = await tx.jarDeposit.findUnique({ where: { customerId } });
+      let jarDeposit = await tx.jarDeposit.findUnique({
+        where: { customerId },
+      });
       if (!jarDeposit) {
         jarDeposit = await tx.jarDeposit.create({
-          data: { customerId, maxActiveJars: 0, depositPaid: 0.00, depositDue: 0.00 }
+          data: {
+            customerId,
+            maxActiveJars: 0,
+            depositPaid: 0.0,
+            depositDue: 0.0,
+          },
         });
       }
 
       // Check balance limit (negative balance protection)
       if (jarBalance.availableJars < confirmedDeliveredQty) {
-        throw new BadRequestException('Insufficient customer jar balance to complete this quantity.');
+        throw new BadRequestException(
+          'Insufficient customer jar balance to complete this quantity.',
+        );
       }
 
       // 2. Perform math calculations
@@ -228,46 +248,62 @@ export class DeliveryEngine {
 
       // Jars in possession updates:
       // companyJarsHeld = companyJarsHeld + delivered - emptyCollected
-      const newCompanyJarsHeld = Math.max(0, jarOwnership.companyJarsHeld + confirmedDeliveredQty - confirmedEmptyCollected);
-      
+      const newCompanyJarsHeld = Math.max(
+        0,
+        jarOwnership.companyJarsHeld +
+          confirmedDeliveredQty -
+          confirmedEmptyCollected,
+      );
+
       // maxActiveJars is the peak active jars in customer possession
-      const newMaxActiveJars = Math.max(jarDeposit.maxActiveJars, newCompanyJarsHeld);
-      
+      const newMaxActiveJars = Math.max(
+        jarDeposit.maxActiveJars,
+        newCompanyJarsHeld,
+      );
+
       // Fetch deposit amount from settings
-      const depositAmountPerJar = await this.settingsService.getSettingNumber('DEPOSIT_AMOUNT_PER_JAR', 200.0);
-      const newDepositDue = Math.max(0.0, (newMaxActiveJars * depositAmountPerJar) - jarDeposit.depositPaid);
+      const depositAmountPerJar = await this.settingsService.getSettingNumber(
+        'DEPOSIT_AMOUNT_PER_JAR',
+        200.0,
+      );
+      const newDepositDue = Math.max(
+        0.0,
+        newMaxActiveJars * depositAmountPerJar - jarDeposit.depositPaid,
+      );
 
       // 3. Write updates
       await tx.jarBalance.update({
         where: { customerId },
-        data: { availableJars: balanceAfter }
+        data: { availableJars: balanceAfter },
       });
 
       await tx.jarOwnership.update({
         where: { customerId },
-        data: { companyJarsHeld: newCompanyJarsHeld }
+        data: { companyJarsHeld: newCompanyJarsHeld },
       });
 
       await tx.jarDeposit.update({
         where: { customerId },
         data: {
           maxActiveJars: newMaxActiveJars,
-          depositDue: newDepositDue
-        }
+          depositDue: newDepositDue,
+        },
       });
 
       // Update warehouse inventory atomically (prevent negative stock)
       if (firstInventory) {
         if (firstInventory.filledJars < confirmedDeliveredQty) {
-          throw new BadRequestException(`Insufficient warehouse inventory (Filled Jars available: ${firstInventory.filledJars}).`);
+          throw new BadRequestException(
+            `Insufficient warehouse inventory (Filled Jars available: ${firstInventory.filledJars}).`,
+          );
         }
         await tx.inventory.update({
           where: { id: firstInventory.id },
           data: {
             filledJars: firstInventory.filledJars - confirmedDeliveredQty,
             emptyJars: firstInventory.emptyJars + confirmedEmptyCollected,
-            damagedJars: firstInventory.damagedJars + confirmedDamagedQty
-          }
+            damagedJars: firstInventory.damagedJars + confirmedDamagedQty,
+          },
         });
 
         await tx.inventoryLog.create({
@@ -277,8 +313,8 @@ export class DeliveryEngine {
             emptyQty: confirmedEmptyCollected,
             damagedQty: confirmedDamagedQty,
             referenceId: deliveryId,
-            description: `Delivery completed. Customer: ${customerId}`
-          }
+            description: `Delivery completed. Customer: ${customerId}`,
+          },
         });
       }
 
@@ -291,8 +327,8 @@ export class DeliveryEngine {
           balanceBefore,
           balanceAfter,
           referenceId: delivery.id,
-          description: `Confirmed delivery of ${confirmedDeliveredQty} jars (Empty jars collected: ${confirmedEmptyCollected})`
-        }
+          description: `Confirmed delivery of ${confirmedDeliveredQty} jars (Empty jars collected: ${confirmedEmptyCollected})`,
+        },
       });
 
       // Update delivery report confirmation details
@@ -304,42 +340,49 @@ export class DeliveryEngine {
           confirmedDamagedQty,
           staffNotes,
           confirmedAt: new Date(),
-          confirmedById: staffId
-        }
+          confirmedById: staffId,
+        },
       });
 
       // Warn customer if available balance is low (threshold from settings)
-      const lowBalanceThreshold = await this.settingsService.getSettingNumber('LOW_BALANCE_THRESHOLD', 5);
+      const lowBalanceThreshold = await this.settingsService.getSettingNumber(
+        'LOW_BALANCE_THRESHOLD',
+        5,
+      );
       if (balanceAfter <= lowBalanceThreshold) {
-        const custRecord = await tx.customer.findUnique({ where: { id: customerId } });
+        const custRecord = await tx.customer.findUnique({
+          where: { id: customerId },
+        });
         if (custRecord) {
           await tx.notification.create({
             data: {
               userId: custRecord.userId,
               type: 'LOW_BALANCE',
               title: 'Low prepaid jar balance!',
-              message: `You only have ${balanceAfter} jars remaining in your prepaid balance. Please purchase a new package to prevent delivery interruptions.`
-            }
+              message: `You only have ${balanceAfter} jars remaining in your prepaid balance. Please purchase a new package to prevent delivery interruptions.`,
+            },
           });
         }
       }
 
       // Also create a notification for completed delivery
-      const custRecord = await tx.customer.findUnique({ where: { id: customerId } });
+      const custRecord = await tx.customer.findUnique({
+        where: { id: customerId },
+      });
       if (custRecord) {
         await tx.notification.create({
           data: {
             userId: custRecord.userId,
             type: 'DELIVERY_UPDATE',
             title: 'Delivery Completed Successfully',
-            message: `Your scheduled delivery of ${confirmedDeliveredQty} water jars has been completed. Empty jars collected: ${confirmedEmptyCollected}. Remaining prepaid balance: ${balanceAfter} jars.`
-          }
+            message: `Your scheduled delivery of ${confirmedDeliveredQty} water jars has been completed. Empty jars collected: ${confirmedEmptyCollected}. Remaining prepaid balance: ${balanceAfter} jars.`,
+          },
         });
       }
 
       return tx.delivery.update({
         where: { id: deliveryId },
-        data: { status: DeliveryStatus.DELIVERED }
+        data: { status: DeliveryStatus.DELIVERED },
       });
     });
   }
@@ -355,14 +398,14 @@ export class DeliveryEngine {
             create: {
               partnerDeliveredQty: 0,
               partnerEmptyCollected: 0,
-              partnerNotes: `Failed: ${reason}`
+              partnerNotes: `Failed: ${reason}`,
             },
             update: {
-              partnerNotes: `Failed: ${reason}`
-            }
-          }
-        }
-      }
+              partnerNotes: `Failed: ${reason}`,
+            },
+          },
+        },
+      },
     });
   }
 }

@@ -8,6 +8,6 @@ import { SettingsModule } from '../settings/settings.module';
   imports: [PrismaModule, SettingsModule],
   providers: [WalletService],
   controllers: [WalletController],
-  exports: [WalletService]
+  exports: [WalletService],
 })
 export class WalletModule {}

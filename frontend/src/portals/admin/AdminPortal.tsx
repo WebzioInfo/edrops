@@ -4,7 +4,11 @@ import { Droplets, Menu, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
-const PackageCatalog = React.lazy(() => import('./pages/PackageCatalog'));
+const CatalogManager = React.lazy(() => import('./pages/CatalogManager'));
+const OperationsManager = React.lazy(() => import('./pages/OperationsManager'));
+const OrdersDashboard = React.lazy(() => import('./pages/OrdersDashboard'));
+const FinanceLedger = React.lazy(() => import('./pages/FinanceLedger'));
+const CustomersList = React.lazy(() => import('./pages/CustomersList'));
 const BusinessSettings = React.lazy(() => import('./pages/BusinessSettings'));
 const ReportsCenter = React.lazy(() => import('./pages/ReportsCenter'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
@@ -19,10 +23,10 @@ const AdminLoader = () => (
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard' },
-  { to: '/admin/packages', label: 'Packages' },
-  { to: '/admin/settings', label: 'Settings' },
-  { to: '/admin/reports', label: 'Reports' },
-  { to: '/admin/profile', label: 'Profile' },
+  { to: '/admin/catalog', label: 'Catalog' },
+  { to: '/admin/operations', label: 'Operations' },
+  { to: '/admin/orders', label: 'Orders' },
+  { to: '/admin/finance', label: 'Finance' },
 ];
 
 export default function AdminPortal() {
@@ -115,7 +119,11 @@ export default function AdminPortal() {
         <Suspense fallback={<AdminLoader />}>
           <Routes>
             <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="packages" element={<PackageCatalog />} />
+            <Route path="catalog/*" element={<CatalogManager />} />
+            <Route path="operations/*" element={<OperationsManager />} />
+            <Route path="orders/*" element={<OrdersDashboard />} />
+            <Route path="finance/*" element={<FinanceLedger />} />
+            <Route path="customers/*" element={<CustomersList />} />
             <Route path="settings" element={<BusinessSettings />} />
             <Route path="reports" element={<ReportsCenter />} />
             <Route path="profile" element={<Profile />} />

@@ -19,7 +19,7 @@ export class CustomerService {
         jarBalance: true,
         jarDeposit: true,
         jarOwnership: true,
-        deliverySchedule: { include: { rules: true } }
+        deliverySchedule: { include: { rules: true } },
       },
       orderBy: { user: { createdAt: 'desc' } },
       take: 100,
@@ -38,13 +38,20 @@ export class CustomerService {
         deliverySchedule: { include: { rules: true } },
         deliveries: { orderBy: { scheduledFor: 'desc' }, take: 20 },
         transactions: { orderBy: { createdAt: 'desc' }, take: 20 },
-        packagePurchases: { include: { package: true }, orderBy: { createdAt: 'desc' }, take: 20 },
+        packagePurchases: {
+          include: { package: true },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
       },
     });
   }
 
   update(id: string, updateCustomerDto: UpdateCustomerDto) {
-    return this.prisma.customer.update({ where: { id }, data: updateCustomerDto });
+    return this.prisma.customer.update({
+      where: { id },
+      data: updateCustomerDto,
+    });
   }
 
   remove(id: string) {

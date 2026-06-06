@@ -11,29 +11,50 @@ export class AuditService {
     return this.prisma.auditLog.create({ data: createAuditDto as any });
   }
 
-  async log(userId: string | null, action: string, entityType: string, entityId: string, oldValues?: any, newValues?: any) {
+  async log(
+    userId: string | null,
+    action: string,
+    entityType: string,
+    entityId: string,
+    oldValues?: any,
+    newValues?: any,
+  ) {
     return this.prisma.auditLog.create({
       data: {
         userId,
         action,
         entityType,
         entityId,
-        oldValues: oldValues ? JSON.parse(JSON.stringify(oldValues)) : undefined,
-        newValues: newValues ? JSON.parse(JSON.stringify(newValues)) : undefined
-      }
+        oldValues: oldValues
+          ? JSON.parse(JSON.stringify(oldValues))
+          : undefined,
+        newValues: newValues
+          ? JSON.parse(JSON.stringify(newValues))
+          : undefined,
+      },
     });
   }
 
   findAll() {
-    return this.prisma.auditLog.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' }, take: 100 });
+    return this.prisma.auditLog.findMany({
+      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
   }
 
   findOne(id: string | number) {
-    return this.prisma.auditLog.findUnique({ where: { id: String(id) }, include: { user: true } });
+    return this.prisma.auditLog.findUnique({
+      where: { id: String(id) },
+      include: { user: true },
+    });
   }
 
   update(id: string | number, updateAuditDto: UpdateAuditDto) {
-    return this.prisma.auditLog.update({ where: { id: String(id) }, data: updateAuditDto as any });
+    return this.prisma.auditLog.update({
+      where: { id: String(id) },
+      data: updateAuditDto as any,
+    });
   }
 
   remove(id: string | number) {

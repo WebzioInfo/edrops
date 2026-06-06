@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from './../src/app.module';
 
 describe('InventoryController (e2e)', () => {
@@ -21,8 +21,6 @@ describe('InventoryController (e2e)', () => {
   });
 
   it('/inventory/status (GET) should require authentication', () => {
-    return request(app.getHttpServer())
-      .get('/inventory/status')
-      .expect(401);
+    return request(app.getHttpServer()).get('/inventory/status').expect(401);
   });
 });

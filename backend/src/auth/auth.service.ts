@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/register.dto';
@@ -20,7 +27,7 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     const existingPhone = await this.prisma.user.findUnique({
-      where: { phone: registerDto.phone }
+      where: { phone: registerDto.phone },
     });
 
     if (existingPhone) {
@@ -29,7 +36,7 @@ export class AuthService {
 
     if (registerDto.email) {
       const existingEmail = await this.prisma.user.findUnique({
-        where: { email: registerDto.email }
+        where: { email: registerDto.email },
       });
       if (existingEmail) {
         throw new ConflictException('Email already in use');
@@ -49,12 +56,14 @@ export class AuthService {
         role: UserRole.CUSTOMER, // Default role
         customer: {
           create: {
-            wallet: { create: { balance: 0.00 } },
+            wallet: { create: { balance: 0.0 } },
             jarBalance: { create: { availableJars: 0, totalPurchased: 0 } },
-            jarDeposit: { create: { maxActiveJars: 0, depositPaid: 0.00, depositDue: 0.00 } },
-            jarOwnership: { create: { companyJarsHeld: 0, ownedJars: 0 } }
-          }
-        }
+            jarDeposit: {
+              create: { maxActiveJars: 0, depositPaid: 0.0, depositDue: 0.0 },
+            },
+            jarOwnership: { create: { companyJarsHeld: 0, ownedJars: 0 } },
+          },
+        },
       },
     });
 
@@ -69,18 +78,21 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     const isEmail = loginDto.identifier.includes('@');
-    
+
     const user = await this.prisma.user.findFirst({
-      where: isEmail 
+      where: isEmail
         ? { email: loginDto.identifier }
-        : { phone: loginDto.identifier }
+        : { phone: loginDto.identifier },
     });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.passwordHash,
+    );
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
@@ -92,17 +104,22 @@ export class AuthService {
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return { message: 'If an account exists, a password reset link has been sent.' };
+      return {
+        message: 'If an account exists, a password reset link has been sent.',
+      };
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
     const resetPasswordExpires = new Date(Date.now() + 3600000);
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { resetPasswordToken, resetPasswordExpires }
+      data: { resetPasswordToken, resetPasswordExpires },
     });
 
     try {
@@ -111,17 +128,22 @@ export class AuthService {
       this.logger.warn(`Failed to send reset email: ${(e as Error).message}`);
     }
 
-    return { message: 'If an account exists, a password reset link has been sent.' };
+    return {
+      message: 'If an account exists, a password reset link has been sent.',
+    };
   }
 
   async resetPassword(token: string, newPassword: string) {
-    const resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
 
     const user = await this.prisma.user.findFirst({
       where: {
         resetPasswordToken,
-        resetPasswordExpires: { gt: new Date() }
-      }
+        resetPasswordExpires: { gt: new Date() },
+      },
     });
 
     if (!user) {
@@ -136,8 +158,8 @@ export class AuthService {
       data: {
         passwordHash,
         resetPasswordToken: null,
-        resetPasswordExpires: null
-      }
+        resetPasswordExpires: null,
+      },
     });
 
     return { message: 'Password has been reset successfully' };
@@ -161,20 +183,20 @@ export class AuthService {
             jarOwnership: true,
             deliverySchedule: {
               include: {
-                rules: true
-              }
+                rules: true,
+              },
             },
-            addresses: true
-          }
+            addresses: true,
+          },
         },
         staff: {
           include: {
-            branch: true
-          }
+            branch: true,
+          },
         },
         admin: true,
-        deliveryPartner: true
-      }
+        deliveryPartner: true,
+      },
     });
 
     if (!user) {
@@ -184,10 +206,18 @@ export class AuthService {
     return user;
   }
 
-  async updateProfile(userId: string, data: { firstName?: string; lastName?: string; email?: string; phone?: string }) {
+  async updateProfile(
+    userId: string,
+    data: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+    },
+  ) {
     if (data.email) {
       const existing = await this.prisma.user.findFirst({
-        where: { email: data.email, NOT: { id: userId } }
+        where: { email: data.email, NOT: { id: userId } },
       });
       if (existing) {
         throw new ConflictException('Email already in use');
@@ -196,7 +226,7 @@ export class AuthService {
 
     if (data.phone) {
       const existing = await this.prisma.user.findFirst({
-        where: { phone: data.phone, NOT: { id: userId } }
+        where: { phone: data.phone, NOT: { id: userId } },
       });
       if (existing) {
         throw new ConflictException('Phone number already in use');
@@ -209,8 +239,8 @@ export class AuthService {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
-        phone: data.phone
-      }
+        phone: data.phone,
+      },
     });
 
     return {
@@ -222,8 +252,8 @@ export class AuthService {
         phone: user.phone,
         firstName: user.firstName,
         lastName: user.lastName,
-        role: user.role
-      }
+        role: user.role,
+      },
     };
   }
 
@@ -234,15 +264,18 @@ export class AuthService {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const resetPasswordToken = crypto.createHash('sha256').update(otp).digest('hex');
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(otp)
+      .digest('hex');
     const resetPasswordExpires = new Date(Date.now() + 600000); // 10 minutes
 
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         resetPasswordToken,
-        resetPasswordExpires
-      }
+        resetPasswordExpires,
+      },
     });
 
     await this.mailService.sendPasswordOtp(user, otp);
@@ -256,11 +289,20 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.resetPasswordToken || !user.resetPasswordExpires || user.resetPasswordExpires.getTime() < Date.now()) {
-      throw new BadRequestException('Verification code has expired. Please request a new one.');
+    if (
+      !user.resetPasswordToken ||
+      !user.resetPasswordExpires ||
+      user.resetPasswordExpires.getTime() < Date.now()
+    ) {
+      throw new BadRequestException(
+        'Verification code has expired. Please request a new one.',
+      );
     }
 
-    const hashedOtp = crypto.createHash('sha256').update(data.otp).digest('hex');
+    const hashedOtp = crypto
+      .createHash('sha256')
+      .update(data.otp)
+      .digest('hex');
     if (hashedOtp !== user.resetPasswordToken) {
       throw new BadRequestException('Invalid verification code.');
     }
@@ -273,8 +315,8 @@ export class AuthService {
       data: {
         passwordHash,
         resetPasswordToken: null,
-        resetPasswordExpires: null
-      }
+        resetPasswordExpires: null,
+      },
     });
 
     return { success: true, message: 'Password changed successfully' };
@@ -282,7 +324,7 @@ export class AuthService {
 
   async refreshToken(userId: string) {
     const user = await this.prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
 
     if (!user || !user.isActive) {
@@ -293,11 +335,11 @@ export class AuthService {
   }
 
   private generateToken(user: any) {
-    const payload = { 
-      sub: user.id, 
-      role: user.role, 
+    const payload = {
+      sub: user.id,
+      role: user.role,
       email: user.email,
-      phone: user.phone 
+      phone: user.phone,
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -307,8 +349,8 @@ export class AuthService {
         phone: user.phone,
         firstName: user.firstName,
         lastName: user.lastName,
-        role: user.role
-      }
+        role: user.role,
+      },
     };
   }
 }

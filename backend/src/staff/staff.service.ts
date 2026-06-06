@@ -12,21 +12,30 @@ export class StaffService {
   }
 
   findAll() {
-    return this.prisma.staff.findMany({ include: { user: true, branch: true }, take: 100 });
+    return this.prisma.staff.findMany({
+      include: { user: true, branch: true },
+      take: 100,
+    });
   }
 
   async getDeliveryPartners() {
     return this.prisma.deliveryPartner.findMany({
-      include: { user: true }
+      include: { user: true },
     });
   }
 
   findOne(id: string | number) {
-    return this.prisma.staff.findUnique({ where: { id: String(id) }, include: { user: true, branch: true } });
+    return this.prisma.staff.findUnique({
+      where: { id: String(id) },
+      include: { user: true, branch: true },
+    });
   }
 
   update(id: string | number, updateStaffDto: UpdateStaffDto) {
-    return this.prisma.staff.update({ where: { id: String(id) }, data: updateStaffDto as any });
+    return this.prisma.staff.update({
+      where: { id: String(id) },
+      data: updateStaffDto as any,
+    });
   }
 
   remove(id: string | number) {

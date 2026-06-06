@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { RechargeService } from './recharge.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
@@ -10,9 +20,21 @@ export class RechargeController {
   constructor(private readonly rechargeService: RechargeService) {}
 
   @Post('purchase')
-  purchase(@Request() req, @Body() body: { packageId: string; paymentId?: string }) {
+  purchase(
+    @Request() req,
+    @Body()
+    body: {
+      packageId: string;
+      paymentId?: string;
+      amountPaid?: number;
+      promoCode?: string | null;
+    },
+  ) {
     // Find customer record from user id
-    return this.prismaFindCustomerAndPurchase(req.user.sub ?? req.user.id, body);
+    return this.prismaFindCustomerAndPurchase(
+      req.user.sub ?? req.user.id,
+      body,
+    );
   }
 
   @Post('package')
@@ -47,7 +69,9 @@ export class RechargeController {
   getPurchases(@Request() req) {
     // Staff/Admin can view all purchases, customer only sees their own
     if (req.user.role === 'CUSTOMER') {
-      return this.prismaFindCustomerAndGetPurchases(req.user.sub ?? req.user.id);
+      return this.prismaFindCustomerAndGetPurchases(
+        req.user.sub ?? req.user.id,
+      );
     }
     return this.rechargeService.getPurchases();
   }

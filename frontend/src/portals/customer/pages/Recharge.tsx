@@ -106,14 +106,14 @@ export default function RechargePage() {
 
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_mockkey12345',
-        amount: orderData.amount,
+        amount: orderData.amount * 100,
         currency: 'INR',
         name: 'Edrops',
         description: `Recharge: ${selectedPack.name}`,
         order_id: orderData.orderId,
         handler: async function (response: any) {
           try {
-            await fetchWithAuth('/payment/verify', {
+            const verifiedPayment = await fetchWithAuth('/payment/verify', {
               method: 'POST',
               body: JSON.stringify({
                 razorpay_order_id: response.razorpay_order_id,
@@ -121,7 +121,16 @@ export default function RechargePage() {
                 razorpay_signature: response.razorpay_signature
               })
             });
-            toast.success('Payment verified successfully!');
+            await fetchWithAuth('/recharge/purchase', {
+              method: 'POST',
+              body: JSON.stringify({
+                packageId: selectedPack.id,
+                paymentId: verifiedPayment.id,
+                amountPaid: totalDue,
+                promoCode: appliedPromo,
+              }),
+            });
+            toast.success('Recharge completed successfully!');
             setSelectedPack(null);
             setPromoCode('');
             setAppliedPromo(null);

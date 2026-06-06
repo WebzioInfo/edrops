@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -8,7 +12,7 @@ export class PromoService {
   async validateCode(code: string, customerId: string) {
     const promo = await this.prisma.promoCode.findUnique({
       where: { code: code.toUpperCase() },
-      include: { campaign: true }
+      include: { campaign: true },
     });
 
     if (!promo || !promo.isActive || !promo.campaign.isActive) {
@@ -29,11 +33,13 @@ export class PromoService {
 
     // Check if user already used it
     const existingRedemption = await this.prisma.promoRedemption.findFirst({
-      where: { promoCodeId: promo.id, customerId }
+      where: { promoCodeId: promo.id, customerId },
     });
 
     if (existingRedemption) {
-      throw new BadRequestException('You have already redeemed this promo code');
+      throw new BadRequestException(
+        'You have already redeemed this promo code',
+      );
     }
 
     return promo;
@@ -47,14 +53,14 @@ export class PromoService {
       const redemption = await tx.promoRedemption.create({
         data: {
           promoCodeId: promo.id,
-          customerId
-        }
+          customerId,
+        },
       });
 
       // Increment usage
       await tx.promoCode.update({
         where: { id: promo.id },
-        data: { currentUses: { increment: 1 } }
+        data: { currentUses: { increment: 1 } },
       });
 
       return redemption;

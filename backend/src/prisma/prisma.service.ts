@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, INestApplication } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  INestApplication,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -79,7 +84,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       this._dbHost = parsed.hostname;
       this._dbPort = parsed.port ? parseInt(parsed.port, 10) : 5432;
       // Supabase transaction pooler runs on 6543, session pooler on 5432
-      this._isPooler = parsed.port === '6543' || parsed.hostname.includes('pooler');
+      this._isPooler =
+        parsed.port === '6543' || parsed.hostname.includes('pooler');
       this._sslEnabled = sslEnabled;
     } catch {
       this._dbHost = 'invalid-url';
@@ -92,8 +98,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     const mode = this._isPooler ? 'pooler' : 'direct';
-    const sslStatus = this._sslEnabled ? 'SSL=on (rejectUnauthorized=false)' : 'SSL=off';
-    this.logger.log(`Connecting to database at ${this._dbHost}:${this._dbPort} [${mode}] [${sslStatus}]...`);
+    const sslStatus = this._sslEnabled
+      ? 'SSL=on (rejectUnauthorized=false)'
+      : 'SSL=off';
+    this.logger.log(
+      `Connecting to database at ${this._dbHost}:${this._dbPort} [${mode}] [${sslStatus}]...`,
+    );
 
     const start = Date.now();
 
@@ -107,11 +117,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       const status = this.classifyError(error);
 
       if (status === DbConnectionStatus.AUTHENTICATION_FAILED) {
-        this.logger.error('╔═════════════════════════════════════════════════════════════╗');
-        this.logger.error('║       DATABASE AUTHENTICATION FAILED — APP CANNOT START     ║');
-        this.logger.error('╚═════════════════════════════════════════════════════════════╝');
+        this.logger.error(
+          '╔═════════════════════════════════════════════════════════════╗',
+        );
+        this.logger.error(
+          '║       DATABASE AUTHENTICATION FAILED — APP CANNOT START     ║',
+        );
+        this.logger.error(
+          '╚═════════════════════════════════════════════════════════════╝',
+        );
         this.logger.error(`Host:  ${this._dbHost}:${this._dbPort} [${mode}]`);
-        this.logger.error('Cause: Wrong password, revoked credentials, or invalid user.');
+        this.logger.error(
+          'Cause: Wrong password, revoked credentials, or invalid user.',
+        );
         this.logger.error('Fix:');
         this.logger.error('  1. Open backend/.env');
         this.logger.error('  2. Correct DATABASE_URL (password in the URL)');
@@ -121,12 +139,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         this.logger.error(`Raw error: ${(error as Error).message}`);
         process.exit(1);
       } else if (status === DbConnectionStatus.DISCONNECTED) {
-        this.logger.error(`❌ Cannot reach database at ${this._dbHost}:${this._dbPort}`);
-        this.logger.error('Cause: Network unreachable, wrong host, or Supabase project paused.');
+        this.logger.error(
+          `❌ Cannot reach database at ${this._dbHost}:${this._dbPort}`,
+        );
+        this.logger.error(
+          'Cause: Network unreachable, wrong host, or Supabase project paused.',
+        );
         this.logger.error(`Raw error: ${(error as Error).message}`);
         // Non-fatal — health checks will reflect the failure
       } else {
-        this.logger.error(`❌ Database connection failed: ${(error as Error).message}`);
+        this.logger.error(
+          `❌ Database connection failed: ${(error as Error).message}`,
+        );
       }
     }
   }
@@ -135,7 +159,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   classifyError(error: unknown): DbConnectionStatus {
     const msg = (error as Error)?.message ?? '';
     const cause = String((error as { cause?: unknown })?.cause ?? '');
-    const aggregateMessages = (error as { errors?: Error[] })?.errors?.map((e) => e.message).join(' ') ?? '';
+    const aggregateMessages =
+      (error as { errors?: Error[] })?.errors
+        ?.map((e) => e.message)
+        .join(' ') ?? '';
     const full = [msg, cause, aggregateMessages].join(' ');
 
     // Authentication failures
@@ -198,7 +225,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     } catch (error: unknown) {
       const msg = (error as Error).message;
       const aggregated =
-        (error as { errors?: Error[] })?.errors?.map((e) => e.message).join('; ') ?? msg;
+        (error as { errors?: Error[] })?.errors
+          ?.map((e) => e.message)
+          .join('; ') ?? msg;
       return {
         ...base,
         status: this.classifyError(error),

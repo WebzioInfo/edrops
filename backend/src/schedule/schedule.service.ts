@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ScheduleRuleInput = {
@@ -48,7 +52,10 @@ export class ScheduleService {
     return this.updateScheduleByCustomerId(customer.id, data);
   }
 
-  async updateScheduleByCustomerId(customerId: string, data: ScheduleUpdateInput) {
+  async updateScheduleByCustomerId(
+    customerId: string,
+    data: ScheduleUpdateInput,
+  ) {
     this.validateRules(data.rules ?? []);
 
     return this.prisma.$transaction(async (tx) => {
@@ -96,30 +103,48 @@ export class ScheduleService {
     for (const rule of rules) {
       const validTypes = ['WEEKLY', 'INTERVAL', 'CUSTOM'];
       if (!validTypes.includes(rule.type)) {
-        throw new BadRequestException('Schedule rule type must be WEEKLY, INTERVAL, or CUSTOM');
+        throw new BadRequestException(
+          'Schedule rule type must be WEEKLY, INTERVAL, or CUSTOM',
+        );
       }
 
       if (rule.type !== 'CUSTOM') {
         if (!rule.quantity || rule.quantity < 1 || rule.quantity > 10) {
-          throw new BadRequestException('Schedule quantity must be between 1 and 10 jars');
+          throw new BadRequestException(
+            'Schedule quantity must be between 1 and 10 jars',
+          );
         }
       }
 
       if (rule.type === 'WEEKLY') {
-        if (rule.dayOfWeek === undefined || rule.dayOfWeek < 0 || rule.dayOfWeek > 6) {
-          throw new BadRequestException('Weekly schedule rules require a dayOfWeek from 0 to 6');
+        if (
+          rule.dayOfWeek === undefined ||
+          rule.dayOfWeek < 0 ||
+          rule.dayOfWeek > 6
+        ) {
+          throw new BadRequestException(
+            'Weekly schedule rules require a dayOfWeek from 0 to 6',
+          );
         }
       }
 
       if (rule.type === 'INTERVAL') {
-        if (!rule.intervalDays || rule.intervalDays < 1 || rule.intervalDays > 30) {
-          throw new BadRequestException('Interval schedule rules require intervalDays from 1 to 30');
+        if (
+          !rule.intervalDays ||
+          rule.intervalDays < 1 ||
+          rule.intervalDays > 30
+        ) {
+          throw new BadRequestException(
+            'Interval schedule rules require intervalDays from 1 to 30',
+          );
         }
       }
 
       if (rule.type === 'CUSTOM') {
         if (!rule.customNotes || rule.customNotes.trim() === '') {
-          throw new BadRequestException('Custom schedule rules require instructions in customNotes');
+          throw new BadRequestException(
+            'Custom schedule rules require instructions in customNotes',
+          );
         }
       }
     }

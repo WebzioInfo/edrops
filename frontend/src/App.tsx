@@ -24,6 +24,7 @@ const PageLoader = () => (
 );
 
 import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
@@ -38,7 +39,11 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
 
             <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
-              <Route path="/customer/*" element={<CustomerPortal />} />
+              <Route path="/customer/*" element={
+                <CartProvider>
+                  <CustomerPortal />
+                </CartProvider>
+              } />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>

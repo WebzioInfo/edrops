@@ -6,10 +6,18 @@ import { TransactionType } from '@prisma/client';
 export class BalanceEngine {
   constructor(private prisma: PrismaService) {}
 
-  async deductJars(customerId: string, amount: number, referenceId?: string, description?: string) {
+  async deductJars(
+    customerId: string,
+    amount: number,
+    referenceId?: string,
+    description?: string,
+  ) {
     return this.prisma.$transaction(async (tx) => {
-      const jarBalance = await tx.jarBalance.findUnique({ where: { customerId } });
-      if (!jarBalance) throw new BadRequestException('Customer jar balance record not found');
+      const jarBalance = await tx.jarBalance.findUnique({
+        where: { customerId },
+      });
+      if (!jarBalance)
+        throw new BadRequestException('Customer jar balance record not found');
       if (jarBalance.availableJars < amount) {
         throw new BadRequestException('Insufficient jars balance');
       }
@@ -19,7 +27,7 @@ export class BalanceEngine {
 
       await tx.jarBalance.update({
         where: { customerId },
-        data: { availableJars: balanceAfter }
+        data: { availableJars: balanceAfter },
       });
 
       const transaction = await tx.transaction.create({
@@ -30,20 +38,27 @@ export class BalanceEngine {
           balanceBefore,
           balanceAfter,
           referenceId,
-          description
-        }
+          description,
+        },
       });
 
       return transaction;
     });
   }
 
-  async addJars(customerId: string, amount: number, referenceId?: string, description?: string) {
+  async addJars(
+    customerId: string,
+    amount: number,
+    referenceId?: string,
+    description?: string,
+  ) {
     return this.prisma.$transaction(async (tx) => {
-      let jarBalance = await tx.jarBalance.findUnique({ where: { customerId } });
+      let jarBalance = await tx.jarBalance.findUnique({
+        where: { customerId },
+      });
       if (!jarBalance) {
         jarBalance = await tx.jarBalance.create({
-          data: { customerId, availableJars: 0, totalPurchased: 0 }
+          data: { customerId, availableJars: 0, totalPurchased: 0 },
         });
       }
 
@@ -52,10 +67,10 @@ export class BalanceEngine {
 
       await tx.jarBalance.update({
         where: { customerId },
-        data: { 
+        data: {
           availableJars: balanceAfter,
-          totalPurchased: { increment: amount }
-        }
+          totalPurchased: { increment: amount },
+        },
       });
 
       const transaction = await tx.transaction.create({
@@ -66,8 +81,8 @@ export class BalanceEngine {
           balanceBefore,
           balanceAfter,
           referenceId,
-          description
-        }
+          description,
+        },
       });
 
       return transaction;

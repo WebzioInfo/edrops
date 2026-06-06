@@ -16,11 +16,17 @@ export class AdminService {
   }
 
   findOne(id: string | number) {
-    return this.prisma.admin.findUnique({ where: { id: String(id) }, include: { user: true } });
+    return this.prisma.admin.findUnique({
+      where: { id: String(id) },
+      include: { user: true },
+    });
   }
 
   update(id: string | number, updateAdminDto: UpdateAdminDto) {
-    return this.prisma.admin.update({ where: { id: String(id) }, data: updateAdminDto as any });
+    return this.prisma.admin.update({
+      where: { id: String(id) },
+      data: updateAdminDto as any,
+    });
   }
 
   remove(id: string | number) {

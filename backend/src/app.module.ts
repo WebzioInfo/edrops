@@ -24,6 +24,13 @@ import { PaymentModule } from './payment/payment.module';
 import { PromoModule } from './promo/promo.module';
 import { MailModule } from './mail/mail.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { CatalogModule } from './catalog/catalog.module';
+import { WarehouseModule } from './warehouse/warehouse.module';
+import { OrderModule } from './order/order.module';
+import { WebhookModule } from './webhook/webhook.module';
+import { CheckoutModule } from './checkout/checkout.module';
+import { CartModule } from './cart/cart.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -50,6 +57,13 @@ import { InventoryModule } from './inventory/inventory.module';
     PromoModule,
     MailModule,
     InventoryModule,
+    CatalogModule,
+    WarehouseModule,
+    OrderModule,
+    WebhookModule,
+    CheckoutModule,
+    CartModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [AppService],

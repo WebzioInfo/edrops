@@ -12,15 +12,24 @@ export class PermissionService {
   }
 
   findAll() {
-    return this.prisma.permission.findMany({ include: { role: true }, take: 100 });
+    return this.prisma.permission.findMany({
+      include: { role: true },
+      take: 100,
+    });
   }
 
   findOne(id: string | number) {
-    return this.prisma.permission.findUnique({ where: { id: String(id) }, include: { role: true } });
+    return this.prisma.permission.findUnique({
+      where: { id: String(id) },
+      include: { role: true },
+    });
   }
 
   update(id: string | number, updatePermissionDto: UpdatePermissionDto) {
-    return this.prisma.permission.update({ where: { id: String(id) }, data: updatePermissionDto as any });
+    return this.prisma.permission.update({
+      where: { id: String(id) },
+      data: updatePermissionDto as any,
+    });
   }
 
   remove(id: string | number) {

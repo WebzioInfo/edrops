@@ -11,20 +11,22 @@ export class RechargeEngine {
     packageId: string,
     amount: number,
     jarsAdded: number,
-    paymentId: string
+    paymentId: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.packagePurchase.findUnique({
         where: { paymentId },
       });
       if (existing) {
-        throw new BadRequestException('This payment has already been processed.');
+        throw new BadRequestException(
+          'This payment has already been processed.',
+        );
       }
 
       // Lock the customer's JarBalance row to prevent concurrent updates
       await tx.$executeRawUnsafe(
         `SELECT id FROM "JarBalance" WHERE "customerId" = $1 FOR UPDATE`,
-        customerId
+        customerId,
       );
 
       const order = await tx.packagePurchase.create({
@@ -34,13 +36,15 @@ export class RechargeEngine {
           amount,
           paymentStatus: PaymentStatus.SUCCESS,
           paymentId,
-        }
+        },
       });
 
-      let jarBalance = await tx.jarBalance.findUnique({ where: { customerId } });
+      let jarBalance = await tx.jarBalance.findUnique({
+        where: { customerId },
+      });
       if (!jarBalance) {
         jarBalance = await tx.jarBalance.create({
-          data: { customerId, availableJars: 0, totalPurchased: 0 }
+          data: { customerId, availableJars: 0, totalPurchased: 0 },
         });
       }
 
@@ -68,15 +72,17 @@ export class RechargeEngine {
       });
 
       // Successful purchase notification
-      const customer = await tx.customer.findUnique({ where: { id: customerId } });
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+      });
       if (customer) {
         await tx.notification.create({
           data: {
             userId: customer.userId,
             type: 'RECHARGE_SUCCESS',
             title: 'Prepaid Jars Recharged!',
-            message: `Successfully purchased package. Added ${jarsAdded} jars to your balance. Your new prepaid jar balance is ${balanceAfter} jars.`
-          }
+            message: `Successfully purchased package. Added ${jarsAdded} jars to your balance. Your new prepaid jar balance is ${balanceAfter} jars.`,
+          },
         });
       }
 

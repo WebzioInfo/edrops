@@ -12,15 +12,24 @@ export class RoleService {
   }
 
   findAll() {
-    return this.prisma.role.findMany({ include: { permissions: true }, take: 100 });
+    return this.prisma.role.findMany({
+      include: { permissions: true },
+      take: 100,
+    });
   }
 
   findOne(id: string | number) {
-    return this.prisma.role.findUnique({ where: { id: String(id) }, include: { permissions: true } });
+    return this.prisma.role.findUnique({
+      where: { id: String(id) },
+      include: { permissions: true },
+    });
   }
 
   update(id: string | number, updateRoleDto: UpdateRoleDto) {
-    return this.prisma.role.update({ where: { id: String(id) }, data: updateRoleDto as any });
+    return this.prisma.role.update({
+      where: { id: String(id) },
+      data: updateRoleDto as any,
+    });
   }
 
   remove(id: string | number) {

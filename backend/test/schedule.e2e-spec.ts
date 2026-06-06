@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from './../src/app.module';
 
 describe('Schedule (e2e)', () => {
@@ -21,8 +21,6 @@ describe('Schedule (e2e)', () => {
   });
 
   it('/schedule (GET) should require authentication', () => {
-    return request(app.getHttpServer())
-      .get('/schedule')
-      .expect(401);
+    return request(app.getHttpServer()).get('/schedule').expect(401);
   });
 });

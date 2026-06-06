@@ -2,6 +2,8 @@ import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState } from 'react';
 import { Bell, CalendarDays, Droplets, History, Home, Plus, Truck } from 'lucide-react';
 
+const Shop = React.lazy(() => import('./pages/Shop'));
+const CartCheckout = React.lazy(() => import('./pages/CartCheckout'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const WalletPage = React.lazy(() => import('./pages/Wallet'));
 const SchedulePlanner = React.lazy(() => import('./pages/SchedulePlanner'));
@@ -12,13 +14,14 @@ const SupportPage = React.lazy(() => import('./pages/Support'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 
 const primaryNavItems = [
-  { to: '/customer/dashboard', label: 'Home', icon: Home },
+  { to: '/customer/shop', label: 'Shop', icon: Home },
   { to: '/customer/wallet', label: 'Wallet', icon: History },
   { to: '/customer/schedule', label: 'Schedule', icon: CalendarDays },
   { to: '/customer/deliveries', label: 'Track', icon: Truck },
 ];
 
 const secondaryNavItems = [
+  { to: '/customer/dashboard', label: 'Dashboard', icon: Home },
   { to: '/customer/recharge', label: 'Recharge', icon: Plus },
   { to: '/customer/referrals', label: 'Refer', icon: Bell },
   { to: '/customer/support', label: 'Support', icon: Droplets },
@@ -37,10 +40,12 @@ function CustomerLoader() {
 }
 
 import { useAuth } from '../../contexts/AuthContext';
-import { Menu } from 'lucide-react';
+import { Menu, ShoppingBag } from 'lucide-react';
+import { useCart } from '../../contexts/CartContext';
 
 export default function CustomerPortal() {
   const { logout } = useAuth();
+  const { totalItems } = useCart();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   return (
@@ -52,7 +57,7 @@ export default function CustomerPortal() {
 
       <header className="sticky mt-4 mx-4 rounded-full top-0 z-30 border-b border-border bg-background/80 backdrop-blur-2xl">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <NavLink to="/customer/dashboard" className="flex items-center gap-3">
+          <NavLink to="/customer/shop" className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
               <Droplets className="h-6 w-6" />
             </span>
@@ -82,6 +87,21 @@ export default function CustomerPortal() {
 
           <div className="flex items-center gap-3">
             <NavLink
+              to="/customer/cart"
+              className={({ isActive }) =>
+                `relative flex h-11 w-11 items-center justify-center rounded-full transition-all hover:bg-slate-100 ${
+                  isActive ? 'text-primary bg-primary/10' : 'text-slate-600'
+                }`
+              }
+            >
+              <ShoppingBag className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-sm border-2 border-white">
+                  {totalItems}
+                </span>
+              )}
+            </NavLink>
+            <NavLink
               to="/customer/profile"
               className={({ isActive }) =>
                 `hidden rounded-full px-5 py-3 text-sm font-black shadow-sm transition hover:-translate-y-0.5 sm:inline-flex ${
@@ -104,6 +124,8 @@ export default function CustomerPortal() {
       <main className="relative z-10">
         <Suspense fallback={<CustomerLoader />}>
           <Routes>
+            <Route path="shop" element={<Shop />} />
+            <Route path="cart" element={<CartCheckout />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
             <Route path="wallet" element={<WalletPage />} />
@@ -112,8 +134,8 @@ export default function CustomerPortal() {
             <Route path="recharge" element={<RechargePage />} />
             <Route path="referrals" element={<ReferPage />} />
             <Route path="support" element={<SupportPage />} />
-            <Route path="" element={<Navigate to="dashboard" replace />} />
-            <Route path="*" element={<Navigate to="dashboard" replace />} />
+            <Route path="" element={<Navigate to="shop" replace />} />
+            <Route path="*" element={<Navigate to="shop" replace />} />
           </Routes>
         </Suspense>
       </main>

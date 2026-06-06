@@ -20,7 +20,7 @@ export default function TrackPage() {
   useEffect(() => {
     async function loadDeliveryData() {
       try {
-        const data = await fetchWithAuth('/deliveries/history');
+        const data = await fetchWithAuth('/delivery/history');
         setDeliveries(data || []);
       } catch {
         setDeliveries([]);

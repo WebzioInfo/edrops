@@ -16,11 +16,17 @@ export class BranchService {
   }
 
   findOne(id: string | number) {
-    return this.prisma.branch.findUnique({ where: { id: String(id) }, include: { staff: true } });
+    return this.prisma.branch.findUnique({
+      where: { id: String(id) },
+      include: { staff: true },
+    });
   }
 
   update(id: string | number, updateBranchDto: UpdateBranchDto) {
-    return this.prisma.branch.update({ where: { id: String(id) }, data: updateBranchDto as any });
+    return this.prisma.branch.update({
+      where: { id: String(id) },
+      data: updateBranchDto as any,
+    });
   }
 
   remove(id: string | number) {
