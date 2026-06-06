@@ -107,6 +107,58 @@ export class CartService {
     });
   }
 
+  async addItem(customerId: string, productId: string, quantity: number) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, status: true, name: true },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+    if (product.status !== ProductStatus.ACTIVE) {
+      throw new BadRequestException(`Product ${product.name} is not available`);
+    }
+
+    const cart = await this.prisma.cart.upsert({
+      where: { customerId },
+      create: { customerId },
+      update: {},
+    });
+
+    if (quantity < 1) {
+      await this.prisma.cartItem.deleteMany({
+        where: { cartId: cart.id, productId },
+      });
+    } else {
+      const existing = await this.prisma.cartItem.findFirst({
+        where: { cartId: cart.id, productId },
+      });
+      if (existing) {
+        await this.prisma.cartItem.update({
+          where: { id: existing.id },
+          data: { quantity },
+        });
+      } else {
+        await this.prisma.cartItem.create({
+          data: { cartId: cart.id, productId, quantity },
+        });
+      }
+    }
+
+    return this.getCart(customerId);
+  }
+
+  async removeItem(customerId: string, productId: string) {
+    const cart = await this.prisma.cart.findUnique({ where: { customerId } });
+    if (cart) {
+      await this.prisma.cartItem.deleteMany({
+        where: { cartId: cart.id, productId },
+      });
+    }
+    return this.getCart(customerId);
+  }
+
   async clearCart(customerId: string) {
     await this.prisma.cartItem.deleteMany({ where: { cart: { customerId } } });
     return { success: true };

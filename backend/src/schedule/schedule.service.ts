@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { DeliveryEngine } from '../engines/delivery.engine';
 
 type ScheduleRuleInput = {
   type: 'WEEKLY' | 'INTERVAL' | 'CUSTOM';
@@ -20,7 +21,10 @@ export type ScheduleUpdateInput = {
 
 @Injectable()
 export class ScheduleService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private deliveryEngine: DeliveryEngine,
+  ) {}
 
   async getSchedule(userId: string) {
     const customer = await this.prisma.customer.findUnique({
@@ -58,7 +62,7 @@ export class ScheduleService {
   ) {
     this.validateRules(data.rules ?? []);
 
-    return this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       let schedule = await tx.deliverySchedule.findUnique({
         where: { customerId },
       });
@@ -92,10 +96,15 @@ export class ScheduleService {
         });
       }
 
-      return tx.deliverySchedule.findUnique({
-        where: { id: schedule.id },
-        include: { rules: true },
-      });
+      // No need to return finalSchedule here anymore since we fetch it at the end
+    });
+
+    // Run sync engine to populate future deliveries OUTSIDE the transaction
+    await this.deliveryEngine.syncCustomerSchedule(customerId, 8);
+
+    return this.prisma.deliverySchedule.findUnique({
+      where: { customerId },
+      include: { rules: true },
     });
   }
 

@@ -1,10 +1,12 @@
 import { Users, UserPlus, Search, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 
 export default function CustomersList() {
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['adminCustomers'],
@@ -106,7 +108,10 @@ export default function CustomersList() {
                       )}
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <button className="text-[#2D79A8] font-bold text-xs hover:underline uppercase tracking-wide">
+                      <button 
+                        onClick={() => navigate(`/admin/customers/${cust.id}`)}
+                        className="text-[#2D79A8] font-bold text-xs hover:underline uppercase tracking-wide"
+                      >
                         View Profile
                       </button>
                     </td>

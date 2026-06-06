@@ -5,25 +5,17 @@ import { PrismaService } from '../prisma/prisma.service';
 export class OrderService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
+  findAll(customerId: string) {
     return this.prisma.order.findMany({
+      where: { customerId },
       include: {
-        customer: {
+        items: {
           include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-                phone: true,
-              },
-            },
-          },
-        },
-        address: true,
-        items: true,
+            product: true
+          }
+        }
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc' }
     });
   }
 }

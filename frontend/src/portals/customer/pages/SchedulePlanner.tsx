@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { CalendarDays, Save, RefreshCw, Sparkles, AlertCircle } from 'lucide-react';
+import { CalendarDays, Save, Sparkles, Minus, Plus, Droplets, Calendar, CalendarClock, Power, CheckCircle2 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 
 interface ScheduleRule {
   id?: string;
-  type: 'WEEKLY' | 'INTERVAL' | 'CUSTOM';
+  type: 'WEEKLY';
   dayOfWeek?: number;
   quantity?: number;
-  intervalDays?: number;
-  customNotes?: string;
 }
 
 interface Schedule {
@@ -33,19 +30,11 @@ export default function SchedulePlanner() {
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [mode, setMode] = useState<'WEEKLY' | 'INTERVAL' | 'CUSTOM'>('WEEKLY');
 
   // Weekly local state quantities
   const [weeklyQtys, setWeeklyQtys] = useState<Record<number, number>>({
     0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0
   });
-
-  // Interval local state
-  const [intervalDays, setIntervalDays] = useState<number>(3);
-  const [intervalQty, setIntervalQty] = useState<number>(1);
-
-  // Custom local state
-  const [customNotes, setCustomNotes] = useState<string>('');
 
   useEffect(() => {
     async function loadSchedule() {
@@ -53,29 +42,16 @@ export default function SchedulePlanner() {
         const data = await fetchWithAuth('/schedule');
         if (data) {
           setSchedule(data);
-          
           // Parse rules into state
           const rules: ScheduleRule[] = data.rules || [];
-          if (rules.length > 0) {
-            const firstRuleType = rules[0].type;
-            setMode(firstRuleType);
-
-            if (firstRuleType === 'WEEKLY') {
-              const qtys: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-              rules.forEach(r => {
-                if (r.dayOfWeek !== undefined && r.dayOfWeek !== null) {
-                  qtys[r.dayOfWeek] = r.quantity || 0;
-                }
-              });
-              setWeeklyQtys(qtys);
-            } else if (firstRuleType === 'INTERVAL') {
-              const intervalRule = rules[0];
-              setIntervalDays(intervalRule.intervalDays || 3);
-              setIntervalQty(intervalRule.quantity || 1);
-            } else if (firstRuleType === 'CUSTOM') {
-              setCustomNotes(rules[0].customNotes || '');
+          const qtys: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+          rules.forEach(r => {
+            // We ignore non-weekly rules because of the business decision to move strictly to WEEKLY
+            if (r.type === 'WEEKLY' && r.dayOfWeek !== undefined && r.dayOfWeek !== null) {
+              qtys[r.dayOfWeek] = r.quantity || 0;
             }
-          }
+          });
+          setWeeklyQtys(qtys);
         }
       } catch (err: any) {
         toast.error('Failed to load delivery schedule');
@@ -99,30 +75,17 @@ export default function SchedulePlanner() {
     
     // Construct rules
     const rules: ScheduleRule[] = [];
-    if (mode === 'WEEKLY') {
-      Object.keys(weeklyQtys).forEach(dayKey => {
-        const day = parseInt(dayKey);
-        const qty = weeklyQtys[day];
-        if (qty > 0) {
-          rules.push({
-            type: 'WEEKLY',
-            dayOfWeek: day,
-            quantity: qty
-          });
-        }
-      });
-    } else if (mode === 'INTERVAL') {
-      rules.push({
-        type: 'INTERVAL',
-        intervalDays: intervalDays,
-        quantity: intervalQty
-      });
-    } else if (mode === 'CUSTOM') {
-      rules.push({
-        type: 'CUSTOM',
-        customNotes: customNotes
-      });
-    }
+    Object.keys(weeklyQtys).forEach(dayKey => {
+      const day = parseInt(dayKey);
+      const qty = weeklyQtys[day];
+      if (qty > 0) {
+        rules.push({
+          type: 'WEEKLY',
+          dayOfWeek: day,
+          quantity: qty
+        });
+      }
+    });
 
     try {
       const updated = await fetchWithAuth('/schedule', {
@@ -144,247 +107,244 @@ export default function SchedulePlanner() {
   const handleToggleActive = async () => {
     if (!schedule) return;
     const nextActive = !schedule.isActive;
-    setSchedule({ ...schedule, isActive: nextActive });
     
     try {
-      await fetchWithAuth('/schedule', {
+      const updated = await fetchWithAuth('/schedule', {
         method: 'POST',
         body: JSON.stringify({
           isActive: nextActive,
-          rules: schedule.rules
+          rules: schedule.rules // Keep backend rules intact for this toggle
         })
       });
-      toast.success(`Schedule ${nextActive ? 'enabled' : 'paused'} successfully!`);
-    } catch {
-      toast.error('Failed to toggle schedule state');
-      setSchedule({ ...schedule, isActive: !nextActive });
+      setSchedule(updated);
+      toast.success(`Schedule ${nextActive ? 'activated' : 'paused'}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update schedule status');
     }
   };
 
+  // Calculations
+  const weeklyTotal = Object.values(weeklyQtys).reduce((a, b) => a + b, 0);
+  const monthlyEstimate = weeklyTotal * 4;
+  const activeDays = Object.values(weeklyQtys).filter(qty => qty > 0).length;
+
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="relative h-16 w-16 rounded-full water-gradient shadow-2xl shadow-edrops-aqua/30">
-          <div className="absolute inset-2 animate-ping rounded-full bg-white/40" />
-        </div>
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <div className="h-10 w-10 border-4 border-[#E2E8F0] border-t-[#1E88E5] rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8 space-y-6">
-      
-      {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-[#245361]">Delivery Schedule</h1>
-          <p className="text-sm font-semibold text-[#245361]/95 mt-1">Configure your custom hydration calendar and jar supply intervals</p>
-        </div>
+    <div className="min-h-[calc(100vh-72px)] bg-[#F8FAFC] pb-[100px] lg:pb-12 text-[#0F172A]">
+      <div className="mx-auto max-w-[1200px] px-4 md:px-6 py-6 md:py-10">
         
-        {schedule && (
-          <button
-            onClick={handleToggleActive}
-            className={`px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-wider shadow-sm transition-all ${
-              schedule.isActive
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-            }`}
-          >
-            {schedule.isActive ? '● Schedule Active' : '○ Schedule Paused'}
-          </button>
-        )}
-      </div>
-
-      {/* 2. Mode Selectors */}
-      <div className="grid grid-cols-3 gap-3 rounded-[2rem] bg-secondary/15 p-2 max-w-2xl">
-        <button
-          onClick={() => setMode('WEEKLY')}
-          className={`py-3.5 rounded-full text-sm font-black transition-all ${
-            mode === 'WEEKLY'
-              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Weekly Schedule
-        </button>
-        <button
-          onClick={() => setMode('INTERVAL')}
-          className={`py-3.5 rounded-full text-sm font-black transition-all ${
-            mode === 'INTERVAL'
-              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Interval Deliveries
-        </button>
-        <button
-          onClick={() => setMode('CUSTOM')}
-          className={`py-3.5 rounded-full text-sm font-black transition-all ${
-            mode === 'CUSTOM'
-              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Custom
-        </button>
-      </div>
-
-      {/* 3. Scheduler Form Card */}
-      <div className="grid gap-6 md:grid-cols-[1.4fr_0.8fr]">
-        
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="clay-card p-6 sm:p-8 space-y-6"
-        >
-          {mode === 'WEEKLY' ? (
-            <div className="space-y-4">
-              <h3 className="text-lg font-black text-[#245361] flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                Select Jars per Weekday
-              </h3>
-              <p className="text-xs font-semibold text-slate-600">Set the specific quantity of jars to deliver on each day of the week. Days set to 0 will be skipped.</p>
-              
-              <div className="divide-y divide-border/60">
-                {DAYS_OF_WEEK.map((day) => (
-                  <div key={day.value} className="flex items-center justify-between py-4.5">
-                    <span className="text-base font-black text-[#245361]">{day.label}</span>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleWeeklyQtyChange(day.value, -1)}
-                        className="h-10 w-10 rounded-xl bg-secondary/15 font-black text-primary hover:bg-secondary/35 active:scale-95 transition flex items-center justify-center"
-                      >
-                        -
-                      </button>
-                      <span className="w-8 text-center text-lg font-black text-[#245361]">
-                        {weeklyQtys[day.value]}
-                      </span>
-                      <button
-                        onClick={() => handleWeeklyQtyChange(day.value, 1)}
-                        className="h-10 w-10 rounded-xl bg-secondary/15 font-black text-primary hover:bg-secondary/35 active:scale-95 transition flex items-center justify-center"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : mode === 'INTERVAL' ? (
-            <div className="space-y-6">
-              <h3 className="text-lg font-black text-[#245361] flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                Interval Scheduling
-              </h3>
-              <p className="text-xs font-semibold text-slate-600">Configure a repeat pattern (e.g. deliver X jars every Y days starting from today).</p>
-              
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-[#245361]/80 mb-2">Delivery Interval (Days)</label>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setIntervalDays(prev => Math.max(1, prev - 1))}
-                      className="h-12 w-12 rounded-2xl bg-secondary/15 font-black text-primary hover:bg-secondary/35 active:scale-95 transition flex items-center justify-center"
-                    >
-                      -
-                    </button>
-                    <span className="w-16 text-center text-xl font-black text-[#245361]">
-                      {intervalDays} days
-                    </span>
-                    <button
-                      onClick={() => setIntervalDays(prev => Math.min(30, prev + 1))}
-                      className="h-12 w-12 rounded-2xl bg-secondary/15 font-black text-primary hover:bg-secondary/35 active:scale-95 transition flex items-center justify-center"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-[#245361]/80 mb-2">Jar Quantity</label>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setIntervalQty(prev => Math.max(1, prev - 1))}
-                      className="h-12 w-12 rounded-2xl bg-secondary/15 font-black text-primary hover:bg-secondary/35 active:scale-95 transition flex items-center justify-center"
-                    >
-                      -
-                    </button>
-                    <span className="w-16 text-center text-xl font-black text-[#245361]">
-                      {intervalQty} Jars
-                    </span>
-                    <button
-                      onClick={() => setIntervalQty(prev => Math.min(10, prev + 1))}
-                      className="h-12 w-12 rounded-2xl bg-secondary/15 font-black text-primary hover:bg-secondary/35 active:scale-95 transition flex items-center justify-center"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <h3 className="text-lg font-black text-[#245361] flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                Custom Instructions
-              </h3>
-              <p className="text-xs font-semibold text-slate-600">Provide exact instructions for the delivery team (e.g. "Deliver 2 jars on the 1st and 15th of each month").</p>
-              
-              <div className="space-y-5">
-                <div>
-                  <textarea
-                    value={customNotes}
-                    onChange={(e) => setCustomNotes(e.target.value)}
-                    placeholder="Enter your custom delivery instructions here..."
-                    className="w-full min-h-[150px] p-4 text-sm font-medium rounded-2xl bg-secondary/10 border border-border/60 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all resize-y"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="pt-4 border-t border-border/80 flex justify-end">
+        {/* HEADER */}
+        <div className="mb-5 md:mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-3 md:gap-4">
+          <div>
+            <h1 className="text-[20px] md:text-[32px] font-bold text-[#0F172A] mb-1 md:mb-2">Delivery Schedule</h1>
+            <p className="text-[13px] md:text-[16px] text-[#64748B]">Manage your automated weekly water deliveries.</p>
+          </div>
+          
+          <div className="flex flex-col gap-2 md:gap-3 sm:min-w-[200px]">
+            {schedule && (
+              <button
+                onClick={handleToggleActive}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 md:py-2.5 rounded-[10px] md:rounded-[12px] font-semibold text-[13px] md:text-[14px] shadow-sm transition-colors border ${
+                  schedule.isActive 
+                    ? 'bg-white border-[#E2E8F0] text-[#0F172A] hover:bg-[#F8FAFC]' 
+                    : 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100'
+                }`}
+              >
+                <Power className={`w-3.5 h-3.5 md:w-4 md:h-4 ${schedule.isActive ? 'text-[#1E88E5]' : 'text-orange-600'}`} />
+                {schedule.isActive ? 'Schedule Active' : 'Schedule Paused'}
+              </button>
+            )}
+            
+            {/* MOBILE SAVE BUTTON (Appears right below active status) */}
             <button
               onClick={handleSave}
-              disabled={saving}
-              className="px-8 py-4 rounded-full bg-primary text-sm font-black text-primary-foreground shadow-lg hover:shadow-primary/20 active:scale-98 transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              disabled={saving || weeklyTotal === 0}
+              className="lg:hidden w-full h-[42px] md:h-[48px] rounded-[10px] md:rounded-[12px] bg-[#1E88E5] text-white font-semibold text-[13px] md:text-[15px] shadow-sm active:bg-[#1976D2] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:bg-[#1E88E5]"
             >
               {saving ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" /> Saving...
-                </>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  <Save className="h-4 w-4" /> Save Schedule
+                  <Save className="w-5 h-5" />
+                  Save Schedule
                 </>
               )}
             </button>
           </div>
-        </motion.div>
-
-        {/* Info & Alerts Column */}
-        <div className="space-y-6">
-          <div className="clay-card bg-primary text-primary-foreground">
-            <Sparkles className="h-8 w-8 text-white" />
-            <h4 className="mt-4 text-xl font-black text-white">Dynamic Routing</h4>
-            <p className="mt-2 text-xs font-semibold leading-6 text-white/80">
-              The schedule rules you save here drive our daily route generator automatically. Keep your prepaid jar balance recharged to ensure zero missed deliveries.
-            </p>
-          </div>
-
-          <div className="bg-[#BBDFF2]/20 border border-[#BBDFF2]/40 rounded-3xl p-5 flex gap-3.5 items-start">
-            <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-            <div>
-              <h5 className="text-sm font-black text-[#245361]">Prepaid Balances</h5>
-              <p className="text-xs text-slate-700 leading-5 mt-1">
-                Each successfully confirmed delivery will deduct jars directly from your prepaid package balance.
-              </p>
-            </div>
-          </div>
         </div>
 
-      </div>
+        {/* 2-COLUMN LAYOUT */}
+        <div className="flex flex-col lg:flex-row gap-6 md:gap-8">
+          
+          {/* LEFT COLUMN (70%) */}
+          <div className="w-full lg:w-[65%] xl:w-[70%] space-y-6">
+            
+            {/* WEEKLY SCHEDULE CARD */}
+            <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
+              <div className="px-4 md:px-5 py-3 md:py-4 border-b border-[#E2E8F0] bg-white flex items-center justify-between">
+                <h2 className="text-[14px] md:text-[16px] font-bold text-[#0F172A] flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4 md:w-5 md:h-5 text-[#1E88E5]" />
+                  Weekly Deliveries
+                </h2>
+                {activeDays > 0 && (
+                  <span className="text-[11px] md:text-[12px] font-bold text-[#1E88E5] bg-blue-50 px-2 md:px-2.5 py-1 rounded-[6px]">
+                    {activeDays} Days Active
+                  </span>
+                )}
+              </div>
+              
+              <div className="divide-y divide-[#E2E8F0]">
+                {DAYS_OF_WEEK.map((day) => {
+                  const qty = weeklyQtys[day.value];
+                  const isActive = qty > 0;
+                  
+                  return (
+                    <div key={day.value} className={`px-4 md:px-5 py-3 md:py-4 flex items-center justify-between transition-colors ${isActive ? 'bg-[#F8FAFC]/50' : 'bg-white'}`}>
+                      {/* Day Info */}
+                      <div className="flex flex-col">
+                        <span className={`text-[14px] md:text-[16px] font-semibold ${isActive ? 'text-[#0F172A]' : 'text-[#64748B]'}`}>
+                          {day.label}
+                        </span>
+                        <span className="text-[11px] md:text-[13px] font-medium text-[#94A3B8] mt-0.5">
+                          {isActive ? (
+                            <span className="text-[#1E88E5] flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 md:w-3.5 md:h-3.5" /> Delivery Set</span>
+                          ) : 'No Delivery'}
+                        </span>
+                      </div>
+                      
+                      {/* Quantity Controls */}
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <span className="text-[13px] md:text-[14px] font-bold text-[#0F172A] min-w-[48px] text-right hidden sm:block">
+                          {qty} {qty === 1 ? 'Jar' : 'Jars'}
+                        </span>
+                        
+                        <div className="flex items-center bg-white border border-[#E2E8F0] rounded-[10px] md:rounded-[12px] shadow-sm p-1">
+                          <button
+                            onClick={() => handleWeeklyQtyChange(day.value, -1)}
+                            disabled={qty === 0}
+                            className="w-8 h-8 md:w-9 md:h-9 rounded-[6px] md:rounded-[8px] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] disabled:opacity-30 disabled:hover:bg-transparent active:bg-[#E2E8F0] transition-colors"
+                          >
+                            <Minus className="w-4 h-4 md:w-5 md:h-5" />
+                          </button>
+                          
+                          <span className="w-8 md:w-10 text-center font-bold text-[14px] md:text-[16px] text-[#0F172A]">
+                            {qty}
+                          </span>
+                          
+                          <button
+                            onClick={() => handleWeeklyQtyChange(day.value, 1)}
+                            disabled={qty >= 10}
+                            className="w-8 h-8 md:w-9 md:h-9 rounded-[6px] md:rounded-[8px] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] disabled:opacity-30 disabled:hover:bg-transparent active:bg-[#E2E8F0] transition-colors"
+                          >
+                            <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
+            {/* EMPTY STATE WARNING */}
+            {weeklyTotal === 0 && (
+              <div className="bg-white rounded-[16px] border border-dashed border-[#E2E8F0] p-6 text-center">
+                <div className="w-12 h-12 bg-[#F8FAFC] rounded-full flex items-center justify-center mx-auto mb-3">
+                  <CalendarClock className="w-6 h-6 text-[#94A3B8]" />
+                </div>
+                <h3 className="text-[16px] font-bold text-[#0F172A] mb-1">No deliveries scheduled</h3>
+                <p className="text-[13px] text-[#64748B] max-w-sm mx-auto">Use the controls above to configure your weekly water deliveries. Your schedule will repeat every week automatically.</p>
+              </div>
+            )}
+            
+          </div>
+
+          {/* RIGHT COLUMN (30%) */}
+          <div className="w-full lg:w-[35%] xl:w-[30%] space-y-6 relative">
+            
+            {/* HYDRATION SUMMARY */}
+            <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm p-5">
+              <h3 className="text-[14px] font-bold text-[#0F172A] uppercase tracking-wider mb-5">Hydration Summary</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                    <Droplets className="w-5 h-5 text-[#1E88E5]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide">Weekly Total</p>
+                    <p className="text-[18px] font-bold text-[#0F172A]">{weeklyTotal} Jars</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+                    <Calendar className="w-5 h-5 text-indigo-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide">Monthly Est.</p>
+                    <p className="text-[18px] font-bold text-[#0F172A]">{monthlyEstimate} Jars</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide">Active Days</p>
+                    <p className="text-[18px] font-bold text-[#0F172A]">{activeDays} / 7 Days</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SMART INSIGHTS */}
+            {weeklyTotal > 0 && (
+              <div className="bg-[#1E88E5]/5 border border-[#1E88E5]/20 rounded-[16px] p-5">
+                <div className="flex gap-3">
+                  <Sparkles className="w-5 h-5 text-[#1E88E5] shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-[14px] font-bold text-[#0F172A] mb-1">Smart Insight</h4>
+                    <p className="text-[13px] text-[#334155] leading-relaxed">
+                      You are scheduled to receive <span className="font-bold text-[#1E88E5]">{weeklyTotal} jars</span> every week across {activeDays} days. This ensures a steady supply of fresh water without storing excess inventory.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* DESKTOP SAVE CARD (Hidden on Mobile) */}
+            <div className="hidden lg:block sticky top-24 bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm p-5">
+              <h3 className="text-[14px] font-bold text-[#0F172A] mb-2">Save Changes</h3>
+              <p className="text-[12px] text-[#64748B] mb-5">Your schedule updates will apply to all future deliveries.</p>
+              
+              <button
+                onClick={handleSave}
+                disabled={saving || weeklyTotal === 0}
+                className="w-full h-[48px] rounded-[12px] bg-[#1E88E5] text-white font-semibold text-[14px] shadow-sm hover:bg-[#1976D2] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-[#1E88E5] cursor-pointer"
+              >
+                {saving ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Schedule
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

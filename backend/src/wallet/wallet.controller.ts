@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Req, Body, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { RechargeWalletDto } from './dto/recharge-wallet.dto';
 
 @Controller('wallet')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,5 +32,11 @@ export class WalletController {
   async ownJar(@Req() req) {
     const userId = req.user.sub || req.user.id;
     return this.walletService.ownJar(userId);
+  }
+
+  @Post('recharge')
+  async rechargeWallet(@Req() req, @Body() dto: RechargeWalletDto) {
+    const userId = req.user.sub || req.user.id;
+    return this.walletService.rechargeWallet(userId, dto.amount);
   }
 }

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, History, ArrowUpRight, ArrowDownLeft, ShieldAlert, Sparkles } from 'lucide-react';
+import { Wallet, History, ArrowUpRight, ArrowDownLeft, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface Transaction {
   id: string;
@@ -14,28 +15,57 @@ interface Transaction {
 }
 
 export default function WalletPage() {
+  const { user } = useAuth();
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAmount, setSelectedAmount] = useState<number>(500);
+  const [customAmount, setCustomAmount] = useState<string>('');
+  const [rechargeLoading, setRechargeLoading] = useState(false);
+
+  const loadWalletData = async () => {
+    try {
+      const data = await fetchWithAuth('/auth/me');
+      if (data?.customer?.wallet) {
+        setBalance(data.customer.wallet.balance);
+      }
+
+      const txData = await fetchWithAuth('/wallet/transactions');
+      setTransactions(txData || []);
+    } catch (err: any) {
+      toast.error('Failed to load wallet information');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadWalletData() {
-      try {
-        const data = await fetchWithAuth('/auth/me');
-        if (data?.customer?.wallet) {
-          setBalance(data.customer.wallet.balance);
-        }
-
-        const txData = await fetchWithAuth('/wallet/transactions');
-        setTransactions(txData || []);
-      } catch (err: any) {
-        toast.error('Failed to load wallet information');
-      } finally {
-        setLoading(false);
-      }
-    }
     loadWalletData();
   }, []);
+
+  const handleRecharge = async () => {
+    const amount = customAmount ? parseInt(customAmount) : selectedAmount;
+    if (!amount || amount < 100 || amount > 100000) {
+      toast.error('Please enter a valid amount (Min: ₹100, Max: ₹100,000)');
+      return;
+    }
+
+    try {
+      setRechargeLoading(true);
+      await fetchWithAuth('/wallet/recharge', {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      });
+
+      toast.success(`Successfully added ₹${amount} to your wallet!`);
+      setCustomAmount('');
+      loadWalletData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to recharge wallet');
+    } finally {
+      setRechargeLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -99,23 +129,35 @@ export default function WalletPage() {
             <p className="text-sm text-slate-700 mt-1">Refill wallet for uninterrupted water delivery.</p>
             
             <div className="grid grid-cols-3 gap-2 mt-4">
-              {['200', '500', '1000'].map((amt) => (
+              {[200, 500, 1000].map((amt) => (
                 <button
                   key={amt}
-                  onClick={() => toast.error('Wallet checkout is not available in this build.')}
-                  className="rounded-2xl bg-secondary/15 py-3 text-center text-sm font-black text-[#2D79A8] border border-transparent hover:border-[#2D79A8] transition"
+                  onClick={() => { setSelectedAmount(amt); setCustomAmount(''); }}
+                  className={`rounded-2xl py-3 text-center text-sm font-black transition ${selectedAmount === amt && !customAmount ? 'bg-[#2D79A8] text-white shadow-lg shadow-[#2D79A8]/30' : 'bg-secondary/15 text-[#2D79A8] border border-transparent hover:border-[#2D79A8]'}`}
                 >
                   +₹{amt}
                 </button>
               ))}
             </div>
+
+            <div className="mt-4 relative">
+              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">₹</span>
+              <input
+                type="number"
+                placeholder="Or enter custom amount..."
+                value={customAmount}
+                onChange={(e) => { setCustomAmount(e.target.value); setSelectedAmount(0); }}
+                className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2D79A8] focus:ring-2 focus:ring-[#2D79A8]/20 transition-all font-semibold text-sm outline-none"
+              />
+            </div>
           </div>
 
           <button
-            onClick={() => toast.error('Wallet checkout is not available in this build.')}
-            className="w-full mt-6 py-4 rounded-full sun-gradient text-sm font-black text-white shadow-lg hover:shadow-orange-300/20 active:scale-98 transition"
+            onClick={handleRecharge}
+            disabled={rechargeLoading}
+            className="w-full mt-6 py-4 rounded-full sun-gradient text-sm font-black text-white shadow-lg hover:shadow-orange-300/20 active:scale-98 transition flex items-center justify-center gap-2 disabled:opacity-70"
           >
-            Add Money Securely
+            {rechargeLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Add Money Securely'}
           </button>
         </motion.div>
       </div>

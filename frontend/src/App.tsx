@@ -10,7 +10,7 @@ const CustomerPortal = React.lazy(() => import('./portals/customer/CustomerPorta
 const StaffPortal = React.lazy(() => import('./portals/staff/StaffPortal'));
 const AdminPortal = React.lazy(() => import('./portals/admin/AdminPortal'));
 const DeliveryPartnerPortal = React.lazy(() => import('./portals/delivery-partner/DeliveryPartnerPortal'));
-const Login = React.lazy(() => import('./pages/auth/LoginSignup'));
+const Login = React.lazy(() => import('./pages/auth/Auth'));
 const ForgotPassword = React.lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = React.lazy(() => import('./pages/auth/ResetPassword'));
 

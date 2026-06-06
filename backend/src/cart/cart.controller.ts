@@ -6,6 +6,7 @@ import {
   Get,
   Post,
   Req,
+  Param,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -31,6 +32,22 @@ export class CartController {
       throw new BadRequestException('Only customer accounts can update cart');
     }
     return this.cartService.syncCart(req.user.customerId, body);
+  }
+
+  @Post('items')
+  addItem(@Req() req, @Body() body: { productId: string; quantity: number }) {
+    if (!req.user.customerId) {
+      throw new BadRequestException('Only customer accounts can update cart');
+    }
+    return this.cartService.addItem(req.user.customerId, body.productId, body.quantity);
+  }
+
+  @Delete('items/:productId')
+  removeItem(@Req() req, @Param('productId') productId: string) {
+    if (!req.user.customerId) {
+      throw new BadRequestException('Only customer accounts can update cart');
+    }
+    return this.cartService.removeItem(req.user.customerId, productId);
   }
 
   @Delete()

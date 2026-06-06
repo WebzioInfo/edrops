@@ -31,6 +31,7 @@ import { WebhookModule } from './webhook/webhook.module';
 import { CheckoutModule } from './checkout/checkout.module';
 import { CartModule } from './cart/cart.module';
 import { SupportModule } from './support/support.module';
+import { AddressModule } from './address/address.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { SupportModule } from './support/support.module';
     CheckoutModule,
     CartModule,
     SupportModule,
+    AddressModule,
   ],
   controllers: [AppController],
   providers: [AppService],

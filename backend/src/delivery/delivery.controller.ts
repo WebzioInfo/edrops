@@ -5,8 +5,10 @@ import {
   Body,
   Param,
   Delete,
+  Patch,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { DeliveryService } from './delivery.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -41,9 +43,47 @@ export class DeliveryController {
     return this.deliveryService.findHistoryByCustomerUser(req.user.id);
   }
 
+  @Get('weekly-summary')
+  findMyWeeklySummary(
+    @Request() req,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.deliveryService.findWeeklySummaryByCustomerUser(
+      req.user.id,
+      year ? parseInt(year, 10) : undefined,
+      month ? parseInt(month, 10) : undefined,
+      status,
+    );
+  }
+
+  @Get('customer/:customerId/weekly-summary')
+  getWeeklySummary(
+    @Param('customerId') customerId: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.deliveryService.getWeeklySummary(
+      customerId,
+      year ? parseInt(year, 10) : undefined,
+      month ? parseInt(month, 10) : undefined,
+      status,
+    );
+  }
+
   @Get('customer/:customerId')
   findByCustomer(@Param('customerId') customerId: string) {
     return this.deliveryService.findByCustomer(customerId);
+  }
+
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: any; reason?: string }
+  ) {
+    return this.deliveryService.updateStatus(id, body.status, body.reason);
   }
 
   @Post(':id/assign')

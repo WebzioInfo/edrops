@@ -95,6 +95,94 @@ export class DeliveryEngine {
     return { success: true, generatedCount };
   }
 
+  // Generate Future Deliveries based on schedule (Replaces generateTodayDeliveries for predictive generation)
+  async syncCustomerSchedule(customerId: string, weeksOut: number = 8) {
+    const now = new Date();
+    // Force strict UTC midnight to avoid local timezone drift
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    
+    // Calculate the start of the current week (Monday)
+    const day = today.getUTCDay();
+    const diff = today.getUTCDate() - day + (day === 0 ? -6 : 1);
+    const startOfWeek = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), diff));
+
+    // Fetch the customer's active schedule and rules
+    const schedule = await this.prisma.deliverySchedule.findUnique({
+      where: { customerId },
+      include: {
+        rules: true,
+        customer: {
+          include: { addresses: true },
+        },
+      },
+    });
+
+    // We must safely clear all FUTURE and CURRENT pending/assigned deliveries to regenerate them cleanly
+    await this.prisma.delivery.deleteMany({
+      where: {
+        customerId,
+        scheduledFor: { gte: startOfWeek },
+        status: { in: [DeliveryStatus.PENDING, DeliveryStatus.ASSIGNED] }
+      }
+    });
+
+    if (!schedule || !schedule.isActive || schedule.rules.length === 0) {
+      return { success: true, generatedCount: 0 };
+    }
+
+    const defaultAddress = schedule.customer.addresses.find((a) => a.isDefault) || schedule.customer.addresses[0];
+    if (!defaultAddress) return { success: true, generatedCount: 0 };
+
+    let generatedCount = 0;
+    const daysToGenerate = weeksOut * 7;
+    
+    // We generate from START OF WEEK to N weeks out.
+    for (let i = 0; i < daysToGenerate; i++) {
+      const targetDate = new Date(startOfWeek.getTime());
+      targetDate.setUTCDate(startOfWeek.getUTCDate() + i);
+      const dayOfWeek = targetDate.getUTCDay();
+      
+      let dailyQty = 0;
+
+      for (const rule of schedule.rules) {
+        if (rule.type === 'WEEKLY' && rule.dayOfWeek === dayOfWeek) {
+          dailyQty += rule.quantity;
+        } else if (rule.type === 'INTERVAL') {
+          const ruleStart = new Date(rule.startDate);
+          ruleStart.setUTCHours(0, 0, 0, 0);
+          const diffTime = Math.abs(targetDate.getTime() - ruleStart.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const interval = rule.intervalDays || 1;
+          if (diffDays % interval === 0) {
+            dailyQty += rule.quantity;
+          }
+        }
+      }
+
+      if (dailyQty > 0) {
+        // Safe upsert or create due to the unique constraint
+        const existing = await this.prisma.delivery.findFirst({
+          where: { customerId, scheduledFor: targetDate }
+        });
+
+        if (!existing) {
+          await this.prisma.delivery.create({
+            data: {
+              customerId,
+              addressId: defaultAddress.id,
+              scheduledFor: targetDate,
+              requiredQuantity: dailyQty,
+              status: DeliveryStatus.PENDING,
+            }
+          });
+          generatedCount++;
+        }
+      }
+    }
+
+    return { success: true, generatedCount };
+  }
+
   // 2. Staff manual assignment
   async assignDelivery(deliveryId: string, deliveryPartnerId: string) {
     return this.prisma.$transaction(async (tx) => {

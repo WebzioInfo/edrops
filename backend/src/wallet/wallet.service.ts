@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { WalletTransactionType, TransactionType } from '@prisma/client';
+import { WalletTransactionType, TransactionType, PaymentStatus } from '@prisma/client';
 import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
@@ -272,5 +272,19 @@ export class WalletService {
 
       return { success: true };
     });
+  }
+
+  async rechargeWallet(userId: string, amount: number) {
+    if (amount <= 0) {
+      throw new BadRequestException('Recharge amount must be greater than 0');
+    }
+    
+    // Check auto-creation and credit wallet
+    return this.addFunds(
+      userId,
+      amount,
+      WalletTransactionType.TOP_UP,
+      `Direct Wallet Recharge (₹${amount})`
+    );
   }
 }

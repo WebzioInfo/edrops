@@ -34,6 +34,7 @@ enum DeliveryStatus {
   SKIPPED
   FAILED
   RESCHEDULED
+  CANCELLED
 }
 
 enum TransactionType {
@@ -261,13 +262,19 @@ model Address {
   id         String   @id @default(uuid())
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  label      String? // e.g., 'Home', 'Office'
-  street     String
-  city       String
-  state      String
-  zipCode    String
-  country    String   @default("India")
-  isDefault  Boolean  @default(false)
+  label        String? // e.g., 'Home', 'Office'
+  fullName     String?
+  mobileNumber String?
+  houseName    String?
+  buildingName String?
+  street       String
+  landmark     String?
+  area         String?
+  city         String
+  state        String
+  zipCode      String
+  country      String   @default("India")
+  isDefault    Boolean  @default(false)
   latitude   Float?
   longitude  Float?
 
@@ -346,8 +353,11 @@ model Delivery {
   addressId        String
   address          Address             @relation(fields: [addressId], references: [id])
   scheduledFor     DateTime            @db.Date
+  timeSlot         String?
   requiredQuantity Int
   status           DeliveryStatus      @default(PENDING)
+  completedAt      DateTime?
+  cancelledAt      DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   assignment       DeliveryAssignment?
@@ -836,6 +846,8 @@ model Order {
   deliveryAddressId String
   address           Address       @relation(fields: [deliveryAddressId], references: [id])
   scheduledDate     DateTime?
+  timeSlot          String?
+  paymentMethod     String        @default("ONLINE") // COD, WALLET, RAZORPAY, HYBRID
   paymentStatus     PaymentStatus @default(PENDING)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt

@@ -1,6 +1,6 @@
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
-import { Droplets, Menu, X } from 'lucide-react';
+import { Droplets, Menu, Bell, User, LogOut, ChevronDown, Truck, Users, Package, ClipboardList, LifeBuoy } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const RouteOperations = React.lazy(() => import('./pages/RouteOperations'));
@@ -9,54 +9,75 @@ const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
 const InventoryAudit = React.lazy(() => import('./pages/InventoryAudit'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 
-const StaffLoader = () => (
-  <div className="flex min-h-[60vh] items-center justify-center">
-    <div className="relative h-16 w-16 rounded-full water-gradient shadow-2xl shadow-edrops-aqua/30">
-      <div className="absolute inset-2 animate-ping rounded-full bg-white/40" />
-    </div>
-  </div>
-);
-
-const navItems = [
+const centerNavItems = [
   { to: '/staff/operations', label: 'Operations' },
   { to: '/staff/customers', label: 'Customers' },
   { to: '/staff/packages', label: 'Packages' },
   { to: '/staff/inventory', label: 'Inventory' },
-  { to: '/staff/profile', label: 'Profile' },
 ];
+
+const mobileBottomNavItems = [
+  { to: '/staff/operations', label: 'Routes', icon: Truck },
+  { to: '/staff/customers', label: 'Customers', icon: Users },
+  { to: '/staff/packages', label: 'Packages', icon: Package },
+  { to: '/staff/inventory', label: 'Inventory', icon: ClipboardList },
+];
+
+const mobileMoreNavItems = [
+  { to: '/staff/profile', label: 'Profile', icon: User },
+];
+
+const StaffLoader = () => (
+  <div className="flex min-h-[60vh] items-center justify-center">
+    <div className="flex flex-col items-center gap-3">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#BBDFF2] border-t-[#2D79A8]"></div>
+      <p className="text-sm font-medium text-[#245361]">Loading...</p>
+    </div>
+  </div>
+);
 
 export default function StaffPortal() {
   const { logout } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
-    <div className="relative min-h-screen text-foreground animate-fade-in pb-12">
-      {/* Background gradients */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-[-12rem] top-[-10rem] h-[28rem] w-[28rem] rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute right-[-8rem] top-24 h-[24rem] w-[24rem] rounded-full bg-secondary/15 blur-3xl" />
-      </div>
-
-      <header className="sticky mt-4 mx-4 rounded-full top-0 z-30 border border-border bg-background/80 backdrop-blur-2xl shadow-sm">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
-          <NavLink to="/staff/operations" className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-              <Droplets className="h-6 w-6" />
+    <div className="relative min-h-screen bg-[#F8FAFC] text-[#245361] pb-24 lg:pb-0">
+      
+      {/* Desktop Enterprise Navbar */}
+      <header className="sticky top-0 z-50 w-full border-b border-[#E2E8F0] bg-white shadow-sm">
+        <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
+          
+          {/* Logo */}
+          <NavLink to="/staff/operations" className="flex items-center gap-3 mr-8 shrink-0">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#2D79A8] text-white">
+              <Droplets className="h-5 w-5" />
             </span>
-            <span>
-              <span className="block text-xl font-black tracking-tight">Edrops Staff</span>
-            </span>
+            <span className="block text-xl font-bold tracking-tight text-[#2D79A8]">Edrops Staff</span>
           </NavLink>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden items-center gap-2 rounded-full bg-background p-1.5 lg:flex border border-border">
-            {navItems.map((item) => (
+          {/* Center Navigation */}
+          <nav className="hidden lg:flex items-center gap-1 flex-1">
+            {centerNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-black transition ${
-                    isActive ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-secondary/35'
+                  `relative inline-flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-[#EBF5FB] text-[#2D79A8]' 
+                      : 'text-[#64748B] hover:text-[#2D79A8] hover:bg-[#F8FAFC]'
                   }`
                 }
               >
@@ -65,53 +86,48 @@ export default function StaffPortal() {
             ))}
           </nav>
 
-          <div className="hidden lg:flex items-center gap-3">
-            <button 
-              onClick={logout}
-              className="flex items-center justify-center rounded-full bg-edrops-ocean px-5 py-2.5 text-xs font-black uppercase text-white shadow-lg hover:bg-edrops-ocean/85 cursor-pointer transition active:scale-95"
-            >
-              Logout
+          {/* Right Section */}
+          <div className="flex items-center gap-4">
+
+            {/* Notifications */}
+            <button className="relative flex h-10 w-10 items-center justify-center rounded-full transition-colors text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#2D79A8] hidden lg:flex">
+              <Bell className="h-5 w-5" />
             </button>
-          </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex lg:hidden p-2 rounded-xl border border-border bg-background/50 hover:bg-secondary/20 transition cursor-pointer"
-          >
-            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
-        </div>
-
-        {/* Mobile Menu Drawer */}
-        {mobileMenuOpen && (
-          <div className="absolute top-24 left-0 right-0 z-40 mx-4 border border-border bg-background/95 backdrop-blur-2xl rounded-3xl p-5 shadow-2xl flex flex-col gap-3.5 lg:hidden animate-slide-in">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                onClick={() => setMobileMenuOpen(false)}
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-black transition ${
-                    isActive ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-secondary/20'
-                  }`
-                }
+            {/* Profile Dropdown */}
+            <div className="hidden lg:block relative" ref={profileRef}>
+              <button 
+                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
               >
-                {item.label}
-              </NavLink>
-            ))}
-            <hr className="border-border/60 my-1" />
-            <button
-              onClick={() => { setMobileMenuOpen(false); logout(); }}
-              className="w-full text-center py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-xs font-black uppercase text-white shadow-md transition cursor-pointer"
-            >
-              Logout
-            </button>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EBF5FB] text-[#2D79A8]">
+                  <User className="h-4 w-4" />
+                </div>
+                <ChevronDown className="h-4 w-4 text-[#64748B] mr-1" />
+              </button>
+              
+              {profileDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[#E2E8F0] bg-white shadow-lg overflow-hidden py-1 z-50">
+                  <div className="px-4 py-3 border-b border-[#E2E8F0]">
+                    <p className="text-sm font-semibold text-[#0F172A]">Delivery Staff</p>
+                    <p className="text-xs text-[#64748B] truncate">Active Route</p>
+                  </div>
+                  <NavLink to="/staff/profile" onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#2D79A8] transition-colors">
+                    <User className="h-4 w-4" /> Profile
+                  </NavLink>
+                  <div className="border-t border-[#E2E8F0] my-1"></div>
+                  <button onClick={logout} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-[#FEF2F2] transition-colors text-left cursor-pointer">
+                    <LogOut className="h-4 w-4" /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
-        )}
+        </div>
       </header>
 
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 relative z-10">
         <Suspense fallback={<StaffLoader />}>
           <Routes>
             <Route path="operations" element={<RouteOperations />} />
@@ -124,6 +140,93 @@ export default function StaffPortal() {
           </Routes>
         </Suspense>
       </section>
+
+      {/* Mobile Bottom Sheet for More Menu */}
+      {moreMenuOpen && (
+        <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden" onClick={() => setMoreMenuOpen(false)}>
+          <div 
+            className="absolute bottom-20 inset-x-3 bg-white border border-[#E2E8F0] rounded-[24px] p-5 shadow-2xl space-y-4 animate-slide-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Additional Options</h4>
+              <button onClick={() => setMoreMenuOpen(false)} className="text-[#64748B] hover:bg-[#F1F5F9] p-1 rounded-full cursor-pointer"><ChevronDown className="h-5 w-5" /></button>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-3">
+              {mobileMoreNavItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMoreMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-colors ${
+                        isActive ? 'bg-[#EBF5FB] border-[#2D79A8] text-[#2D79A8]' : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#64748B]'
+                      }`
+                    }
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="text-[11px] font-medium">{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+            <div className="border-t border-[#E2E8F0] pt-4">
+              <button
+                onClick={() => { setMoreMenuOpen(false); logout(); }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#FEF2F2] hover:text-[#EF4444] text-[#475569] text-sm font-semibold transition-colors cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" /> Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E2E8F0] bg-white pb-safe lg:hidden">
+        <div className="flex h-[68px] items-center justify-around px-2">
+          {mobileBottomNavItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={() => setMoreMenuOpen(false)}
+                className={({ isActive }) =>
+                  `relative flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors ${
+                    isActive ? 'text-[#2D79A8]' : 'text-[#64748B]'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className={`flex items-center justify-center p-1.5 rounded-full transition-all ${isActive ? 'bg-[#EBF5FB]' : 'bg-transparent'}`}>
+                      <Icon className={`h-5 w-5 ${isActive ? 'fill-[#2D79A8]/20' : ''}`} />
+                    </div>
+                    <span className={`text-[10px] font-medium ${isActive ? 'font-semibold' : ''}`}>{item.label}</span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
+          
+          {/* More Menu Toggle */}
+          <button
+            onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+            className={`flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors cursor-pointer ${
+              moreMenuOpen ? 'text-[#2D79A8]' : 'text-[#64748B]'
+            }`}
+          >
+            <div className={`flex items-center justify-center p-1.5 rounded-full transition-all ${moreMenuOpen ? 'bg-[#EBF5FB]' : 'bg-transparent'}`}>
+              <Menu className={`h-5 w-5`} />
+            </div>
+            <span className={`text-[10px] font-medium ${moreMenuOpen ? 'font-semibold' : ''}`}>More</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }
