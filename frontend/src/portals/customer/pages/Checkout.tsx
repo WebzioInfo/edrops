@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Plus, Trash2, ShieldCheck, MapPin, Clock, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, Plus, Trash2, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useCart } from '../../../contexts/CartContext';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -23,7 +23,7 @@ interface TimeSlot {
 }
 
 export default function Checkout() {
-  const { items, clearCart, returnEmptyJars, setReturnEmptyJars } = useCart();
+  const { items, clearCart, returnEmptyJars } = useCart();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   

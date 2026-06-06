@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Wallet, History, ArrowUpRight, ArrowDownLeft, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
-import { useAuth } from '../../../contexts/AuthContext';
+
 
 interface Transaction {
   id: string;
@@ -15,7 +15,7 @@ interface Transaction {
 }
 
 export default function WalletPage() {
-  const { user } = useAuth();
+
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);

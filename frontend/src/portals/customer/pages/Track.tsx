@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Truck, CheckCircle2, Clock3, AlertCircle, XCircle, Route, CalendarDays, ChevronDown, ChevronUp, Check, X, FilterX } from 'lucide-react';
+import { Truck, CheckCircle2, Clock3, AlertCircle, XCircle, CalendarDays, ChevronDown, ChevronUp, FilterX } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 
 interface Delivery {
@@ -39,7 +39,7 @@ interface WeekData {
   deliveries: Delivery[];
 }
 
-export default function TrackPage({ isAdmin = false, customerId }: { isAdmin?: boolean; customerId?: string }) {
+export default function TrackPage({ customerId }: { isAdmin?: boolean; customerId?: string }) {
   const [weeks, setWeeks] = useState<WeekData[]>([]);
   const [summary, setSummary] = useState<GlobalStats | null>(null);
   const [todayDelivery, setTodayDelivery] = useState<Delivery | null>(null);
@@ -135,23 +135,7 @@ export default function TrackPage({ isAdmin = false, customerId }: { isAdmin?: b
     }
   };
 
-  const getStatusBadgeClass = (status: Delivery['status']) => {
-    switch (status) {
-      case 'DELIVERED':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-      case 'PENDING':
-      case 'ASSIGNED':
-      case 'IN_TRANSIT':
-        return 'bg-[#BBDFF2]/30 text-[#2D79A8] border-[#BBDFF2]/60';
-      case 'SKIPPED':
-      case 'CANCELLED':
-        return 'bg-amber-50 text-amber-700 border-amber-100';
-      case 'FAILED':
-        return 'bg-rose-50 text-rose-700 border-rose-100';
-      default:
-        return 'bg-slate-50 text-slate-700 border-slate-200';
-    }
-  };
+
 
   const formatShortDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });

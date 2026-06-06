@@ -1,6 +1,6 @@
 import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
-import { Droplets, Menu, Bell, User, LogOut, ChevronDown, Truck, Users, Package, ClipboardList, LifeBuoy } from 'lucide-react';
+import { Droplets, Menu, Bell, User, LogOut, ChevronDown, Truck, Users, Package, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const RouteOperations = React.lazy(() => import('./pages/RouteOperations'));

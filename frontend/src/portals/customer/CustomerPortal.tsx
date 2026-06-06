@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { Bell, CalendarDays, Droplets, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, ShoppingBag, Gift, LifeBuoy } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';

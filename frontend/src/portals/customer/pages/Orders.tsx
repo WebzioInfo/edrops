@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, Clock, CheckCircle, ChevronRight, Ban, X, Download, MapPin, ShoppingBag, ShoppingCart, Truck, XCircle, CheckCircle2 } from 'lucide-react';
+import { Package, Clock, CheckCircle, ChevronRight, Ban, X, Download, MapPin, ShoppingBag, ShoppingCart, XCircle, CheckCircle2 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../../contexts/AuthContext';

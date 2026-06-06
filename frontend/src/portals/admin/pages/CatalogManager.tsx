@@ -44,7 +44,7 @@ export default function CatalogManager() {
         method,
         body: formData,
         // Don't set Content-Type header manually when using FormData, browser will set it with boundary
-      }, false); // Assumes fetchWithAuth can handle FormData if we pass a third param or if it doesn't hardcode headers. Wait, fetchWithAuth usually hardcodes application/json.
+      }); // fetchWithAuth handles FormData automatically
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`admin_${activeTab}`] });

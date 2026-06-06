@@ -1,15 +1,15 @@
-import { motion } from 'framer-motion';
-import { ShoppingBag, Minus, Plus, Trash2, ShieldCheck, CreditCard, MapPin, Clock, Wallet as WalletIcon, RefreshCw } from 'lucide-react';
+
+import { ShoppingBag, Minus, Plus, Trash2, CreditCard } from 'lucide-react';
 import { useCart } from '../../../contexts/CartContext';
-import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
+
+
 import { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
-import { useSearchParams } from 'react-router-dom';
+
+
 import { useNavigate } from 'react-router-dom';
 
 export default function Cart() {
-  const { items, returnEmptyJars, setReturnEmptyJars } = useCart();
+  const { items, returnEmptyJars } = useCart();
   const navigate = useNavigate();
   
   const [checkoutItems, setCheckoutItems] = useState(items);
