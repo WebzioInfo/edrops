@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../contexts/SocketContext';
-import { ShoppingCart, Clock, CheckCircle2, DollarSign, Package } from 'lucide-react';
+import { ShoppingCart, Clock, CheckCircle2, Package } from 'lucide-react';
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState<any[]>([]);

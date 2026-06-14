@@ -46,7 +46,7 @@ export default function Orders() {
         return updated;
       });
       
-      setSelectedOrder(prev => {
+      setSelectedOrder((prev: any) => {
         if (prev?.id === data.orderId) {
           return { ...prev, status: data.status };
         }

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
@@ -74,7 +75,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       });
 
       toast(
-        (t) => (
+        () => (
           <div className="flex flex-col gap-1">
             <span className="font-semibold text-sm">{data.notification.title}</span>
             <span className="text-xs text-gray-600">{data.notification.message}</span>

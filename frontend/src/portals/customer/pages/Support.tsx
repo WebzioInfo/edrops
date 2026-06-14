@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  HelpCircle, Plus, Send, MessageSquare, Search, Box, AlertCircle, Clock,
+import {
+  HelpCircle, Send, MessageSquare, Search, Box, AlertCircle, Clock,
   CreditCard, PackageX, Calendar, HeadphonesIcon, FileText, FileImage,
-  MessageCircle, PhoneCall, Mail, ChevronDown, ChevronUp, RefreshCcw,
-  CheckCircle2, ArrowLeft, Upload, Paperclip
+  MessageCircle, PhoneCall, Mail, ChevronDown, RefreshCcw, ArrowLeft
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -33,7 +32,7 @@ export default function SupportPage() {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [priority, setPriority] = useState('MEDIUM');
+  const [priority] = useState('MEDIUM');
   const [imageName, setImageName] = useState('');
   const [invoiceName, setInvoiceName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
