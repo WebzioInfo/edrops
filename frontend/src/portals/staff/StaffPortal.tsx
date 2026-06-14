@@ -2,7 +2,10 @@ import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import { Droplets, Menu, Bell, User, LogOut, ChevronDown, Truck, Users, Package, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { Check, CheckCircle2, ShoppingCart } from 'lucide-react';
 
+const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
 const RouteOperations = React.lazy(() => import('./pages/RouteOperations'));
 const CustomerManagement = React.lazy(() => import('./pages/CustomerManagement'));
 const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
@@ -10,6 +13,7 @@ const InventoryAudit = React.lazy(() => import('./pages/InventoryAudit'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 
 const centerNavItems = [
+  { to: '/staff/orders', label: 'Orders' },
   { to: '/staff/operations', label: 'Operations' },
   { to: '/staff/customers', label: 'Customers' },
   { to: '/staff/packages', label: 'Packages' },
@@ -17,6 +21,7 @@ const centerNavItems = [
 ];
 
 const mobileBottomNavItems = [
+  { to: '/staff/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/staff/operations', label: 'Routes', icon: Truck },
   { to: '/staff/customers', label: 'Customers', icon: Users },
   { to: '/staff/packages', label: 'Packages', icon: Package },
@@ -38,6 +43,7 @@ const StaffLoader = () => (
 
 export default function StaffPortal() {
   const { logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, isDropdownOpen, setIsDropdownOpen } = useNotifications();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -90,9 +96,59 @@ export default function StaffPortal() {
           <div className="flex items-center gap-4">
 
             {/* Notifications */}
-            <button className="relative flex h-10 w-10 items-center justify-center rounded-full transition-colors text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#2D79A8] hidden lg:flex">
-              <Bell className="h-5 w-5" />
-            </button>
+            <div className="relative hidden lg:block">
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="relative flex h-10 w-10 items-center justify-center rounded-full transition-colors text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#2D79A8]"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-80 rounded-xl border border-[#E2E8F0] bg-white shadow-lg overflow-hidden z-50 flex flex-col max-h-[400px]">
+                  <div className="px-4 py-3 border-b border-[#E2E8F0] flex justify-between items-center bg-[#F8FAFC]">
+                    <h3 className="text-sm font-semibold text-[#0F172A]">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button onClick={markAllAsRead} className="text-xs text-[#2D79A8] hover:underline font-medium flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="overflow-y-auto flex-1">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-[#64748B]">No notifications</div>
+                    ) : (
+                      <div className="divide-y divide-[#E2E8F0]">
+                        {notifications.map(n => (
+                          <div key={n.id} className={`p-4 hover:bg-[#F8FAFC] transition-colors flex gap-3 ${!n.isRead ? 'bg-[#EBF5FB]/30' : ''}`}>
+                            <div className="mt-1">
+                              <div className="h-8 w-8 rounded-full bg-[#EBF5FB] text-[#2D79A8] flex items-center justify-center">
+                                <Package className="h-4 w-4" />
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#0F172A]">{n.title}</p>
+                              <p className="text-xs text-[#475569] mt-0.5">{n.message}</p>
+                              <p className="text-[10px] text-[#94A3B8] mt-1">{new Date(n.createdAt).toLocaleTimeString()}</p>
+                            </div>
+                            {!n.isRead && (
+                              <button onClick={() => markAsRead(n.id)} className="text-[#2D79A8] hover:bg-[#EBF5FB] p-1 rounded-full h-fit" title="Mark as read">
+                                <Check className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Profile Dropdown */}
             <div className="hidden lg:block relative" ref={profileRef}>
@@ -130,6 +186,7 @@ export default function StaffPortal() {
       <section className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 relative z-10">
         <Suspense fallback={<StaffLoader />}>
           <Routes>
+            <Route path="orders" element={<OrderManagement />} />
             <Route path="operations" element={<RouteOperations />} />
             <Route path="customers" element={<CustomerManagement />} />
             <Route path="packages" element={<PackageManagement />} />
@@ -216,12 +273,15 @@ export default function StaffPortal() {
           {/* More Menu Toggle */}
           <button
             onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-            className={`flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors cursor-pointer ${
+            className={`relative flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors cursor-pointer ${
               moreMenuOpen ? 'text-[#2D79A8]' : 'text-[#64748B]'
             }`}
           >
             <div className={`flex items-center justify-center p-1.5 rounded-full transition-all ${moreMenuOpen ? 'bg-[#EBF5FB]' : 'bg-transparent'}`}>
               <Menu className={`h-5 w-5`} />
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-4 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-white border border-white"></span>
+              )}
             </div>
             <span className={`text-[10px] font-medium ${moreMenuOpen ? 'font-semibold' : ''}`}>More</span>
           </button>

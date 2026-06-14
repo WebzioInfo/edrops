@@ -25,6 +25,8 @@ const PageLoader = () => (
 
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
+import { SocketProvider } from './contexts/SocketContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
@@ -47,7 +49,13 @@ export default function App() {
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
-              <Route path="/staff/*" element={<StaffPortal />} />
+              <Route path="/staff/*" element={
+                <SocketProvider>
+                  <NotificationProvider>
+                    <StaffPortal />
+                  </NotificationProvider>
+                </SocketProvider>
+              } />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['DELIVERY_PARTNER']} />}>

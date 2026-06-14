@@ -8,6 +8,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PaymentService } from '../payment/payment.service';
 import { ValidateCheckoutDto, InitiateCheckoutDto, ConfirmCheckoutDto } from './dto/checkout.dto';
 import * as crypto from 'crypto';
+import { EventsGateway } from '../events/events.gateway';
+import { StaffNotificationService } from '../notification/staff-notification.service';
 
 @Injectable()
 export class CheckoutService {
@@ -16,7 +18,29 @@ export class CheckoutService {
   constructor(
     private prisma: PrismaService,
     private paymentService: PaymentService,
+    private eventsGateway: EventsGateway,
+    private staffNotificationService: StaffNotificationService,
   ) {}
+
+  private async notifyNewOrder(orderId: string, customerId: string, totalAmount: number) {
+    const customer = await this.prisma.user.findFirst({ where: { customer: { id: customerId } } });
+    const customerName = customer ? `${customer.firstName} ${customer.lastName}` : 'Customer';
+    
+    const notification = await this.staffNotificationService.createNotification({
+      orderId,
+      type: 'NEW_ORDER',
+      title: 'New Order Received',
+      message: `${customerName} placed Order #${orderId.substring(0, 8)}`,
+    });
+
+    this.eventsGateway.emitNewOrder({
+      id: orderId,
+      amount: totalAmount,
+      customerId,
+      customerName,
+      time: new Date(),
+    }, notification);
+  }
 
   getDeliverySlots() {
     return [
@@ -150,6 +174,7 @@ export class CheckoutService {
           });
         }
       });
+      await this.notifyNewOrder(order.id, customerId, totalAmount);
       return { orderId: order.id, status: 'SUCCESS' };
     }
 
@@ -204,6 +229,7 @@ export class CheckoutService {
           });
         }
       });
+      await this.notifyNewOrder(order.id, customerId, totalAmount);
       return { orderId: order.id, status: 'SUCCESS' };
     }
 
@@ -310,6 +336,8 @@ export class CheckoutService {
           }
         });
       }
+
+      await this.notifyNewOrder(order.id, customerId, order.totalAmount);
 
       return { success: true, orderId: dto.orderId };
     }

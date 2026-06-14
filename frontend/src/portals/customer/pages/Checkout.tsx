@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Plus, Trash2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, Plus, Trash2, ShieldCheck, CheckCircle2, Minus } from 'lucide-react';
 import { useCart } from '../../../contexts/CartContext';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -44,9 +44,25 @@ export default function Checkout() {
   
   useEffect(() => {
     if (!isBuyNow) {
-      setCheckoutItems(items);
+      // Only set if lengths mismatch to avoid overwriting local adjustments immediately
+      // Actually, since we sync at the end, we can initialize from cart and then rely on local state.
+      if (items.length > 0 && checkoutItems.length === 0) {
+        setCheckoutItems(items);
+      }
     }
   }, [items, isBuyNow]);
+
+  const updateCheckoutQuantity = (id: string, newQuantity: number) => {
+    if (newQuantity < 1) {
+      setCheckoutItems(prev => prev.filter(i => i.id !== id));
+      return;
+    }
+    setCheckoutItems(prev => prev.map(i => i.id === id ? { ...i, quantity: newQuantity } : i));
+  };
+  
+  const removeCheckoutItem = (id: string) => {
+    setCheckoutItems(prev => prev.filter(i => i.id !== id));
+  };
   
   const subTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0), [checkoutItems]);
   const depositTotal = useMemo(() => returnEmptyJars ? 0 : checkoutItems.reduce((sum, item) => sum + (item.depositAmount * item.quantity), 0), [checkoutItems, returnEmptyJars]);
@@ -273,7 +289,31 @@ export default function Checkout() {
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <p className="font-semibold text-[14px] md:text-[15px] text-[#0F172A] truncate">{item.name}</p>
-                        <p className="text-[12px] md:text-[14px] font-medium text-[#64748B] mb-0.5">Qty: {item.quantity}</p>
+                        
+                        <div className="flex items-center gap-2 mt-1 mb-1.5">
+                          <div className="flex items-center bg-white border border-[#E2E8F0] rounded-[6px] overflow-hidden shadow-sm h-7">
+                            <button 
+                              onClick={() => updateCheckoutQuantity(item.id, item.quantity - 1)}
+                              className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-8 text-center text-[13px] font-bold text-[#0F172A]">{item.quantity}</span>
+                            <button 
+                              onClick={() => updateCheckoutQuantity(item.id, item.quantity + 1)}
+                              className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <button 
+                            onClick={() => removeCheckoutItem(item.id)}
+                            className="text-[#94A3B8] hover:text-rose-500 p-1.5 rounded-full hover:bg-rose-50 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
                         {item.isJar && (
                           <div className="inline-flex items-center gap-1 text-[11px] md:text-[12px] font-medium text-[#1E88E5]">
                             <ShieldCheck className="w-3 h-3" />

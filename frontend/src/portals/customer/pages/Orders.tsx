@@ -3,6 +3,8 @@ import { Package, Clock, CheckCircle, ChevronRight, Ban, X, Download, MapPin, Sh
 import { fetchWithAuth } from '../../../api/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useSocket } from '../../../contexts/SocketContext';
+import { toast } from 'react-hot-toast';
 
 export default function Orders() {
   const { user } = useAuth();
@@ -10,6 +12,7 @@ export default function Orders() {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const { socket } = useSocket();
 
   useEffect(() => {
     Promise.all([
@@ -33,6 +36,32 @@ export default function Orders() {
       document.body.style.overflow = 'auto';
     };
   }, [selectedOrder]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleStatusChanged = (data: { orderId: string, status: string }) => {
+      setOrders(prev => {
+        const updated = prev.map(o => o.id === data.orderId ? { ...o, status: data.status } : o);
+        return updated;
+      });
+      
+      setSelectedOrder(prev => {
+        if (prev?.id === data.orderId) {
+          return { ...prev, status: data.status };
+        }
+        return prev;
+      });
+
+      toast.success('Order ' + data.orderId.substring(0, 8) + ' is now ' + data.status.replace(/_/g, ' '), { icon: '📦' });
+    };
+
+    socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
+
+    return () => {
+      socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
+    };
+  }, [socket]);
 
   const totalOrders = orders.length;
   const pendingOrders = orders.filter(o => ['PENDING', 'CONFIRMED', 'PROCESSING', 'OUT_FOR_DELIVERY'].includes(o.status)).length;

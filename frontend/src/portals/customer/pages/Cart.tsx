@@ -9,7 +9,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Cart() {
-  const { items, returnEmptyJars } = useCart();
+  const { items, returnEmptyJars, removeItem, updateQuantity } = useCart();
   const navigate = useNavigate();
   
   const [checkoutItems, setCheckoutItems] = useState(items);
@@ -24,15 +24,13 @@ export default function Cart() {
   const grandTotal = subTotal + depositTotal + deliveryCharge;
 
   const updateLocalQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity < 1) {
-      setCheckoutItems(prev => prev.filter(i => i.id !== id));
-      return;
-    }
-    setCheckoutItems(prev => prev.map(i => i.id === id ? { ...i, quantity: newQuantity } : i));
+    // Call the context method which updates state optimistically AND hits the backend API
+    updateQuantity(id, newQuantity);
   };
   
   const removeLocalItem = (id: string) => {
-    setCheckoutItems(prev => prev.filter(i => i.id !== id));
+    // Call the context method to actually delete from the database
+    removeItem(id);
   };
 
   const [isProcessing, setIsProcessing] = useState(false);

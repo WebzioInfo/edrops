@@ -32,6 +32,7 @@ import { CheckoutModule } from './checkout/checkout.module';
 import { CartModule } from './cart/cart.module';
 import { SupportModule } from './support/support.module';
 import { AddressModule } from './address/address.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { AddressModule } from './address/address.module';
     CartModule,
     SupportModule,
     AddressModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

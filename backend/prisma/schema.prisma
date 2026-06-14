@@ -161,7 +161,8 @@ model User {
   admin           Admin?
   deliveryPartner DeliveryPartner?
 
-  notifications Notification[]
+  notifications      Notification[]
+  statusUpdates      OrderStatusHistory[]
   auditLogs     AuditLog[]
   ticketReplies TicketReply[]
 
@@ -854,6 +855,24 @@ model Order {
 
   items    OrderItem[]
   payments Payment[]
+  history  OrderStatusHistory[]
+}
+
+model OrderStatusHistory {
+  id              String      @id @default(uuid())
+  orderId         String
+  previousStatus  OrderStatus
+  newStatus       OrderStatus
+  changedByUserId String?
+  reason          String?
+  createdAt       DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("order_status_history")
 }
 
 model OrderItem {
@@ -908,4 +927,22 @@ model JarLedger {
   quantity    Int
   referenceId String?
   createdAt   DateTime  @default(now())
+}
+
+model StaffNotification {
+  id        String   @id @default(uuid())
+  companyId String?
+  orderId   String
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([orderId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
 }
