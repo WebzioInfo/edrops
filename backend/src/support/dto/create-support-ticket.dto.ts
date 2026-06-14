@@ -19,6 +19,18 @@ export class CreateSupportTicketDto {
   description: string;
 
   @IsOptional()
+  @IsString()
+  category?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  invoiceUrl?: string;
+
+  @IsOptional()
   @IsEnum(TicketPriority)
   priority?: TicketPriority;
 }

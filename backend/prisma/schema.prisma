@@ -81,6 +81,7 @@ enum WalletTransactionType {
 enum TicketStatus {
   OPEN
   IN_PROGRESS
+  WAITING_FOR_CUSTOMER
   RESOLVED
   CLOSED
 }
@@ -679,7 +680,10 @@ model SupportTicket {
   customerId  String
   customer    Customer       @relation(fields: [customerId], references: [id])
   subject     String
+  category    String?
   description String
+  imageUrl    String?
+  invoiceUrl  String?
   status      TicketStatus   @default(OPEN)
   priority    TicketPriority @default(MEDIUM)
   createdAt   DateTime       @default(now())

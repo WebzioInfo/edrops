@@ -37,6 +37,9 @@ export class SupportService {
         customerId,
         subject: dto.subject.trim(),
         description: dto.description.trim(),
+        category: dto.category?.trim(),
+        imageUrl: dto.imageUrl?.trim(),
+        invoiceUrl: dto.invoiceUrl?.trim(),
         priority,
       },
     });
