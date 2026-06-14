@@ -5,7 +5,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import AddressModal from '../components/AddressModal';
 
 interface Address {
@@ -26,6 +26,7 @@ export default function Checkout() {
   const { items, clearCart, returnEmptyJars } = useCart();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   
   const isBuyNow = searchParams.get('buyNow') === 'true';
   const buyNowProduct = isBuyNow ? [{
@@ -482,14 +483,22 @@ export default function Checkout() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center justify-between mt-8">
-            {currentStep > 1 ? (
+            <div className="flex items-center gap-4">
               <button 
-                onClick={() => setCurrentStep(prev => prev - 1)}
-                className="h-[48px] px-6 rounded-[12px] bg-white border border-[#E2E8F0] text-[#0F172A] font-semibold text-[14px] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                onClick={() => navigate('/customer/shop')}
+                className="h-[48px] px-6 rounded-[12px] bg-white border border-rose-200 text-rose-500 font-semibold text-[14px] hover:bg-rose-50 transition-colors cursor-pointer"
               >
-                Back to {currentStep === 2 ? 'Order Review' : 'Delivery Details'}
+                Cancel
               </button>
-            ) : <div />}
+              {currentStep > 1 && (
+                <button 
+                  onClick={() => setCurrentStep(prev => prev - 1)}
+                  className="h-[48px] px-6 rounded-[12px] bg-white border border-[#E2E8F0] text-[#0F172A] font-semibold text-[14px] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                >
+                  Back to {currentStep === 2 ? 'Order Review' : 'Delivery Details'}
+                </button>
+              )}
+            </div>
 
             {currentStep < 3 ? (
               <button 
@@ -518,10 +527,16 @@ export default function Checkout() {
           <span className="text-[18px] font-bold text-[#0F172A]">₹{grandTotal}</span>
         </div>
         <div className="flex gap-2.5">
+          <button 
+            onClick={() => navigate('/customer/shop')}
+            className="h-[44px] px-3 rounded-[12px] bg-white border border-rose-200 text-rose-500 font-medium text-[13px] active:bg-rose-50 transition-colors cursor-pointer whitespace-nowrap"
+          >
+            Cancel
+          </button>
           {currentStep > 1 && (
             <button 
               onClick={() => setCurrentStep(prev => prev - 1)}
-              className="h-[44px] px-4 rounded-[12px] bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A] font-medium text-[14px] active:bg-[#E2E8F0] transition-colors cursor-pointer whitespace-nowrap"
+              className="h-[44px] px-3 rounded-[12px] bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A] font-medium text-[13px] active:bg-[#E2E8F0] transition-colors cursor-pointer whitespace-nowrap"
             >
               Back
             </button>
