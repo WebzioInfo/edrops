@@ -10,6 +10,7 @@ const RouteOperations = React.lazy(() => import('./pages/RouteOperations'));
 const CustomerManagement = React.lazy(() => import('./pages/CustomerManagement'));
 const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
 const InventoryAudit = React.lazy(() => import('./pages/InventoryAudit'));
+const SupportManagement = React.lazy(() => import('./pages/SupportManagement'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 
 const centerNavItems = [
@@ -18,6 +19,7 @@ const centerNavItems = [
   { to: '/staff/customers', label: 'Customers' },
   { to: '/staff/packages', label: 'Packages' },
   { to: '/staff/inventory', label: 'Inventory' },
+  { to: '/staff/support', label: 'Support' },
 ];
 
 const mobileBottomNavItems = [
@@ -29,6 +31,7 @@ const mobileBottomNavItems = [
 ];
 
 const mobileMoreNavItems = [
+  { to: '/staff/support', label: 'Support', icon: Menu },
   { to: '/staff/profile', label: 'Profile', icon: User },
 ];
 
@@ -191,6 +194,7 @@ export default function StaffPortal() {
             <Route path="customers" element={<CustomerManagement />} />
             <Route path="packages" element={<PackageManagement />} />
             <Route path="inventory" element={<InventoryAudit />} />
+            <Route path="support" element={<SupportManagement />} />
             <Route path="profile" element={<Profile />} />
             <Route path="" element={<Navigate to="operations" replace />} />
             <Route path="*" element={<Navigate to="operations" replace />} />

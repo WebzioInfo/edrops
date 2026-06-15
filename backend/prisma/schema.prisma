@@ -84,6 +84,7 @@ enum TicketStatus {
   WAITING_FOR_CUSTOMER
   RESOLVED
   CLOSED
+  ASSIGNED
 }
 
 enum TicketPriority {
@@ -164,8 +165,11 @@ model User {
 
   notifications      Notification[]
   statusUpdates      OrderStatusHistory[]
-  auditLogs     AuditLog[]
-  ticketReplies TicketReply[]
+  auditLogs          AuditLog[]
+  ticketReplies      TicketReply[]
+  assignedTickets    SupportTicket[]  @relation("TicketAssignee")
+  supportMessages    SupportMessage[]
+  supportActivities  SupportActivityLog[]
 
   @@index([email])
   @@index([phone])
@@ -684,11 +688,15 @@ model SupportTicket {
   description String
   imageUrl    String?
   invoiceUrl  String?
-  status      TicketStatus   @default(OPEN)
-  priority    TicketPriority @default(MEDIUM)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  replies     TicketReply[]
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(MEDIUM)
+  assignedToId String?
+  assignedTo   User?          @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  replies      TicketReply[]
+  messages     SupportMessage[]
+  activities   SupportActivityLog[]
 }
 
 model TicketReply {
@@ -700,6 +708,39 @@ model TicketReply {
   message    String
   isInternal Boolean       @default(false)
   createdAt  DateTime      @default(now())
+}
+
+model SupportMessage {
+  id         String              @id @default(uuid())
+  ticketId   String
+  ticket     SupportTicket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User                @relation(fields: [userId], references: [id])
+  message    String
+  isInternal Boolean             @default(false)
+  createdAt  DateTime            @default(now())
+  attachments SupportAttachment[]
+}
+
+model SupportAttachment {
+  id         String         @id @default(uuid())
+  messageId  String
+  message    SupportMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileUrl    String
+  fileName   String
+  fileType   String
+  createdAt  DateTime       @default(now())
+}
+
+model SupportActivityLog {
+  id         String         @id @default(uuid())
+  ticketId   String
+  ticket     SupportTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?          @relation(fields: [userId], references: [id])
+  action     String         // e.g., "STATUS_CHANGED", "ASSIGNED"
+  details    String?
+  createdAt  DateTime       @default(now())
 }
 
 model CustomerHealth {

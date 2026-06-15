@@ -12,6 +12,7 @@ const CustomersList = React.lazy(() => import('./pages/CustomersList'));
 const BusinessSettings = React.lazy(() => import('./pages/BusinessSettings'));
 const ReportsCenter = React.lazy(() => import('./pages/ReportsCenter'));
 const CustomerDetail = React.lazy(() => import('./pages/CustomerDetail'));
+const GlobalSupport = React.lazy(() => import('./pages/GlobalSupport'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 
 const centerNavItems = [
@@ -23,6 +24,7 @@ const centerNavItems = [
 ];
 
 const secondaryActions = [
+  { to: '/admin/support', label: 'Support', icon: Menu },
   { to: '/admin/customers', label: 'Customers', icon: Users },
   { to: '/admin/reports', label: 'Reports', icon: FileText },
 ];
@@ -36,6 +38,7 @@ const mobileBottomNavItems = [
 ];
 
 const mobileMoreNavItems = [
+  { to: '/admin/support', label: 'Support', icon: Menu },
   { to: '/admin/customers', label: 'Customers', icon: Users },
   { to: '/admin/reports', label: 'Reports', icon: FileText },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
@@ -175,6 +178,7 @@ export default function AdminPortal() {
             <Route path="finance/*" element={<FinanceLedger />} />
             <Route path="customers/*" element={<CustomersList />} />
             <Route path="customers/:id" element={<CustomerDetail />} />
+            <Route path="support" element={<GlobalSupport />} />
             <Route path="settings" element={<BusinessSettings />} />
             <Route path="reports" element={<ReportsCenter />} />
             <Route path="profile" element={<Profile />} />

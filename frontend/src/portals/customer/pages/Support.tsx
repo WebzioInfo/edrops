@@ -20,6 +20,7 @@ interface Ticket {
   priority: string;
   createdAt: string;
   updatedAt: string;
+  messages?: any[];
 }
 
 export default function SupportPage() {
@@ -58,7 +59,7 @@ export default function SupportPage() {
       socket.on('TICKET_UPDATE', (updatedTicket: Ticket) => {
         setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
         if (selectedTicket?.id === updatedTicket.id) {
-          setSelectedTicket(updatedTicket);
+          fetchTicketDetails(updatedTicket.id);
         }
         toast('Support ticket updated', { icon: '🔔' });
       });
@@ -67,6 +68,46 @@ export default function SupportPage() {
       };
     }
   }, [isConnected, socket, selectedTicket]);
+
+  const fetchTicketDetails = async (id: string) => {
+    try {
+      const data = await fetchWithAuth(`/support/tickets/${id}`);
+      setSelectedTicket(data);
+    } catch (err) {
+      toast.error('Failed to load ticket details');
+    }
+  };
+
+  const handleSelectTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    fetchTicketDetails(ticket.id);
+  };
+
+  const [replyMessage, setReplyMessage] = useState('');
+  const [replying, setReplying] = useState(false);
+
+  const handleReplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTicket || !replyMessage.trim()) return;
+
+    setReplying(true);
+    try {
+      await fetchWithAuth(`/support/tickets/${selectedTicket.id}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({
+          message: replyMessage,
+          isInternal: false
+        })
+      });
+      setReplyMessage('');
+      fetchTicketDetails(selectedTicket.id);
+      toast.success('Reply sent');
+    } catch (err) {
+      toast.error('Failed to send reply');
+    } finally {
+      setReplying(false);
+    }
+  };
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -282,6 +323,45 @@ export default function SupportPage() {
                         })}
                       </div>
                     </div>
+
+                    {/* Messages / Chat UI */}
+                    <div className="w-full mt-6">
+                      <h4 className="text-sm sm:text-base font-bold text-slate-900 mb-4">Conversation</h4>
+                      <div className="flex flex-col gap-4 mb-4">
+                        {selectedTicket.messages?.map((msg, idx) => (
+                          <div key={idx} className={`flex flex-col ${msg.user.role === 'CUSTOMER' ? 'items-end' : 'items-start'}`}>
+                            <div className="text-[10px] text-slate-500 mb-1">{msg.user.firstName} {msg.user.lastName} • {new Date(msg.createdAt).toLocaleTimeString()}</div>
+                            <div className={`p-3 rounded-[14px] text-sm max-w-[85%] ${msg.user.role === 'CUSTOMER' ? 'bg-[#1E88E5] text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-sm'}`}>
+                              <p className="whitespace-pre-wrap">{msg.message}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {['RESOLVED', 'CLOSED'].includes(selectedTicket.status) ? (
+                        <div className="bg-slate-50 border border-slate-100 rounded-[14px] p-4 text-center">
+                          <p className="text-sm text-slate-500 font-medium">This ticket is closed. You can no longer reply.</p>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleReplySubmit} className="flex flex-col gap-2 relative">
+                          <textarea
+                            value={replyMessage}
+                            onChange={e => setReplyMessage(e.target.value)}
+                            placeholder="Type a reply..."
+                            rows={3}
+                            className="w-full rounded-[14px] border border-slate-200 bg-white p-3 pr-12 text-sm focus:border-[#1E88E5] focus:ring-1 focus:ring-[#1E88E5] resize-none shadow-sm"
+                            required
+                          />
+                          <button
+                            type="submit"
+                            disabled={replying}
+                            className="absolute bottom-3 right-3 p-2 bg-[#1E88E5] text-white rounded-full hover:bg-blue-600 disabled:opacity-50 transition-all"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        </form>
+                      )}
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -302,7 +382,7 @@ export default function SupportPage() {
                       tickets.map((ticket) => (
                         <div 
                           key={ticket.id} 
-                          onClick={() => setSelectedTicket(ticket)}
+                          onClick={() => handleSelectTicket(ticket)}
                           className="bg-white border border-slate-100 p-3.5 sm:p-4 rounded-[16px] hover:border-[#1E88E5]/30 hover:shadow-md transition-all cursor-pointer flex flex-col w-full"
                         >
                           <div className="flex justify-between items-start gap-2 mb-2 w-full">
