@@ -12,9 +12,10 @@ export class RechargeEngine {
     amount: number,
     jarsAdded: number,
     paymentId: string,
+    tx?: any,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.packagePurchase.findUnique({
+    const execute = async (prismaTx: any) => {
+      const existing = await prismaTx.packagePurchase.findUnique({
         where: { paymentId },
       });
       if (existing) {
@@ -24,12 +25,12 @@ export class RechargeEngine {
       }
 
       // Lock the customer's JarBalance row to prevent concurrent updates
-      await tx.$executeRawUnsafe(
+      await prismaTx.$executeRawUnsafe(
         `SELECT id FROM "JarBalance" WHERE "customerId" = $1 FOR UPDATE`,
         customerId,
       );
 
-      const order = await tx.packagePurchase.create({
+      const order = await prismaTx.packagePurchase.create({
         data: {
           customerId,
           packageId,
@@ -39,11 +40,11 @@ export class RechargeEngine {
         },
       });
 
-      let jarBalance = await tx.jarBalance.findUnique({
+      let jarBalance = await prismaTx.jarBalance.findUnique({
         where: { customerId },
       });
       if (!jarBalance) {
-        jarBalance = await tx.jarBalance.create({
+        jarBalance = await prismaTx.jarBalance.create({
           data: { customerId, availableJars: 0, totalPurchased: 0 },
         });
       }
@@ -51,7 +52,7 @@ export class RechargeEngine {
       const balanceBefore = jarBalance.availableJars;
       const balanceAfter = balanceBefore + jarsAdded;
 
-      await tx.jarBalance.update({
+      await prismaTx.jarBalance.update({
         where: { customerId },
         data: {
           availableJars: balanceAfter,
@@ -59,7 +60,7 @@ export class RechargeEngine {
         },
       });
 
-      await tx.transaction.create({
+      await prismaTx.transaction.create({
         data: {
           customerId,
           type: TransactionType.RECHARGE,
@@ -72,11 +73,11 @@ export class RechargeEngine {
       });
 
       // Successful purchase notification
-      const customer = await tx.customer.findUnique({
+      const customer = await prismaTx.customer.findUnique({
         where: { id: customerId },
       });
       if (customer) {
-        await tx.notification.create({
+        await prismaTx.notification.create({
           data: {
             userId: customer.userId,
             type: 'RECHARGE_SUCCESS',
@@ -87,6 +88,8 @@ export class RechargeEngine {
       }
 
       return order;
-    });
+    };
+
+    return tx ? execute(tx) : this.prisma.$transaction(execute);
   }
 }

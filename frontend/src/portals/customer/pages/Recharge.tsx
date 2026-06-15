@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CreditCard, Tag, Sparkles, ShoppingCart, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { injectMockRazorpay } from '../../../utils/MockRazorpay';
 import { fetchWithAuth } from '../../../api/client';
 
 interface Pack {
@@ -67,6 +68,11 @@ export default function RechargePage() {
 
   const loadRazorpay = () => {
     return new Promise((resolve) => {
+      // Check if we should inject mock razorpay
+      if (injectMockRazorpay()) {
+        return resolve(true);
+      }
+
       if ((window as any).Razorpay) {
         resolve(true);
         return;

@@ -13,6 +13,7 @@ import { RechargeService } from './recharge.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { UserRole } from '@prisma/client';
+import { Idempotent } from '../common/decorators/idempotent.decorator';
 
 @Controller('recharge')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -20,6 +21,7 @@ export class RechargeController {
   constructor(private readonly rechargeService: RechargeService) {}
 
   @Post('purchase')
+  @Idempotent()
   purchase(
     @Request() req,
     @Body()

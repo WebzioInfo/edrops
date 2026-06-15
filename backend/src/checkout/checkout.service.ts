@@ -110,11 +110,79 @@ export class CheckoutService {
     const validation = await this.validateCheckout(customerId, { returnEmptyJars: dto.returnEmptyJars, buyNowItems: dto.buyNowItems });
     const { subTotal, depositTotal, deliveryCharge, totalAmount, items } = validation;
 
+    const orderId = crypto.randomUUID();
+    let razorpayOrderId: string | undefined;
+
+    if (dto.paymentMethod === 'COD' && totalAmount > 2000) {
+      throw new BadRequestException('COD not allowed for orders above ₹2000');
+    }
+
+    let hybridRemainingAmount = 0;
+    let walletBalance = 0;
+
+    if (dto.paymentMethod === 'HYBRID') {
+      const wallet = await this.prisma.wallet.findUnique({ where: { customerId } });
+      walletBalance = wallet ? wallet.balance : 0;
+      if (walletBalance === 0) throw new BadRequestException('Wallet is empty, cannot use HYBRID');
+      hybridRemainingAmount = totalAmount - walletBalance;
+      
+      if (hybridRemainingAmount <= 0) {
+        dto.paymentMethod = 'WALLET'; // Wallet covers everything
+      } else {
+        const paymentIntent = await this.paymentService.createPaymentIntent({
+          customerId,
+          amount: hybridRemainingAmount,
+          orderId,
+          description: `Order #${orderId.substring(0, 8)} (Hybrid)`,
+        });
+        razorpayOrderId = paymentIntent.orderId;
+      }
+    }
+
+    if (dto.paymentMethod === 'RAZORPAY') {
+      const paymentIntent = await this.paymentService.createPaymentIntent({
+        customerId,
+        amount: totalAmount,
+        orderId,
+        description: `Order #${orderId.substring(0, 8)}`,
+      });
+      razorpayOrderId = paymentIntent.orderId;
+    }
+
     const order = await this.prisma.$transaction(async (tx) => {
+      // 1. Check wallet balance strictly inside transaction to prevent race conditions
+      if (dto.paymentMethod === 'WALLET' || dto.paymentMethod === 'HYBRID') {
+        const wallet = await tx.wallet.findUnique({ where: { customerId } });
+        const currentBalance = wallet ? wallet.balance : 0;
+        const requiredDeduction = dto.paymentMethod === 'WALLET' ? totalAmount : walletBalance;
+        
+        if (currentBalance < requiredDeduction) {
+          throw new BadRequestException('Insufficient wallet balance');
+        }
+
+        await tx.wallet.update({
+          where: { id: wallet!.id },
+          data: { balance: currentBalance - requiredDeduction },
+        });
+
+        await tx.walletTransaction.create({
+          data: {
+            walletId: wallet!.id,
+            type: 'DEDUCTION',
+            amount: requiredDeduction,
+            balanceBefore: currentBalance,
+            balanceAfter: currentBalance - requiredDeduction,
+            description: dto.paymentMethod === 'HYBRID' ? `Hybrid Order Partial Payment #${orderId}` : `Order Payment #${orderId}`,
+          }
+        });
+      }
+
+      // 2. Create the order
       const newOrder = await tx.order.create({
         data: {
+          id: orderId,
           customerId,
-          status: 'PENDING',
+          status: (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') ? 'CONFIRMED' : 'PENDING',
           orderType: 'ONETIME_ORDER',
           subTotal,
           depositTotal,
@@ -123,6 +191,7 @@ export class CheckoutService {
           deliveryAddressId: dto.addressId,
           timeSlot: dto.timeSlot,
           paymentMethod: dto.paymentMethod,
+          paymentStatus: (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') ? 'SUCCESS' : 'PENDING',
           items: {
             create: items.map((item) => ({
               productId: item.productId,
@@ -135,165 +204,54 @@ export class CheckoutService {
         },
       });
 
+      // 3. Clear cart if not Buy Now
       if (!dto.buyNowItems || dto.buyNowItems.length === 0) {
         await tx.cartItem.deleteMany({ where: { cart: { customerId } } });
       }
+
+      // 4. Schedule delivery if payment is instantly confirmed
+      if (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') {
+        const requiredQuantity = items.reduce((acc, i) => acc + i.quantity, 0);
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+
+        const existingDelivery = await tx.delivery.findFirst({
+          where: { customerId, scheduledFor: today }
+        });
+
+        if (existingDelivery) {
+          await tx.delivery.update({
+            where: { id: existingDelivery.id },
+            data: { requiredQuantity: existingDelivery.requiredQuantity + requiredQuantity }
+          });
+        } else {
+          await tx.delivery.create({
+            data: {
+              customerId,
+              addressId: dto.addressId,
+              scheduledFor: today,
+              requiredQuantity,
+              status: 'PENDING'
+            }
+          });
+        }
+      }
+
       return newOrder;
     });
 
-    if (dto.paymentMethod === 'COD') {
-      if (totalAmount > 2000) throw new BadRequestException('COD not allowed for orders above ₹2000');
-      
-      await this.prisma.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: 'CONFIRMED' }
-        });
-        const requiredQuantity = items.reduce((acc, i) => acc + i.quantity, 0);
-        const today = new Date();
-        today.setUTCHours(0, 0, 0, 0);
-
-        const existingDelivery = await tx.delivery.findFirst({
-          where: { customerId, scheduledFor: today }
-        });
-
-        if (existingDelivery) {
-          await tx.delivery.update({
-            where: { id: existingDelivery.id },
-            data: { requiredQuantity: existingDelivery.requiredQuantity + requiredQuantity }
-          });
-        } else {
-          await tx.delivery.create({
-            data: {
-              customerId,
-              addressId: dto.addressId,
-              scheduledFor: today,
-              requiredQuantity,
-              status: 'PENDING'
-            }
-          });
-        }
-      });
+    // Fire events AFTER successful commit
+    if (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') {
       await this.notifyNewOrder(order.id, customerId, totalAmount);
       return { orderId: order.id, status: 'SUCCESS' };
     }
 
-    if (dto.paymentMethod === 'WALLET') {
-      const wallet = await this.prisma.wallet.findUnique({ where: { customerId } });
-      if (!wallet || wallet.balance < totalAmount) {
-        throw new BadRequestException('Insufficient wallet balance');
-      }
-
-      await this.prisma.$transaction(async (tx) => {
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: { balance: wallet.balance - totalAmount },
-        });
-        await tx.walletTransaction.create({
-          data: {
-            walletId: wallet.id,
-            type: 'DEDUCTION',
-            amount: totalAmount,
-            balanceBefore: wallet.balance,
-            balanceAfter: wallet.balance - totalAmount,
-            description: `Order Payment #${order.id}`,
-          }
-        });
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: 'CONFIRMED', paymentStatus: 'SUCCESS' }
-        });
-        
-        const requiredQuantity = items.reduce((acc, i) => acc + i.quantity, 0);
-        const today = new Date();
-        today.setUTCHours(0, 0, 0, 0);
-
-        const existingDelivery = await tx.delivery.findFirst({
-          where: { customerId, scheduledFor: today }
-        });
-
-        if (existingDelivery) {
-          await tx.delivery.update({
-            where: { id: existingDelivery.id },
-            data: { requiredQuantity: existingDelivery.requiredQuantity + requiredQuantity }
-          });
-        } else {
-          await tx.delivery.create({
-            data: {
-              customerId,
-              addressId: dto.addressId,
-              scheduledFor: today,
-              requiredQuantity,
-              status: 'PENDING'
-            }
-          });
-        }
-      });
-      await this.notifyNewOrder(order.id, customerId, totalAmount);
-      return { orderId: order.id, status: 'SUCCESS' };
-    }
-
-    if (dto.paymentMethod === 'RAZORPAY') {
-      const paymentIntent = await this.paymentService.createPaymentIntent({
-        customerId,
-        amount: totalAmount,
-        orderId: order.id,
-        description: `Order #${order.id.substring(0, 8)}`,
-      });
-      return {
-        orderId: order.id,
-        razorpayOrderId: paymentIntent.orderId,
-        amount: paymentIntent.amount,
-        currency: 'INR',
-      };
-    }
-
-    if (dto.paymentMethod === 'HYBRID') {
-      const wallet = await this.prisma.wallet.findUnique({ where: { customerId } });
-      const walletBalance = wallet ? wallet.balance : 0;
-      if (walletBalance === 0) throw new BadRequestException('Wallet is empty, cannot use HYBRID');
-
-      const remainingAmount = totalAmount - walletBalance;
-      
-      if (remainingAmount <= 0) {
-        // Wallet covers everything
-        return this.initiateCheckout(customerId, { ...dto, paymentMethod: 'WALLET' });
-      }
-
-      // Lock wallet funds
-      await this.prisma.$transaction(async (tx) => {
-        await tx.wallet.update({
-          where: { id: wallet!.id },
-          data: { balance: 0 },
-        });
-        await tx.walletTransaction.create({
-          data: {
-            walletId: wallet!.id,
-            type: 'DEDUCTION',
-            amount: walletBalance,
-            balanceBefore: walletBalance,
-            balanceAfter: 0,
-            description: `Hybrid Order Partial Payment #${order.id}`,
-          }
-        });
-      });
-
-      const paymentIntent = await this.paymentService.createPaymentIntent({
-        customerId,
-        amount: remainingAmount,
-        orderId: order.id,
-        description: `Order #${order.id.substring(0, 8)} (Hybrid)`,
-      });
-
-      return {
-        orderId: order.id,
-        razorpayOrderId: paymentIntent.orderId,
-        amount: paymentIntent.amount,
-        currency: 'INR',
-      };
-    }
-
-    throw new BadRequestException('Invalid payment method');
+    return {
+      orderId: order.id,
+      razorpayOrderId,
+      amount: dto.paymentMethod === 'HYBRID' ? hybridRemainingAmount : totalAmount,
+      currency: 'INR',
+    };
   }
 
   async confirmCheckout(customerId: string, dto: ConfirmCheckoutDto) {
@@ -302,41 +260,49 @@ export class CheckoutService {
       const body = dto.razorpayOrderId + '|' + dto.razorpayPaymentId;
       const expectedSignature = crypto.createHmac('sha256', secret).update(body.toString()).digest('hex');
 
-      if (expectedSignature !== dto.razorpaySignature && expectedSignature !== 'mock') {
+      const isMock = process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_mock');
+      const isMockValid = isMock && dto.razorpaySignature === 'mock_signature_valid';
+
+      if (expectedSignature !== dto.razorpaySignature && !isMockValid) {
         throw new BadRequestException('Invalid payment signature');
       }
 
-      const order = await this.prisma.order.update({
-        where: { id: dto.orderId },
-        data: { status: 'CONFIRMED', paymentStatus: 'SUCCESS' },
-        include: { items: true }
+      // Wrap updates in transaction to prevent partial delivery tracking
+      const order = await this.prisma.$transaction(async (tx) => {
+        const updatedOrder = await tx.order.update({
+          where: { id: dto.orderId },
+          data: { status: 'CONFIRMED', paymentStatus: 'SUCCESS' },
+          include: { items: true }
+        });
+
+        const requiredQuantity = updatedOrder.items.reduce((acc, i) => acc + i.quantity, 0);
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+
+        const existingDelivery = await tx.delivery.findFirst({
+          where: { customerId, scheduledFor: today }
+        });
+
+        if (existingDelivery) {
+          await tx.delivery.update({
+            where: { id: existingDelivery.id },
+            data: { requiredQuantity: existingDelivery.requiredQuantity + requiredQuantity }
+          });
+        } else {
+          await tx.delivery.create({
+            data: {
+              customerId,
+              addressId: updatedOrder.deliveryAddressId,
+              scheduledFor: today,
+              requiredQuantity,
+              status: 'PENDING'
+            }
+          });
+        }
+        return updatedOrder;
       });
 
-      const requiredQuantity = order.items.reduce((acc, i) => acc + i.quantity, 0);
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-
-      const existingDelivery = await this.prisma.delivery.findFirst({
-        where: { customerId, scheduledFor: today }
-      });
-
-      if (existingDelivery) {
-        await this.prisma.delivery.update({
-          where: { id: existingDelivery.id },
-          data: { requiredQuantity: existingDelivery.requiredQuantity + requiredQuantity }
-        });
-      } else {
-        await this.prisma.delivery.create({
-          data: {
-            customerId,
-            addressId: order.deliveryAddressId,
-            scheduledFor: today,
-            requiredQuantity,
-            status: 'PENDING'
-          }
-        });
-      }
-
+      // Notify post-transaction
       await this.notifyNewOrder(order.id, customerId, order.totalAmount);
 
       return { success: true, orderId: dto.orderId };

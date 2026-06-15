@@ -59,19 +59,22 @@ export class RechargeService {
       );
     }
 
-    const purchase = await this.rechargeEngine.processRecharge(
-      customer.id,
-      pkg.id,
-      requiredAmount,
-      pkg.jarCount,
-      payment.id,
-    );
+    return this.prisma.$transaction(async (tx) => {
+      const purchase = await this.rechargeEngine.processRecharge(
+        customer.id,
+        pkg.id,
+        requiredAmount,
+        pkg.jarCount,
+        payment.id,
+        tx
+      );
 
-    if (data.promoCode) {
-      await this.redeemRechargePromo(data.promoCode, customer.id);
-    }
+      if (data.promoCode) {
+        await this.redeemRechargePromo(data.promoCode, customer.id, tx);
+      }
 
-    return purchase;
+      return purchase;
+    });
   }
 
   private async getRechargeDiscount(
@@ -123,25 +126,27 @@ export class RechargeService {
     return 0;
   }
 
-  private async redeemRechargePromo(code: string, customerId: string) {
-    const promo = await this.prisma.promoCode.findUnique({
-      where: { code: code.toUpperCase() },
-      select: { id: true },
-    });
-    if (!promo) return;
+  private async redeemRechargePromo(code: string, customerId: string, tx?: any) {
+    const execute = async (prismaTx: any) => {
+      const promo = await prismaTx.promoCode.findUnique({
+        where: { code: code.toUpperCase() },
+        select: { id: true },
+      });
+      if (!promo) return;
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.promoRedemption.create({
+      await prismaTx.promoRedemption.create({
         data: {
           promoCodeId: promo.id,
           customerId,
         },
       });
-      await tx.promoCode.update({
+      await prismaTx.promoCode.update({
         where: { id: promo.id },
         data: { currentUses: { increment: 1 } },
       });
-    });
+    };
+
+    return tx ? execute(tx) : this.prisma.$transaction(execute);
   }
 
   // Packages Management

@@ -6,12 +6,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletTransactionType, TransactionType, PaymentStatus } from '@prisma/client';
 import { SettingsService } from '../settings/settings.service';
+import { PaymentService } from '../payment/payment.service';
 
 @Injectable()
 export class WalletService {
   constructor(
     private prisma: PrismaService,
     private settingsService: SettingsService,
+    private paymentService: PaymentService,
   ) {}
 
   async getWallet(userId: string) {
@@ -75,29 +77,30 @@ export class WalletService {
     type: WalletTransactionType,
     description?: string,
     referenceId?: string,
+    tx?: any
   ) {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
     });
     if (!customer) throw new NotFoundException('Customer profile not found');
 
-    return this.prisma.$transaction(async (tx) => {
-      let wallet = await tx.wallet.findUnique({
+    const execute = async (prismaTx: any) => {
+      let wallet = await prismaTx.wallet.findUnique({
         where: { customerId: customer.id },
       });
       if (!wallet) {
-        wallet = await tx.wallet.create({ data: { customerId: customer.id } });
+        wallet = await prismaTx.wallet.create({ data: { customerId: customer.id } });
       }
 
       const balanceBefore = wallet.balance;
       const balanceAfter = balanceBefore + amount;
 
-      await tx.wallet.update({
+      await prismaTx.wallet.update({
         where: { id: wallet.id },
         data: { balance: balanceAfter },
       });
 
-      const transaction = await tx.walletTransaction.create({
+      const transaction = await prismaTx.walletTransaction.create({
         data: {
           walletId: wallet.id,
           type,
@@ -110,7 +113,9 @@ export class WalletService {
       });
 
       return { wallet: { ...wallet, balance: balanceAfter }, transaction };
-    });
+    };
+
+    return tx ? execute(tx) : this.prisma.$transaction(execute);
   }
 
   async deductFunds(
@@ -119,14 +124,15 @@ export class WalletService {
     type: WalletTransactionType,
     description?: string,
     referenceId?: string,
+    tx?: any
   ) {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
     });
     if (!customer) throw new NotFoundException('Customer profile not found');
 
-    return this.prisma.$transaction(async (tx) => {
-      const wallet = await tx.wallet.findUnique({
+    const execute = async (prismaTx: any) => {
+      const wallet = await prismaTx.wallet.findUnique({
         where: { customerId: customer.id },
       });
       if (!wallet) {
@@ -140,12 +146,12 @@ export class WalletService {
       const balanceBefore = wallet.balance;
       const balanceAfter = balanceBefore - amount;
 
-      await tx.wallet.update({
+      await prismaTx.wallet.update({
         where: { id: wallet.id },
         data: { balance: balanceAfter },
       });
 
-      const transaction = await tx.walletTransaction.create({
+      const transaction = await prismaTx.walletTransaction.create({
         data: {
           walletId: wallet.id,
           type,
@@ -158,10 +164,12 @@ export class WalletService {
       });
 
       return { wallet: { ...wallet, balance: balanceAfter }, transaction };
-    });
+    };
+
+    return tx ? execute(tx) : this.prisma.$transaction(execute);
   }
 
-  async ownJar(userId: string) {
+  async ownJar(userId: string, tx?: any) {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
       include: {
@@ -215,15 +223,15 @@ export class WalletService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const execute = async (prismaTx: any) => {
       const balanceBefore = wallet.balance;
       const balanceAfter = balanceBefore - depositAmount;
-      await tx.wallet.update({
+      await prismaTx.wallet.update({
         where: { id: wallet.id },
         data: { balance: balanceAfter },
       });
 
-      await tx.walletTransaction.create({
+      await prismaTx.walletTransaction.create({
         data: {
           walletId: wallet.id,
           type: WalletTransactionType.DEDUCTION,
@@ -237,7 +245,7 @@ export class WalletService {
       const newCompanyJarsHeld = Math.max(0, jarOwnership.companyJarsHeld - 1);
       const newOwnedJars = jarOwnership.ownedJars + 1;
 
-      await tx.jarOwnership.update({
+      await prismaTx.jarOwnership.update({
         where: { customerId: customer.id },
         data: {
           companyJarsHeld: newCompanyJarsHeld,
@@ -251,7 +259,7 @@ export class WalletService {
         jarDeposit.depositDue - depositAmount,
       );
 
-      await tx.jarDeposit.update({
+      await prismaTx.jarDeposit.update({
         where: { customerId: customer.id },
         data: {
           depositPaid: newDepositPaid,
@@ -259,7 +267,7 @@ export class WalletService {
         },
       });
 
-      await tx.transaction.create({
+      await prismaTx.transaction.create({
         data: {
           customerId: customer.id,
           type: TransactionType.DEPOSIT_PAYMENT,
@@ -271,20 +279,56 @@ export class WalletService {
       });
 
       return { success: true };
-    });
+    };
+
+    return tx ? execute(tx) : this.prisma.$transaction(execute);
   }
 
-  async rechargeWallet(userId: string, amount: number) {
+  async initiateRecharge(userId: string, amount: number) {
     if (amount <= 0) {
       throw new BadRequestException('Recharge amount must be greater than 0');
     }
     
-    // Check auto-creation and credit wallet
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId },
+    });
+    if (!customer) throw new NotFoundException('Customer profile not found');
+
+    const intent = await this.paymentService.createPaymentIntent({
+      customerId: customer.id,
+      amount: amount,
+      description: `Wallet Recharge (₹${amount})`,
+    });
+
+    return {
+      paymentId: intent.paymentId,
+      razorpayOrderId: intent.orderId,
+      amount: intent.amount,
+      currency: 'INR',
+    };
+  }
+
+  async confirmRecharge(userId: string, razorpayOrderId: string, razorpayPaymentId: string, razorpaySignature: string) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId },
+    });
+    if (!customer) throw new NotFoundException('Customer profile not found');
+
+    // Verify the signature
+    const verifiedPayment = await this.paymentService.verifyPayment({
+        razorpay_order_id: razorpayOrderId,
+        razorpay_payment_id: razorpayPaymentId,
+        razorpay_signature: razorpaySignature,
+      },
+      customer.id
+    );
+
+    // Credit wallet with the payment amount
     return this.addFunds(
       userId,
-      amount,
+      verifiedPayment.amount,
       WalletTransactionType.TOP_UP,
-      `Direct Wallet Recharge (₹${amount})`
+      `Direct Wallet Recharge (₹${verifiedPayment.amount})`
     );
   }
 }

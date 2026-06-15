@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Wallet, History, ArrowUpRight, ArrowDownLeft, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import { injectMockRazorpay } from '../../../utils/MockRazorpay';
 
 
 interface Transaction {
@@ -39,6 +40,21 @@ export default function WalletPage() {
     }
   };
 
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      if (injectMockRazorpay()) {
+        return resolve(true);
+      }
+      if ((window as any).Razorpay) return resolve(true);
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   useEffect(() => {
     loadWalletData();
   }, []);
@@ -52,16 +68,53 @@ export default function WalletPage() {
 
     try {
       setRechargeLoading(true);
-      await fetchWithAuth('/wallet/recharge', {
+      // 1. Initiate Recharge
+      const initiateRes = await fetchWithAuth('/wallet/recharge/initiate', {
         method: 'POST',
         body: JSON.stringify({ amount }),
       });
 
-      toast.success(`Successfully added ₹${amount} to your wallet!`);
-      setCustomAmount('');
-      loadWalletData();
+      // 2. Load Razorpay script
+      const isLoaded = await loadRazorpay();
+      if (!isLoaded) {
+        toast.error('Razorpay SDK failed to load');
+        return;
+      }
+
+      // 3. Open Razorpay Modal
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_mock',
+        amount: initiateRes.amount * 100,
+        currency: initiateRes.currency,
+        name: 'Edrops Wallet',
+        description: 'Wallet Top-Up',
+        order_id: initiateRes.razorpayOrderId,
+        handler: async function (response: any) {
+          try {
+            await fetchWithAuth('/wallet/recharge/confirm', {
+              method: 'POST',
+              body: JSON.stringify({
+                razorpayOrderId: initiateRes.razorpayOrderId,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+            toast.success(`Successfully added ₹${amount} to your wallet!`);
+            setCustomAmount('');
+            loadWalletData();
+          } catch (confirmErr: any) {
+            toast.error(confirmErr.message || 'Payment verification failed');
+          }
+        },
+        theme: { color: '#1E88E5' }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', () => toast.error('Payment failed or cancelled.'));
+      rzp.open();
+
     } catch (err: any) {
-      toast.error(err.message || 'Failed to recharge wallet');
+      toast.error(err.message || 'Failed to initiate recharge');
     } finally {
       setRechargeLoading(false);
     }

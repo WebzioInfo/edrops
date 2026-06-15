@@ -991,3 +991,13 @@ model StaffNotification {
   @@index([createdAt])
   @@map("notifications")
 }
+
+
+model IdempotencyRecord {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  response  Json?
+  status    String   @default("SUCCESS")
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

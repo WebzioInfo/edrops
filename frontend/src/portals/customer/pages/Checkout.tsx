@@ -3,6 +3,7 @@ import { ShoppingBag, Plus, Trash2, ShieldCheck, CheckCircle2, Minus } from 'luc
 import { useCart } from '../../../contexts/CartContext';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import { injectMockRazorpay } from '../../../utils/MockRazorpay';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -107,7 +108,12 @@ export default function Checkout() {
   };
 
   const loadRazorpay = () => {
-    return new Promise<boolean>((resolve) => {
+    return new Promise((resolve) => {
+      // Check if we should inject mock razorpay
+      if (injectMockRazorpay()) {
+        return resolve(true);
+      }
+
       if ((window as any).Razorpay) return resolve(true);
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -179,9 +185,9 @@ export default function Checkout() {
               body: JSON.stringify({
                 orderId: initiateRes.orderId,
                 paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : paymentMethod,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
               }),
             });
             toast.success('Payment successful! Your order is confirmed.');

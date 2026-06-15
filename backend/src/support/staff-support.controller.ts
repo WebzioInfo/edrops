@@ -9,8 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { RolesGuard, Roles } from '../auth/roles.guard';
 import { SupportService } from './support.service';
 import { TicketStatus } from '@prisma/client';
 

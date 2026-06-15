@@ -4,6 +4,7 @@ import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { RechargeWalletDto } from './dto/recharge-wallet.dto';
+import { Idempotent } from '../common/decorators/idempotent.decorator';
 
 @Controller('wallet')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,14 +30,28 @@ export class WalletController {
   }
 
   @Post('own-jar')
+  @Idempotent()
   async ownJar(@Req() req) {
     const userId = req.user.sub || req.user.id;
     return this.walletService.ownJar(userId);
   }
 
-  @Post('recharge')
-  async rechargeWallet(@Req() req, @Body() dto: RechargeWalletDto) {
+  @Post('recharge/initiate')
+  @Idempotent()
+  async initiateRecharge(@Req() req, @Body() dto: RechargeWalletDto) {
     const userId = req.user.sub || req.user.id;
-    return this.walletService.rechargeWallet(userId, dto.amount);
+    return this.walletService.initiateRecharge(userId, dto.amount);
+  }
+
+  @Post('recharge/confirm')
+  @Idempotent()
+  async confirmRecharge(@Req() req, @Body() body: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }) {
+    const userId = req.user.sub || req.user.id;
+    return this.walletService.confirmRecharge(
+      userId,
+      body.razorpayOrderId,
+      body.razorpayPaymentId,
+      body.razorpaySignature
+    );
   }
 }

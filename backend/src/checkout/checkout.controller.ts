@@ -10,6 +10,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CheckoutService } from './checkout.service';
 import { ValidateCheckoutDto, InitiateCheckoutDto, ConfirmCheckoutDto } from './dto/checkout.dto';
+import { Idempotent } from '../common/decorators/idempotent.decorator';
 
 @Controller('checkout')
 @UseGuards(JwtAuthGuard)
@@ -30,6 +31,7 @@ export class CheckoutController {
   }
 
   @Post('initiate')
+  @Idempotent()
   initiateCheckout(@Req() req, @Body() dto: InitiateCheckoutDto) {
     if (!req.user.customerId) {
       throw new BadRequestException('Only customer accounts can initialize checkout');
@@ -38,6 +40,7 @@ export class CheckoutController {
   }
 
   @Post('confirm')
+  @Idempotent()
   confirmCheckout(@Req() req, @Body() dto: ConfirmCheckoutDto) {
     if (!req.user.customerId) {
       throw new BadRequestException('Only customer accounts can confirm checkout');

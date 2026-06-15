@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { TicketPriority } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { TicketStatus } from '@prisma/client';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { EventsGateway } from '../events/events.gateway';
 import { ReplyTicketDto } from './dto/reply-ticket.dto';

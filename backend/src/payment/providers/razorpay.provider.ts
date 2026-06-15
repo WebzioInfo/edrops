@@ -19,11 +19,18 @@ export class RazorpayProvider implements PaymentProvider {
   private razorpay: any;
   private readonly logger = new Logger(RazorpayProvider.name);
 
+  private isMock: boolean;
+
   constructor() {
-    this.razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_SECRET,
-    });
+    const keyId = process.env.RAZORPAY_KEY_ID || '';
+    this.isMock = keyId.startsWith('rzp_test_mock');
+    
+    if (!this.isMock) {
+      this.razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: process.env.RAZORPAY_SECRET,
+      });
+    }
   }
 
   getProviderName(): string {
@@ -31,6 +38,15 @@ export class RazorpayProvider implements PaymentProvider {
   }
 
   async createOrder(params: CreateOrderParams): Promise<PaymentOrderInfo> {
+    if (this.isMock) {
+      this.logger.log(`Mocking Razorpay order creation for receipt ${params.receiptId}`);
+      return {
+        providerOrderId: `order_mock_${Math.random().toString(36).substring(7)}`,
+        amount: params.amount,
+        currency: params.currency || 'INR',
+      };
+    }
+
     try {
       const order = await this.razorpay.orders.create({
         amount: Math.round(params.amount * 100),
@@ -50,6 +66,10 @@ export class RazorpayProvider implements PaymentProvider {
   }
 
   verifyPaymentSignature(params: VerifySignatureParams): boolean {
+    if (this.isMock) {
+      return params.signature === 'mock_signature_valid';
+    }
+
     const secret = process.env.RAZORPAY_SECRET as string;
     if (!secret) return false;
 
@@ -76,6 +96,13 @@ export class RazorpayProvider implements PaymentProvider {
   async processRefund(
     params: RefundParams,
   ): Promise<{ refundId: string; status: string }> {
+    if (this.isMock) {
+      return {
+        refundId: `rfnd_mock_${Math.random().toString(36).substring(7)}`,
+        status: 'processed',
+      };
+    }
+
     try {
       const refund = await this.razorpay.payments.refund(
         params.providerPaymentId,
