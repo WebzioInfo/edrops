@@ -10,6 +10,7 @@ import { ValidateCheckoutDto, InitiateCheckoutDto, ConfirmCheckoutDto } from './
 import * as crypto from 'crypto';
 import { EventsGateway } from '../events/events.gateway';
 import { StaffNotificationService } from '../notification/staff-notification.service';
+import { PromoService } from '../promo/promo.service';
 
 @Injectable()
 export class CheckoutService {
@@ -20,6 +21,7 @@ export class CheckoutService {
     private paymentService: PaymentService,
     private eventsGateway: EventsGateway,
     private staffNotificationService: StaffNotificationService,
+    private promoService: PromoService,
   ) {}
 
   private async notifyNewOrder(orderId: string, customerId: string, totalAmount: number) {
@@ -95,20 +97,40 @@ export class CheckoutService {
     }
 
     const deliveryCharge = subTotal > 500 ? 0 : 50;
-    const totalAmount = subTotal + depositTotal + deliveryCharge;
+    
+    let discountTotal = 0;
+    if (dto.promoCode) {
+      const promoResult = await this.promoService.validateCode(
+        dto.promoCode,
+        customerId,
+        subTotal,
+        'ONETIME_ORDER',
+        deliveryCharge,
+        false,
+      );
+      discountTotal = promoResult.calculatedDiscount;
+    }
+
+    const totalAmount = Math.max(0, subTotal + depositTotal + deliveryCharge - discountTotal);
 
     return {
       subTotal,
       depositTotal,
       deliveryCharge,
+      discountTotal,
       totalAmount,
       items,
+      promoCode: dto.promoCode || null,
     };
   }
 
   async initiateCheckout(customerId: string, dto: InitiateCheckoutDto) {
-    const validation = await this.validateCheckout(customerId, { returnEmptyJars: dto.returnEmptyJars, buyNowItems: dto.buyNowItems });
-    const { subTotal, depositTotal, deliveryCharge, totalAmount, items } = validation;
+    const validation = await this.validateCheckout(customerId, {
+      returnEmptyJars: dto.returnEmptyJars,
+      buyNowItems: dto.buyNowItems,
+      promoCode: dto.promoCode,
+    });
+    const { subTotal, depositTotal, deliveryCharge, discountTotal, totalAmount, items } = validation;
 
     const orderId = crypto.randomUUID();
     let razorpayOrderId: string | undefined;
@@ -150,7 +172,20 @@ export class CheckoutService {
     }
 
     const order = await this.prisma.$transaction(async (tx) => {
-      // 1. Check wallet balance strictly inside transaction to prevent race conditions
+      // 1. Redeem promo code inside the transaction context
+      if (dto.promoCode) {
+        await this.promoService.redeemCode(
+          dto.promoCode,
+          customerId,
+          subTotal,
+          'ONETIME_ORDER',
+          deliveryCharge,
+          false,
+          tx,
+        );
+      }
+
+      // 2. Check wallet balance strictly inside transaction to prevent race conditions
       if (dto.paymentMethod === 'WALLET' || dto.paymentMethod === 'HYBRID') {
         const wallet = await tx.wallet.findUnique({ where: { customerId } });
         const currentBalance = wallet ? wallet.balance : 0;
@@ -177,7 +212,7 @@ export class CheckoutService {
         });
       }
 
-      // 2. Create the order
+      // 3. Create the order
       const newOrder = await tx.order.create({
         data: {
           id: orderId,
@@ -187,7 +222,9 @@ export class CheckoutService {
           subTotal,
           depositTotal,
           deliveryCharge,
+          discountTotal,
           totalAmount,
+          promoCode: dto.promoCode ? dto.promoCode.toUpperCase() : null,
           deliveryAddressId: dto.addressId,
           timeSlot: dto.timeSlot,
           paymentMethod: dto.paymentMethod,
@@ -204,7 +241,7 @@ export class CheckoutService {
         },
       });
 
-      // 3. Clear cart if not Buy Now
+      // 4. Clear cart if not Buy Now
       if (!dto.buyNowItems || dto.buyNowItems.length === 0) {
         await tx.cartItem.deleteMany({ where: { cart: { customerId } } });
       }

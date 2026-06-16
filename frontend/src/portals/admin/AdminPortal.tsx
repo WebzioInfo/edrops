@@ -1,6 +1,6 @@
 import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
-import { Droplets, Menu, Bell, User, LogOut, ChevronDown, LayoutDashboard, Package, Truck, ShoppingCart, DollarSign, Users, Settings, FileText } from 'lucide-react';
+import { Droplets, Menu, Bell, User, LogOut, ChevronDown, LayoutDashboard, Package, Truck, ShoppingCart, DollarSign, Users, Settings, FileText, Tag } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
@@ -14,6 +14,7 @@ const ReportsCenter = React.lazy(() => import('./pages/ReportsCenter'));
 const CustomerDetail = React.lazy(() => import('./pages/CustomerDetail'));
 const GlobalSupport = React.lazy(() => import('./pages/GlobalSupport'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
+const PromoManager = React.lazy(() => import('./pages/PromoManager'));
 
 const centerNavItems = [
   { to: '/admin/dashboard', label: 'Dashboard' },
@@ -26,6 +27,7 @@ const centerNavItems = [
 const secondaryActions = [
   { to: '/admin/support', label: 'Support', icon: Menu },
   { to: '/admin/customers', label: 'Customers', icon: Users },
+  { to: '/admin/promos', label: 'Promo Codes', icon: Tag },
   { to: '/admin/reports', label: 'Reports', icon: FileText },
 ];
 
@@ -40,6 +42,7 @@ const mobileBottomNavItems = [
 const mobileMoreNavItems = [
   { to: '/admin/support', label: 'Support', icon: Menu },
   { to: '/admin/customers', label: 'Customers', icon: Users },
+  { to: '/admin/promos', label: 'Promo Codes', icon: Tag },
   { to: '/admin/reports', label: 'Reports', icon: FileText },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
@@ -182,6 +185,7 @@ export default function AdminPortal() {
             <Route path="settings" element={<BusinessSettings />} />
             <Route path="reports" element={<ReportsCenter />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="promos" element={<PromoManager />} />
             <Route path="" element={<Navigate to="dashboard" replace />} />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>

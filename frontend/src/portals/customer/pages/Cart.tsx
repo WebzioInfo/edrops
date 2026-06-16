@@ -1,43 +1,118 @@
 
 import { ShoppingBag, Minus, Plus, Trash2, CreditCard } from 'lucide-react';
 import { useCart } from '../../../contexts/CartContext';
-
-
 import { useState, useEffect, useMemo } from 'react';
-
-
 import { useNavigate } from 'react-router-dom';
+import { fetchWithAuth } from '../../../api/client';
+import { toast } from 'react-hot-toast';
 
 export default function Cart() {
   const { items, returnEmptyJars, removeItem, updateQuantity } = useCart();
   const navigate = useNavigate();
   
   const [checkoutItems, setCheckoutItems] = useState(items);
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [promoError, setPromoError] = useState('');
   
   useEffect(() => {
     setCheckoutItems(items);
   }, [items]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('edrops_promo');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setPromoInput(parsed.code);
+        setAppliedPromo(parsed);
+      } catch (e) {}
+    }
+  }, []);
   
   const subTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0), [checkoutItems]);
   const depositTotal = useMemo(() => returnEmptyJars ? 0 : checkoutItems.reduce((sum, item) => sum + (item.depositAmount * item.quantity), 0), [checkoutItems, returnEmptyJars]);
   const deliveryCharge = useMemo(() => checkoutItems.length > 0 ? (subTotal > 500 ? 0 : 50) : 0, [checkoutItems, subTotal]);
-  const grandTotal = subTotal + depositTotal + deliveryCharge;
+
+  useEffect(() => {
+    if (appliedPromo) {
+      setIsValidatingPromo(true);
+      fetchWithAuth('/promo/validate', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: appliedPromo.code,
+          orderAmount: subTotal,
+          deliveryCharge
+        })
+      })
+      .then((res) => {
+        setPromoDiscount(res.calculatedDiscount);
+        setPromoError('');
+      })
+      .catch((err) => {
+        setAppliedPromo(null);
+        setPromoDiscount(0);
+        localStorage.removeItem('edrops_promo');
+        setPromoError(err.message || 'Promo code is no longer valid');
+      })
+      .finally(() => {
+        setIsValidatingPromo(false);
+      });
+    } else {
+      setPromoDiscount(0);
+    }
+  }, [appliedPromo?.code, subTotal, deliveryCharge]);
+
+  const grandTotal = Math.max(0, subTotal + depositTotal + deliveryCharge - promoDiscount);
 
   const updateLocalQuantity = (id: string, newQuantity: number) => {
-    // Call the context method which updates state optimistically AND hits the backend API
     updateQuantity(id, newQuantity);
   };
   
   const removeLocalItem = (id: string) => {
-    // Call the context method to actually delete from the database
     removeItem(id);
   };
 
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return;
+    setIsValidatingPromo(true);
+    setPromoError('');
+    try {
+      const res = await fetchWithAuth('/promo/validate', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: promoInput,
+          orderAmount: subTotal,
+          deliveryCharge
+        })
+      });
+      setAppliedPromo(res);
+      setPromoDiscount(res.calculatedDiscount);
+      localStorage.setItem('edrops_promo', JSON.stringify(res));
+      toast.success('Promo code applied successfully!');
+    } catch (err: any) {
+      setPromoError(err.message || 'Invalid promo code');
+      toast.error(err.message || 'Invalid promo code');
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoDiscount(0);
+    setPromoInput('');
+    setPromoError('');
+    localStorage.removeItem('edrops_promo');
+    toast.success('Promo code removed');
+  };
+
   const handleProceedToCheckout = () => {
     setIsProcessing(true);
-    // Any final validations before heading to checkout could go here
     setTimeout(() => {
       navigate('/customer/checkout');
       setIsProcessing(false);
@@ -152,6 +227,54 @@ export default function Cart() {
                 <span>Delivery Charge</span>
                 <span className="font-black">{deliveryCharge === 0 ? <span className="text-emerald-600">FREE</span> : `₹${deliveryCharge}`}</span>
               </div>
+
+              {promoDiscount > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Discount ({appliedPromo?.code})</span>
+                  <span className="font-black">-₹{promoDiscount}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Promo Code Section */}
+            <div className="border-t border-slate-100 pt-6 mb-6">
+              <label className="block text-sm font-black text-slate-800 mb-2">Have a Promo Code?</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter code (e.g. SAVE10)"
+                  value={promoInput}
+                  onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                  disabled={!!appliedPromo}
+                  className="flex-1 px-4 py-2 border border-slate-200 rounded-full text-sm font-bold focus:outline-none focus:border-[#2D79A8] uppercase disabled:bg-slate-50 disabled:text-slate-400"
+                />
+                {appliedPromo ? (
+                  <button
+                    onClick={handleRemovePromo}
+                    className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-full transition-colors active:scale-95 cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleApplyPromo}
+                    disabled={!promoInput.trim() || isValidatingPromo}
+                    className="px-5 py-2 bg-[#2D79A8] hover:bg-opacity-90 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-xs rounded-full transition-colors active:scale-95 cursor-pointer"
+                  >
+                    {isValidatingPromo ? '...' : 'Apply'}
+                  </button>
+                )}
+              </div>
+              {promoError && <p className="text-xs text-rose-500 font-semibold mt-1.5 ml-2">{promoError}</p>}
+              {appliedPromo && (
+                <div className="mt-2.5 p-3 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between text-emerald-800">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black">{appliedPromo.code} Applied!</span>
+                    <span className="text-[10px] font-semibold text-emerald-600/95">{appliedPromo.description}</span>
+                  </div>
+                  <span className="text-sm font-black">-₹{promoDiscount}</span>
+                </div>
+              )}
             </div>
             
             <div className="flex justify-between items-end mb-8">

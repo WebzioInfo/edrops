@@ -3,9 +3,10 @@ import { RechargeService } from './recharge.service';
 import { RechargeController } from './recharge.controller';
 import { EnginesModule } from '../engines/engines.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { PromoModule } from '../promo/promo.module';
 
 @Module({
-  imports: [PrismaModule, EnginesModule],
+  imports: [PrismaModule, EnginesModule, PromoModule],
   controllers: [RechargeController],
   providers: [RechargeService],
 })

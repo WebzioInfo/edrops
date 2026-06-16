@@ -17,6 +17,10 @@ export class ValidateCheckoutDto {
   @ValidateNested({ each: true })
   @Type(() => BuyNowItemDto)
   buyNowItems?: BuyNowItemDto[];
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
 }
 
 export class InitiateCheckoutDto {
@@ -42,6 +46,10 @@ export class InitiateCheckoutDto {
   @ValidateNested({ each: true })
   @Type(() => BuyNowItemDto)
   buyNowItems?: BuyNowItemDto[];
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
 }
 
 export class ConfirmCheckoutDto {

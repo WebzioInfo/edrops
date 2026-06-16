@@ -5,13 +5,15 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RechargeEngine } from '../engines/recharge.engine';
-import { PaymentStatus, PromoType } from '@prisma/client';
+import { PaymentStatus } from '@prisma/client';
+import { PromoService } from '../promo/promo.service';
 
 @Injectable()
 export class RechargeService {
   constructor(
     private prisma: PrismaService,
     private rechargeEngine: RechargeEngine,
+    private promoService: PromoService,
   ) {}
 
   async purchase(
@@ -49,7 +51,16 @@ export class RechargeService {
       throw new BadRequestException('Payment has not been captured yet');
     }
     const discount = data.promoCode
-      ? await this.getRechargeDiscount(data.promoCode, customer.id, pkg.price)
+      ? (
+          await this.promoService.validateCode(
+            data.promoCode,
+            customer.id,
+            pkg.price,
+            undefined,
+            undefined,
+            true,
+          )
+        ).calculatedDiscount
       : 0;
     const requiredAmount = Math.max(0, pkg.price - discount);
 
@@ -70,83 +81,19 @@ export class RechargeService {
       );
 
       if (data.promoCode) {
-        await this.redeemRechargePromo(data.promoCode, customer.id, tx);
+        await this.promoService.redeemCode(
+          data.promoCode,
+          customer.id,
+          pkg.price,
+          undefined,
+          undefined,
+          true,
+          tx,
+        );
       }
 
       return purchase;
     });
-  }
-
-  private async getRechargeDiscount(
-    code: string,
-    customerId: string,
-    packagePrice: number,
-  ) {
-    const promo = await this.prisma.promoCode.findUnique({
-      where: { code: code.toUpperCase() },
-      include: { campaign: true },
-    });
-
-    if (!promo || !promo.isActive || !promo.campaign.isActive) {
-      throw new BadRequestException('Invalid or inactive promo code');
-    }
-
-    const now = new Date();
-    if (
-      promo.campaign.startDate > now ||
-      (promo.campaign.endDate && promo.campaign.endDate < now)
-    ) {
-      throw new BadRequestException('Promo code is not currently active');
-    }
-
-    if (promo.maxUses && promo.currentUses >= promo.maxUses) {
-      throw new BadRequestException('Promo code usage limit reached');
-    }
-
-    const existingRedemption = await this.prisma.promoRedemption.findFirst({
-      where: { promoCodeId: promo.id, customerId },
-    });
-    if (existingRedemption) {
-      throw new BadRequestException(
-        'You have already redeemed this promo code',
-      );
-    }
-
-    if (promo.type === PromoType.PERCENTAGE) {
-      return Math.min(
-        packagePrice,
-        packagePrice * ((promo.discountValue ?? 0) / 100),
-      );
-    }
-
-    if (promo.type === PromoType.FIXED_DISCOUNT) {
-      return Math.min(packagePrice, promo.discountValue ?? 0);
-    }
-
-    return 0;
-  }
-
-  private async redeemRechargePromo(code: string, customerId: string, tx?: any) {
-    const execute = async (prismaTx: any) => {
-      const promo = await prismaTx.promoCode.findUnique({
-        where: { code: code.toUpperCase() },
-        select: { id: true },
-      });
-      if (!promo) return;
-
-      await prismaTx.promoRedemption.create({
-        data: {
-          promoCodeId: promo.id,
-          customerId,
-        },
-      });
-      await prismaTx.promoCode.update({
-        where: { id: promo.id },
-        data: { currentUses: { increment: 1 } },
-      });
-    };
-
-    return tx ? execute(tx) : this.prisma.$transaction(execute);
   }
 
   // Packages Management

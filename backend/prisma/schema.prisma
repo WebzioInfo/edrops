@@ -99,6 +99,9 @@ enum PromoType {
   PERCENTAGE
   FREE_JARS
   WALLET_BONUS
+  FREE_SHIPPING
+  FIRST_ORDER
+  SUBSCRIPTION
 }
 
 enum OrderType {
@@ -636,17 +639,26 @@ model PromoCampaign {
 }
 
 model PromoCode {
-  id            String            @id @default(uuid())
-  code          String            @unique
-  campaignId    String
-  campaign      PromoCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  type          PromoType
-  discountValue Float?
-  bonusJars     Int?
-  maxUses       Int?
-  currentUses   Int               @default(0)
-  isActive      Boolean           @default(true)
-  redemptions   PromoRedemption[]
+  id                    String            @id @default(uuid())
+  code                  String            @unique
+  campaignId            String
+  campaign              PromoCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  type                  PromoType
+  discountValue         Float?
+  bonusJars             Int?
+  maxUses               Int?
+  currentUses           Int               @default(0)
+  isActive              Boolean           @default(true)
+  description           String?
+  minimumOrderAmount   Float             @default(0.0)
+  maximumDiscountAmount Float?
+  perUserLimit          Int               @default(1)
+  startDate             DateTime          @default(now())
+  endDate               DateTime?
+  createdBy             String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  redemptions           PromoRedemption[]
 }
 
 model PromoRedemption {
@@ -888,7 +900,9 @@ model Order {
   subTotal          Float         @default(0.0)
   depositTotal      Float         @default(0.0)
   deliveryCharge    Float         @default(0.0)
+  discountTotal     Float         @default(0.0)
   totalAmount       Float         @default(0.0)
+  promoCode         String?
   deliveryAddressId String
   address           Address       @relation(fields: [deliveryAddressId], references: [id])
   scheduledDate     DateTime?

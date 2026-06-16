@@ -69,7 +69,88 @@ export default function Checkout() {
   const subTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0), [checkoutItems]);
   const depositTotal = useMemo(() => returnEmptyJars ? 0 : checkoutItems.reduce((sum, item) => sum + (item.depositAmount * item.quantity), 0), [checkoutItems, returnEmptyJars]);
   const deliveryCharge = useMemo(() => checkoutItems.length > 0 ? (subTotal > 500 ? 0 : 50) : 0, [checkoutItems, subTotal]);
-  const grandTotal = subTotal + depositTotal + deliveryCharge;
+
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [promoError, setPromoError] = useState('');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('edrops_promo');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setPromoInput(parsed.code);
+        setAppliedPromo(parsed);
+      } catch (e) {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (appliedPromo) {
+      setIsValidatingPromo(true);
+      fetchWithAuth('/promo/validate', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: appliedPromo.code,
+          orderAmount: subTotal,
+          deliveryCharge
+        })
+      })
+      .then((res) => {
+        setPromoDiscount(res.calculatedDiscount);
+        setPromoError('');
+      })
+      .catch((err) => {
+        setAppliedPromo(null);
+        setPromoDiscount(0);
+        localStorage.removeItem('edrops_promo');
+        setPromoError(err.message || 'Promo code is no longer valid');
+      })
+      .finally(() => {
+        setIsValidatingPromo(false);
+      });
+    } else {
+      setPromoDiscount(0);
+    }
+  }, [appliedPromo?.code, subTotal, deliveryCharge]);
+
+  const grandTotal = Math.max(0, subTotal + depositTotal + deliveryCharge - promoDiscount);
+
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return;
+    setIsValidatingPromo(true);
+    setPromoError('');
+    try {
+      const res = await fetchWithAuth('/promo/validate', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: promoInput,
+          orderAmount: subTotal,
+          deliveryCharge
+        })
+      });
+      setAppliedPromo(res);
+      setPromoDiscount(res.calculatedDiscount);
+      localStorage.setItem('edrops_promo', JSON.stringify(res));
+      toast.success('Promo code applied successfully!');
+    } catch (err: any) {
+      setPromoError(err.message || 'Invalid promo code');
+      toast.error(err.message || 'Invalid promo code');
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoDiscount(0);
+    setPromoInput('');
+    setPromoError('');
+    localStorage.removeItem('edrops_promo');
+    toast.success('Promo code removed');
+  };
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -109,7 +190,6 @@ export default function Checkout() {
 
   const loadRazorpay = () => {
     return new Promise((resolve) => {
-      // Check if we should inject mock razorpay
       if (injectMockRazorpay()) {
         return resolve(true);
       }
@@ -144,7 +224,8 @@ export default function Checkout() {
         addressId: selectedAddressId,
         paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : paymentMethod,
         timeSlot: selectedSlot,
-        returnEmptyJars
+        returnEmptyJars,
+        promoCode: appliedPromo?.code || undefined
       };
 
       if (isBuyNow) {
@@ -159,6 +240,7 @@ export default function Checkout() {
       if (initiateRes.status === 'SUCCESS') {
         toast.success('Order placed successfully!');
         if (!isBuyNow) clearCart();
+        localStorage.removeItem('edrops_promo');
         window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
         return;
       }
@@ -192,6 +274,7 @@ export default function Checkout() {
             });
             toast.success('Payment successful! Your order is confirmed.');
             if (!isBuyNow) clearCart();
+            localStorage.removeItem('edrops_promo');
             window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
           },
           theme: { color: '#1E88E5' }
@@ -476,12 +559,60 @@ export default function Checkout() {
                       <span>Delivery Charge</span>
                       <span className="font-semibold">{deliveryCharge === 0 ? <span className="text-[#1E88E5]">Free</span> : `₹${deliveryCharge}`}</span>
                     </div>
+
+                    {promoDiscount > 0 && (
+                      <div className="flex justify-between text-emerald-600">
+                        <span>Discount ({appliedPromo?.code})</span>
+                        <span className="font-semibold">-₹{promoDiscount}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-[#0F172A] font-bold text-[16px] md:text-[18px]">Grand Total</span>
                     <span className="text-[24px] md:text-[28px] font-bold text-[#1E88E5]">₹{grandTotal}</span>
                   </div>
+                </div>
+
+                {/* Promo Code Input */}
+                <div className="bg-white p-4 md:p-6 rounded-[16px] border border-[#E2E8F0] shadow-sm">
+                  <h3 className="text-[16px] md:text-[18px] font-bold text-[#0F172A] mb-4 md:border-b md:border-[#E2E8F0] md:pb-3">Promo Code</h3>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter promo code"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                      disabled={!!appliedPromo}
+                      className="flex-1 px-4 py-2 border border-[#E2E8F0] bg-[#F8FAFC] rounded-[10px] text-sm font-medium focus:outline-none focus:border-[#1E88E5] focus:bg-white uppercase disabled:bg-slate-50 disabled:text-slate-400"
+                    />
+                    {appliedPromo ? (
+                      <button
+                        onClick={handleRemovePromo}
+                        className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-[13px] rounded-[10px] transition-colors cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleApplyPromo}
+                        disabled={!promoInput.trim() || isValidatingPromo}
+                        className="px-5 py-2 bg-[#1E88E5] hover:bg-[#1565C0] disabled:bg-slate-100 disabled:text-slate-400 text-white font-semibold text-[13px] rounded-[10px] transition-colors cursor-pointer"
+                      >
+                        {isValidatingPromo ? '...' : 'Apply'}
+                      </button>
+                    )}
+                  </div>
+                  {promoError && <p className="text-xs text-rose-500 font-semibold mt-1.5 ml-2">{promoError}</p>}
+                  {appliedPromo && (
+                    <div className="mt-2.5 p-3 bg-emerald-50 rounded-[10px] border border-emerald-100 flex items-center justify-between text-emerald-800">
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-bold">{appliedPromo.code} Applied!</span>
+                        <span className="text-[11px] text-emerald-600 font-medium">{appliedPromo.description}</span>
+                      </div>
+                      <span className="text-[14px] font-bold">-₹{promoDiscount}</span>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}

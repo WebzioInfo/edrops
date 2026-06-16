@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Tag, Sparkles, ShoppingCart, Loader } from 'lucide-react';
+import { CreditCard, Tag, Sparkles, ShoppingCart, Loader, Droplet, Check } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { injectMockRazorpay } from '../../../utils/MockRazorpay';
 import { fetchWithAuth } from '../../../api/client';
@@ -24,6 +24,7 @@ export default function RechargePage() {
   const [applying, setApplying] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
   const [discount, setDiscount] = useState<number>(0);
+  const [promoError, setPromoError] = useState('');
   const [purchasing, setPurchasing] = useState(false);
 
   const loadPacks = async () => {
@@ -49,30 +50,65 @@ export default function RechargePage() {
     e.preventDefault();
     if (!promoCode.trim()) return;
     setApplying(true);
+    setPromoError('');
     try {
       const res = await fetchWithAuth('/promo/validate', {
         method: 'POST',
-        body: JSON.stringify({ code: promoCode }),
+        body: JSON.stringify({
+          code: promoCode,
+          orderAmount: selectedPack ? selectedPack.price : undefined,
+          isRecharge: true,
+        }),
       });
-      setAppliedPromo(promoCode);
-      setDiscount(res.discountValue || 0);
-      toast.success(`Coupon "${promoCode}" applied!`);
-    } catch {
+      setAppliedPromo(promoCode.toUpperCase());
+      setDiscount(res.calculatedDiscount || res.discountValue || 0);
+      toast.success(`Coupon "${promoCode.toUpperCase()}" applied!`);
+    } catch (err: any) {
       setAppliedPromo(null);
       setDiscount(0);
-      toast.error('Invalid coupon code');
+      const errMsg = err.message || 'Invalid coupon code';
+      setPromoError(errMsg);
+      toast.error(errMsg);
     } finally {
       setApplying(false);
     }
   };
 
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setDiscount(0);
+    setPromoCode('');
+    setPromoError('');
+    toast.success('Coupon removed');
+  };
+
+  useEffect(() => {
+    if (appliedPromo && selectedPack) {
+      fetchWithAuth('/promo/validate', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: appliedPromo,
+          orderAmount: selectedPack.price,
+          isRecharge: true
+        })
+      })
+      .then((res) => {
+        setDiscount(res.calculatedDiscount || res.discountValue || 0);
+        setPromoError('');
+      })
+      .catch((err) => {
+        setAppliedPromo(null);
+        setDiscount(0);
+        setPromoError(err.message || 'Coupon is no longer valid for this pack');
+      });
+    }
+  }, [selectedPack?.id]);
+
   const loadRazorpay = () => {
     return new Promise((resolve) => {
-      // Check if we should inject mock razorpay
       if (injectMockRazorpay()) {
         return resolve(true);
       }
-
       if ((window as any).Razorpay) {
         resolve(true);
         return;
@@ -146,7 +182,7 @@ export default function RechargePage() {
           }
         },
         theme: {
-          color: '#2D79A8'
+          color: '#0F6E8C'
         }
       };
 
@@ -166,90 +202,126 @@ export default function RechargePage() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader className="h-10 w-10 text-primary animate-spin" />
+        <Loader className="h-10 w-10 text-[#0F6E8C] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8 space-y-6">
-
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-black text-[#245361]">Recharge Water</h1>
-        <p className="text-sm font-semibold text-[#245361]/80 mt-1">Buy water jar packs and enjoy exclusive discounted rates</p>
+    <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8 bg-[#F8FAFC] text-[#0F172A] pb-32 lg:pb-8">
+      
+      {/* Page Header */}
+      <div className="space-y-2 mb-8">
+        <h1 className="text-3xl font-black tracking-tight text-[#0F172A] sm:text-4xl">Recharge Water</h1>
+        <p className="text-sm font-semibold text-slate-500">Buy water jar packs and enjoy exclusive discounted rates</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+      <div className="grid gap-8 lg:grid-cols-12 items-start">
 
-        {/* Left: Packs Listing */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-black text-[#245361]">Choose a Pack</h3>
+        {/* LEFT COLUMN: Pricing Packages Grid */}
+        <div className="lg:col-span-8 space-y-4">
+          <h2 className="text-lg font-black text-[#0F172A] tracking-tight">Choose a Pack</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            {packs.map((pack) => (
-              <button
-                key={pack.id}
-                onClick={() => setSelectedPack(pack)}
-                className={`text-left rounded-2xl p-5 border transition flex flex-col justify-between min-h-[150px] relative ${
-                  selectedPack?.id === pack.id
-                    ? 'border-[#2D79A8] bg-[#BBDFF2]/10 shadow-md'
-                    : 'border-border/60 bg-white hover:border-[#2D79A8]/50'
-                }`}
-              >
-                {pack.packageBadge && (
-                  <span className="absolute -top-3 right-4 text-[9px] font-black uppercase tracking-widest bg-orange-500 text-white px-2.5 py-0.5 rounded-full">
-                    {pack.packageBadge}
-                  </span>
-                )}
-                <div>
-                  <h4 className="text-base font-black text-[#245361]">{pack.name}</h4>
-                  <p className="text-xs font-bold text-slate-700 uppercase mt-0.5">{pack.jarCount} Jars</p>
-                  
-                  {pack.originalPrice && pack.originalPrice > pack.price && (
-                    <p className="text-xs text-slate-400 line-through mt-1">₹{pack.originalPrice}</p>
+            {packs.map((pack) => {
+              const isSelected = selectedPack?.id === pack.id;
+              const savings = (pack.originalPrice || (pack.price * 1.25)) - pack.price;
+              
+              return (
+                <button
+                  key={pack.id}
+                  onClick={() => setSelectedPack(pack)}
+                  className={`relative text-left rounded-2xl p-5 border transition-all duration-300 flex flex-col justify-between min-h-[180px] cursor-pointer bg-white ${
+                    isSelected
+                      ? 'border-[#0F6E8C] shadow-[0_12px_40px_rgba(15,110,140,0.08)] ring-1 ring-[#0F6E8C]'
+                      : 'border-slate-100 hover:border-slate-200 hover:-translate-y-1 shadow-[0_8px_30px_rgb(0,0,0,0.015)]'
+                  }`}
+                >
+                  {/* Badge */}
+                  {pack.packageBadge && (
+                    <span className="absolute top-4 right-4 text-[9px] font-black uppercase tracking-wider bg-orange-500 text-white px-2.5 py-0.5 rounded-full">
+                      {pack.packageBadge}
+                    </span>
                   )}
-                  {pack.offerLabel && (
-                    <p className="text-xs text-emerald-600 font-semibold mt-1">{pack.offerLabel}</p>
-                  )}
-                </div>
-                <div className="mt-4 flex items-center justify-between w-full">
-                  <span className="text-xl font-black text-[#245361]">₹{pack.price}</span>
-                  <span className={`h-6 w-6 rounded-full border-2 flex items-center justify-center ${
-                    selectedPack?.id === pack.id ? 'border-[#2D79A8] bg-[#2D79A8] text-white' : 'border-border'
-                  }`}>
-                    {selectedPack?.id === pack.id && <span className="h-2.5 w-2.5 rounded-full bg-white" />}
-                  </span>
-                </div>
-              </button>
-            ))}
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="p-2 rounded-xl bg-[#0F6E8C]/10 text-[#0F6E8C]">
+                        <Droplet className="w-5 h-5" />
+                      </span>
+                      <span className="text-xs font-black uppercase tracking-widest text-[#0F6E8C]">{pack.jarCount} Jars Pack</span>
+                    </div>
+                    <h3 className="text-lg font-black text-[#0F172A]">{pack.name}</h3>
+                    {pack.offerLabel && (
+                      <p className="text-xs text-emerald-600 font-bold mt-1">{pack.offerLabel}</p>
+                    )}
+
+                    {/* Features checklist inside the card */}
+                    <div className="mt-4 space-y-1">
+                      <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-500" /> Priority doorstep delivery
+                      </span>
+                      <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-500" /> Flexible delivery dates
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex items-end justify-between w-full border-t border-slate-50 pt-4">
+                    <div>
+                      {pack.originalPrice && pack.originalPrice > pack.price && (
+                        <span className="text-xs text-slate-350 line-through font-bold block">₹{pack.originalPrice}</span>
+                      )}
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl font-black text-[#0F172A]">₹{pack.price}</span>
+                        {savings > 0 && (
+                          <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                            Save ₹{Math.round(savings)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className={`h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                      isSelected ? 'border-[#0F6E8C] bg-[#0F6E8C] text-white' : 'border-slate-200'
+                    }`}>
+                      {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Right: Cart Summary / Coupon Validation */}
-        <div className="space-y-6">
+        {/* RIGHT COLUMN: Summary & Coupon Sidebar */}
+        <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
 
-          {/* Promo Code Form */}
-          <div className="clay-card p-5">
-            <h4 className="text-sm font-black text-[#245361] flex items-center gap-2 mb-3">
-              <Tag className="h-4 w-4 text-[#2D79A8]" />
-              Promo Code
+          {/* Promo Code Card */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.01)]">
+            <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Tag className="h-4 w-4 text-[#0F6E8C]" /> Have a Coupon?
             </h4>
-            <form onSubmit={handleApplyPromo} className="flex gap-2">
+            <form onSubmit={appliedPromo ? (e) => { e.preventDefault(); handleRemovePromo(); } : handleApplyPromo} className="flex gap-2">
               <input
                 type="text"
                 value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value)}
+                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                 placeholder="Enter promo code"
-                className="clay-input flex-1 text-sm py-2 px-3 bg-[#BBDFF2]/10"
+                disabled={!!appliedPromo}
+                className="flex-1 px-4 py-2 text-sm font-bold border border-slate-200 rounded-xl focus:outline-none focus:border-[#0F6E8C] uppercase disabled:bg-slate-50 disabled:text-slate-400 text-[#0F172A]"
               />
               <button
                 type="submit"
-                disabled={applying}
-                className="bg-primary text-primary-foreground font-black text-xs px-4 rounded-xl hover:bg-primary/90 transition"
+                disabled={applying || (!appliedPromo && !promoCode.trim())}
+                className={`px-4 rounded-xl text-xs font-black transition cursor-pointer select-none active:scale-95 ${
+                  appliedPromo 
+                    ? 'bg-rose-505 hover:bg-rose-600 text-white bg-rose-500' 
+                    : 'bg-[#0F6E8C] hover:bg-opacity-95 text-white disabled:bg-slate-100 disabled:text-slate-400'
+                }`}
               >
-                Apply
+                {applying ? '...' : appliedPromo ? 'Remove' : 'Apply'}
               </button>
             </form>
+            {promoError && <p className="text-xs text-rose-500 font-bold mt-2 ml-1">{promoError}</p>}
             {appliedPromo && (
               <p className="text-xs font-bold text-emerald-600 mt-2 flex items-center gap-1">
                 <Sparkles className="h-3 w-3" /> Code "{appliedPromo}" successfully applied!
@@ -258,33 +330,43 @@ export default function RechargePage() {
           </div>
 
           {/* Checkout Summary Card */}
-          <div className="clay-card p-6 flex flex-col justify-between min-h-[260px]">
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-[0_20px_50px_rgba(15,110,140,0.03)] flex flex-col justify-between min-h-[260px]">
             <div>
-              <h3 className="text-lg font-black text-[#245361] border-b border-border pb-3 flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 text-[#2D79A8]" />
-                Summary
+              <h3 className="text-lg font-black text-[#0F172A] border-b border-slate-50 pb-3 flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-[#0F6E8C]" /> Summary
               </h3>
 
-              <div className="mt-4 space-y-2.5 text-sm font-semibold">
+              <div className="mt-4 space-y-3.5 text-sm font-semibold text-slate-500">
                 <div className="flex justify-between text-slate-800">
                   <span>Selected Pack</span>
-                  <span className="font-bold text-[#245361]">
+                  <span className="font-black text-[#0F172A]">
                     {selectedPack ? `${selectedPack.name} (${selectedPack.jarCount} Jars)` : 'None'}
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-800">
+                <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-bold text-[#245361]">₹{selectedPack ? selectedPack.price.toFixed(2) : '0.00'}</span>
+                  <span className="font-bold text-slate-700">
+                    ₹{selectedPack ? selectedPack.price.toFixed(2) : '0.00'}
+                  </span>
                 </div>
                 {discount > 0 && (
-                  <div className="flex justify-between text-emerald-600">
+                  <div className="flex justify-between text-emerald-600 font-bold">
                     <span>Discount</span>
                     <span>-₹{discount.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="border-t border-border/80 pt-2.5 flex justify-between text-base font-black text-[#245361]">
+                
+                {/* GST (18% Included) for Premium Billing look */}
+                {selectedPack && (
+                  <div className="flex justify-between text-xs text-slate-400 font-medium">
+                    <span>GST (18% Included)</span>
+                    <span>₹{((Math.max(0, selectedPack.price - discount) * 0.18) / 1.18).toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="border-t border-slate-100 pt-3 flex justify-between text-base font-black text-[#0F172A]">
                   <span>Total Due</span>
-                  <span>
+                  <span className="text-xl text-[#0F6E8C]">
                     ₹{selectedPack ? Math.max(0, selectedPack.price - discount).toFixed(2) : '0.00'}
                   </span>
                 </div>
@@ -294,13 +376,35 @@ export default function RechargePage() {
             <button
               onClick={handleCheckout}
               disabled={!selectedPack || purchasing}
-              className="w-full mt-6 py-4 rounded-full sun-gradient text-sm font-black text-white shadow-lg disabled:opacity-50 disabled:pointer-events-none hover:shadow-orange-300/20 transition flex items-center justify-center gap-2"
+              className="w-full mt-8 py-4 rounded-xl bg-gradient-to-r from-[#0F6E8C] to-[#0A566E] hover:from-[#0F6E8C]/95 hover:to-[#0A566E]/95 text-sm font-black text-white shadow-lg shadow-[#0F6E8C]/15 disabled:opacity-50 disabled:pointer-events-none hover:-translate-y-0.5 active:scale-95 transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer"
             >
-              <CreditCard className="h-4 w-4" /> {purchasing ? 'Processing...' : 'Secure Recharge Checkout'}
+              <span>{purchasing ? 'Processing...' : 'Secure Recharge Checkout'}</span>
+              <span className="text-[10px] font-medium text-white/80">Secure SSL Payment Connection</span>
             </button>
           </div>
 
         </div>
+      </div>
+
+      {/* Mobile Sticky Checkout CTA */}
+      <div className="lg:hidden fixed bottom-[68px] left-0 right-0 bg-white border-t border-slate-100 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40 flex items-center justify-between gap-4">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Payable</span>
+          <span className="text-xl font-black text-[#0F6E8C]">
+            ₹{selectedPack ? Math.max(0, selectedPack.price - discount).toFixed(2) : '0.00'}
+          </span>
+          {selectedPack && (
+            <span className="text-[10px] font-bold text-slate-500 truncate max-w-[120px]">{selectedPack.name}</span>
+          )}
+        </div>
+        <button
+          onClick={handleCheckout}
+          disabled={!selectedPack || purchasing}
+          className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-[#0F6E8C] to-[#0A566E] hover:from-[#0F6E8C]/95 hover:to-[#0A566E]/95 text-xs font-black text-white shadow-md disabled:opacity-50 disabled:pointer-events-none active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          <CreditCard className="w-4 h-4" />
+          <span>{purchasing ? 'Processing...' : 'Checkout Now'}</span>
+        </button>
       </div>
 
     </div>
