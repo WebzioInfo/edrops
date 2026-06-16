@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React, { Suspense } from 'react';
 import LoadingSpinner from './components/LoadingSpinner';
+import PWAInstallPrompt from './components/pwa/PWAInstallPrompt';
 
 // Providers
 const queryClient = new QueryClient();
@@ -69,8 +70,10 @@ export default function App() {
             <Route path="/" element={<Navigate to="/customer" replace />} />
           </Routes>
         </Suspense>
+        <PWAInstallPrompt />
       </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>
   );
 }
+
