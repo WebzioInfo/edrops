@@ -1,5 +1,5 @@
 import { 
-  Tag, Plus, Search, Trash2, Edit, CheckCircle, XCircle, Info, Percent, Gift, Truck, Key, Activity 
+  Tag, Plus, Search, Trash2, Edit, CheckCircle, XCircle, Percent, Gift, Truck, Key, Activity 
 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
