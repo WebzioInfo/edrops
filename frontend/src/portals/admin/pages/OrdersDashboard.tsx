@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ShoppingBag, Package } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 export default function OrdersDashboard() {
   const [filter, setFilter] = useState<'ALL' | 'ONETIME_ORDER' | 'SUBSCRIPTION_ORDER'>('ALL');
@@ -47,9 +48,8 @@ export default function OrdersDashboard() {
 
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 p-6 overflow-hidden">
         {isLoading ? (
-          <div className="text-center py-20">
-            <div className="w-10 h-10 border-4 border-[#245361]/20 border-t-[#245361] rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-500 font-medium">Loading orders...</p>
+          <div className="text-center py-20 flex flex-col items-center justify-center">
+            <LoadingSpinner size="md" label="Loading orders..." />
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-20">

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Tag, Sparkles, ShoppingCart, Loader, Droplet, Check } from 'lucide-react';
+import { CreditCard, Tag, Sparkles, ShoppingCart, Droplet, Check } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { injectMockRazorpay } from '../../../utils/MockRazorpay';
 import { fetchWithAuth } from '../../../api/client';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 interface Pack {
   id: string;
@@ -200,11 +201,7 @@ export default function RechargePage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader className="h-10 w-10 text-[#0F6E8C] animate-spin" />
-      </div>
-    );
+    return <LoadingSpinner fullPage label="Loading recharge plans..." />;
   }
 
   return (

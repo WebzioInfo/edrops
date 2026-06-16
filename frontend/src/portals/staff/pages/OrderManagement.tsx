@@ -4,6 +4,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../contexts/SocketContext';
 import { ShoppingCart, Clock, CheckCircle2, Package } from 'lucide-react';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -62,11 +63,7 @@ export default function OrderManagement() {
   }, [socket]);
 
   if (loading && orders.length === 0) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#BBDFF2] border-t-[#2D79A8]"></div>
-      </div>
-    );
+    return <LoadingSpinner fullPage label="Loading order feed..." />;
   }
 
   // Dashboard Stats

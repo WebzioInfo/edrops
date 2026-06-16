@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSocket } from '../../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 export default function Orders() {
   const { user } = useAuth();
@@ -97,11 +98,7 @@ export default function Orders() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <div className="h-10 w-10 border-4 border-[#E2E8F0] border-t-[#2563EB] rounded-full animate-spin" />
-      </div>
-    );
+    return <LoadingSpinner fullPage label="Loading orders..." />;
   }
 
   const deliveryAddress = selectedOrder ? addresses.find(a => a.id === selectedOrder.deliveryAddressId) : null;

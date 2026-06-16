@@ -4,6 +4,7 @@ import { Bell, CalendarDays, Droplets, History, Home, Plus, Truck, Package, User
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const Shop = React.lazy(() => import('./pages/Shop'));
 const Cart = React.lazy(() => import('./pages/Cart'));
@@ -51,14 +52,7 @@ const mobileMoreNavItems = [
 ];
 
 function CustomerLoader() {
-  return (
-    <div className="flex min-h-[70vh] items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#BBDFF2] border-t-[#2D79A8]"></div>
-        <p className="text-sm font-medium text-[#245361]">Loading...</p>
-      </div>
-    </div>
-  );
+  return <LoadingSpinner fullPage label="Loading portal..." />;
 }
 
 export default function CustomerPortal() {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CalendarDays, Save, Sparkles, Minus, Plus, Droplets, Calendar, CalendarClock, Power, CheckCircle2 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 interface ScheduleRule {
   id?: string;
@@ -129,11 +130,7 @@ export default function SchedulePlanner() {
   const activeDays = Object.values(weeklyQtys).filter(qty => qty > 0).length;
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <div className="h-10 w-10 border-4 border-[#E2E8F0] border-t-[#1E88E5] rounded-full animate-spin" />
-      </div>
-    );
+    return <LoadingSpinner fullPage label="Loading schedule..." />;
   }
 
   return (

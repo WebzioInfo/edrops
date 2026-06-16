@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 export default function CustomersList() {
   const [search, setSearch] = useState('');
@@ -49,9 +50,8 @@ export default function CustomersList() {
         </div>
 
         {isLoading ? (
-          <div className="text-center py-20">
-            <div className="w-10 h-10 border-4 border-[#245361]/20 border-t-[#245361] rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-500 font-medium">Loading customers...</p>
+          <div className="text-center py-20 flex flex-col items-center justify-center">
+            <LoadingSpinner size="md" label="Loading customers..." />
           </div>
         ) : filteredCustomers.length === 0 ? (
           <div className="text-center py-20">

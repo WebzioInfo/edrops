@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React, { Suspense } from 'react';
+import LoadingSpinner from './components/LoadingSpinner';
 
 // Providers
 const queryClient = new QueryClient();
@@ -17,9 +18,7 @@ const ResetPassword = React.lazy(() => import('./pages/auth/ResetPassword'));
 // Loading Fallback
 const PageLoader = () => (
   <div className="flex min-h-screen items-center justify-center">
-    <div className="water-shell flex h-28 w-28 items-center justify-center rounded-[2rem]">
-      <div className="h-14 w-14 rounded-full water-gradient shadow-2xl shadow-edrops-aqua/30" />
-    </div>
+    <LoadingSpinner size="lg" label="Loading application..." />
   </div>
 );
 

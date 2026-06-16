@@ -5,6 +5,7 @@ import PremiumWaterJar from '../components/PremiumWaterJar';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -28,11 +29,7 @@ export default function Dashboard() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F7FAFC]">
-        <div className="w-10 h-10 border-4 border-[#1E88E5]/20 border-t-[#1E88E5] rounded-full animate-spin" />
-      </div>
-    );
+    return <LoadingSpinner fullPage label="Loading dashboard..." />;
   }
 
   const customer = userProfile?.customer;

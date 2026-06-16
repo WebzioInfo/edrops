@@ -60,22 +60,24 @@ export default function ChangePasswordForm({ email }: ChangePasswordFormProps) {
     }
   };
 
+  const inputClass = "w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none transition-all placeholder:text-slate-400 focus:border-[#0F6E8C] focus:ring-1 focus:ring-[#0F6E8C] text-[14px] text-[#0F172A] font-medium";
+
   return (
-    <div className="clay-card space-y-6">
-      <h2 className="text-2xl font-black border-b border-border pb-3 text-[#245361] flex items-center gap-2">
-        <Lock className="h-5 w-5 text-primary" /> Change Password
+    <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/85 shadow-sm space-y-6">
+      <h2 className="text-xl font-bold border-b border-slate-100 pb-4 text-[#0F172A] flex items-center gap-2">
+        <Lock className="h-5 w-5 text-[#0F6E8C]" /> Change Password
       </h2>
 
       {!otpSent ? (
         <div className="space-y-4 max-w-lg">
-          <p className="text-sm font-semibold text-slate-600">
+          <p className="text-sm font-medium text-slate-500 leading-relaxed">
             To update your password, we will send a 6-digit verification code (OTP) to your registered email address <strong>{email || 'associated with your account'}</strong>.
           </p>
           <button
             type="button"
             disabled={requestingOtp}
             onClick={handleRequestOtp}
-            className="px-6 py-3 rounded-full bg-primary text-xs font-black uppercase text-white shadow-md hover:shadow-primary/20 transition cursor-pointer disabled:opacity-50"
+            className="px-5 py-3 rounded-xl bg-[#0F6E8C] text-xs font-bold uppercase text-white hover:bg-[#0F6E8C]/90 transition cursor-pointer disabled:opacity-50"
           >
             {requestingOtp ? 'Sending code...' : 'Request Verification OTP'}
           </button>
@@ -83,35 +85,35 @@ export default function ChangePasswordForm({ email }: ChangePasswordFormProps) {
       ) : (
         <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
           <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Verification Code (OTP)</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Verification Code (OTP)</label>
             <input
               type="text"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               placeholder="Enter 6-digit OTP code"
-              className="w-full clay-input font-bold tracking-widest text-[#245361] text-center"
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none transition-all placeholder:text-slate-400 focus:border-[#0F6E8C] focus:ring-1 focus:ring-[#0F6E8C] text-[16px] text-[#0F172A] font-bold tracking-widest text-center"
               maxLength={6}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">New Password</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">New Password</label>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full clay-input"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Confirm New Password</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Confirm New Password</label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full clay-input"
+                className={inputClass}
               />
             </div>
           </div>
@@ -119,16 +121,16 @@ export default function ChangePasswordForm({ email }: ChangePasswordFormProps) {
             <button
               type="button"
               onClick={() => setOtpSent(false)}
-              className="text-xs font-black uppercase text-slate-500 hover:underline cursor-pointer"
+              className="text-xs font-bold uppercase text-slate-500 hover:text-[#0F6E8C] transition-colors cursor-pointer"
             >
               Back / Resend OTP
             </button>
             <button
               type="submit"
               disabled={changingPassword}
-              className="px-8 py-3 rounded-full bg-primary text-xs font-black uppercase text-white shadow-md hover:shadow-primary/20 transition active:scale-98 cursor-pointer disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-3 rounded-xl bg-[#0F6E8C] text-xs font-bold uppercase text-white hover:bg-[#0F6E8C]/90 transition cursor-pointer disabled:opacity-50 flex items-center gap-2"
             >
-              Confirm & Update Password
+              {changingPassword ? 'Updating...' : 'Confirm & Update Password'}
             </button>
           </div>
         </form>

@@ -2,6 +2,7 @@ import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import { Droplets, Menu, Bell, User, LogOut, ChevronDown, LayoutDashboard, Package, Truck, ShoppingCart, DollarSign, Users, Settings, FileText, Tag } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const CatalogManager = React.lazy(() => import('./pages/CatalogManager'));
@@ -48,12 +49,7 @@ const mobileMoreNavItems = [
 ];
 
 const AdminLoader = () => (
-  <div className="flex min-h-[60vh] items-center justify-center">
-    <div className="flex flex-col items-center gap-3">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#BBDFF2] border-t-[#2D79A8]"></div>
-      <p className="text-sm font-medium text-[#245361]">Loading...</p>
-    </div>
-  </div>
+  <LoadingSpinner fullPage label="Loading portal..." />
 );
 
 export default function AdminPortal() {

@@ -8,6 +8,7 @@ import {
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../contexts/SocketContext';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 interface Ticket {
   id: string;
@@ -184,11 +185,7 @@ export default function SupportPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center bg-[#F8FAFC]">
-        <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-[#1E88E5] animate-spin" />
-      </div>
-    );
+    return <LoadingSpinner fullPage label="Loading support desk..." />;
   }
 
   return (

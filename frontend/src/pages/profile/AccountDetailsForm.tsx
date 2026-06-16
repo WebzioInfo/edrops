@@ -47,14 +47,16 @@ export default function AccountDetailsForm({ profile, onRefresh }: AccountDetail
     }
   };
 
+  const inputClass = "w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none transition-all placeholder:text-slate-400 focus:border-[#0F6E8C] focus:ring-1 focus:ring-[#0F6E8C] text-[14px] text-[#0F172A] font-medium";
+
   return (
-    <div className="clay-card space-y-6">
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <h2 className="text-2xl font-black text-[#245361]">Account Details</h2>
+    <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/85 shadow-sm space-y-6">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <h2 className="text-xl font-bold text-[#0F172A]">Account Details</h2>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-primary hover:text-primary/80 transition cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#0F6E8C] hover:text-[#0F6E8C]/80 transition cursor-pointer"
           >
             <Edit2 className="h-4 w-4" /> Edit Profile
           </button>
@@ -65,42 +67,42 @@ export default function AccountDetailsForm({ profile, onRefresh }: AccountDetail
         <form onSubmit={handleUpdate} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">First Name</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">First Name</label>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full clay-input"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Last Name</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Last Name</label>
               <input
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full clay-input"
+                className={inputClass}
               />
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Email Address</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email Address</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full clay-input"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Phone Number</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Phone Number</label>
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full clay-input"
+                className={inputClass}
               />
             </div>
           </div>
@@ -115,50 +117,50 @@ export default function AccountDetailsForm({ profile, onRefresh }: AccountDetail
                 setEmail(profile.email || '');
                 setPhone(profile.phone);
               }}
-              className="px-6 py-2.5 rounded-full text-xs font-black uppercase bg-secondary/15 text-[#2D79A8] transition hover:bg-secondary/35 cursor-pointer"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase bg-slate-100 text-slate-700 transition hover:bg-slate-200 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={updating}
-              className="px-6 py-2.5 rounded-full text-xs font-black uppercase bg-primary text-white transition hover:bg-primary/80 cursor-pointer disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase bg-[#0F6E8C] hover:bg-[#0F6E8C]/90 text-white transition cursor-pointer disabled:opacity-50"
             >
-              Save Changes
+              {updating ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-secondary/10">
-            <Mail className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Email</p>
-              <p className="text-base font-semibold text-[#245361]">{profile.email ?? 'Not set'}</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex items-start gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100/60">
+            <Mail className="h-5 w-5 text-[#0F6E8C] shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Email</p>
+              <p className="text-sm sm:text-base font-semibold text-[#0F172A] mt-0.5 break-all sm:break-normal">{profile.email ?? 'Not set'}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-secondary/10">
-            <Phone className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Phone</p>
-              <p className="text-base font-semibold text-[#245361]">{profile.phone}</p>
+          <div className="flex items-start gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100/60">
+            <Phone className="h-5 w-5 text-[#0F6E8C] shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Phone</p>
+              <p className="text-sm sm:text-base font-semibold text-[#0F172A] mt-0.5 break-all">{profile.phone}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-secondary/10">
-            <Shield className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Access Role</p>
-              <p className="text-base font-semibold text-[#245361]">{profile.role}</p>
+          <div className="flex items-start gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100/60">
+            <Shield className="h-5 w-5 text-[#0F6E8C] shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#0F6E8C]">Access Role</p>
+              <p className="text-sm sm:text-base font-semibold text-[#0F172A] mt-0.5">{profile.role.replace('_', ' ')}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-secondary/10">
-            <Award className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">User ID</p>
-              <p className="text-xs font-semibold truncate max-w-[170px] text-[#245361]">{profile.id}</p>
+          <div className="flex items-start gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100/60">
+            <Award className="h-5 w-5 text-[#0F6E8C] shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">User ID</p>
+              <p className="text-xs sm:text-sm font-semibold text-[#0F172A] mt-0.5 break-all">{profile.id}</p>
             </div>
           </div>
         </div>

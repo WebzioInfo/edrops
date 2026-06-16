@@ -4,6 +4,7 @@ import { Droplets, Menu, Bell, User, LogOut, ChevronDown, Truck, Users, Package,
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { Check, CheckCircle2, ShoppingCart } from 'lucide-react';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
 const RouteOperations = React.lazy(() => import('./pages/RouteOperations'));
@@ -36,12 +37,7 @@ const mobileMoreNavItems = [
 ];
 
 const StaffLoader = () => (
-  <div className="flex min-h-[60vh] items-center justify-center">
-    <div className="flex flex-col items-center gap-3">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#BBDFF2] border-t-[#2D79A8]"></div>
-      <p className="text-sm font-medium text-[#245361]">Loading...</p>
-    </div>
-  </div>
+  <LoadingSpinner fullPage label="Loading portal..." />
 );
 
 export default function StaffPortal() {

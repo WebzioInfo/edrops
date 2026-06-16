@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 interface PromoCodeForm {
   id?: string;
@@ -280,9 +281,8 @@ export default function PromoManager() {
         </div>
 
         {isListLoading ? (
-          <div className="text-center py-20">
-            <div className="w-10 h-10 border-4 border-[#2D79A8]/20 border-t-[#2D79A8] rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-500 font-medium">Loading coupon configurations...</p>
+          <div className="text-center py-20 flex flex-col items-center justify-center">
+            <LoadingSpinner size="md" label="Loading coupon configurations..." />
           </div>
         ) : filteredPromos.length === 0 ? (
           <div className="text-center py-20">

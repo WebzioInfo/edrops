@@ -7,6 +7,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCart } from '../../../contexts/CartContext';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 
 export default function Shop() {
   const { user } = useAuth();
@@ -152,8 +153,8 @@ export default function Shop() {
       {/* Product Grid */}
       <section>
         {prodLoading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-spin h-10 w-10 border-4 border-[#E2E8F0] border-t-[#1E88E5] rounded-full" />
+          <div className="flex justify-center py-20 w-full">
+            <LoadingSpinner size="md" label="Loading catalog..." />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 lg:grid-cols-3 gap-6">

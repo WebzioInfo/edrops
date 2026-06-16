@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import LoadingSpinner from './LoadingSpinner';
 
 type ProtectedRouteProps = {
   allowedRoles?: Array<'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER'>;
@@ -11,10 +12,8 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="water-shell flex h-28 w-28 items-center justify-center rounded-[2rem]">
-          <div className="h-14 w-14 rounded-full water-gradient shadow-2xl shadow-edrops-aqua/30 animate-pulse" />
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC]">
+        <LoadingSpinner size="lg" label="Verifying session..." />
       </div>
     );
   }
