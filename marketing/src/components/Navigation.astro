@@ -1,0 +1,206 @@
+---
+import '../styles/navigation.css';
+
+interface Props {
+  currentPath?: string;
+}
+
+const { currentPath = Astro.url.pathname } = Astro.props;
+
+const navLinks = [
+  { href: '/features', label: 'Features' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/how-it-works', label: 'How it works' },
+  { href: '/about', label: 'About' },
+];
+
+function isActive(href: string, current: string): boolean {
+  const normalized = current.replace(/\/$/, '') || '/';
+  return normalized === href || normalized.startsWith(href + '/');
+}
+---
+
+<!-- Skip to content link (accessibility) -->
+<a href="#main-content" class="nav-skip-link">Skip to content</a>
+
+<!-- The Floating Island -->
+<header id="nav-island" class="nav-island nav-island--entering" role="banner">
+  <nav class="nav-island__surface" aria-label="Main navigation">
+    
+    <!-- Logo -->
+    <a href="/" class="nav-island__logo" aria-label="Edrops home">
+      <span class="nav-island__logo-icon" aria-hidden="true">E</span>
+      <span class="nav-island__logo-text">Edrops</span>
+    </a>
+
+    <!-- Desktop Navigation Links -->
+    <ul class="nav-island__links" role="list">
+      {navLinks.map(({ href, label }) => (
+        <li>
+          <a
+            href={href}
+            class:list={[
+              'nav-island__link',
+              { 'nav-island__link--active': isActive(href, currentPath) }
+            ]}
+            aria-current={isActive(href, currentPath) ? 'page' : undefined}
+          >
+            {label}
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <!-- CTA Group -->
+    <div class="nav-island__cta-group">
+      <a href="http://localhost:5173/login" class="nav-island__sign-in">
+        Sign in
+      </a>
+      <a href="http://localhost:5173/login" class="nav-island__cta">
+        Open App
+      </a>
+      
+      <!-- Mobile Toggle -->
+      <button
+        type="button"
+        class="nav-island__mobile-toggle"
+        id="nav-mobile-toggle"
+        aria-expanded="false"
+        aria-controls="nav-mobile-menu"
+        aria-label="Open navigation menu"
+      >
+        <span class="nav-island__toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="nav-island__mobile-menu" id="nav-mobile-menu" role="dialog" aria-label="Navigation menu" aria-modal="true">
+    <div class="nav-island__mobile-backdrop" id="nav-mobile-backdrop"></div>
+    <div class="nav-island__mobile-panel">
+      <ul class="nav-island__mobile-links" role="list">
+        {navLinks.map(({ href, label }) => (
+          <li>
+            <a
+              href={href}
+              class:list={[
+                'nav-island__mobile-link',
+                { 'nav-island__mobile-link--active': isActive(href, currentPath) }
+              ]}
+              aria-current={isActive(href, currentPath) ? 'page' : undefined}
+            >
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <div class="nav-island__mobile-divider"></div>
+      <div class="nav-island__mobile-cta-group">
+        <a href="http://localhost:5173/login" class="nav-island__mobile-cta">
+          Open App
+        </a>
+        <a href="http://localhost:5173/login" class="nav-island__mobile-sign-in">
+          Sign in
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<script>
+  // ─── Scroll Detection ───
+  const island = document.getElementById('nav-island');
+  if (island) {
+    let isCollapsed = false;
+    let ticking = false;
+    const SCROLL_THRESHOLD = 50;
+
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const scrollY = window.scrollY || window.pageYOffset;
+          const shouldCollapse = scrollY > SCROLL_THRESHOLD;
+          
+          if (shouldCollapse !== isCollapsed) {
+            isCollapsed = shouldCollapse;
+            island.classList.toggle('nav-island--collapsed', isCollapsed);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // Remove entering animation class after it plays
+    island.addEventListener('animationend', () => {
+      island.classList.remove('nav-island--entering');
+    }, { once: true });
+
+    // Check initial scroll position (in case of page reload while scrolled)
+    if (window.scrollY > SCROLL_THRESHOLD) {
+      island.classList.add('nav-island--collapsed');
+      island.classList.remove('nav-island--entering');
+      isCollapsed = true;
+    }
+  }
+
+  // ─── Mobile Menu ───
+  const toggle = document.getElementById('nav-mobile-toggle');
+  const menu = document.getElementById('nav-mobile-menu');
+  const backdrop = document.getElementById('nav-mobile-backdrop');
+
+  if (toggle && menu && island) {
+    let isOpen = false;
+
+    const openMenu = () => {
+      isOpen = true;
+      island.classList.add('nav-island--mobile-open');
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', 'Close navigation menu');
+      document.body.classList.add('nav-mobile-open');
+    };
+
+    const closeMenu = () => {
+      isOpen = false;
+      island.classList.remove('nav-island--mobile-open');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Open navigation menu');
+      document.body.classList.remove('nav-mobile-open');
+    };
+
+    toggle.addEventListener('click', () => {
+      if (isOpen) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    });
+
+    // Close on backdrop click
+    if (backdrop) {
+      backdrop.addEventListener('click', closeMenu);
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        closeMenu();
+        toggle.focus();
+      }
+    });
+
+    // Close on resize to desktop
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    mediaQuery.addEventListener('change', (e) => {
+      if (e.matches && isOpen) {
+        closeMenu();
+      }
+    });
+  }
+</script>

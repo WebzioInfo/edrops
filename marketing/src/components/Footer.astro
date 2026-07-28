@@ -1,0 +1,106 @@
+---
+import '../styles/footer.css';
+
+const navLinks = [
+  { href: '/features', label: 'Features' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/how-it-works', label: 'How it works' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+  { href: '/privacy', label: 'Privacy' },
+  { href: '/terms', label: 'Terms' },
+];
+---
+
+<footer class="footer-section px-6 py-20 sm:py-28 lg:py-32 mt-20" id="footer-section">
+  {/* Ambient Background Artwork */}
+  <div class="footer-caustic"></div>
+  <div class="footer-noise"></div>
+  <div class="footer-glow footer-glow--1"></div>
+  <div class="footer-glow footer-glow--2"></div>
+
+  <div class="mx-auto max-w-6xl">
+    {/* 1. Powerful Closing Statement & CTAs */}
+    <div class="footer-hero">
+      
+      <h2 class="footer-headline">
+        The future of 20L water subscriptions<br class="hidden sm:inline" /> starts right here.
+      </h2>
+      <p class="footer-subline">
+        Prepaid wallets, recurring deliveries, and route intelligence — unified into a single calm platform built specifically for water businesses.
+      </p>
+      
+      <div class="footer-cta-group">
+        <a href="http://localhost:5173/login" class="footer-btn-primary">
+          Start Free
+        </a>
+        <a href="/features" class="footer-btn-secondary">
+          Explore Platform
+        </a>
+        <a href="/contact" class="footer-btn-tertiary">
+          Book a Demo →
+        </a>
+      </div>
+    </div>
+
+    {/* Glass Divider Line */}
+    <div class="footer-divider"></div>
+
+    {/* 2. Brand Signature & Minimal Navigation */}
+    <div class="footer-body">
+      <div class="footer-brand">
+        <a href="/" class="footer-brand-logo">
+          <span class="footer-brand-logo-icon">E</span>
+          <span class="footer-brand-logo-text">Edrops</span>
+        </a>
+        <p class="footer-brand-desc">
+          Edrops is the calm, intelligent platform where prepaid wallets, automated deliveries, and customer trust come together.
+        </p>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        {navLinks.map(({ href, label }) => (
+          <a href={href} class="footer-nav-link">
+            {label}
+          </a>
+        ))}
+      </nav>
+    </div>
+
+    {/* 3. Bottom Fine-print Strip */}
+    <div class="footer-bottom">
+      <div class="footer-bottom-left">
+        <span>&copy; {new Date().getFullYear()} Edrops Technologies Inc. All rights reserved.</span>
+        <span class="footer-status">
+          <span class="footer-status-dot"></span>
+          Systems Operational
+        </span>
+      </div>
+      <div class="footer-bottom-right">
+        <span>Crafted with care for water operators</span>
+        <span class="opacity-40">•</span>
+        <span>v2.4.0</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  {
+    const footer = document.getElementById('footer-section');
+    if (footer) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            footer.classList.add('footer--visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -40px 0px'
+      });
+      observer.observe(footer);
+    }
+  }
+</script>
