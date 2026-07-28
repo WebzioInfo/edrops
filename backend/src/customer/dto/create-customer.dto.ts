@@ -9,21 +9,26 @@ import {
   IsBoolean,
   ValidateNested,
   IsArray,
+  MinLength,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AddressDto {
-  @IsString() @IsOptional() houseName?: string;
-  @IsString() @IsOptional() buildingName?: string;
-  @IsString() street: string;
-  @IsString() @IsOptional() area?: string;
-  @IsString() @IsOptional() landmark?: string;
-  @IsString() city: string;
-  @IsString() state: string;
-  @IsString() country: string;
-  @IsString() zipCode: string;
+  @IsString() @IsOptional() @MaxLength(100) houseName?: string;
+  @IsString() @IsOptional() @MaxLength(100) buildingName?: string;
+  @IsString() @IsNotEmpty() @MinLength(3) @MaxLength(255) street: string;
+  @IsString() @IsOptional() @MaxLength(100) area?: string;
+  @IsString() @IsOptional() @MaxLength(100) landmark?: string;
+  @IsString() @IsNotEmpty() @MinLength(2) @MaxLength(100) city: string;
+  @IsString() @IsOptional() @MaxLength(100) district?: string;
+  @IsString() @IsNotEmpty() @MinLength(2) @MaxLength(100) state: string;
+  @IsString() @IsNotEmpty() country: string;
+  @IsString() @IsNotEmpty() @MinLength(4) @MaxLength(20) zipCode: string;
   @IsNumber() @IsOptional() latitude?: number;
   @IsNumber() @IsOptional() longitude?: number;
+  @IsString() @IsOptional() googleMapsUrl?: string;
+  @IsString() @IsOptional() @MaxLength(500) addressNotes?: string;
   @IsBoolean() @IsOptional() isDefault?: boolean;
 }
 

@@ -1,3 +1,5 @@
+import toast from 'react-hot-toast';
+
 export const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 const TOKEN_KEY = 'edrops_token';
@@ -21,18 +23,31 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
   });
 
   if (!response.ok) {
-    if (response.status === 401 && !endpoint.startsWith('/auth/')) {
-      // Clear stale session and redirect, but NOT for auth endpoints (login/register)
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem('edrops_user');
-      window.location.href = '/login';
+    let errorData = null;
+    try {
+      errorData = await response.json();
+    } catch (e) {
+      // JSON parsing failed
     }
 
-    const errorData = await response.json().catch(() => null);
     const message =
       Array.isArray(errorData?.message)
         ? errorData.message[0]
         : errorData?.message ?? `Request failed (${response.status})`;
+
+    // Standardized Error Interception
+    if (response.status === 401 && !endpoint.startsWith('/auth/')) {
+      toast.error('Session expired. Please log in again.');
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem('edrops_user');
+      window.location.href = '/login';
+    } else if (response.status === 403) {
+      toast.error('You do not have permission to perform this action.');
+    } else if (response.status === 404) {
+      // Optional: Ignore generic 404s or log them
+    } else if (response.status >= 500) {
+      toast.error('Server error. Our team has been notified.');
+    }
 
     throw new Error(message);
   }

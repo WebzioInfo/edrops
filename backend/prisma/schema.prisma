@@ -157,6 +157,9 @@ model Address {
   houseName    String?
   landmark     String?
   mobileNumber String?
+  district     String?
+  googleMapsUrl String?
+  addressNotes String?
   customer     Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   deliveries   Delivery[]
   orders       Order[]
