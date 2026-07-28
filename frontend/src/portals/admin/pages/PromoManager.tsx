@@ -4,7 +4,7 @@ import {
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
+import { useDialog } from '../../../hooks/useDialog';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 
 interface PromoCodeForm {
@@ -27,6 +27,7 @@ interface PromoCodeForm {
 
 export default function PromoManager() {
   const queryClient = useQueryClient();
+  const { confirm, toast } = useDialog();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCode, setEditingCode] = useState<PromoCodeForm | null>(null);
@@ -181,8 +182,16 @@ export default function PromoManager() {
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this promo code? This action is permanent.')) {
+  const handleDelete = async (id: string) => {
+    const isConfirmed = await confirm({
+      title: 'Delete Promo Code',
+      description: 'Are you sure you want to delete this promo code? This action is permanent.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    
+    if (isConfirmed) {
       deleteMutation.mutate(id);
     }
   };

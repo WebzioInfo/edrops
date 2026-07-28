@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React, { Suspense } from 'react';
 import LoadingSpinner from './components/LoadingSpinner';
 import PWAInstallPrompt from './components/pwa/PWAInstallPrompt';
+import { DialogProvider } from './contexts/DialogContext';
 
 // Providers
 const queryClient = new QueryClient();
@@ -33,8 +34,9 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-      <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
+        <DialogProvider>
+          <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -71,7 +73,8 @@ export default function App() {
           </Routes>
         </Suspense>
         <PWAInstallPrompt />
-      </BrowserRouter>
+          </BrowserRouter>
+        </DialogProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

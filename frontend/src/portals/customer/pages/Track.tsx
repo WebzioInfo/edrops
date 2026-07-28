@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Truck, CheckCircle2, Clock3, AlertCircle, XCircle, CalendarDays, ChevronDown, ChevronUp, FilterX } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
+import { useDialog } from '../../../hooks/useDialog';
 
 interface Delivery {
   id: string;
@@ -40,6 +41,7 @@ interface WeekData {
 }
 
 export default function TrackPage({ customerId }: { isAdmin?: boolean; customerId?: string }) {
+  const { confirm, toast } = useDialog();
   const [weeks, setWeeks] = useState<WeekData[]>([]);
   const [summary, setSummary] = useState<GlobalStats | null>(null);
   const [todayDelivery, setTodayDelivery] = useState<Delivery | null>(null);
@@ -102,18 +104,26 @@ export default function TrackPage({ customerId }: { isAdmin?: boolean; customerI
   }, [selectedYear, selectedMonth, selectedStatus]);
 
   const updateStatus = async (deliveryId: string, status: string) => {
-    if (!window.confirm(`Are you sure you want to change this delivery status to ${status}?`)) {
-      return;
-    }
+    const isConfirmed = await confirm({
+      title: 'Update Status',
+      description: `Are you sure you want to change this delivery status to ${status}?`,
+      confirmText: 'Update',
+      cancelText: 'Cancel',
+      variant: 'primary'
+    });
+    
+    if (!isConfirmed) return;
+    
     try {
       await fetchWithAuth(`/delivery/${deliveryId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status })
       });
       await loadData(false);
-    } catch (e) {
+      toast.success('Status updated successfully');
+    } catch (e: any) {
       console.error('Failed to update status', e);
-      alert('Failed to update status. Please try again.');
+      toast.error('Failed to update status. Please try again.');
     }
   };
 

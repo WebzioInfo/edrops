@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import { Plus, Package, Tag, ShieldCheck, Pencil, Trash2 } from 'lucide-react';
 import CatalogItemModal from '../components/CatalogItemModal';
+import { useDialog } from '../../../hooks/useDialog';
 
 export default function CatalogManager() {
   const queryClient = useQueryClient();
+  const { confirm, toast } = useDialog();
   const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'brands'>('products');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -60,7 +62,11 @@ export default function CatalogManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`admin_${activeTab}`] });
+      toast.success(`${activeTab === 'products' ? 'Product' : activeTab === 'categories' ? 'Category' : 'Brand'} deleted successfully`);
     },
+    onError: () => {
+      toast.error('Failed to delete item');
+    }
   });
 
   const handleEdit = (item: any) => {
@@ -68,8 +74,16 @@ export default function CatalogManager() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
+  const handleDelete = async (id: string) => {
+    const isConfirmed = await confirm({
+      title: 'Delete Item',
+      description: 'Are you sure you want to delete this item? This action is permanent.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    
+    if (isConfirmed) {
       deleteMutation.mutate(id);
     }
   };

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Layers, Plus, Trash2, Copy } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
+import { useDialog } from '../../../hooks/useDialog';
 
 const AdminLoader = () => (
   <div className="flex min-h-[60vh] items-center justify-center">
@@ -15,6 +15,7 @@ const AdminLoader = () => (
 export default function PackageCatalog() {
   const [packages, setPackages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { confirm, toast } = useDialog();
 
   // Form states
   const [formOpen, setFormOpen] = useState(false);
@@ -155,7 +156,16 @@ export default function PackageCatalog() {
   };
 
   const handleDelete = async (pkgId: string) => {
-    if (!confirm('Are you sure you want to delete this package?')) return;
+    const isConfirmed = await confirm({
+      title: 'Delete Package',
+      description: 'Are you sure you want to delete this package?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    
+    if (!isConfirmed) return;
+    
     try {
       await fetchWithAuth(`/recharge/package/${pkgId}`, { method: 'DELETE' });
       toast.success('Prepaid package deleted.');

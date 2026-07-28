@@ -67,34 +67,42 @@ export default function Checkout() {
     setCheckoutItems(prev => prev.filter(i => i.id !== id));
   };
   
-  const [jarOwnerships, setJarOwnerships] = useState<any[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [returnedJarsState, setReturnedJarsState] = useState<Record<string, number>>({});
+  
+  // New Jar Return Wizard State
+  const [willReturnJars, setWillReturnJars] = useState<boolean>(false);
+  const [returnJarQty, setReturnJarQty] = useState<number>(0);
+  const [isSameBrand, setIsSameBrand] = useState<boolean>(true);
+  const [returnBrandId, setReturnBrandId] = useState<string>('');
+  const [brands, setBrands] = useState<{id:string, name:string}[]>([]);
 
   useEffect(() => {
     fetchWithAuth('/auth/me').then(data => {
-      if (data.customer?.jarOwnerships) {
-        setJarOwnerships(data.customer.jarOwnerships);
-      }
       if (data.customer?.wallet) {
         setWalletBalance(data.customer.wallet.balance);
       }
     }).catch(() => {});
+
+    fetchWithAuth('/catalog/brands').then(data => {
+      setBrands(data || []);
+    }).catch(() => {});
   }, []);
 
-  const updateReturnedJars = (brandId: string, delta: number) => {
-    setReturnedJarsState(prev => {
-      const current = prev[brandId] || 0;
-      const ownership = jarOwnerships.find(j => j.brandId === brandId);
-      const maxOwned = ownership ? (ownership.ownedJars + ownership.companyJarsHeld) : 0;
-      
-      let next = current + delta;
-      if (next < 0) next = 0;
-      if (next > maxOwned) next = maxOwned;
-      
-      return { ...prev, [brandId]: next };
-    });
-  };
+  const returnedJarsState = useMemo(() => {
+    if (!willReturnJars || returnJarQty <= 0) return {};
+    
+    let targetBrandId = returnBrandId;
+    if (isSameBrand) {
+      // Find the first jar brand in the cart
+      const firstJar = checkoutItems.find(i => i.isJar && i.brandId);
+      if (firstJar) {
+        targetBrandId = firstJar.brandId;
+      }
+    }
+
+    if (!targetBrandId) return {};
+    return { [targetBrandId]: returnJarQty };
+  }, [willReturnJars, returnJarQty, isSameBrand, returnBrandId, checkoutItems]);
 
   const returnedJarsArray = useMemo(() => {
     return Object.entries(returnedJarsState)
@@ -559,44 +567,82 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                {/* Brand-Wise Jar Return */}
+                {/* Brand-Wise Jar Return Wizard */}
                 <div className="bg-white p-4 md:p-6 rounded-[16px] border border-[#E2E8F0] shadow-sm">
                   <h2 className="text-[16px] md:text-[18px] font-bold text-[#0F172A] mb-4 md:border-b md:border-[#E2E8F0] md:pb-3">Return Empty Jars</h2>
-                  {jarOwnerships.length === 0 ? (
-                    <p className="text-[13px] text-[#64748B]">You don't own any jars yet.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {jarOwnerships.map(ownership => {
-                        const totalOwned = ownership.ownedJars + ownership.companyJarsHeld;
-                        if (totalOwned === 0) return null;
-                        const returned = returnedJarsState[ownership.brandId] || 0;
-
-                        return (
-                          <div key={ownership.brandId} className="flex items-center justify-between p-3 rounded-[12px] border border-[#E2E8F0] bg-[#F8FAFC]">
-                            <div>
-                              <p className="font-semibold text-[14px] text-[#0F172A]">{ownership.brand?.name || 'Water Jar'}</p>
-                              <p className="text-[12px] text-[#64748B]">You have {totalOwned} empty jars</p>
-                            </div>
-                            <div className="flex items-center bg-white border border-[#E2E8F0] rounded-[8px] overflow-hidden shadow-sm h-8">
-                              <button 
-                                onClick={() => updateReturnedJars(ownership.brandId, -1)}
-                                className="w-8 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-                              >
-                                <Minus className="w-3.5 h-3.5" />
-                              </button>
-                              <span className="w-10 text-center text-[14px] font-bold text-[#0F172A]">{returned}</span>
-                              <button 
-                                onClick={() => updateReturnedJars(ownership.brandId, 1)}
-                                className="w-8 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-                              >
-                                <Plus className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
+                  
+                  <div className="space-y-6">
+                    {/* Step 1: Will you return empty jars? */}
+                    <div>
+                      <p className="text-[14px] font-semibold text-[#0F172A] mb-3">1. Will you return any empty jars during this delivery?</p>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="radio" checked={willReturnJars} onChange={() => setWillReturnJars(true)} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
+                          <span className="text-[14px] text-[#334155]">Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="radio" checked={!willReturnJars} onChange={() => { setWillReturnJars(false); setReturnJarQty(0); }} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
+                          <span className="text-[14px] text-[#334155]">No</span>
+                        </label>
+                      </div>
                     </div>
-                  )}
+
+                    {willReturnJars && (
+                      <>
+                        {/* Step 2: How many? */}
+                        <div className="pt-4 border-t border-[#E2E8F0]">
+                          <p className="text-[14px] font-semibold text-[#0F172A] mb-3">2. How many empty jars will you return?</p>
+                          <div className="flex items-center bg-white border border-[#E2E8F0] rounded-[8px] overflow-hidden shadow-sm h-10 w-32">
+                            <button 
+                              onClick={() => setReturnJarQty(Math.max(0, returnJarQty - 1))}
+                              className="w-10 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="flex-1 text-center text-[15px] font-bold text-[#0F172A]">{returnJarQty}</span>
+                            <button 
+                              onClick={() => setReturnJarQty(returnJarQty + 1)}
+                              className="w-10 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Step 3: Same Brand? */}
+                        <div className="pt-4 border-t border-[#E2E8F0]">
+                          <p className="text-[14px] font-semibold text-[#0F172A] mb-3">3. Are the returned jars the SAME BRAND as the product you are purchasing?</p>
+                          <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="radio" checked={isSameBrand} onChange={() => setIsSameBrand(true)} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
+                              <span className="text-[14px] text-[#334155]">Yes</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="radio" checked={!isSameBrand} onChange={() => setIsSameBrand(false)} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
+                              <span className="text-[14px] text-[#334155]">No</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Step 4: Select Brand (If No) */}
+                        {!isSameBrand && (
+                          <div className="pt-4 border-t border-[#E2E8F0]">
+                            <p className="text-[14px] font-semibold text-[#0F172A] mb-3">4. Select the brand of the jars you are returning:</p>
+                            <select 
+                              value={returnBrandId} 
+                              onChange={(e) => setReturnBrandId(e.target.value)}
+                              className="w-full max-w-sm h-[44px] pl-3 pr-10 rounded-[12px] border border-[#E2E8F0] bg-white focus:border-[#1E88E5] focus:ring-1 focus:ring-[#1E88E5] text-[14px]"
+                            >
+                              <option value="">-- Select Brand --</option>
+                              {brands.map(b => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
