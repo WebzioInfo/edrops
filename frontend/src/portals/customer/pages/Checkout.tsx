@@ -37,11 +37,12 @@ export default function Checkout() {
     quantity: Number(searchParams.get('quantity')) || 1,
     imageUrl: searchParams.get('imageUrl') || undefined,
     brandName: searchParams.get('brandName') || undefined,
+    brandId: undefined,
     isJar: false,
     depositAmount: 0
   }] : [];
 
-  const [checkoutItems, setCheckoutItems] = useState(isBuyNow ? buyNowProduct : items);
+  const [checkoutItems, setCheckoutItems] = useState<any[]>(isBuyNow ? buyNowProduct : items);
   const [currentStep, setCurrentStep] = useState(1);
   
   useEffect(() => {
@@ -178,6 +179,7 @@ export default function Checkout() {
     }
   }, [appliedPromo?.code, subTotal, deliveryCharge]);
 
+  const [paymentMethod, setPaymentMethod] = useState('ONLINE');
   const baseTotal = Math.max(0, subTotal + depositTotal + deliveryCharge - promoDiscount);
   
   const walletDeduction = useMemo(() => {
@@ -228,7 +230,6 @@ export default function Checkout() {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('ONLINE');
 
   const loadAddresses = () => {
     fetchWithAuth('/address').then((data) => {

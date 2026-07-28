@@ -40,7 +40,7 @@ const StrengthMeter = ({ password }: { password: string }) => {
       <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
         <div 
           className={`h-full transition-all duration-300 ${password.length > 0 ? colors[strength] : colors[0]}`}
-          style={{ width: \`\${(strength / 5) * 100}%\` }}
+          style={{ width: `${(strength / 5) * 100}%` }}
         />
       </div>
       {password.length > 0 && (

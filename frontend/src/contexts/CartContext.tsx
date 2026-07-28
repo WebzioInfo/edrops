@@ -10,6 +10,7 @@ export interface CartItem {
   depositAmount: number;
   imageUrl?: string;
   brandName?: string;
+  brandId?: string;
 }
 
 interface CartContextType {
