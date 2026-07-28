@@ -1,10 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { INotificationProvider, NotificationPayload, NotificationChannel } from './interfaces/notification-provider.interface';
+import {
+  INotificationProvider,
+  NotificationPayload,
+  NotificationChannel,
+} from './interfaces/notification-provider.interface';
 
 @Injectable()
 export class NotificationDispatcher {
   private readonly logger = new Logger(NotificationDispatcher.name);
-  private providers: Map<NotificationChannel, INotificationProvider> = new Map();
+  private providers: Map<NotificationChannel, INotificationProvider> =
+    new Map();
 
   registerProvider(provider: INotificationProvider) {
     this.providers.set(provider.channel, provider);
@@ -24,10 +29,15 @@ export class NotificationDispatcher {
           try {
             const start = Date.now();
             await provider.send(payload);
-            this.logger.log(`[${channel}] Successfully sent notification for event ${payload.type} (Duration: ${Date.now() - start}ms)`);
+            this.logger.log(
+              `[${channel}] Successfully sent notification for event ${payload.type} (Duration: ${Date.now() - start}ms)`,
+            );
           } catch (error: any) {
             // NEVER throw errors from the dispatcher to avoid crashing the main thread
-            this.logger.error(`[${channel}] Failed to send notification for event ${payload.type}: ${error.message}`, error.stack);
+            this.logger.error(
+              `[${channel}] Failed to send notification for event ${payload.type}: ${error.message}`,
+              error.stack,
+            );
           }
         } else {
           this.logger.warn(`No provider registered for channel: ${channel}`);

@@ -95,7 +95,9 @@ export class PromoService {
             },
           });
           if (orderCount > 0) {
-            throw new BadRequestException('This promo code is only valid for your first order');
+            throw new BadRequestException(
+              'This promo code is only valid for your first order',
+            );
           }
           // Treat first order discount as percentage if discountValue <= 100, otherwise fixed discount
           const val = promo.discountValue ?? 0;
@@ -111,10 +113,14 @@ export class PromoService {
         }
         case 'SUBSCRIPTION': {
           if (isRecharge) {
-            throw new BadRequestException('Subscription discount is not valid for wallet recharges');
+            throw new BadRequestException(
+              'Subscription discount is not valid for wallet recharges',
+            );
           }
           if (orderType !== 'SUBSCRIPTION_ORDER') {
-            throw new BadRequestException('This promo code is only valid for subscription orders');
+            throw new BadRequestException(
+              'This promo code is only valid for subscription orders',
+            );
           }
           const val = promo.discountValue ?? 0;
           if (val <= 100) {
@@ -173,7 +179,10 @@ export class PromoService {
       if (promo.startDate > now || (promo.endDate && promo.endDate < now)) {
         throw new BadRequestException('Promo code is not currently active');
       }
-      if (promo.campaign.startDate > now || (promo.campaign.endDate && promo.campaign.endDate < now)) {
+      if (
+        promo.campaign.startDate > now ||
+        (promo.campaign.endDate && promo.campaign.endDate < now)
+      ) {
         throw new BadRequestException('Promo campaign is not currently active');
       }
 
@@ -226,8 +235,14 @@ export class PromoService {
   }
 
   async createCode(data: any) {
-    const { campaignName, campaignDescription, campaignStartDate, campaignEndDate, ...codeData } = data;
-    
+    const {
+      campaignName,
+      campaignDescription,
+      campaignStartDate,
+      campaignEndDate,
+      ...codeData
+    } = data;
+
     return this.prisma.$transaction(async (tx) => {
       // Find or create campaign
       let campaign = await tx.promoCampaign.findFirst({
@@ -239,7 +254,9 @@ export class PromoService {
           data: {
             name: campaignName,
             description: campaignDescription,
-            startDate: campaignStartDate ? new Date(campaignStartDate) : new Date(),
+            startDate: campaignStartDate
+              ? new Date(campaignStartDate)
+              : new Date(),
             endDate: campaignEndDate ? new Date(campaignEndDate) : null,
             isActive: true,
           },
@@ -250,7 +267,9 @@ export class PromoService {
         data: {
           ...codeData,
           campaignId: campaign.id,
-          startDate: codeData.startDate ? new Date(codeData.startDate) : new Date(),
+          startDate: codeData.startDate
+            ? new Date(codeData.startDate)
+            : new Date(),
           endDate: codeData.endDate ? new Date(codeData.endDate) : null,
         },
         include: { campaign: true },
@@ -264,8 +283,15 @@ export class PromoService {
       where: { id },
       data: {
         ...codeData,
-        startDate: codeData.startDate ? new Date(codeData.startDate) : undefined,
-        endDate: codeData.endDate !== undefined ? (codeData.endDate ? new Date(codeData.endDate) : null) : undefined,
+        startDate: codeData.startDate
+          ? new Date(codeData.startDate)
+          : undefined,
+        endDate:
+          codeData.endDate !== undefined
+            ? codeData.endDate
+              ? new Date(codeData.endDate)
+              : null
+            : undefined,
       },
       include: { campaign: true },
     });
@@ -279,7 +305,9 @@ export class PromoService {
 
   async getPromoStats() {
     const totalCodes = await this.prisma.promoCode.count();
-    const activeCodes = await this.prisma.promoCode.count({ where: { isActive: true } });
+    const activeCodes = await this.prisma.promoCode.count({
+      where: { isActive: true },
+    });
     const redemptions = await this.prisma.promoRedemption.findMany({
       include: {
         customer: { include: { user: true } },
@@ -299,4 +327,3 @@ export class PromoService {
     };
   }
 }
-

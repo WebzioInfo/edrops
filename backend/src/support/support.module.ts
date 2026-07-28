@@ -9,7 +9,11 @@ import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [EventsModule, NotificationModule],
-  controllers: [SupportController, StaffSupportController, AdminSupportController],
+  controllers: [
+    SupportController,
+    StaffSupportController,
+    AdminSupportController,
+  ],
   providers: [SupportService],
 })
 export class SupportModule {}

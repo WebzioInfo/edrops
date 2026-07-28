@@ -17,6 +17,8 @@ const GlobalSupport = React.lazy(() => import('./pages/GlobalSupport'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 const PromoManager = React.lazy(() => import('./pages/PromoManager'));
 const CustomerForm = React.lazy(() => import('../../pages/CustomerManagement/CustomerForm'));
+const CreateOrderPOS = React.lazy(() => import('./pages/CreateOrderPOS'));
+const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
 
 const centerNavItems = [
   { to: '/admin/dashboard', label: 'Dashboard' },
@@ -174,6 +176,8 @@ export default function AdminPortal() {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="catalog/*" element={<CatalogManager />} />
             <Route path="operations/*" element={<OperationsManager />} />
+            <Route path="orders/new" element={<CreateOrderPOS />} />
+            <Route path="orders/management" element={<OrderManagement />} />
             <Route path="orders/*" element={<OrdersDashboard />} />
             <Route path="finance/*" element={<FinanceLedger />} />
             <Route path="customers/add" element={<CustomerForm basePath="/admin/customers" />} />

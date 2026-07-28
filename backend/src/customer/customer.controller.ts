@@ -61,7 +61,10 @@ export class CustomerController {
   @Post()
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   create(@Body() createCustomerDto: CreateCustomerDto, @Request() req) {
-    return this.customerService.create(createCustomerDto, req.user?.userId || req.user?.id);
+    return this.customerService.create(
+      createCustomerDto,
+      req.user?.userId || req.user?.id,
+    );
   }
 
   @Get()
@@ -81,9 +84,13 @@ export class CustomerController {
   update(
     @Param('id') id: string,
     @Body() updateCustomerDto: UpdateCustomerDto,
-    @Request() req
+    @Request() req,
   ) {
-    return this.customerService.update(id, updateCustomerDto, req.user?.userId || req.user?.id);
+    return this.customerService.update(
+      id,
+      updateCustomerDto,
+      req.user?.userId || req.user?.id,
+    );
   }
 
   @Delete(':id')

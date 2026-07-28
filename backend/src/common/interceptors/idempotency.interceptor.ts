@@ -13,7 +13,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class IdempotencyInterceptor implements NestInterceptor {
   constructor(private prisma: PrismaService) {}
 
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
     const idempotencyKey = request.headers['idempotency-key'];
 

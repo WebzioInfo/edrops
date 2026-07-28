@@ -17,7 +17,9 @@ import { PrismaService } from '../prisma/prisma.service';
     credentials: true,
   },
 })
-export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class EventsGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -35,8 +37,10 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   async handleConnection(client: Socket, ...args: any[]) {
     try {
       // Get token from handshake auth or headers
-      const token = client.handshake.auth?.token || client.handshake.headers?.authorization?.split(' ')[1];
-      
+      const token =
+        client.handshake.auth?.token ||
+        client.handshake.headers?.authorization?.split(' ')[1];
+
       if (!token) {
         this.logger.warn(`Client ${client.id} disconnected: No token provided`);
         client.disconnect();
@@ -60,15 +64,22 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 
       if (['STAFF', 'MANAGER', 'ADMIN'].includes(user.role)) {
         client.join('staff-notifications');
-        this.logger.log(`Staff client connected: ${client.id} (User: ${user.id})`);
+        this.logger.log(
+          `Staff client connected: ${client.id} (User: ${user.id})`,
+        );
       } else if (user.role === 'CUSTOMER') {
         client.join(`customer-${user.customer?.id || user.id}`);
-        this.logger.log(`Customer client connected: ${client.id} (User: ${user.id})`);
+        this.logger.log(
+          `Customer client connected: ${client.id} (User: ${user.id})`,
+        );
       } else {
         client.disconnect();
       }
     } catch (error) {
-      this.logger.error(`Client ${client.id} disconnected: Invalid token`, error);
+      this.logger.error(
+        `Client ${client.id} disconnected: Invalid token`,
+        error,
+      );
       client.disconnect();
     }
   }

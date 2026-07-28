@@ -130,7 +130,10 @@ export class PaymentService {
       if (payment.orderId) {
         await tx.order.update({
           where: { id: payment.orderId },
-          data: { status: OrderStatus.PENDING_ASSIGNMENT, paymentStatus: PaymentStatus.SUCCESS },
+          data: {
+            status: OrderStatus.PENDING_ASSIGNMENT,
+            paymentStatus: PaymentStatus.SUCCESS,
+          },
         });
       }
 

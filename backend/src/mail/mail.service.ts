@@ -126,9 +126,14 @@ export class MailService {
         subject: 'Security Alert: Your password was changed',
         html,
       });
-      this.logger.log(`Password changed confirmation email sent to ${user.email}`);
+      this.logger.log(
+        `Password changed confirmation email sent to ${user.email}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send password changed email to ${user.email}`, error);
+      this.logger.error(
+        `Failed to send password changed email to ${user.email}`,
+        error,
+      );
     }
   }
 }

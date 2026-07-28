@@ -70,10 +70,8 @@ export default function Checkout() {
   const [walletBalance, setWalletBalance] = useState<number>(0);
   
   // New Jar Return Wizard State
-  const [willReturnJars, setWillReturnJars] = useState<boolean>(false);
-  const [returnJarQty, setReturnJarQty] = useState<number>(0);
-  const [isSameBrand, setIsSameBrand] = useState<boolean>(true);
-  const [returnBrandId, setReturnBrandId] = useState<string>('');
+  const [itemReturns, setItemReturns] = useState<Record<string, {willReturn: boolean, quantity: number}>>({});
+  const [additionalReturns, setAdditionalReturns] = useState<{brandId: string, quantity: number}[]>([]);
   const [brands, setBrands] = useState<{id:string, name:string}[]>([]);
 
   useEffect(() => {
@@ -88,27 +86,7 @@ export default function Checkout() {
     }).catch(() => {});
   }, []);
 
-  const returnedJarsState = useMemo(() => {
-    if (!willReturnJars || returnJarQty <= 0) return {};
-    
-    let targetBrandId = returnBrandId;
-    if (isSameBrand) {
-      // Find the first jar brand in the cart
-      const firstJar = checkoutItems.find(i => i.isJar && i.brandId);
-      if (firstJar) {
-        targetBrandId = firstJar.brandId;
-      }
-    }
 
-    if (!targetBrandId) return {};
-    return { [targetBrandId]: returnJarQty };
-  }, [willReturnJars, returnJarQty, isSameBrand, returnBrandId, checkoutItems]);
-
-  const returnedJarsArray = useMemo(() => {
-    return Object.entries(returnedJarsState)
-      .filter(([_, qty]) => qty > 0)
-      .map(([brandId, quantity]) => ({ brandId, quantity }));
-  }, [returnedJarsState]);
 
   const subTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0), [checkoutItems]);
   
@@ -116,6 +94,7 @@ export default function Checkout() {
   const depositTotal = useMemo(() => {
     let total = 0;
     const purchasedJarsByBrand: Record<string, { quantity: number; depositAmount: number }> = {};
+    const returnedJarsByBrand: Record<string, number> = {};
     
     checkoutItems.forEach(item => {
       if (item.isJar && item.brandId) {
@@ -123,21 +102,29 @@ export default function Checkout() {
           purchasedJarsByBrand[item.brandId] = { quantity: 0, depositAmount: item.depositAmount || 0 };
         }
         purchasedJarsByBrand[item.brandId].quantity += item.quantity;
+        
+        const returnInfo = itemReturns[item.id];
+        if (returnInfo?.willReturn && returnInfo.quantity > 0) {
+           returnedJarsByBrand[item.brandId] = (returnedJarsByBrand[item.brandId] || 0) + returnInfo.quantity;
+        }
+      }
+    });
+
+    additionalReturns.forEach(ar => {
+      if (ar.brandId) {
+        returnedJarsByBrand[ar.brandId] = (returnedJarsByBrand[ar.brandId] || 0) + ar.quantity;
       }
     });
 
     for (const [brandId, purchased] of Object.entries(purchasedJarsByBrand)) {
-      const returnedQty = returnedJarsState[brandId] || 0;
+      const returnedQty = returnedJarsByBrand[brandId] || 0;
       const netNewJars = purchased.quantity - returnedQty;
       if (netNewJars > 0) {
-        // We do a simplified UI calculation assuming no previous deposit limit here
-        // The real strict calculation happens on backend. This is just for UI estimate.
-        // Wait, if they are acquiring net new jars, we charge deposit for the net new jars.
         total += netNewJars * purchased.depositAmount;
       }
     }
     return total;
-  }, [checkoutItems, returnedJarsState]);
+  }, [checkoutItems, itemReturns, additionalReturns]);
 
   const deliveryCharge = useMemo(() => checkoutItems.length > 0 ? (subTotal > 500 ? 0 : 50) : 0, [checkoutItems, subTotal]);
 
@@ -303,7 +290,8 @@ export default function Checkout() {
         addressId: selectedAddressId,
         paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : paymentMethod,
         timeSlot: selectedSlot,
-        returnedJars: returnedJarsArray,
+        itemReturns: Object.entries(itemReturns).filter(([_, info]) => info.willReturn && info.quantity > 0).map(([id, info]) => ({productId: id, quantity: info.quantity})),
+        additionalReturns: additionalReturns.filter(ar => ar.brandId && ar.quantity > 0),
         promoCode: appliedPromo?.code || undefined
       };
 
@@ -572,76 +560,112 @@ export default function Checkout() {
                   <h2 className="text-[16px] md:text-[18px] font-bold text-[#0F172A] mb-4 md:border-b md:border-[#E2E8F0] md:pb-3">Return Empty Jars</h2>
                   
                   <div className="space-y-6">
-                    {/* Step 1: Will you return empty jars? */}
-                    <div>
-                      <p className="text-[14px] font-semibold text-[#0F172A] mb-3">1. Will you return any empty jars during this delivery?</p>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" checked={willReturnJars} onChange={() => setWillReturnJars(true)} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
-                          <span className="text-[14px] text-[#334155]">Yes</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" checked={!willReturnJars} onChange={() => { setWillReturnJars(false); setReturnJarQty(0); }} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
-                          <span className="text-[14px] text-[#334155]">No</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    {willReturnJars && (
-                      <>
-                        {/* Step 2: How many? */}
-                        <div className="pt-4 border-t border-[#E2E8F0]">
-                          <p className="text-[14px] font-semibold text-[#0F172A] mb-3">2. How many empty jars will you return?</p>
-                          <div className="flex items-center bg-white border border-[#E2E8F0] rounded-[8px] overflow-hidden shadow-sm h-10 w-32">
-                            <button 
-                              onClick={() => setReturnJarQty(Math.max(0, returnJarQty - 1))}
-                              className="w-10 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </button>
-                            <span className="flex-1 text-center text-[15px] font-bold text-[#0F172A]">{returnJarQty}</span>
-                            <button 
-                              onClick={() => setReturnJarQty(returnJarQty + 1)}
-                              className="w-10 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                          </div>
+                    {checkoutItems.filter(i => i.isJar).map(item => (
+                      <div key={item.id} className="pb-6 border-b border-[#E2E8F0] last:border-0 last:pb-0">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-[15px] font-bold text-[#0F172A]">{item.name}</span>
+                          <span className="text-[13px] text-[#64748B]">Quantity Ordered: {item.quantity}</span>
+                        </div>
+                        
+                        <p className="text-[14px] font-medium text-[#334155] mb-3">Will you return empty jars for {item.name}?</p>
+                        <div className="flex items-center gap-4 mb-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" checked={itemReturns[item.id]?.willReturn || false} onChange={() => setItemReturns(prev => ({...prev, [item.id]: {willReturn: true, quantity: Math.min(item.quantity, prev[item.id]?.quantity || item.quantity)}}))} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
+                            <span className="text-[14px] text-[#334155]">Yes</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" checked={!(itemReturns[item.id]?.willReturn)} onChange={() => setItemReturns(prev => ({...prev, [item.id]: {willReturn: false, quantity: 0}}))} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
+                            <span className="text-[14px] text-[#334155]">No</span>
+                          </label>
                         </div>
 
-                        {/* Step 3: Same Brand? */}
-                        <div className="pt-4 border-t border-[#E2E8F0]">
-                          <p className="text-[14px] font-semibold text-[#0F172A] mb-3">3. Are the returned jars the SAME BRAND as the product you are purchasing?</p>
-                          <div className="flex items-center gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input type="radio" checked={isSameBrand} onChange={() => setIsSameBrand(true)} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
-                              <span className="text-[14px] text-[#334155]">Yes</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input type="radio" checked={!isSameBrand} onChange={() => setIsSameBrand(false)} className="w-4 h-4 text-[#1E88E5] focus:ring-[#1E88E5]" />
-                              <span className="text-[14px] text-[#334155]">No</span>
-                            </label>
-                          </div>
-                        </div>
-
-                        {/* Step 4: Select Brand (If No) */}
-                        {!isSameBrand && (
-                          <div className="pt-4 border-t border-[#E2E8F0]">
-                            <p className="text-[14px] font-semibold text-[#0F172A] mb-3">4. Select the brand of the jars you are returning:</p>
-                            <select 
-                              value={returnBrandId} 
-                              onChange={(e) => setReturnBrandId(e.target.value)}
-                              className="w-full max-w-sm h-[44px] pl-3 pr-10 rounded-[12px] border border-[#E2E8F0] bg-white focus:border-[#1E88E5] focus:ring-1 focus:ring-[#1E88E5] text-[14px]"
-                            >
-                              <option value="">-- Select Brand --</option>
-                              {brands.map(b => (
-                                <option key={b.id} value={b.id}>{b.name}</option>
-                              ))}
-                            </select>
+                        {itemReturns[item.id]?.willReturn && (
+                          <div>
+                            <p className="text-[13px] font-medium text-[#334155] mb-2">How many {item.name} empty jars will you return?</p>
+                            <div className="flex items-center bg-white border border-[#E2E8F0] rounded-[8px] overflow-hidden shadow-sm h-10 w-32">
+                              <button 
+                                onClick={() => setItemReturns(prev => ({...prev, [item.id]: {...prev[item.id], quantity: Math.max(0, prev[item.id].quantity - 1)}}))}
+                                className="w-10 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <span className="flex-1 text-center text-[15px] font-bold text-[#0F172A]">{itemReturns[item.id]?.quantity || 0}</span>
+                              <button 
+                                onClick={() => setItemReturns(prev => ({...prev, [item.id]: {...prev[item.id], quantity: Math.min(item.quantity, prev[item.id].quantity + 1)}}))}
+                                className="w-10 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         )}
-                      </>
+                      </div>
+                    ))}
+
+                    {checkoutItems.filter(i => i.isJar).length === 0 && (
+                      <p className="text-[14px] text-[#64748B] mb-2">You don't have any jar products in your cart to return against.</p>
                     )}
+
+                    {/* Additional Brand Returns */}
+                    <div className="pt-2">
+                      <h3 className="text-[15px] font-bold text-[#0F172A] mb-2">Return Additional Empty Jars</h3>
+                      <p className="text-[13px] text-[#64748B] mb-4">Have empty jars from a brand not in today's order? Add them below.</p>
+                      
+                      {additionalReturns.map((ar, idx) => (
+                        <div key={idx} className="flex items-center gap-3 mb-3">
+                          <select 
+                            value={ar.brandId}
+                            onChange={(e) => {
+                              const newAr = [...additionalReturns];
+                              newAr[idx].brandId = e.target.value;
+                              setAdditionalReturns(newAr);
+                            }}
+                            className="flex-1 h-[40px] pl-3 pr-8 rounded-[8px] border border-[#E2E8F0] bg-white focus:border-[#1E88E5] focus:ring-1 focus:ring-[#1E88E5] text-[13px]"
+                          >
+                            <option value="">Select Brand</option>
+                            {brands.map(b => (
+                              <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                          </select>
+                          <div className="flex items-center bg-white border border-[#E2E8F0] rounded-[8px] overflow-hidden shadow-sm h-[40px] w-28 shrink-0">
+                            <button 
+                              onClick={() => {
+                                const newAr = [...additionalReturns];
+                                newAr[idx].quantity = Math.max(1, newAr[idx].quantity - 1);
+                                setAdditionalReturns(newAr);
+                              }}
+                              className="w-8 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="flex-1 text-center text-[14px] font-bold text-[#0F172A]">{ar.quantity}</span>
+                            <button 
+                              onClick={() => {
+                                const newAr = [...additionalReturns];
+                                newAr[idx].quantity += 1;
+                                setAdditionalReturns(newAr);
+                              }}
+                              className="w-8 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <button 
+                            onClick={() => setAdditionalReturns(additionalReturns.filter((_, i) => i !== idx))}
+                            className="p-2 text-[#94A3B8] hover:text-rose-500 rounded-full hover:bg-rose-50 transition-colors shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      <button 
+                        onClick={() => setAdditionalReturns([...additionalReturns, {brandId: '', quantity: 1}])}
+                        className="flex items-center gap-1.5 text-[13px] font-semibold text-[#1E88E5] hover:text-[#1565C0] cursor-pointer mt-2"
+                      >
+                        <Plus className="w-4 h-4" /> Add Brand
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

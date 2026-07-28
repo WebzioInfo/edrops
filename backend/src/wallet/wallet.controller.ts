@@ -45,13 +45,21 @@ export class WalletController {
 
   @Post('recharge/confirm')
   @Idempotent()
-  async confirmRecharge(@Req() req, @Body() body: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }) {
+  async confirmRecharge(
+    @Req() req,
+    @Body()
+    body: {
+      razorpayOrderId: string;
+      razorpayPaymentId: string;
+      razorpaySignature: string;
+    },
+  ) {
     const userId = req.user.sub || req.user.id;
     return this.walletService.confirmRecharge(
       userId,
       body.razorpayOrderId,
       body.razorpayPaymentId,
-      body.razorpaySignature
+      body.razorpaySignature,
     );
   }
 }

@@ -24,7 +24,23 @@ export default function OrdersDashboard() {
           <p className="text-slate-500 font-semibold mt-1">Manage all marketplace and subscription orders.</p>
         </div>
         
-        <div className="flex bg-white rounded-full p-1 border border-slate-200 shadow-sm">
+        <div className="flex gap-3">
+          <button 
+            onClick={() => window.location.href = '/admin/orders/new'}
+            className="px-5 py-2.5 bg-[#2D79A8] hover:bg-[#245361] text-white rounded-xl font-bold shadow-md shadow-[#2D79A8]/20 transition-all flex items-center gap-2"
+          >
+            <ShoppingBag className="w-4 h-4" /> POS Entry
+          </button>
+          <button 
+            onClick={() => window.location.href = '/admin/orders/management'}
+            className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md shadow-slate-800/20 transition-all flex items-center gap-2"
+          >
+            <Package className="w-4 h-4" /> Bulk Manage
+          </button>
+        </div>
+      </div>
+
+      <div className="flex bg-white rounded-full p-1 border border-slate-200 shadow-sm self-start w-fit">
           <button 
             onClick={() => setFilter('ALL')}
             className={`px-4 py-2 rounded-full text-xs font-black transition-all ${filter === 'ALL' ? 'bg-[#245361] text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
@@ -44,7 +60,6 @@ export default function OrdersDashboard() {
             Subscriptions
           </button>
         </div>
-      </div>
 
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 p-6 overflow-hidden">
         {isLoading ? (

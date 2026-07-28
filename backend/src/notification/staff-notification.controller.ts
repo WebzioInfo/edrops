@@ -8,11 +8,14 @@ import { UserRole } from '@prisma/client';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
 export class StaffNotificationController {
-  constructor(private readonly staffNotificationService: StaffNotificationService) {}
+  constructor(
+    private readonly staffNotificationService: StaffNotificationService,
+  ) {}
 
   @Get('unread')
   async getUnread() {
-    const notifications = await this.staffNotificationService.getUnreadNotifications();
+    const notifications =
+      await this.staffNotificationService.getUnreadNotifications();
     return { data: notifications };
   }
 

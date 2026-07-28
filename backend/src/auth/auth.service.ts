@@ -99,29 +99,37 @@ export class AuthService {
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { email },
-          { phone: email }
-        ]
-      }
+        OR: [{ email }, { phone: email }],
+      },
     });
 
     if (!user) {
-      throw new NotFoundException('Account not found with the provided details.');
+      throw new NotFoundException(
+        'Account not found with the provided details.',
+      );
     }
 
     if (!user.isActive) {
-      throw new BadRequestException('This account has been deactivated. Please contact support.');
+      throw new BadRequestException(
+        'This account has been deactivated. Please contact support.',
+      );
     }
 
     if (!user.email) {
-      throw new BadRequestException('No email address is associated with this account.');
+      throw new BadRequestException(
+        'No email address is associated with this account.',
+      );
     }
 
     // Rate Limiting Logic: Check if a token was recently generated
-    if (user.resetPasswordExpires && user.resetPasswordExpires > new Date(Date.now() + 3540000)) {
+    if (
+      user.resetPasswordExpires &&
+      user.resetPasswordExpires > new Date(Date.now() + 3540000)
+    ) {
       // Assuming 1-hour expiry, if it expires more than 59 mins from now, they just requested one.
-      throw new BadRequestException('A password reset request was just made. Please wait a minute before requesting another.');
+      throw new BadRequestException(
+        'A password reset request was just made. Please wait a minute before requesting another.',
+      );
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -144,8 +152,8 @@ export class AuthService {
           action: 'PASSWORD_RESET_REQUESTED',
           entityType: 'USER',
           entityId: user.id,
-          newValues: { email: user.email }
-        }
+          newValues: { email: user.email },
+        },
       });
     });
 
@@ -195,8 +203,8 @@ export class AuthService {
           userId: user.id,
           action: 'PASSWORD_CHANGED',
           entityType: 'USER',
-          entityId: user.id
-        }
+          entityId: user.id,
+        },
       });
     });
 
@@ -204,7 +212,9 @@ export class AuthService {
     try {
       await this.mailService.sendPasswordChanged(user);
     } catch (e) {
-      this.logger.warn(`Failed to send password changed email: ${(e as Error).message}`);
+      this.logger.warn(
+        `Failed to send password changed email: ${(e as Error).message}`,
+      );
     }
 
     return { message: 'Password has been reset successfully' };
@@ -226,7 +236,7 @@ export class AuthService {
             jarBalances: true,
             jarDeposits: true,
             jarOwnerships: {
-              include: { brand: true }
+              include: { brand: true },
             },
             deliverySchedule: {
               include: {

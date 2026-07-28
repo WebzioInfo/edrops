@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsBoolean, IsArray, ValidateNested, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BuyNowItemDto {
@@ -8,19 +15,50 @@ export class BuyNowItemDto {
   quantity: number;
 }
 
-export class ReturnedJarDto {
+export class ItemReturnDto {
+  @IsString()
+  productId: string;
+  @IsNumber()
+  quantity: number;
+}
+
+export class AdditionalReturnDto {
   @IsString()
   brandId: string;
   @IsNumber()
   quantity: number;
 }
 
+export class AdminOverrideDto {
+  @IsOptional()
+  @IsBoolean()
+  waiveDeposit?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  waiveDelivery?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  customDiscount?: number;
+
+  @IsOptional()
+  @IsString()
+  adminNotes?: string;
+}
+
 export class ValidateCheckoutDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => ReturnedJarDto)
-  returnedJars?: ReturnedJarDto[];
+  @Type(() => ItemReturnDto)
+  itemReturns?: ItemReturnDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AdditionalReturnDto)
+  additionalReturns?: AdditionalReturnDto[];
 
   @IsOptional()
   @IsArray()
@@ -31,6 +69,11 @@ export class ValidateCheckoutDto {
   @IsOptional()
   @IsString()
   promoCode?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AdminOverrideDto)
+  adminOverride?: AdminOverrideDto;
 }
 
 export class InitiateCheckoutDto {
@@ -39,6 +82,14 @@ export class InitiateCheckoutDto {
 
   @IsString()
   paymentMethod: string; // 'COD', 'WALLET', 'RAZORPAY', 'HYBRID'
+
+  @IsOptional()
+  @IsString()
+  hybridSecondaryMethod?: string; // 'CASH', 'ONLINE'
+
+  @IsOptional()
+  @IsString()
+  orderSource?: string; // 'CUSTOMER_APP', 'STAFF_CREATED', 'ADMIN_CREATED', 'PHONE_ORDER', 'WALK_IN'
 
   @IsOptional()
   @IsString()
@@ -51,8 +102,14 @@ export class InitiateCheckoutDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => ReturnedJarDto)
-  returnedJars?: ReturnedJarDto[];
+  @Type(() => ItemReturnDto)
+  itemReturns?: ItemReturnDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AdditionalReturnDto)
+  additionalReturns?: AdditionalReturnDto[];
 
   @IsOptional()
   @IsArray()
@@ -63,6 +120,11 @@ export class InitiateCheckoutDto {
   @IsOptional()
   @IsString()
   promoCode?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AdminOverrideDto)
+  adminOverride?: AdminOverrideDto;
 }
 
 export class ConfirmCheckoutDto {

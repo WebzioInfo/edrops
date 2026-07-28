@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { INotificationProvider, NotificationChannel, NotificationPayload } from '../interfaces/notification-provider.interface';
+import {
+  INotificationProvider,
+  NotificationChannel,
+  NotificationPayload,
+} from '../interfaces/notification-provider.interface';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -11,7 +15,7 @@ export class DatabaseProvider implements INotificationProvider {
 
   async send(payload: NotificationPayload): Promise<void> {
     const userId = payload.recipients?.userId;
-    
+
     if (userId) {
       // It's a targeted user notification
       await this.prisma.notification.create({
@@ -21,8 +25,8 @@ export class DatabaseProvider implements INotificationProvider {
           title: payload.title,
           message: payload.message,
           link: payload.data?.link,
-          status: 'UNREAD'
-        }
+          status: 'UNREAD',
+        },
       });
     } else {
       // If no specific user, treat as a staff broadcast
@@ -32,8 +36,8 @@ export class DatabaseProvider implements INotificationProvider {
           title: payload.title,
           message: payload.message,
           orderId: payload.data?.orderId || 'system',
-          isRead: false
-        }
+          isRead: false,
+        },
       });
     }
   }

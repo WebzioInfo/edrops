@@ -4,7 +4,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { WalletTransactionType, TransactionType, PaymentStatus } from '@prisma/client';
+import {
+  WalletTransactionType,
+  TransactionType,
+  PaymentStatus,
+} from '@prisma/client';
 import { SettingsService } from '../settings/settings.service';
 import { PaymentService } from '../payment/payment.service';
 
@@ -77,7 +81,7 @@ export class WalletService {
     type: WalletTransactionType,
     description?: string,
     referenceId?: string,
-    tx?: any
+    tx?: any,
   ) {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
@@ -89,7 +93,9 @@ export class WalletService {
         where: { customerId: customer.id },
       });
       if (!wallet) {
-        wallet = await prismaTx.wallet.create({ data: { customerId: customer.id } });
+        wallet = await prismaTx.wallet.create({
+          data: { customerId: customer.id },
+        });
       }
 
       const balanceBefore = wallet.balance;
@@ -124,7 +130,7 @@ export class WalletService {
     type: WalletTransactionType,
     description?: string,
     referenceId?: string,
-    tx?: any
+    tx?: any,
   ) {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
@@ -205,7 +211,12 @@ export class WalletService {
     let jarOwnership = customer.jarOwnerships[0];
     if (!jarOwnership) {
       jarOwnership = await this.prisma.jarOwnership.create({
-        data: { customerId: customer.id, brandId, companyJarsHeld: 0, ownedJars: 0 },
+        data: {
+          customerId: customer.id,
+          brandId,
+          companyJarsHeld: 0,
+          ownedJars: 0,
+        },
       });
     }
 
@@ -215,7 +226,9 @@ export class WalletService {
     );
 
     if (jarDeposit.depositDue < depositAmount) {
-      throw new BadRequestException('No outstanding deposit due to pay for this brand');
+      throw new BadRequestException(
+        'No outstanding deposit due to pay for this brand',
+      );
     }
 
     if (wallet.balance < depositAmount) {
@@ -291,7 +304,7 @@ export class WalletService {
     if (amount <= 0) {
       throw new BadRequestException('Recharge amount must be greater than 0');
     }
-    
+
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
     });
@@ -311,19 +324,25 @@ export class WalletService {
     };
   }
 
-  async confirmRecharge(userId: string, razorpayOrderId: string, razorpayPaymentId: string, razorpaySignature: string) {
+  async confirmRecharge(
+    userId: string,
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string,
+  ) {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
     });
     if (!customer) throw new NotFoundException('Customer profile not found');
 
     // Verify the signature
-    const verifiedPayment = await this.paymentService.verifyPayment({
+    const verifiedPayment = await this.paymentService.verifyPayment(
+      {
         razorpay_order_id: razorpayOrderId,
         razorpay_payment_id: razorpayPaymentId,
         razorpay_signature: razorpaySignature,
       },
-      customer.id
+      customer.id,
     );
 
     // Credit wallet with the payment amount
@@ -331,7 +350,7 @@ export class WalletService {
       userId,
       verifiedPayment.amount,
       WalletTransactionType.TOP_UP,
-      `Direct Wallet Recharge (₹${verifiedPayment.amount})`
+      `Direct Wallet Recharge (₹${verifiedPayment.amount})`,
     );
   }
 }

@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { INotificationProvider, NotificationChannel, NotificationPayload } from '../interfaces/notification-provider.interface';
+import {
+  INotificationProvider,
+  NotificationChannel,
+  NotificationPayload,
+} from '../interfaces/notification-provider.interface';
 
 @Injectable()
 export class PushProvider implements INotificationProvider {
@@ -9,11 +13,15 @@ export class PushProvider implements INotificationProvider {
   async send(payload: NotificationPayload): Promise<void> {
     const fcmToken = payload.recipients?.fcmToken;
     if (!fcmToken) {
-      this.logger.debug(`No FCM token provided for payload ${payload.type}. Skipping push notification.`);
+      this.logger.debug(
+        `No FCM token provided for payload ${payload.type}. Skipping push notification.`,
+      );
       return;
     }
 
     // TODO: Implement FCM Push Logic when infrastructure is ready
-    this.logger.log(`[STUB] Sending Push Notification to token ${fcmToken}: ${payload.title}`);
+    this.logger.log(
+      `[STUB] Sending Push Notification to token ${fcmToken}: ${payload.title}`,
+    );
   }
 }

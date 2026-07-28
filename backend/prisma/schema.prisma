@@ -35,6 +35,7 @@ model User {
   assignedTickets      SupportTicket[]      @relation("TicketAssignee")
   ticketReplies        TicketReply[]
   statusUpdates        OrderStatusHistory[]
+  verifiedOrderItems   OrderItem[]          @relation("VerifiedOrderItems")
 
   @@index([email])
   @@index([phone])
@@ -60,6 +61,7 @@ model Customer {
   userId              String               @unique
   referralCode        String?              @unique
   referredById        String?
+  isWalkIn            Boolean              @default(false)
   
   customerType        String?              @default("RESIDENTIAL")
   gstNumber           String?              @unique
@@ -768,25 +770,28 @@ model StockMovement {
 }
 
 model Order {
-  id                String               @id @default(uuid())
-  customerId        String
-  orderType         OrderType            @default(ONETIME_ORDER)
-  status            OrderStatus          @default(NEW)
-  subTotal          Float                @default(0.0)
-  depositTotal      Float                @default(0.0)
-  deliveryCharge    Float                @default(0.0)
-  totalAmount       Float                @default(0.0)
-  deliveryAddressId String
-  scheduledDate     DateTime?
-  paymentStatus     PaymentStatus        @default(PENDING)
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  paymentMethod     String               @default("ONLINE")
-  timeSlot          String?
-  discountTotal     Float                @default(0.0)
-  promoCode         String?
-  customer          Customer             @relation(fields: [customerId], references: [id])
-  address           Address              @relation(fields: [deliveryAddressId], references: [id])
+  id                    String               @id @default(uuid())
+  customerId            String
+  orderType             OrderType            @default(ONETIME_ORDER)
+  orderSource           OrderSource          @default(CUSTOMER_APP)
+  status                OrderStatus          @default(NEW)
+  subTotal              Float                @default(0.0)
+  depositTotal          Float                @default(0.0)
+  deliveryCharge        Float                @default(0.0)
+  totalAmount           Float                @default(0.0)
+  deliveryAddressId     String
+  scheduledDate         DateTime?
+  paymentStatus         PaymentStatus        @default(PENDING)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  paymentMethod         String               @default("ONLINE")
+  hybridSecondaryMethod String?
+  timeSlot              String?
+  discountTotal         Float                @default(0.0)
+  promoCode             String?
+  adminNotes            String?
+  customer              Customer             @relation(fields: [customerId], references: [id])
+  address               Address              @relation(fields: [deliveryAddressId], references: [id])
   items             OrderItem[]
   payments          Payment[]
   history           OrderStatusHistory[]
@@ -811,15 +816,20 @@ model OrderStatusHistory {
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  productId String
-  quantity  Int
-  unitPrice Float
-  deposit   Float   @default(0.0)
-  total     Float
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id])
+  id                     String    @id @default(uuid())
+  orderId                String
+  productId              String
+  quantity               Int
+  unitPrice              Float
+  deposit                Float     @default(0.0)
+  total                  Float
+  declaredReturnQuantity Int       @default(0)
+  verifiedReturnQuantity Int?
+  deliveryVerifiedById   String?
+  verificationTime       DateTime?
+  order                  Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product                Product   @relation(fields: [productId], references: [id])
+  deliveryVerifiedBy     User?     @relation("VerifiedOrderItems", fields: [deliveryVerifiedById], references: [id])
 }
 
 model Cart {
@@ -977,6 +987,14 @@ enum PromoType {
 enum OrderType {
   ONETIME_ORDER
   SUBSCRIPTION_ORDER
+}
+
+enum OrderSource {
+  CUSTOMER_APP
+  STAFF_CREATED
+  ADMIN_CREATED
+  PHONE_ORDER
+  WALK_IN
 }
 
 enum OrderStatus {

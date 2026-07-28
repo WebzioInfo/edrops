@@ -134,23 +134,25 @@ export class CatalogService {
 
   async createProduct(dto: CreateProductDto) {
     const { imageUrl, ...productData } = dto;
-    
+
     return this.prisma.product.create({
       data: {
         ...productData,
-        images: imageUrl ? {
-          create: [{ url: imageUrl, isPrimary: true }]
-        } : undefined
+        images: imageUrl
+          ? {
+              create: [{ url: imageUrl, isPrimary: true }],
+            }
+          : undefined,
       },
       include: {
         images: true,
-      }
+      },
     });
   }
 
   async updateProduct(id: string, dto: UpdateProductDto) {
     const { imageUrl, ...productData } = dto;
-    
+
     // First update product base data
     const updated = await this.prisma.product.update({
       where: { id },
@@ -159,13 +161,13 @@ export class CatalogService {
 
     // If a new image was uploaded, we can add it or replace existing
     if (imageUrl) {
-      await this.prisma.productImage.deleteMany({ where: { productId: id }});
+      await this.prisma.productImage.deleteMany({ where: { productId: id } });
       await this.prisma.productImage.create({
         data: {
           productId: id,
           url: imageUrl,
           isPrimary: true,
-        }
+        },
       });
     }
 

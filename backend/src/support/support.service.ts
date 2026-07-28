@@ -116,11 +116,12 @@ export class SupportService {
         message: dto.message,
         isInternal,
         attachments: {
-          create: dto.attachments?.map((a) => ({
-            fileUrl: a.fileUrl,
-            fileName: a.fileName,
-            fileType: a.fileType,
-          })) || [],
+          create:
+            dto.attachments?.map((a) => ({
+              fileUrl: a.fileUrl,
+              fileName: a.fileName,
+              fileType: a.fileType,
+            })) || [],
         },
       },
       include: {
@@ -233,19 +234,21 @@ export class SupportService {
 
   async getAdminAnalytics() {
     const total = await this.prisma.supportTicket.count();
-    const open = await this.prisma.supportTicket.count({ where: { status: 'OPEN' } });
-    
+    const open = await this.prisma.supportTicket.count({
+      where: { status: 'OPEN' },
+    });
+
     // Simple mock logic for overdue (In real app, check createdAt + SLAs)
     // High = 4h, Med = 24h, Low = 48h
     const now = new Date();
     const highLimit = new Date(now.getTime() - 4 * 60 * 60 * 1000);
-    
+
     const overdue = await this.prisma.supportTicket.count({
       where: {
         status: { notIn: ['RESOLVED', 'CLOSED'] },
         priority: 'HIGH',
-        createdAt: { lt: highLimit }
-      }
+        createdAt: { lt: highLimit },
+      },
     });
 
     const today = new Date();
@@ -253,18 +256,18 @@ export class SupportService {
     const resolvedToday = await this.prisma.supportTicket.count({
       where: {
         status: 'RESOLVED',
-        updatedAt: { gte: today }
-      }
+        updatedAt: { gte: today },
+      },
     });
 
     const byCategory = await this.prisma.supportTicket.groupBy({
       by: ['category'],
-      _count: { _all: true }
+      _count: { _all: true },
     });
 
     const byStatus = await this.prisma.supportTicket.groupBy({
       by: ['status'],
-      _count: { _all: true }
+      _count: { _all: true },
     });
 
     return {
@@ -273,7 +276,7 @@ export class SupportService {
       overdueTickets: overdue,
       resolvedToday,
       byCategory,
-      byStatus
+      byStatus,
     };
   }
 }

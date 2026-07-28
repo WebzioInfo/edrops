@@ -39,7 +39,11 @@ export class CartController {
     if (!req.user.customerId) {
       throw new BadRequestException('Only customer accounts can update cart');
     }
-    return this.cartService.addItem(req.user.customerId, body.productId, body.quantity);
+    return this.cartService.addItem(
+      req.user.customerId,
+      body.productId,
+      body.quantity,
+    );
   }
 
   @Delete('items/:productId')

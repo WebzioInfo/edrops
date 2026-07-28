@@ -29,17 +29,19 @@ export class SubscriptionScheduler {
           include: {
             addresses: true,
             user: true,
-          }
-        }
-      }
+          },
+        },
+      },
     });
 
     let generatedCount = 0;
 
     for (const schedule of schedules) {
       if (!schedule.customer.addresses.length) continue;
-      
-      const defaultAddress = schedule.customer.addresses.find(a => a.isDefault) || schedule.customer.addresses[0];
+
+      const defaultAddress =
+        schedule.customer.addresses.find((a) => a.isDefault) ||
+        schedule.customer.addresses[0];
 
       let todayQty = 0;
 
@@ -66,20 +68,24 @@ export class SubscriptionScheduler {
             orderType: 'SUBSCRIPTION_ORDER',
             scheduledDate: {
               gte: today,
-              lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
-            }
-          }
+              lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+            },
+          },
         });
 
         if (!existingOrder) {
           try {
             await this.prisma.$transaction(async (tx) => {
               // Get standard product for subscription
-              const product = await tx.product.findFirst({ where: { isJar: true } });
-              
+              const product = await tx.product.findFirst({
+                where: { isJar: true },
+              });
+
               if (!product) {
-                  this.logger.warn(`No subscription product found for generating order for customer ${schedule.customerId}`);
-                  return;
+                this.logger.warn(
+                  `No subscription product found for generating order for customer ${schedule.customerId}`,
+                );
+                return;
               }
 
               const order = await tx.order.create({
@@ -97,33 +103,38 @@ export class SubscriptionScheduler {
                       productId: product.id,
                       quantity: todayQty,
                       unitPrice: 0,
-                      total: 0
-                    }
-                  }
-                }
+                      total: 0,
+                    },
+                  },
+                },
               });
 
               // Create associated delivery logistical record tied to order
               await tx.delivery.create({
-                 data: {
-                     customerId: schedule.customerId,
-                     orderId: order.id,
-                     addressId: defaultAddress.id,
-                     scheduledFor: today,
-                     requiredQuantity: todayQty,
-                     status: OrderStatus.PENDING_ASSIGNMENT
-                 }
+                data: {
+                  customerId: schedule.customerId,
+                  orderId: order.id,
+                  addressId: defaultAddress.id,
+                  scheduledFor: today,
+                  requiredQuantity: todayQty,
+                  status: OrderStatus.PENDING_ASSIGNMENT,
+                },
               });
             });
 
             generatedCount++;
           } catch (error) {
-            this.logger.error(`Failed to generate subscription for customer ${schedule.customerId}:`, error);
+            this.logger.error(
+              `Failed to generate subscription for customer ${schedule.customerId}:`,
+              error,
+            );
           }
         }
       }
     }
 
-    this.logger.log(`Completed daily subscription generation. Generated ${generatedCount} orders.`);
+    this.logger.log(
+      `Completed daily subscription generation. Generated ${generatedCount} orders.`,
+    );
   }
 }

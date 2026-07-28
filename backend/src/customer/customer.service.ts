@@ -43,18 +43,24 @@ export class CustomerService {
     } = createCustomerDto;
 
     // Validation
-    const existingPhone = await this.prisma.user.findUnique({ where: { phone } });
+    const existingPhone = await this.prisma.user.findUnique({
+      where: { phone },
+    });
     if (existingPhone) {
       throw new BadRequestException('Phone number is already registered.');
     }
     if (email) {
-      const existingEmail = await this.prisma.user.findUnique({ where: { email } });
+      const existingEmail = await this.prisma.user.findUnique({
+        where: { email },
+      });
       if (existingEmail) {
         throw new BadRequestException('Email is already registered.');
       }
     }
     if (gstNumber) {
-      const existingGst = await this.prisma.customer.findUnique({ where: { gstNumber } });
+      const existingGst = await this.prisma.customer.findUnique({
+        where: { gstNumber },
+      });
       if (existingGst) {
         throw new BadRequestException('GST Number is already registered.');
       }
@@ -103,7 +109,7 @@ export class CustomerService {
       // 3. Create Addresses
       if (addresses && addresses.length > 0) {
         await tx.address.createMany({
-          data: addresses.map(addr => ({
+          data: addresses.map((addr) => ({
             customerId: customer.id,
             houseName: addr.houseName,
             buildingName: addr.buildingName,
@@ -134,21 +140,24 @@ export class CustomerService {
       // They will be created on the fly when required for a specific brand
 
       // 6. Delivery Schedule rules
-      if (preferredTimeSlot || (preferredDeliveryDays && preferredDeliveryDays.length > 0)) {
+      if (
+        preferredTimeSlot ||
+        (preferredDeliveryDays && preferredDeliveryDays.length > 0)
+      ) {
         const schedule = await tx.deliverySchedule.create({
           data: {
             customerId: customer.id,
-          }
+          },
         });
         if (preferredDeliveryDays && preferredDeliveryDays.length > 0) {
           await tx.deliveryScheduleRule.createMany({
-            data: preferredDeliveryDays.map(day => ({
+            data: preferredDeliveryDays.map((day) => ({
               deliveryScheduleId: schedule.id,
               type: 'WEEKLY',
               dayOfWeek: day,
               quantity: 1, // Default to 1, can be customized later
               customNotes: deliveryInstructions,
-            }))
+            })),
           });
         }
       }
@@ -162,7 +171,7 @@ export class CustomerService {
             entityType: 'Customer',
             entityId: customer.id,
             newValues: { phone, email, customerType },
-          }
+          },
         });
       }
 
@@ -172,7 +181,9 @@ export class CustomerService {
     // Notify
     let createdByName = 'System';
     if (createdByUserId) {
-      const creator = await this.prisma.user.findUnique({ where: { id: createdByUserId } });
+      const creator = await this.prisma.user.findUnique({
+        where: { id: createdByUserId },
+      });
       if (creator) createdByName = `${creator.firstName} ${creator.lastName}`;
     }
 
@@ -227,7 +238,11 @@ export class CustomerService {
     });
   }
 
-  update(id: string, updateCustomerDto: UpdateCustomerDto, updatedByUserId?: string) {
+  update(
+    id: string,
+    updateCustomerDto: UpdateCustomerDto,
+    updatedByUserId?: string,
+  ) {
     // Only basic update logic provided here for brevity, full implementation requires transactional updates to related entities.
     return this.prisma.customer.update({
       where: { id },
@@ -242,7 +257,10 @@ export class CustomerService {
   remove(id: string) {
     // Soft delete can be implemented by setting isActive = false on User
     return this.prisma.$transaction(async (tx) => {
-      const customer = await tx.customer.findUnique({ where: { id }, include: { user: true } });
+      const customer = await tx.customer.findUnique({
+        where: { id },
+        include: { user: true },
+      });
       if (customer) {
         await tx.user.update({
           where: { id: customer.userId },

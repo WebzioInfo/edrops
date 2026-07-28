@@ -30,6 +30,16 @@ export class DeliveryService {
     return this.deliveryEngine.assignDelivery(deliveryId, deliveryPartnerId);
   }
 
+  async assignBulk(deliveryIds: string[], deliveryPartnerId: string) {
+    const results: any[] = [];
+    for (const id of deliveryIds) {
+      results.push(
+        await this.deliveryEngine.assignDelivery(id, deliveryPartnerId),
+      );
+    }
+    return results;
+  }
+
   async submitReport(
     deliveryId: string,
     data: { deliveredQty: number; emptyCollected: number; notes?: string },
@@ -64,12 +74,11 @@ export class DeliveryService {
     );
   }
 
-  async updateStatus(
-    deliveryId: string,
-    status: OrderStatus,
-    reason?: string,
-  ) {
-    if (status === OrderStatus.CANCELLED || status === OrderStatus.RESCHEDULED) {
+  async updateStatus(deliveryId: string, status: OrderStatus, reason?: string) {
+    if (
+      status === OrderStatus.CANCELLED ||
+      status === OrderStatus.RESCHEDULED
+    ) {
       return this.prisma.delivery.update({
         where: { id: deliveryId },
         data: {
@@ -92,13 +101,18 @@ export class DeliveryService {
     }
 
     if (status === OrderStatus.FAILED) {
-      return this.deliveryEngine.failDelivery(deliveryId, reason || 'Failed delivery');
+      return this.deliveryEngine.failDelivery(
+        deliveryId,
+        reason || 'Failed delivery',
+      );
     }
 
     if (status === OrderStatus.DELIVERED) {
       // NOTE: For true delivery completion we usually need confirmed qtys.
       // We will assume the required quantity is fully delivered for this test endpoint.
-      const delivery = await this.prisma.delivery.findUnique({ where: { id: deliveryId }});
+      const delivery = await this.prisma.delivery.findUnique({
+        where: { id: deliveryId },
+      });
       const brand = await this.prisma.brand.findFirst();
       return this.deliveryEngine.confirmDelivery(
         deliveryId,
@@ -106,7 +120,7 @@ export class DeliveryService {
         delivery?.requiredQuantity || 1,
         0, // empty collected
         0, // damaged
-        reason || 'Marked delivered via status API'
+        reason || 'Marked delivered via status API',
       );
     }
 
@@ -119,7 +133,9 @@ export class DeliveryService {
   private getMonday(d: Date) {
     const day = d.getUTCDay();
     const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff));
+    const monday = new Date(
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff),
+    );
     return monday;
   }
 
@@ -156,9 +172,11 @@ export class DeliveryService {
     // Filter out deliveries that belong to future weeks
     whereClause.scheduledFor = {
       ...(whereClause.scheduledFor || {}),
-      lte: whereClause.scheduledFor?.lte && whereClause.scheduledFor.lte < currentWeekEnd 
-        ? whereClause.scheduledFor.lte 
-        : currentWeekEnd
+      lte:
+        whereClause.scheduledFor?.lte &&
+        whereClause.scheduledFor.lte < currentWeekEnd
+          ? whereClause.scheduledFor.lte
+          : currentWeekEnd,
     };
 
     const deliveries = await this.prisma.delivery.findMany({
@@ -180,16 +198,20 @@ export class DeliveryService {
       const start = this.getMonday(d.scheduledFor);
       const end = new Date(start);
       end.setDate(end.getDate() + 6);
-      
+
       const weekKey = start.toISOString();
-      
+
       if (!weeksMap.has(weekKey)) {
         // Simple ISO week calculation
-        const dDate = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()));
+        const dDate = new Date(
+          Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()),
+        );
         const dayNum = dDate.getUTCDay() || 7;
         dDate.setUTCDate(dDate.getUTCDate() + 4 - dayNum);
-        const yearStart = new Date(Date.UTC(dDate.getUTCFullYear(),0,1));
-        const weekNo = Math.ceil((((dDate.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
+        const yearStart = new Date(Date.UTC(dDate.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil(
+          ((dDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+        );
 
         weeksMap.set(weekKey, {
           startDate: start,
@@ -201,52 +223,61 @@ export class DeliveryService {
             missed: 0,
             cancelled: 0,
           },
-          deliveries: []
+          deliveries: [],
         });
       }
 
       const weekData = weeksMap.get(weekKey);
       weekData.deliveries.push(d);
-      
+
       globalStats.totalDeliveries++;
 
       if (d.status === OrderStatus.DELIVERED) {
         weekData.stats.delivered++;
         globalStats.deliveredCount++;
-      }
-      else if (d.status === OrderStatus.FAILED || d.status === OrderStatus.RESCHEDULED) {
+      } else if (
+        d.status === OrderStatus.FAILED ||
+        d.status === OrderStatus.RESCHEDULED
+      ) {
         weekData.stats.missed++;
         globalStats.missedCount++;
-      }
-      else if (d.status === OrderStatus.CANCELLED) {
+      } else if (d.status === OrderStatus.CANCELLED) {
         weekData.stats.cancelled++;
         globalStats.cancelledCount++;
-      }
-      else {
-        weekData.stats.scheduled++; 
+      } else {
+        weekData.stats.scheduled++;
         globalStats.scheduledCount++;
       }
     }
 
-    const completedOrMissed = globalStats.deliveredCount + globalStats.missedCount;
-    globalStats.successRate = completedOrMissed > 0 
-      ? Math.round((globalStats.deliveredCount / completedOrMissed) * 100) 
-      : 0;
+    const completedOrMissed =
+      globalStats.deliveredCount + globalStats.missedCount;
+    globalStats.successRate =
+      completedOrMissed > 0
+        ? Math.round((globalStats.deliveredCount / completedOrMissed) * 100)
+        : 0;
 
     const weeks = Array.from(weeksMap.values());
-    weeks.forEach(w => {
-      const total = w.stats.scheduled + w.stats.delivered + w.stats.missed + w.stats.cancelled;
+    weeks.forEach((w) => {
+      const total =
+        w.stats.scheduled +
+        w.stats.delivered +
+        w.stats.missed +
+        w.stats.cancelled;
       w.stats.total = total;
-      
+
       const weekCompletedOrMissed = w.stats.delivered + w.stats.missed;
-      w.stats.successRate = weekCompletedOrMissed > 0 
-        ? Math.round((w.stats.delivered / weekCompletedOrMissed) * 100) 
-        : 0;
+      w.stats.successRate =
+        weekCompletedOrMissed > 0
+          ? Math.round((w.stats.delivered / weekCompletedOrMissed) * 100)
+          : 0;
     });
 
     return {
       summary: globalStats,
-      weeks: weeks.sort((a, b) => b.startDate.getTime() - a.startDate.getTime())
+      weeks: weeks.sort(
+        (a, b) => b.startDate.getTime() - a.startDate.getTime(),
+      ),
     };
   }
 

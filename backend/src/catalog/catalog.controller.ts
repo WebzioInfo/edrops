@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Patch, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Patch,
+  Delete,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import 'multer';
 import { AuthGuard } from '@nestjs/passport';
@@ -69,7 +81,10 @@ export class CatalogController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @UseInterceptors(FileInterceptor('image', multerOptions))
-  async createCategory(@Body() dto: CreateCategoryDto, @UploadedFile() file?: any) {
+  async createCategory(
+    @Body() dto: CreateCategoryDto,
+    @UploadedFile() file?: any,
+  ) {
     if (file) {
       dto.imageUrl = file.path;
     }
@@ -123,7 +138,10 @@ export class CatalogController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @UseInterceptors(FileInterceptor('image', multerOptions))
-  async createProduct(@Body() dto: CreateProductDto, @UploadedFile() file?: any) {
+  async createProduct(
+    @Body() dto: CreateProductDto,
+    @UploadedFile() file?: any,
+  ) {
     if (file) {
       dto.imageUrl = file.path;
     }

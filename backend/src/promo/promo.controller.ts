@@ -34,7 +34,9 @@ export class PromoController {
   ) {
     const customerId = req.user.customerId || req.user.sub;
     if (!customerId) {
-      throw new BadRequestException('Only customer accounts can validate promo codes');
+      throw new BadRequestException(
+        'Only customer accounts can validate promo codes',
+      );
     }
     return this.promoService.validateCode(
       body.code,
@@ -60,7 +62,9 @@ export class PromoController {
   ) {
     const customerId = req.user.customerId || req.user.sub;
     if (!customerId) {
-      throw new BadRequestException('Only customer accounts can redeem promo codes');
+      throw new BadRequestException(
+        'Only customer accounts can redeem promo codes',
+      );
     }
     return this.promoService.redeemCode(
       body.code,

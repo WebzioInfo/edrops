@@ -101,12 +101,16 @@ export class DeliveryEngine {
   async syncCustomerSchedule(customerId: string, weeksOut: number = 8) {
     const now = new Date();
     // Force strict UTC midnight to avoid local timezone drift
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+
     // Calculate the start of the current week (Monday)
     const day = today.getUTCDay();
     const diff = today.getUTCDate() - day + (day === 0 ? -6 : 1);
-    const startOfWeek = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), diff));
+    const startOfWeek = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), diff),
+    );
 
     // Fetch the customer's active schedule and rules
     const schedule = await this.prisma.deliverySchedule.findUnique({
@@ -124,26 +128,28 @@ export class DeliveryEngine {
       where: {
         customerId,
         scheduledFor: { gte: startOfWeek },
-        status: { in: [OrderStatus.PENDING_ASSIGNMENT, OrderStatus.ASSIGNED] }
-      }
+        status: { in: [OrderStatus.PENDING_ASSIGNMENT, OrderStatus.ASSIGNED] },
+      },
     });
 
     if (!schedule || !schedule.isActive || schedule.rules.length === 0) {
       return { success: true, generatedCount: 0 };
     }
 
-    const defaultAddress = schedule.customer.addresses.find((a) => a.isDefault) || schedule.customer.addresses[0];
+    const defaultAddress =
+      schedule.customer.addresses.find((a) => a.isDefault) ||
+      schedule.customer.addresses[0];
     if (!defaultAddress) return { success: true, generatedCount: 0 };
 
     let generatedCount = 0;
     const daysToGenerate = weeksOut * 7;
-    
+
     // We generate from START OF WEEK to N weeks out.
     for (let i = 0; i < daysToGenerate; i++) {
       const targetDate = new Date(startOfWeek.getTime());
       targetDate.setUTCDate(startOfWeek.getUTCDate() + i);
       const dayOfWeek = targetDate.getUTCDay();
-      
+
       let dailyQty = 0;
 
       for (const rule of schedule.rules) {
@@ -164,7 +170,7 @@ export class DeliveryEngine {
       if (dailyQty > 0) {
         // Safe upsert or create due to the unique constraint
         const existing = await this.prisma.delivery.findFirst({
-          where: { customerId, scheduledFor: targetDate }
+          where: { customerId, scheduledFor: targetDate },
         });
 
         if (!existing) {
@@ -175,7 +181,7 @@ export class DeliveryEngine {
               scheduledFor: targetDate,
               requiredQuantity: dailyQty,
               status: OrderStatus.PENDING_ASSIGNMENT,
-            }
+            },
           });
           generatedCount++;
         }

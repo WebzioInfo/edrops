@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { INotificationProvider, NotificationChannel, NotificationPayload } from '../interfaces/notification-provider.interface';
+import {
+  INotificationProvider,
+  NotificationChannel,
+  NotificationPayload,
+} from '../interfaces/notification-provider.interface';
 import { EventsGateway } from '../../events/events.gateway';
 
 @Injectable()
@@ -13,7 +17,11 @@ export class SocketProvider implements INotificationProvider {
     const room = payload.recipients?.socketRoom;
     if (!room) {
       // Default to staff-notifications if no specific room is provided
-      this.eventsGateway.emitEvent('staff-notifications', payload.type, payload.data);
+      this.eventsGateway.emitEvent(
+        'staff-notifications',
+        payload.type,
+        payload.data,
+      );
     } else {
       this.eventsGateway.emitEvent(room, payload.type, payload.data);
     }

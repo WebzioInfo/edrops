@@ -81,7 +81,7 @@ export class RechargeEngine {
         this.notificationService.notifyPackagePurchased({
           customerId,
           jarsAdded,
-          balanceAfter
+          balanceAfter,
         });
       });
 

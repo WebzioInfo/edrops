@@ -81,7 +81,7 @@ export class DeliveryController {
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
-    @Body() body: { status: any; reason?: string }
+    @Body() body: { status: any; reason?: string },
   ) {
     return this.deliveryService.updateStatus(id, body.status, body.reason);
   }

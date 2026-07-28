@@ -10,7 +10,7 @@ import * as crypto from 'crypto';
 export class NotificationService {
   constructor(
     private prisma: PrismaService,
-    private dispatcher: NotificationDispatcher
+    private dispatcher: NotificationDispatcher,
   ) {}
 
   // Keep existing methods for backward compatibility if needed by generic CRUD controllers
@@ -65,21 +65,25 @@ export class NotificationService {
       type: 'NEW_ORDER',
       title: 'New Order Received',
       message: `${data.customerName} placed Order #${data.orderId.substring(0, 8)}`,
-      channels: [NotificationChannel.SLACK, NotificationChannel.SOCKET, NotificationChannel.DATABASE],
+      channels: [
+        NotificationChannel.SLACK,
+        NotificationChannel.SOCKET,
+        NotificationChannel.DATABASE,
+      ],
       data: {
         'Order ID': data.orderId,
         'Customer Name': data.customerName,
-        'Phone': data.customerPhone || 'N/A',
-        'Amount': `₹${data.totalAmount}`,
+        Phone: data.customerPhone || 'N/A',
+        Amount: `₹${data.totalAmount}`,
         'Payment Method': data.paymentMethod,
-        'Address': data.deliveryAddress || 'N/A',
+        Address: data.deliveryAddress || 'N/A',
         // Pass original payload structure down for socket clients who expect specific format
         orderId: data.orderId,
         amount: data.totalAmount,
         customerId: data.customerId,
         customerName: data.customerName,
         time: new Date(),
-      }
+      },
     });
   }
 
@@ -96,13 +100,13 @@ export class NotificationService {
       channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
       recipients: {
         userId: data.customerId,
-        socketRoom: `customer-${data.customerId}`
+        socketRoom: `customer-${data.customerId}`,
       },
       data: {
         orderId: data.orderId,
         status: data.newStatus,
-        link: '/customer/orders'
-      }
+        link: '/customer/orders',
+      },
     });
 
     // Also notify staff via socket
@@ -113,12 +117,12 @@ export class NotificationService {
       message: `Order #${data.orderId.substring(0, 8)} is now ${data.newStatus.replace(/_/g, ' ')}.`,
       channels: [NotificationChannel.SOCKET],
       recipients: {
-        socketRoom: 'staff-notifications'
+        socketRoom: 'staff-notifications',
       },
       data: {
         orderId: data.orderId,
-        status: data.newStatus
-      }
+        status: data.newStatus,
+      },
     });
   }
 
@@ -133,16 +137,20 @@ export class NotificationService {
       type: 'PAYMENT_SUCCESS',
       title: 'Payment Successful',
       message: `Payment of ₹${data.amount} received successfully.`,
-      channels: [NotificationChannel.SLACK, NotificationChannel.SOCKET, NotificationChannel.DATABASE],
+      channels: [
+        NotificationChannel.SLACK,
+        NotificationChannel.SOCKET,
+        NotificationChannel.DATABASE,
+      ],
       recipients: {
         userId: data.customerId,
-        socketRoom: `customer-${data.customerId}`
+        socketRoom: `customer-${data.customerId}`,
       },
       data: {
         'Payment ID': data.paymentId,
         'Order ID': data.orderId || 'N/A',
-        'Amount': `₹${data.amount}`,
-      }
+        Amount: `₹${data.amount}`,
+      },
     });
   }
 
@@ -159,8 +167,8 @@ export class NotificationService {
       channels: [NotificationChannel.SLACK, NotificationChannel.DATABASE],
       data: {
         'Payment ID': data.paymentId,
-        'Reason': data.reason,
-      }
+        Reason: data.reason,
+      },
     });
   }
 
@@ -174,18 +182,19 @@ export class NotificationService {
       type: 'NEW_TICKET',
       title: 'New Support Ticket',
       message: `Ticket #${data.ticketId.substring(0, 8)} created: ${data.subject}`,
-      channels: [NotificationChannel.SLACK, NotificationChannel.SOCKET, NotificationChannel.DATABASE],
+      channels: [
+        NotificationChannel.SLACK,
+        NotificationChannel.SOCKET,
+        NotificationChannel.DATABASE,
+      ],
       data: {
         'Ticket ID': data.ticketId,
-        'Subject': data.subject,
-      }
+        Subject: data.subject,
+      },
     });
   }
 
-  notifySupportReply(data: {
-    ticketId: string;
-    message: any;
-  }) {
+  notifySupportReply(data: { ticketId: string; message: any }) {
     this.dispatcher.dispatch({
       id: crypto.randomUUID(),
       type: 'NEW_SUPPORT_MESSAGE',
@@ -193,14 +202,11 @@ export class NotificationService {
       message: `New message on ticket #${data.ticketId.substring(0, 8)}`,
       channels: [NotificationChannel.SOCKET],
       recipients: { socketRoom: `ticket_${data.ticketId}` },
-      data: data.message
+      data: data.message,
     });
   }
 
-  notifySupportStatusUpdate(data: {
-    ticketId: string;
-    status: string;
-  }) {
+  notifySupportStatusUpdate(data: { ticketId: string; status: string }) {
     this.dispatcher.dispatch({
       id: crypto.randomUUID(),
       type: 'TICKET_STATUS_CHANGED',
@@ -208,14 +214,11 @@ export class NotificationService {
       message: `Ticket #${data.ticketId.substring(0, 8)} is now ${data.status}`,
       channels: [NotificationChannel.SOCKET],
       recipients: { socketRoom: `ticket_${data.ticketId}` },
-      data: { id: data.ticketId, status: data.status }
+      data: { id: data.ticketId, status: data.status },
     });
   }
 
-  notifySupportAssigned(data: {
-    ticketId: string;
-    ticket: any;
-  }) {
+  notifySupportAssigned(data: { ticketId: string; ticket: any }) {
     this.dispatcher.dispatch({
       id: crypto.randomUUID(),
       type: 'TICKET_ASSIGNED',
@@ -223,22 +226,22 @@ export class NotificationService {
       message: `Ticket #${data.ticketId.substring(0, 8)} has been assigned.`,
       channels: [NotificationChannel.SOCKET],
       recipients: { socketRoom: `ticket_${data.ticketId}` },
-      data: data.ticket
+      data: data.ticket,
     });
   }
 
-  notifyLowBalance(data: {
-    customerId: string;
-    balance: number;
-  }) {
+  notifyLowBalance(data: { customerId: string; balance: number }) {
     this.dispatcher.dispatch({
       id: crypto.randomUUID(),
       type: 'LOW_BALANCE',
       title: 'Low prepaid jar balance!',
       message: `You only have ${data.balance} jars remaining in your prepaid balance. Please purchase a new package to prevent delivery interruptions.`,
       channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
-      recipients: { userId: data.customerId, socketRoom: `customer-${data.customerId}` },
-      data: { balance: data.balance, link: '/customer/wallet' }
+      recipients: {
+        userId: data.customerId,
+        socketRoom: `customer-${data.customerId}`,
+      },
+      data: { balance: data.balance, link: '/customer/wallet' },
     });
   }
 
@@ -254,8 +257,11 @@ export class NotificationService {
       title: 'Delivery Completed Successfully',
       message: `Your scheduled delivery of ${data.deliveredQty} water jars has been completed. Empty jars collected: ${data.emptyCollected}. Remaining prepaid balance: ${data.balanceAfter} jars.`,
       channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
-      recipients: { userId: data.customerId, socketRoom: `customer-${data.customerId}` },
-      data: { link: '/customer/deliveries' }
+      recipients: {
+        userId: data.customerId,
+        socketRoom: `customer-${data.customerId}`,
+      },
+      data: { link: '/customer/deliveries' },
     });
   }
 
@@ -270,8 +276,11 @@ export class NotificationService {
       title: 'Delivery Failed',
       message: `Your scheduled delivery could not be completed. Reason: ${data.reason}`,
       channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
-      recipients: { userId: data.customerId, socketRoom: `customer-${data.customerId}` },
-      data: { deliveryId: data.deliveryId, reason: data.reason }
+      recipients: {
+        userId: data.customerId,
+        socketRoom: `customer-${data.customerId}`,
+      },
+      data: { deliveryId: data.deliveryId, reason: data.reason },
     });
   }
 
@@ -288,13 +297,13 @@ export class NotificationService {
       channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
       recipients: {
         userId: data.customerId,
-        socketRoom: `customer-${data.customerId}`
+        socketRoom: `customer-${data.customerId}`,
       },
       data: {
         amount: data.amount,
         newBalance: data.newBalance,
-        link: '/customer/wallet'
-      }
+        link: '/customer/wallet',
+      },
     });
   }
 
@@ -311,16 +320,13 @@ export class NotificationService {
       channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
       recipients: {
         userId: data.customerId,
-        socketRoom: `customer-${data.customerId}`
+        socketRoom: `customer-${data.customerId}`,
       },
-      data: { link: '/customer/wallet' }
+      data: { link: '/customer/wallet' },
     });
   }
 
-  notifySystemError(data: {
-    context: string;
-    error: string;
-  }) {
+  notifySystemError(data: { context: string; error: string }) {
     this.dispatcher.dispatch({
       id: crypto.randomUUID(),
       type: 'SYSTEM_ERROR',
@@ -328,9 +334,9 @@ export class NotificationService {
       message: `An error occurred in ${data.context}`,
       channels: [NotificationChannel.SLACK],
       data: {
-        'Context': data.context,
-        'Error': data.error,
-      }
+        Context: data.context,
+        Error: data.error,
+      },
     });
   }
 
@@ -351,12 +357,12 @@ export class NotificationService {
       recipients: { socketRoom: 'staff-notifications' },
       data: {
         'Customer ID': data.customerId,
-        'Name': data.customerName,
-        'Email': data.email || 'N/A',
-        'Phone': data.phone,
-        'Type': data.customerType,
+        Name: data.customerName,
+        Email: data.email || 'N/A',
+        Phone: data.phone,
+        Type: data.customerType,
         'Created By': data.createdBy,
-      }
+      },
     });
   }
 }

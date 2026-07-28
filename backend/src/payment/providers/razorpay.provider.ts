@@ -24,7 +24,7 @@ export class RazorpayProvider implements PaymentProvider {
   constructor() {
     const keyId = process.env.RAZORPAY_KEY_ID || '';
     this.isMock = keyId.startsWith('rzp_test_mock');
-    
+
     if (!this.isMock) {
       this.razorpay = new Razorpay({
         key_id: keyId,
@@ -39,7 +39,9 @@ export class RazorpayProvider implements PaymentProvider {
 
   async createOrder(params: CreateOrderParams): Promise<PaymentOrderInfo> {
     if (this.isMock) {
-      this.logger.log(`Mocking Razorpay order creation for receipt ${params.receiptId}`);
+      this.logger.log(
+        `Mocking Razorpay order creation for receipt ${params.receiptId}`,
+      );
       return {
         providerOrderId: `order_mock_${Math.random().toString(36).substring(7)}`,
         amount: params.amount,

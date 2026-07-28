@@ -19,7 +19,7 @@ import { EventsModule } from '../events/events.module';
   imports: [PrismaModule, EventsModule],
   controllers: [NotificationController, StaffNotificationController],
   providers: [
-    NotificationService, 
+    NotificationService,
     StaffNotificationService,
     NotificationDispatcher,
     SlackProvider,
@@ -27,7 +27,7 @@ import { EventsModule } from '../events/events.module';
     DatabaseProvider,
     EmailProvider,
     PushProvider,
-    WhatsAppProvider
+    WhatsAppProvider,
   ],
   exports: [NotificationService, StaffNotificationService], // Exported for use in other modules
 })

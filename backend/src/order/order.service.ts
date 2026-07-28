@@ -16,11 +16,11 @@ export class OrderService {
       include: {
         items: {
           include: {
-            product: true
-          }
-        }
+            product: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -29,19 +29,25 @@ export class OrderService {
       include: {
         customer: {
           include: {
-            user: { select: { firstName: true, lastName: true, id: true } }
-          }
+            user: { select: { firstName: true, lastName: true, id: true } },
+          },
         },
         items: {
-          include: { product: true }
-        }
+          include: { product: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
-      take: 100 // Limit to recent 100 for performance
+      take: 100, // Limit to recent 100 for performance
     });
   }
 
-  async updateOrderStatus(orderId: string, newStatus: OrderStatus, staffUserId: string, reason?: string) {
+  async updateOrderStatus(
+    orderId: string,
+    newStatus: OrderStatus,
+    staffUserId: string,
+    reason?: string,
+    isAdminOverride: boolean = false,
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { customer: { include: { user: true } } },
@@ -56,7 +62,13 @@ export class OrderService {
       PENDING_ASSIGNMENT: ['ASSIGNED', 'CANCELLED'],
       ASSIGNED: ['ACCEPTED_BY_PARTNER', 'CANCELLED'],
       ACCEPTED_BY_PARTNER: ['OUT_FOR_DELIVERY', 'CANCELLED'],
-      OUT_FOR_DELIVERY: ['DELIVERED', 'PARTIALLY_DELIVERED', 'CUSTOMER_NOT_AVAILABLE', 'FAILED', 'RETURNED'],
+      OUT_FOR_DELIVERY: [
+        'DELIVERED',
+        'PARTIALLY_DELIVERED',
+        'CUSTOMER_NOT_AVAILABLE',
+        'FAILED',
+        'RETURNED',
+      ],
       DELIVERED: ['COMPLETED'],
       PARTIALLY_DELIVERED: ['COMPLETED'],
       CUSTOMER_NOT_AVAILABLE: ['RESCHEDULED', 'CANCELLED'],
@@ -67,8 +79,13 @@ export class OrderService {
       COMPLETED: [],
     };
 
-    if (!validTransitions[order.status]?.includes(newStatus)) {
-      throw new BadRequestException('Invalid status transition from ' + order.status + ' to ' + newStatus);
+    if (
+      !isAdminOverride &&
+      !validTransitions[order.status]?.includes(newStatus)
+    ) {
+      throw new BadRequestException(
+        'Invalid status transition from ' + order.status + ' to ' + newStatus,
+      );
     }
 
     // Use a transaction to ensure DB consistency

@@ -1,4 +1,15 @@
-import { IsString, IsOptional, IsEmail, IsNotEmpty, IsEnum, IsNumber, Min, IsBoolean, ValidateNested, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsNotEmpty,
+  IsEnum,
+  IsNumber,
+  Min,
+  IsBoolean,
+  ValidateNested,
+  IsArray,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AddressDto {
@@ -24,7 +35,7 @@ export class CreateCustomerDto {
   @IsEmail() @IsOptional() email?: string;
   @IsString() @IsOptional() gender?: string;
   @IsString() @IsOptional() dateOfBirth?: string;
-  
+
   @IsString() @IsOptional() customerType?: string;
   @IsString() @IsOptional() gstNumber?: string;
   @IsString() @IsOptional() companyName?: string;
@@ -38,7 +49,10 @@ export class CreateCustomerDto {
   addresses?: AddressDto[];
 
   @IsString() @IsOptional() preferredTimeSlot?: string;
-  @IsArray() @IsOptional() @IsNumber({}, { each: true }) preferredDeliveryDays?: number[];
+  @IsArray()
+  @IsOptional()
+  @IsNumber({}, { each: true })
+  preferredDeliveryDays?: number[];
   @IsString() @IsOptional() deliveryInstructions?: string;
 
   @IsNumber() @IsOptional() @Min(0) openingWalletBalance?: number;

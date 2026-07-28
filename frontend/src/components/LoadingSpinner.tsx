@@ -3,9 +3,10 @@ interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   fullPage?: boolean;
   label?: string;
+  light?: boolean;
 }
 
-export default function LoadingSpinner({ className = '', size = 'md', fullPage = false, label }: LoadingSpinnerProps) {
+export default function LoadingSpinner({ className = '', size = 'md', fullPage = false, label, light = false }: LoadingSpinnerProps) {
   const sizeClasses = {
     sm: 'h-6 w-6 border-2',
     md: 'h-10 w-10 border-4',
@@ -14,7 +15,7 @@ export default function LoadingSpinner({ className = '', size = 'md', fullPage =
 
   const spinner = (
     <div className={`flex flex-col items-center justify-center gap-3 ${className}`}>
-      <div className={`animate-spin rounded-full border-slate-200 border-t-[#0F6E8C] ${sizeClasses[size]}`} />
+      <div className={`animate-spin rounded-full ${light ? 'border-white/30 border-t-white' : 'border-slate-200 border-t-[#0F6E8C]'} ${sizeClasses[size]}`} />
       {label && <p className="text-sm font-semibold text-slate-500">{label}</p>}
     </div>
   );

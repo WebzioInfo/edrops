@@ -9,7 +9,11 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CheckoutService } from './checkout.service';
-import { ValidateCheckoutDto, InitiateCheckoutDto, ConfirmCheckoutDto } from './dto/checkout.dto';
+import {
+  ValidateCheckoutDto,
+  InitiateCheckoutDto,
+  ConfirmCheckoutDto,
+} from './dto/checkout.dto';
 import { Idempotent } from '../common/decorators/idempotent.decorator';
 
 @Controller('checkout')
@@ -25,7 +29,9 @@ export class CheckoutController {
   @Post('validate')
   validateCheckout(@Req() req, @Body() dto: ValidateCheckoutDto) {
     if (!req.user.customerId) {
-      throw new BadRequestException('Only customer accounts can validate checkout');
+      throw new BadRequestException(
+        'Only customer accounts can validate checkout',
+      );
     }
     return this.checkoutService.validateCheckout(req.user.customerId, dto);
   }
@@ -34,7 +40,9 @@ export class CheckoutController {
   @Idempotent()
   initiateCheckout(@Req() req, @Body() dto: InitiateCheckoutDto) {
     if (!req.user.customerId) {
-      throw new BadRequestException('Only customer accounts can initialize checkout');
+      throw new BadRequestException(
+        'Only customer accounts can initialize checkout',
+      );
     }
     return this.checkoutService.initiateCheckout(req.user.customerId, dto);
   }
@@ -43,7 +51,9 @@ export class CheckoutController {
   @Idempotent()
   confirmCheckout(@Req() req, @Body() dto: ConfirmCheckoutDto) {
     if (!req.user.customerId) {
-      throw new BadRequestException('Only customer accounts can confirm checkout');
+      throw new BadRequestException(
+        'Only customer accounts can confirm checkout',
+      );
     }
     return this.checkoutService.confirmCheckout(req.user.customerId, dto);
   }

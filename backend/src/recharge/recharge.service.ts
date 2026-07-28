@@ -77,7 +77,7 @@ export class RechargeService {
         requiredAmount,
         pkg.jarCount,
         payment.id,
-        tx
+        tx,
       );
 
       if (data.promoCode) {

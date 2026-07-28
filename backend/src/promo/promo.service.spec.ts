@@ -133,9 +133,9 @@ describe('PromoService', () => {
       });
       prismaMock.promoRedemption.count.mockResolvedValue(0);
 
-      await expect(
-        service.validateCode('TEST', 'cust-1', 150),
-      ).rejects.toThrow(/Minimum order amount/);
+      await expect(service.validateCode('TEST', 'cust-1', 150)).rejects.toThrow(
+        /Minimum order amount/,
+      );
     });
 
     it('should calculate PERCENTAGE discount correctly and apply cap', async () => {
@@ -203,7 +203,13 @@ describe('PromoService', () => {
       });
       prismaMock.promoRedemption.count.mockResolvedValue(0);
 
-      const res = await service.validateCode('TEST', 'cust-1', 300, 'ONETIME_ORDER', 50);
+      const res = await service.validateCode(
+        'TEST',
+        'cust-1',
+        300,
+        'ONETIME_ORDER',
+        50,
+      );
       expect(res.calculatedDiscount).toBe(50);
     });
 
@@ -226,9 +232,9 @@ describe('PromoService', () => {
       prismaMock.promoRedemption.count.mockResolvedValue(0);
       prismaMock.order.count.mockResolvedValue(1); // Already has an order
 
-      await expect(
-        service.validateCode('TEST', 'cust-1', 200),
-      ).rejects.toThrow('This promo code is only valid for your first order');
+      await expect(service.validateCode('TEST', 'cust-1', 200)).rejects.toThrow(
+        'This promo code is only valid for your first order',
+      );
     });
 
     it('should validate SUBSCRIPTION promo correctly', async () => {
@@ -251,7 +257,9 @@ describe('PromoService', () => {
 
       await expect(
         service.validateCode('TEST', 'cust-1', 200, 'ONETIME_ORDER'),
-      ).rejects.toThrow('This promo code is only valid for subscription orders');
+      ).rejects.toThrow(
+        'This promo code is only valid for subscription orders',
+      );
     });
   });
 });

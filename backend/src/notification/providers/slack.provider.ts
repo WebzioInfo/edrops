@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { INotificationProvider, NotificationChannel, NotificationPayload } from '../interfaces/notification-provider.interface';
+import {
+  INotificationProvider,
+  NotificationChannel,
+  NotificationPayload,
+} from '../interfaces/notification-provider.interface';
 
 @Injectable()
 export class SlackProvider implements INotificationProvider {
@@ -13,7 +17,9 @@ export class SlackProvider implements INotificationProvider {
 
   async send(payload: NotificationPayload): Promise<void> {
     if (!this.webhookUrl) {
-      this.logger.warn('SLACK_WEBHOOK_URL not configured. Skipping Slack notification.');
+      this.logger.warn(
+        'SLACK_WEBHOOK_URL not configured. Skipping Slack notification.',
+      );
       return;
     }
 
@@ -53,14 +59,18 @@ export class SlackProvider implements INotificationProvider {
     if (payload.data) {
       const fields: any[] = [];
       for (const [key, value] of Object.entries(payload.data)) {
-        if (value !== undefined && value !== null && typeof value !== 'object') {
+        if (
+          value !== undefined &&
+          value !== null &&
+          typeof value !== 'object'
+        ) {
           fields.push({
             type: 'mrkdwn',
             text: `*${key}:*\n${value}`,
           });
         }
       }
-      
+
       // Slack limits fields to 10 per section block
       for (let i = 0; i < fields.length; i += 10) {
         blocks.push({
