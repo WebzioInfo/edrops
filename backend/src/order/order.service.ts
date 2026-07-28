@@ -1,13 +1,13 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EventsGateway } from '../events/events.gateway';
+import { NotificationService } from '../notification/notification.service';
 import { OrderStatus } from '@prisma/client';
 
 @Injectable()
 export class OrderService {
   constructor(
     private prisma: PrismaService,
-    private eventsGateway: EventsGateway,
+    private notificationService: NotificationService,
   ) {}
 
   findAll(customerId: string) {
@@ -50,13 +50,21 @@ export class OrderService {
     if (!order) throw new BadRequestException('Order not found');
 
     const validTransitions: Record<OrderStatus, OrderStatus[]> = {
-      PENDING: ['CONFIRMED', 'CANCELLED'],
-      CONFIRMED: ['PROCESSING', 'CANCELLED'],
-      PROCESSING: ['OUT_FOR_DELIVERY', 'CANCELLED'],
-      OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED'],
-      DELIVERED: [],
+      NEW: ['PENDING_PAYMENT', 'PENDING_ASSIGNMENT', 'CANCELLED'],
+      PENDING_PAYMENT: ['PAYMENT_SUCCESS', 'FAILED', 'CANCELLED'],
+      PAYMENT_SUCCESS: ['PENDING_ASSIGNMENT', 'CANCELLED'],
+      PENDING_ASSIGNMENT: ['ASSIGNED', 'CANCELLED'],
+      ASSIGNED: ['ACCEPTED_BY_PARTNER', 'CANCELLED'],
+      ACCEPTED_BY_PARTNER: ['OUT_FOR_DELIVERY', 'CANCELLED'],
+      OUT_FOR_DELIVERY: ['DELIVERED', 'PARTIALLY_DELIVERED', 'CUSTOMER_NOT_AVAILABLE', 'FAILED', 'RETURNED'],
+      DELIVERED: ['COMPLETED'],
+      PARTIALLY_DELIVERED: ['COMPLETED'],
+      CUSTOMER_NOT_AVAILABLE: ['RESCHEDULED', 'CANCELLED'],
+      FAILED: ['RESCHEDULED', 'CANCELLED'],
+      RESCHEDULED: ['PENDING_ASSIGNMENT'],
+      RETURNED: ['COMPLETED'],
       CANCELLED: [],
-      RETURNED: [],
+      COMPLETED: [],
     };
 
     if (!validTransitions[order.status]?.includes(newStatus)) {
@@ -82,22 +90,15 @@ export class OrderService {
         },
       });
 
-      // 3. Create customer notification
-      await tx.notification.create({
-        data: {
-          userId: order.customer.user.id,
-          type: 'DELIVERY_UPDATE',
-          title: 'Order Status Updated',
-          message: 'Your order #' + orderId.substring(0, 8) + ' is now ' + newStatus.replace(/_/g, ' ') + '.',
-          link: '/customer/orders',
-        },
-      });
-
       return updated;
     });
 
-    // 4. Emit real-time event to the specific customer
-    this.eventsGateway.emitOrderStatusUpdate(orderId, newStatus, order.customerId);
+    // 4. Fire notifications safely outside transaction
+    this.notificationService.notifyOrderStatusUpdate({
+      orderId,
+      customerId: order.customerId,
+      newStatus,
+    });
 
     return updatedOrder;
   }

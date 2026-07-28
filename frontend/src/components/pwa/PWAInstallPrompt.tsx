@@ -11,7 +11,7 @@ export default function PWAInstallPrompt() {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (isInstallable) {
+    if (isInstallable && isIOS) {
       // 3-second delay on initial load for premium user experience
       const timer = setTimeout(() => {
         setIsVisible(true);
@@ -20,7 +20,7 @@ export default function PWAInstallPrompt() {
     } else {
       setIsVisible(false);
     }
-  }, [isInstallable]);
+  }, [isInstallable, isIOS]);
 
   // Handle escape key listener for accessibility
   useEffect(() => {

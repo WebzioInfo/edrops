@@ -8,6 +8,9 @@ type User = {
   lastName: string;
   phone?: string;
   role: 'CUSTOMER' | 'STAFF' | 'ADMIN';
+  customer?: {
+    jarOwnerships?: Array<{ brandId: string; companyJarsHeld: number; ownedJars: number; brand?: { name: string } }>;
+  };
 };
 
 interface AuthContextType {

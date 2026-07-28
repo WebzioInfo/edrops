@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeliveryEngine } from '../engines/delivery.engine';
-import { DeliveryStatus } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 
 @Injectable()
 export class DeliveryService {
@@ -17,7 +17,7 @@ export class DeliveryService {
         addressId: data.addressId,
         scheduledFor: new Date(data.scheduledFor),
         requiredQuantity: data.requiredQuantity,
-        status: DeliveryStatus.PENDING,
+        status: OrderStatus.PENDING_ASSIGNMENT,
       },
     });
   }
@@ -42,9 +42,10 @@ export class DeliveryService {
     );
   }
 
-  async confirm(
+  async confirmDelivery(
     deliveryId: string,
     data: {
+      brandId: string;
       deliveredQty: number;
       emptyCollected: number;
       damagedQty: number;
@@ -54,6 +55,7 @@ export class DeliveryService {
   ) {
     return this.deliveryEngine.confirmDelivery(
       deliveryId,
+      data.brandId,
       data.deliveredQty,
       data.emptyCollected,
       data.damagedQty,
@@ -64,10 +66,10 @@ export class DeliveryService {
 
   async updateStatus(
     deliveryId: string,
-    status: DeliveryStatus,
+    status: OrderStatus,
     reason?: string,
   ) {
-    if (status === DeliveryStatus.CANCELLED || status === DeliveryStatus.SKIPPED) {
+    if (status === OrderStatus.CANCELLED || status === OrderStatus.RESCHEDULED) {
       return this.prisma.delivery.update({
         where: { id: deliveryId },
         data: {
@@ -89,16 +91,18 @@ export class DeliveryService {
       });
     }
 
-    if (status === DeliveryStatus.FAILED) {
+    if (status === OrderStatus.FAILED) {
       return this.deliveryEngine.failDelivery(deliveryId, reason || 'Failed delivery');
     }
 
-    if (status === DeliveryStatus.DELIVERED) {
+    if (status === OrderStatus.DELIVERED) {
       // NOTE: For true delivery completion we usually need confirmed qtys.
       // We will assume the required quantity is fully delivered for this test endpoint.
       const delivery = await this.prisma.delivery.findUnique({ where: { id: deliveryId }});
+      const brand = await this.prisma.brand.findFirst();
       return this.deliveryEngine.confirmDelivery(
         deliveryId,
+        brand?.id || '',
         delivery?.requiredQuantity || 1,
         0, // empty collected
         0, // damaged
@@ -206,15 +210,15 @@ export class DeliveryService {
       
       globalStats.totalDeliveries++;
 
-      if (d.status === DeliveryStatus.DELIVERED) {
+      if (d.status === OrderStatus.DELIVERED) {
         weekData.stats.delivered++;
         globalStats.deliveredCount++;
       }
-      else if (d.status === DeliveryStatus.FAILED || d.status === DeliveryStatus.SKIPPED) {
+      else if (d.status === OrderStatus.FAILED || d.status === OrderStatus.RESCHEDULED) {
         weekData.stats.missed++;
         globalStats.missedCount++;
       }
-      else if (d.status === DeliveryStatus.CANCELLED) {
+      else if (d.status === OrderStatus.CANCELLED) {
         weekData.stats.cancelled++;
         globalStats.cancelledCount++;
       }
@@ -252,9 +256,9 @@ export class DeliveryService {
         customer: {
           include: {
             user: true,
-            jarBalance: true,
-            jarDeposit: true,
-            jarOwnership: true,
+            jarBalances: true,
+            jarDeposits: true,
+            jarOwnerships: true,
           },
         },
         address: true,
@@ -285,9 +289,9 @@ export class DeliveryService {
         customer: {
           include: {
             user: true,
-            jarBalance: true,
-            jarDeposit: true,
-            jarOwnership: true,
+            jarBalances: true,
+            jarDeposits: true,
+            jarOwnerships: true,
           },
         },
         address: true,
@@ -377,7 +381,7 @@ export class DeliveryService {
     return this.prisma.delivery.findUnique({
       where: { id },
       include: {
-        customer: { include: { user: true, jarBalance: true } },
+        customer: { include: { user: true, jarBalances: true } },
         address: true,
         assignment: {
           include: { deliveryPartner: { include: { user: true } } },

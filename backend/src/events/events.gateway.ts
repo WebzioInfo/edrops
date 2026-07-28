@@ -96,4 +96,8 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       status,
     });
   }
+
+  emitEvent(room: string, event: string, payload: any) {
+    this.server.to(room).emit(event, payload);
+  }
 }

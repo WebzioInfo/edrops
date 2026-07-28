@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentStatus } from '@prisma/client';
+import { PaymentStatus, OrderStatus } from '@prisma/client';
 import { RazorpayProvider } from './providers/razorpay.provider';
 
 @Injectable()
@@ -130,7 +130,7 @@ export class PaymentService {
       if (payment.orderId) {
         await tx.order.update({
           where: { id: payment.orderId },
-          data: { status: 'CONFIRMED', paymentStatus: PaymentStatus.SUCCESS },
+          data: { status: OrderStatus.PENDING_ASSIGNMENT, paymentStatus: PaymentStatus.SUCCESS },
         });
       }
 

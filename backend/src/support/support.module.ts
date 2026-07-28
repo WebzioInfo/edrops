@@ -5,8 +5,10 @@ import { StaffSupportController } from './staff-support.controller';
 import { AdminSupportController } from './admin-support.controller';
 import { SupportService } from './support.service';
 
+import { NotificationModule } from '../notification/notification.module';
+
 @Module({
-  imports: [EventsModule],
+  imports: [EventsModule, NotificationModule],
   controllers: [SupportController, StaffSupportController, AdminSupportController],
   providers: [SupportService],
 })

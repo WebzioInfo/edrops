@@ -13,6 +13,7 @@ const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
 const InventoryAudit = React.lazy(() => import('./pages/InventoryAudit'));
 const SupportManagement = React.lazy(() => import('./pages/SupportManagement'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
+const CustomerForm = React.lazy(() => import('../../pages/CustomerManagement/CustomerForm'));
 
 const centerNavItems = [
   { to: '/staff/orders', label: 'Orders' },
@@ -187,7 +188,8 @@ export default function StaffPortal() {
           <Routes>
             <Route path="orders" element={<OrderManagement />} />
             <Route path="operations" element={<RouteOperations />} />
-            <Route path="customers" element={<CustomerManagement />} />
+            <Route path="customers/add" element={<CustomerForm basePath="/staff/customers" />} />
+            <Route path="customers/*" element={<CustomerManagement />} />
             <Route path="packages" element={<PackageManagement />} />
             <Route path="inventory" element={<InventoryAudit />} />
             <Route path="support" element={<SupportManagement />} />

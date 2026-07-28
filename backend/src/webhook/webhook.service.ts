@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RazorpayProvider } from '../payment/providers/razorpay.provider';
+import { OrderStatus, PaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class WebhookService {
@@ -98,7 +99,7 @@ export class WebhookService {
           if (payment.orderId) {
             await tx.order.update({
               where: { id: payment.orderId },
-              data: { status: 'CONFIRMED', paymentStatus: 'SUCCESS' },
+              data: { status: OrderStatus.PENDING_ASSIGNMENT, paymentStatus: PaymentStatus.SUCCESS },
             });
 
             // Note: In production, deduct WarehouseStock here via InventoryService

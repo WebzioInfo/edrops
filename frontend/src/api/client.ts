@@ -21,8 +21,8 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      // Clear stale session and redirect
+    if (response.status === 401 && !endpoint.startsWith('/auth/')) {
+      // Clear stale session and redirect, but NOT for auth endpoints (login/register)
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem('edrops_user');
       window.location.href = '/login';

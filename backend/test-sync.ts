@@ -20,7 +20,7 @@ async function bootstrap() {
     console.log("Sync result:", result);
     
     const futureDeliveries = await prisma.delivery.findMany({
-      where: { customerId: schedule.customerId, status: 'PENDING' }
+      where: { customerId: schedule.customerId, status: 'PENDING_ASSIGNMENT' }
     });
     console.log("Future pending deliveries:", futureDeliveries.length);
     if (futureDeliveries.length > 0) {

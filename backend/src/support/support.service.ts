@@ -7,14 +7,14 @@ import { TicketPriority } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TicketStatus } from '@prisma/client';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
-import { EventsGateway } from '../events/events.gateway';
+import { NotificationService } from '../notification/notification.service';
 import { ReplyTicketDto } from './dto/reply-ticket.dto';
 
 @Injectable()
 export class SupportService {
   constructor(
     private prisma: PrismaService,
-    private eventsGateway: EventsGateway,
+    private notificationService: NotificationService,
   ) {}
 
   async findMyTickets(customerId: string) {
@@ -38,7 +38,7 @@ export class SupportService {
       throw new BadRequestException('Invalid ticket priority');
     }
 
-    return this.prisma.supportTicket.create({
+    const ticket = await this.prisma.supportTicket.create({
       data: {
         customerId,
         subject: dto.subject.trim(),
@@ -49,6 +49,14 @@ export class SupportService {
         priority,
       },
     });
+
+    this.notificationService.notifySupportTicket({
+      ticketId: ticket.id,
+      subject: ticket.subject,
+      customerId,
+    });
+
+    return ticket;
   }
 
   async getTicketById(ticketId: string, customerId?: string | null) {
@@ -128,9 +136,10 @@ export class SupportService {
     });
 
     // Emit event
-    this.eventsGateway.server
-      .to(`ticket_${ticketId}`)
-      .emit('NEW_SUPPORT_MESSAGE', message);
+    this.notificationService.notifySupportReply({
+      ticketId,
+      message,
+    });
 
     return message;
   }
@@ -186,9 +195,10 @@ export class SupportService {
       },
     });
 
-    this.eventsGateway.server
-      .to(`ticket_${id}`)
-      .emit('TICKET_STATUS_CHANGED', { id, status });
+    this.notificationService.notifySupportStatusUpdate({
+      ticketId: id,
+      status,
+    });
 
     return ticket;
   }
@@ -213,9 +223,10 @@ export class SupportService {
       },
     });
 
-    this.eventsGateway.server
-      .to(`ticket_${id}`)
-      .emit('TICKET_ASSIGNED', ticket);
+    this.notificationService.notifySupportAssigned({
+      ticketId: id,
+      ticket,
+    });
 
     return ticket;
   }

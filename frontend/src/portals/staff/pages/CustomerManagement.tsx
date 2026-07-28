@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Users, Trash2, Plus, Eye } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const StaffLoader = () => (
   <div className="flex min-h-[60vh] items-center justify-center">
@@ -13,6 +14,7 @@ const StaffLoader = () => (
 );
 
 export default function CustomerManagement() {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCust, setSelectedCust] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,8 +102,19 @@ export default function CustomerManagement() {
           <Users className="h-4 w-4" />
           Customers
         </span>
-        <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl text-[#245361]">Customer Operations Directory</h1>
-        <p className="mt-2 text-muted-foreground">Monitor balances, deposit statements, and configure schedules.</p>
+        <div className="flex justify-between items-start mt-5">
+          <div>
+            <h1 className="text-4xl font-black tracking-tight sm:text-5xl text-[#245361]">Customer Operations Directory</h1>
+            <p className="mt-2 text-muted-foreground">Monitor balances, deposit statements, and configure schedules.</p>
+          </div>
+          <button
+            onClick={() => navigate('/staff/customers/add')}
+            className="flex items-center gap-2 bg-[#2D79A8] hover:bg-[#2D79A8]/90 text-white px-5 py-2.5 rounded-full font-black shadow-lg shadow-[#2D79A8]/20 transition-all active:scale-95 whitespace-nowrap"
+          >
+            <Plus className="w-5 h-5" />
+            Add Customer
+          </button>
+        </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1.2fr]">

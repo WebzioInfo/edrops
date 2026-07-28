@@ -5,8 +5,10 @@ import { DeliveryEngine } from './delivery.engine';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SettingsModule } from '../settings/settings.module';
 
+import { NotificationModule } from '../notification/notification.module';
+
 @Module({
-  imports: [PrismaModule, SettingsModule],
+  imports: [PrismaModule, SettingsModule, NotificationModule],
   providers: [BalanceEngine, RechargeEngine, DeliveryEngine],
   exports: [BalanceEngine, RechargeEngine, DeliveryEngine],
 })

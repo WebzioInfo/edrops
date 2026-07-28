@@ -1,12 +1,12 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateDeliveryDto } from './create-delivery.dto';
-import { DeliveryStatus } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateDeliveryDto extends PartialType(CreateDeliveryDto) {
   @IsOptional()
-  @IsEnum(DeliveryStatus)
-  status?: DeliveryStatus;
+  @IsEnum(OrderStatus)
+  status?: OrderStatus;
 
   @IsOptional()
   @IsInt()

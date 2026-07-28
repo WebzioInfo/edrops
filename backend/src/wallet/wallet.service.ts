@@ -169,14 +169,14 @@ export class WalletService {
     return tx ? execute(tx) : this.prisma.$transaction(execute);
   }
 
-  async ownJar(userId: string, tx?: any) {
+  async ownJar(userId: string, brandId: string, tx?: any) {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
       include: {
         wallet: true,
-        jarDeposit: true,
-        jarOwnership: true,
-        jarBalance: true,
+        jarDeposits: { where: { brandId } },
+        jarOwnerships: { where: { brandId } },
+        jarBalances: { where: { brandId } },
       },
     });
 
@@ -189,11 +189,12 @@ export class WalletService {
       });
     }
 
-    let jarDeposit = customer.jarDeposit;
+    let jarDeposit = customer.jarDeposits[0];
     if (!jarDeposit) {
       jarDeposit = await this.prisma.jarDeposit.create({
         data: {
           customerId: customer.id,
+          brandId,
           maxActiveJars: 0,
           depositPaid: 0.0,
           depositDue: 0.0,
@@ -201,10 +202,10 @@ export class WalletService {
       });
     }
 
-    let jarOwnership = customer.jarOwnership;
+    let jarOwnership = customer.jarOwnerships[0];
     if (!jarOwnership) {
       jarOwnership = await this.prisma.jarOwnership.create({
-        data: { customerId: customer.id, companyJarsHeld: 0, ownedJars: 0 },
+        data: { customerId: customer.id, brandId, companyJarsHeld: 0, ownedJars: 0 },
       });
     }
 
@@ -214,7 +215,7 @@ export class WalletService {
     );
 
     if (jarDeposit.depositDue < depositAmount) {
-      throw new BadRequestException('No outstanding deposit due to pay');
+      throw new BadRequestException('No outstanding deposit due to pay for this brand');
     }
 
     if (wallet.balance < depositAmount) {
@@ -246,7 +247,7 @@ export class WalletService {
       const newOwnedJars = jarOwnership.ownedJars + 1;
 
       await prismaTx.jarOwnership.update({
-        where: { customerId: customer.id },
+        where: { customerId_brandId: { customerId: customer.id, brandId } },
         data: {
           companyJarsHeld: newCompanyJarsHeld,
           ownedJars: newOwnedJars,
@@ -260,20 +261,22 @@ export class WalletService {
       );
 
       await prismaTx.jarDeposit.update({
-        where: { customerId: customer.id },
+        where: { customerId_brandId: { customerId: customer.id, brandId } },
         data: {
           depositPaid: newDepositPaid,
           depositDue: newDepositDue,
         },
       });
 
+      const currentAvailableJars = customer.jarBalances[0]?.availableJars ?? 0;
+
       await prismaTx.transaction.create({
         data: {
           customerId: customer.id,
           type: TransactionType.DEPOSIT_PAYMENT,
           amountMoney: depositAmount,
-          balanceBefore: customer.jarBalance?.availableJars ?? 0,
-          balanceAfter: customer.jarBalance?.availableJars ?? 0,
+          balanceBefore: currentAvailableJars,
+          balanceAfter: currentAvailableJars,
           description: `Converted deposit due into owned jar (₹${depositAmount})`,
         },
       });

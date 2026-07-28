@@ -18,7 +18,11 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     );
   }
 
-  if (!token || !user) {
+  // Fallback to localStorage to prevent race conditions during fast SPA navigations
+  const actualToken = token || localStorage.getItem('edrops_token');
+  const actualUser = user || (localStorage.getItem('edrops_user') ? JSON.parse(localStorage.getItem('edrops_user') as string) : null);
+
+  if (!actualToken || !actualUser) {
     // Redirect them to the /login page, but save the current location they were
     // trying to go to when they were redirected. This allows us to send them
     // along to that page after they login, which is a nicer user experience
@@ -26,7 +30,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && !allowedRoles.includes(actualUser.role)) {
     // Role not allowed
     return <Navigate to="/unauthorized" replace />;
   }

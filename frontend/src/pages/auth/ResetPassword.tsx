@@ -8,11 +8,49 @@ import { Button } from '../../components/Button';
 import { fetchWithAuth } from '../../api/client';
 
 const ResetPasswordSchema = Yup.object().shape({
-  password: Yup.string().min(6, 'Too Short!').required('Required'),
+  password: Yup.string()
+    .min(8, 'Must be at least 8 characters')
+    .matches(/[A-Z]/, 'Must contain at least one uppercase letter')
+    .matches(/[a-z]/, 'Must contain at least one lowercase letter')
+    .matches(/[0-9]/, 'Must contain at least one number')
+    .matches(/[^A-Za-z0-9]/, 'Must contain at least one special character')
+    .required('Required'),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref('password')], 'Passwords must match')
     .required('Required'),
 });
+
+const calculateStrength = (password: string) => {
+  let strength = 0;
+  if (password.length >= 8) strength++;
+  if (password.match(/[A-Z]/)) strength++;
+  if (password.match(/[a-z]/)) strength++;
+  if (password.match(/[0-9]/)) strength++;
+  if (password.match(/[^A-Za-z0-9]/)) strength++;
+  return strength; // 0 to 5
+};
+
+const StrengthMeter = ({ password }: { password: string }) => {
+  const strength = calculateStrength(password);
+  const colors = ['bg-gray-200', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'];
+  const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+  
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+        <div 
+          className={`h-full transition-all duration-300 ${password.length > 0 ? colors[strength] : colors[0]}`}
+          style={{ width: \`\${(strength / 5) * 100}%\` }}
+        />
+      </div>
+      {password.length > 0 && (
+        <p className={`text-xs font-medium text-right ${password.length > 0 ? 'text-gray-600' : 'text-transparent'}`}>
+          {labels[strength]}
+        </p>
+      )}
+    </div>
+  );
+};
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -91,15 +129,18 @@ export default function ResetPassword() {
                 validationSchema={ResetPasswordSchema}
                 onSubmit={handleSubmit}
               >
-                {({ isSubmitting }) => (
+                {({ isSubmitting, values }) => (
                   <Form className="space-y-5">
-                    <InputBox 
-                      name="password" 
-                      label="New Password" 
-                      type="password" 
-                      placeholder="••••••••" 
-                      icon={<Lock className="w-5 h-5" />} 
-                    />
+                    <div>
+                      <InputBox 
+                        name="password" 
+                        label="New Password" 
+                        type="password" 
+                        placeholder="••••••••" 
+                        icon={<Lock className="w-5 h-5" />} 
+                      />
+                      <StrengthMeter password={values.password} />
+                    </div>
                     
                     <InputBox 
                       name="confirmPassword" 

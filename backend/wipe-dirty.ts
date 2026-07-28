@@ -7,7 +7,7 @@ async function bootstrap() {
   const prisma = app.get(PrismaService);
 
   const res = await prisma.delivery.deleteMany({
-    where: { status: 'PENDING' }
+    where: { status: 'PENDING_ASSIGNMENT' }
   });
   console.log("Deleted pending deliveries:", res.count);
 

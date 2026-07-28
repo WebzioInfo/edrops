@@ -1,4 +1,4 @@
-import { PrismaClient, TransactionType, DeliveryStatus, UserRole } from '@prisma/client';
+import { PrismaClient, TransactionType, OrderStatus, UserRole } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import 'dotenv/config';
@@ -40,8 +40,11 @@ async function verify() {
     await prisma.wallet.update({ where: { customerId }, data: { balance: { decrement: pack.price } } });
     console.log('✅ Wallet Deducted');
 
+    const brand = await prisma.brand.findFirst();
+    if (!brand) throw new Error('Brand not found');
+
     // Update Jar Balance
-    await prisma.jarBalance.update({ where: { customerId }, data: { availableJars: { increment: pack.jarCount }, totalPurchased: { increment: pack.jarCount } } });
+    await prisma.jarBalance.update({ where: { customerId_brandId: { customerId, brandId: brand.id } }, data: { availableJars: { increment: pack.jarCount }, totalPurchased: { increment: pack.jarCount } } });
     console.log('✅ Jar Balance Updated');
 
     const tomorrow = new Date();
@@ -53,7 +56,7 @@ async function verify() {
         addressId: (await prisma.address.findFirst({ where: { customerId } }))!.id,
         scheduledFor: tomorrow,
         requiredQuantity: 2,
-        status: DeliveryStatus.PENDING
+        status: OrderStatus.PENDING_ASSIGNMENT
       }
     });
     console.log('✅ Schedule & Delivery Generated');
@@ -61,7 +64,7 @@ async function verify() {
     // Assign Delivery
     const partner = await prisma.deliveryPartner.findFirst();
     await prisma.deliveryAssignment.create({ data: { deliveryId: delivery.id, deliveryPartnerId: partner!.id } });
-    await prisma.delivery.update({ where: { id: delivery.id }, data: { status: DeliveryStatus.ASSIGNED } });
+    await prisma.delivery.update({ where: { id: delivery.id }, data: { status: OrderStatus.ASSIGNED } });
     console.log('✅ Staff Assigned Delivery');
 
     // Driver Submit Report
@@ -76,9 +79,9 @@ async function verify() {
       where: { id: report.id },
       data: { confirmedDeliveredQty: 2, confirmedEmptyCollected: 2, confirmedDamagedQty: 0, confirmedById: staff!.id, confirmedAt: new Date() }
     });
-    await prisma.delivery.update({ where: { id: delivery.id }, data: { status: DeliveryStatus.DELIVERED } });
+    await prisma.delivery.update({ where: { id: delivery.id }, data: { status: OrderStatus.DELIVERED } });
     
-    await prisma.jarBalance.update({ where: { customerId }, data: { availableJars: { decrement: 2 } } });
+    await prisma.jarBalance.update({ where: { customerId_brandId: { customerId, brandId: brand.id } }, data: { availableJars: { decrement: 2 } } });
     
     console.log('✅ Staff Confirmed Delivery');
 

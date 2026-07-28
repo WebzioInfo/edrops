@@ -1,13 +1,15 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { DeliveryStatus, TransactionType } from '@prisma/client';
+import { OrderStatus, TransactionType } from '@prisma/client';
 import { SettingsService } from '../settings/settings.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class DeliveryEngine {
   constructor(
     private prisma: PrismaService,
     private settingsService: SettingsService,
+    private notificationService: NotificationService,
   ) {}
 
   // 1. Generate Today's Deliveries based on schedules
@@ -78,7 +80,7 @@ export class DeliveryEngine {
               addressId: defaultAddress.id,
               scheduledFor: startOfDay,
               requiredQuantity: todayQty,
-              status: DeliveryStatus.PENDING,
+              status: OrderStatus.PENDING_ASSIGNMENT,
             },
           });
           generatedCount++;
@@ -122,7 +124,7 @@ export class DeliveryEngine {
       where: {
         customerId,
         scheduledFor: { gte: startOfWeek },
-        status: { in: [DeliveryStatus.PENDING, DeliveryStatus.ASSIGNED] }
+        status: { in: [OrderStatus.PENDING_ASSIGNMENT, OrderStatus.ASSIGNED] }
       }
     });
 
@@ -172,7 +174,7 @@ export class DeliveryEngine {
               addressId: defaultAddress.id,
               scheduledFor: targetDate,
               requiredQuantity: dailyQty,
-              status: DeliveryStatus.PENDING,
+              status: OrderStatus.PENDING_ASSIGNMENT,
             }
           });
           generatedCount++;
@@ -200,7 +202,7 @@ export class DeliveryEngine {
 
       return tx.delivery.update({
         where: { id: deliveryId },
-        data: { status: DeliveryStatus.ASSIGNED },
+        data: { status: OrderStatus.ASSIGNED },
       });
     });
   }
@@ -236,7 +238,7 @@ export class DeliveryEngine {
 
       return tx.delivery.update({
         where: { id: deliveryId },
-        data: { status: DeliveryStatus.DELIVERED },
+        data: { status: OrderStatus.DELIVERED },
       });
     });
   }
@@ -244,6 +246,7 @@ export class DeliveryEngine {
   // 4. Staff confirms delivery, reducing balance and updating deposit/ownership atomically
   async confirmDelivery(
     deliveryId: string,
+    brandId: string,
     confirmedDeliveredQty: number,
     confirmedEmptyCollected: number,
     confirmedDamagedQty: number,
@@ -259,7 +262,7 @@ export class DeliveryEngine {
       if (!delivery) throw new BadRequestException('Delivery not found');
 
       // Prevent double confirmations
-      if (delivery.status === DeliveryStatus.DELIVERED) {
+      if (delivery.status === OrderStatus.DELIVERED) {
         throw new BadRequestException(
           'Delivery has already been confirmed and completed.',
         );
@@ -290,32 +293,32 @@ export class DeliveryEngine {
         );
       }
 
-      // 1. Fetch balance, deposit, and ownership records (initialize if missing)
       let jarBalance = await tx.jarBalance.findUnique({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
       });
       if (!jarBalance) {
         jarBalance = await tx.jarBalance.create({
-          data: { customerId, availableJars: 0, totalPurchased: 0 },
+          data: { customerId, brandId, availableJars: 0, totalPurchased: 0 },
         });
       }
 
       let jarOwnership = await tx.jarOwnership.findUnique({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
       });
       if (!jarOwnership) {
         jarOwnership = await tx.jarOwnership.create({
-          data: { customerId, companyJarsHeld: 0, ownedJars: 0 },
+          data: { customerId, brandId, companyJarsHeld: 0, ownedJars: 0 },
         });
       }
 
       let jarDeposit = await tx.jarDeposit.findUnique({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
       });
       if (!jarDeposit) {
         jarDeposit = await tx.jarDeposit.create({
           data: {
             customerId,
+            brandId,
             maxActiveJars: 0,
             depositPaid: 0.0,
             depositDue: 0.0,
@@ -361,17 +364,17 @@ export class DeliveryEngine {
 
       // 3. Write updates
       await tx.jarBalance.update({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
         data: { availableJars: balanceAfter },
       });
 
       await tx.jarOwnership.update({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
         data: { companyJarsHeld: newCompanyJarsHeld },
       });
 
       await tx.jarDeposit.update({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
         data: {
           maxActiveJars: newMaxActiveJars,
           depositDue: newDepositDue,
@@ -437,40 +440,26 @@ export class DeliveryEngine {
         'LOW_BALANCE_THRESHOLD',
         5,
       );
-      if (balanceAfter <= lowBalanceThreshold) {
-        const custRecord = await tx.customer.findUnique({
-          where: { id: customerId },
-        });
-        if (custRecord) {
-          await tx.notification.create({
-            data: {
-              userId: custRecord.userId,
-              type: 'LOW_BALANCE',
-              title: 'Low prepaid jar balance!',
-              message: `You only have ${balanceAfter} jars remaining in your prepaid balance. Please purchase a new package to prevent delivery interruptions.`,
-            },
+
+      // Fire notifications outside transaction context
+      setImmediate(() => {
+        if (balanceAfter <= lowBalanceThreshold) {
+          this.notificationService.notifyLowBalance({
+            customerId,
+            balance: balanceAfter,
           });
         }
-      }
-
-      // Also create a notification for completed delivery
-      const custRecord = await tx.customer.findUnique({
-        where: { id: customerId },
-      });
-      if (custRecord) {
-        await tx.notification.create({
-          data: {
-            userId: custRecord.userId,
-            type: 'DELIVERY_UPDATE',
-            title: 'Delivery Completed Successfully',
-            message: `Your scheduled delivery of ${confirmedDeliveredQty} water jars has been completed. Empty jars collected: ${confirmedEmptyCollected}. Remaining prepaid balance: ${balanceAfter} jars.`,
-          },
+        this.notificationService.notifyDeliveryCompleted({
+          customerId,
+          deliveredQty: confirmedDeliveredQty,
+          emptyCollected: confirmedEmptyCollected,
+          balanceAfter,
         });
-      }
+      });
 
       return tx.delivery.update({
         where: { id: deliveryId },
-        data: { status: DeliveryStatus.DELIVERED },
+        data: { status: OrderStatus.DELIVERED },
       });
     });
   }
@@ -480,7 +469,7 @@ export class DeliveryEngine {
     return this.prisma.delivery.update({
       where: { id: deliveryId },
       data: {
-        status: DeliveryStatus.FAILED,
+        status: OrderStatus.FAILED,
         report: {
           upsert: {
             create: {

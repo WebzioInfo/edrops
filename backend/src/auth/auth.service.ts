@@ -57,11 +57,6 @@ export class AuthService {
         customer: {
           create: {
             wallet: { create: { balance: 0.0 } },
-            jarBalance: { create: { availableJars: 0, totalPurchased: 0 } },
-            jarDeposit: {
-              create: { maxActiveJars: 0, depositPaid: 0.0, depositDue: 0.0 },
-            },
-            jarOwnership: { create: { companyJarsHeld: 0, ownedJars: 0 } },
           },
         },
       },
@@ -102,11 +97,31 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          { phone: email }
+        ]
+      }
+    });
+
     if (!user) {
-      return {
-        message: 'If an account exists, a password reset link has been sent.',
-      };
+      throw new NotFoundException('Account not found with the provided details.');
+    }
+
+    if (!user.isActive) {
+      throw new BadRequestException('This account has been deactivated. Please contact support.');
+    }
+
+    if (!user.email) {
+      throw new BadRequestException('No email address is associated with this account.');
+    }
+
+    // Rate Limiting Logic: Check if a token was recently generated
+    if (user.resetPasswordExpires && user.resetPasswordExpires > new Date(Date.now() + 3540000)) {
+      // Assuming 1-hour expiry, if it expires more than 59 mins from now, they just requested one.
+      throw new BadRequestException('A password reset request was just made. Please wait a minute before requesting another.');
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -115,11 +130,23 @@ export class AuthService {
       .update(resetToken)
       .digest('hex');
 
-    const resetPasswordExpires = new Date(Date.now() + 3600000);
+    const resetPasswordExpires = new Date(Date.now() + 900000); // Strict 15 minutes expiry
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { resetPasswordToken, resetPasswordExpires },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: { resetPasswordToken, resetPasswordExpires },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'PASSWORD_RESET_REQUESTED',
+          entityType: 'USER',
+          entityId: user.id,
+          newValues: { email: user.email }
+        }
+      });
     });
 
     try {
@@ -129,7 +156,7 @@ export class AuthService {
     }
 
     return {
-      message: 'If an account exists, a password reset link has been sent.',
+      message: 'Password reset link has been sent to your email address.',
     };
   }
 
@@ -153,14 +180,32 @@ export class AuthService {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(newPassword, salt);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordHash,
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'PASSWORD_CHANGED',
+          entityType: 'USER',
+          entityId: user.id
+        }
+      });
     });
+
+    // Send confirmation email
+    try {
+      await this.mailService.sendPasswordChanged(user);
+    } catch (e) {
+      this.logger.warn(`Failed to send password changed email: ${(e as Error).message}`);
+    }
 
     return { message: 'Password has been reset successfully' };
   }
@@ -178,9 +223,11 @@ export class AuthService {
         customer: {
           include: {
             wallet: true,
-            jarBalance: true,
-            jarDeposit: true,
-            jarOwnership: true,
+            jarBalances: true,
+            jarDeposits: true,
+            jarOwnerships: {
+              include: { brand: true }
+            },
             deliverySchedule: {
               include: {
                 rules: true,

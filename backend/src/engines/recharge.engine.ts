@@ -1,10 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentStatus, TransactionType } from '@prisma/client';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class RechargeEngine {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
   async processRecharge(
     customerId: string,
@@ -72,20 +76,14 @@ export class RechargeEngine {
         },
       });
 
-      // Successful purchase notification
-      const customer = await prismaTx.customer.findUnique({
-        where: { id: customerId },
-      });
-      if (customer) {
-        await prismaTx.notification.create({
-          data: {
-            userId: customer.userId,
-            type: 'RECHARGE_SUCCESS',
-            title: 'Prepaid Jars Recharged!',
-            message: `Successfully purchased package. Added ${jarsAdded} jars to your balance. Your new prepaid jar balance is ${balanceAfter} jars.`,
-          },
+      // Successful purchase notification (run asynchronously)
+      setImmediate(() => {
+        this.notificationService.notifyPackagePurchased({
+          customerId,
+          jarsAdded,
+          balanceAfter
         });
-      }
+      });
 
       return order;
     };

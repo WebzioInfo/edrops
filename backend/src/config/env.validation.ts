@@ -70,6 +70,26 @@ const ENV_SPEC: EnvSpec[] = [
     description: 'Supabase anonymous API key',
     required: false,
   },
+  {
+    key: 'SLACK_WEBHOOK_URL',
+    description: 'Slack incoming webhook URL for notifications',
+    required: false,
+  },
+  {
+    key: 'PUSH_PUBLIC_KEY',
+    description: 'VAPID public key for Web Push notifications',
+    required: false,
+  },
+  {
+    key: 'PUSH_PRIVATE_KEY',
+    description: 'VAPID private key for Web Push notifications',
+    required: false,
+  },
+  {
+    key: 'WHATSAPP_TOKEN',
+    description: 'WhatsApp API token for business messages',
+    required: false,
+  },
 ];
 
 const PLACEHOLDER_PATTERNS = [

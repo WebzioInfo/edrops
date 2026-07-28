@@ -4,14 +4,13 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { OrderStatus, PaymentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentService } from '../payment/payment.service';
 import { ValidateCheckoutDto, InitiateCheckoutDto, ConfirmCheckoutDto } from './dto/checkout.dto';
 import * as crypto from 'crypto';
-import { EventsGateway } from '../events/events.gateway';
-import { StaffNotificationService } from '../notification/staff-notification.service';
+import { NotificationService } from '../notification/notification.service';
 import { PromoService } from '../promo/promo.service';
-
 @Injectable()
 export class CheckoutService {
   private readonly logger = new Logger(CheckoutService.name);
@@ -19,29 +18,23 @@ export class CheckoutService {
   constructor(
     private prisma: PrismaService,
     private paymentService: PaymentService,
-    private eventsGateway: EventsGateway,
-    private staffNotificationService: StaffNotificationService,
+    private notificationService: NotificationService,
     private promoService: PromoService,
   ) {}
 
-  private async notifyNewOrder(orderId: string, customerId: string, totalAmount: number) {
+  private async notifyNewOrder(orderId: string, customerId: string, totalAmount: number, paymentMethod: string) {
     const customer = await this.prisma.user.findFirst({ where: { customer: { id: customerId } } });
     const customerName = customer ? `${customer.firstName} ${customer.lastName}` : 'Customer';
+    const customerPhone = customer ? customer.phone : undefined;
     
-    const notification = await this.staffNotificationService.createNotification({
+    this.notificationService.notifyOrderCreated({
       orderId,
-      type: 'NEW_ORDER',
-      title: 'New Order Received',
-      message: `${customerName} placed Order #${orderId.substring(0, 8)}`,
-    });
-
-    this.eventsGateway.emitNewOrder({
-      id: orderId,
-      amount: totalAmount,
       customerId,
       customerName,
-      time: new Date(),
-    }, notification);
+      customerPhone,
+      totalAmount,
+      paymentMethod
+    });
   }
 
   getDeliverySlots() {
@@ -68,7 +61,8 @@ export class CheckoutService {
         return {
           productId: product.id,
           quantity: bItem.quantity,
-          product: product
+          product: product,
+          deposit: 0 // Will be calculated below
         };
       });
     } else {
@@ -80,19 +74,76 @@ export class CheckoutService {
       if (!cart || cart.items.length === 0) {
         throw new BadRequestException('Cart is empty');
       }
-      items = cart.items;
+      items = cart.items.map(item => ({ ...item, deposit: 0 }));
     }
 
     let subTotal = 0;
-    let depositTotal = 0;
-
+    
+    // Group purchased jars by brand
+    const purchasedJarsByBrand: Record<string, { quantity: number; depositAmount: number }> = {};
+    
     for (const item of items) {
       if (item.product.status !== 'ACTIVE') {
         throw new BadRequestException(`Product ${item.product.name} is no longer active`);
       }
       subTotal += item.product.price * item.quantity;
-      if (!dto.returnEmptyJars) {
-        depositTotal += (item.product.depositAmount || 0) * item.quantity;
+      
+      if (item.product.isJar && item.product.brandId) {
+        if (!purchasedJarsByBrand[item.product.brandId]) {
+          purchasedJarsByBrand[item.product.brandId] = { quantity: 0, depositAmount: item.product.depositAmount || 0 };
+        }
+        purchasedJarsByBrand[item.product.brandId].quantity += item.quantity;
+      }
+    }
+
+    // Validate returned jars
+    if (dto.returnedJars && dto.returnedJars.length > 0) {
+      for (const returned of dto.returnedJars) {
+        const ownership = await this.prisma.jarOwnership.findUnique({
+          where: { customerId_brandId: { customerId, brandId: returned.brandId } }
+        });
+        
+        const ownedCount = ownership ? (ownership.ownedJars + ownership.companyJarsHeld) : 0;
+        if (returned.quantity > ownedCount) {
+          throw new BadRequestException(`Cannot return ${returned.quantity} jars. You only have ${ownedCount} jars of this brand.`);
+        }
+      }
+    }
+
+    let depositTotal = 0;
+    const additionalDepositByBrand: Record<string, number> = {};
+
+    // Calculate required deposit per brand based on net new jars
+    for (const [brandId, purchased] of Object.entries(purchasedJarsByBrand)) {
+      const returnedObj = dto.returnedJars?.find(r => r.brandId === brandId);
+      const returnedQty = returnedObj ? returnedObj.quantity : 0;
+      
+      const netNewJars = purchased.quantity - returnedQty;
+      
+      if (netNewJars > 0) {
+        const depositRecord = await this.prisma.jarDeposit.findUnique({
+          where: { customerId_brandId: { customerId, brandId } }
+        });
+        
+        const currentActiveJars = depositRecord?.maxActiveJars || 0;
+        const depositPaid = depositRecord?.depositPaid || 0;
+        
+        const newTotalActiveJars = currentActiveJars + netNewJars;
+        const targetDeposit = newTotalActiveJars * purchased.depositAmount;
+        
+        const additionalDepositRequired = Math.max(0, targetDeposit - depositPaid);
+        additionalDepositByBrand[brandId] = additionalDepositRequired;
+        depositTotal += additionalDepositRequired;
+      }
+    }
+
+    // Allocate deposit to items (for OrderItem records)
+    for (const item of items) {
+      if (item.product.isJar && item.product.brandId && additionalDepositByBrand[item.product.brandId] > 0) {
+        // Simple allocation: allocate total additional deposit of the brand evenly across purchased quantity
+        const brandTotalDeposit = additionalDepositByBrand[item.product.brandId];
+        const brandTotalQty = purchasedJarsByBrand[item.product.brandId].quantity;
+        item.deposit = (brandTotalDeposit / brandTotalQty) * item.quantity;
       }
     }
 
@@ -120,13 +171,14 @@ export class CheckoutService {
       discountTotal,
       totalAmount,
       items,
+      returnedJars: dto.returnedJars || [],
       promoCode: dto.promoCode || null,
     };
   }
 
   async initiateCheckout(customerId: string, dto: InitiateCheckoutDto) {
     const validation = await this.validateCheckout(customerId, {
-      returnEmptyJars: dto.returnEmptyJars,
+      returnedJars: dto.returnedJars,
       buyNowItems: dto.buyNowItems,
       promoCode: dto.promoCode,
     });
@@ -217,7 +269,7 @@ export class CheckoutService {
         data: {
           id: orderId,
           customerId,
-          status: (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') ? 'CONFIRMED' : 'PENDING',
+          status: (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') ? OrderStatus.PENDING_ASSIGNMENT : OrderStatus.PENDING_PAYMENT,
           orderType: 'ONETIME_ORDER',
           subTotal,
           depositTotal,
@@ -228,16 +280,22 @@ export class CheckoutService {
           deliveryAddressId: dto.addressId,
           timeSlot: dto.timeSlot,
           paymentMethod: dto.paymentMethod,
-          paymentStatus: (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') ? 'SUCCESS' : 'PENDING',
+          paymentStatus: (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') ? PaymentStatus.SUCCESS : PaymentStatus.PENDING,
           items: {
             create: items.map((item) => ({
               productId: item.productId,
               quantity: item.quantity,
               unitPrice: item.product.price,
-              deposit: dto.returnEmptyJars ? 0 : (item.product.depositAmount || 0),
-              total: (item.product.price + (dto.returnEmptyJars ? 0 : (item.product.depositAmount || 0))) * item.quantity,
+              deposit: item.deposit,
+              total: (item.product.price * item.quantity) + item.deposit,
             })),
           },
+          expectedReturns: {
+            create: validation.returnedJars.map((rj) => ({
+              brandId: rj.brandId,
+              quantity: rj.quantity
+            }))
+          }
         },
       });
 
@@ -268,7 +326,7 @@ export class CheckoutService {
               addressId: dto.addressId,
               scheduledFor: today,
               requiredQuantity,
-              status: 'PENDING'
+              status: OrderStatus.PENDING_ASSIGNMENT
             }
           });
         }
@@ -279,7 +337,7 @@ export class CheckoutService {
 
     // Fire events AFTER successful commit
     if (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') {
-      await this.notifyNewOrder(order.id, customerId, totalAmount);
+      await this.notifyNewOrder(order.id, customerId, totalAmount, dto.paymentMethod);
       return { orderId: order.id, status: 'SUCCESS' };
     }
 
@@ -308,7 +366,7 @@ export class CheckoutService {
       const order = await this.prisma.$transaction(async (tx) => {
         const updatedOrder = await tx.order.update({
           where: { id: dto.orderId },
-          data: { status: 'CONFIRMED', paymentStatus: 'SUCCESS' },
+          data: { status: OrderStatus.PENDING_ASSIGNMENT, paymentStatus: PaymentStatus.SUCCESS },
           include: { items: true }
         });
 
@@ -332,7 +390,7 @@ export class CheckoutService {
               addressId: updatedOrder.deliveryAddressId,
               scheduledFor: today,
               requiredQuantity,
-              status: 'PENDING'
+              status: OrderStatus.PENDING_ASSIGNMENT
             }
           });
         }
@@ -340,7 +398,7 @@ export class CheckoutService {
       });
 
       // Notify post-transaction
-      await this.notifyNewOrder(order.id, customerId, order.totalAmount);
+      await this.notifyNewOrder(order.id, customerId, order.totalAmount, dto.paymentMethod);
 
       return { success: true, orderId: dto.orderId };
     }

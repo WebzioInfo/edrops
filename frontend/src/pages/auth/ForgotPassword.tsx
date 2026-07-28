@@ -8,7 +8,7 @@ import { Button } from '../../components/Button';
 import { fetchWithAuth } from '../../api/client';
 
 const ForgotPasswordSchema = Yup.object().shape({
-  email: Yup.string().email('Invalid email').required('Required'),
+  email: Yup.string().trim().email('Invalid email').required('Required'),
 });
 
 export default function ForgotPassword() {

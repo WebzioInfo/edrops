@@ -8,9 +8,19 @@ export class BuyNowItemDto {
   quantity: number;
 }
 
+export class ReturnedJarDto {
+  @IsString()
+  brandId: string;
+  @IsNumber()
+  quantity: number;
+}
+
 export class ValidateCheckoutDto {
-  @IsBoolean()
-  returnEmptyJars: boolean;
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReturnedJarDto)
+  returnedJars?: ReturnedJarDto[];
 
   @IsOptional()
   @IsArray()
@@ -38,8 +48,11 @@ export class InitiateCheckoutDto {
   @IsString()
   scheduledDate?: string;
 
-  @IsBoolean()
-  returnEmptyJars: boolean;
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReturnedJarDto)
+  returnedJars?: ReturnedJarDto[];
 
   @IsOptional()
   @IsArray()

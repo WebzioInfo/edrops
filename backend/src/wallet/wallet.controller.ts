@@ -31,9 +31,9 @@ export class WalletController {
 
   @Post('own-jar')
   @Idempotent()
-  async ownJar(@Req() req) {
+  async ownJar(@Req() req, @Body() body: { brandId: string }) {
     const userId = req.user.sub || req.user.id;
-    return this.walletService.ownJar(userId);
+    return this.walletService.ownJar(userId, body.brandId);
   }
 
   @Post('recharge/initiate')

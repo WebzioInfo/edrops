@@ -24,7 +24,7 @@ interface TimeSlot {
 }
 
 export default function Checkout() {
-  const { items, clearCart, returnEmptyJars } = useCart();
+  const { items, clearCart } = useCart();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -66,8 +66,70 @@ export default function Checkout() {
     setCheckoutItems(prev => prev.filter(i => i.id !== id));
   };
   
+  const [jarOwnerships, setJarOwnerships] = useState<any[]>([]);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [returnedJarsState, setReturnedJarsState] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    fetchWithAuth('/auth/me').then(data => {
+      if (data.customer?.jarOwnerships) {
+        setJarOwnerships(data.customer.jarOwnerships);
+      }
+      if (data.customer?.wallet) {
+        setWalletBalance(data.customer.wallet.balance);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const updateReturnedJars = (brandId: string, delta: number) => {
+    setReturnedJarsState(prev => {
+      const current = prev[brandId] || 0;
+      const ownership = jarOwnerships.find(j => j.brandId === brandId);
+      const maxOwned = ownership ? (ownership.ownedJars + ownership.companyJarsHeld) : 0;
+      
+      let next = current + delta;
+      if (next < 0) next = 0;
+      if (next > maxOwned) next = maxOwned;
+      
+      return { ...prev, [brandId]: next };
+    });
+  };
+
+  const returnedJarsArray = useMemo(() => {
+    return Object.entries(returnedJarsState)
+      .filter(([_, qty]) => qty > 0)
+      .map(([brandId, quantity]) => ({ brandId, quantity }));
+  }, [returnedJarsState]);
+
   const subTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0), [checkoutItems]);
-  const depositTotal = useMemo(() => returnEmptyJars ? 0 : checkoutItems.reduce((sum, item) => sum + (item.depositAmount * item.quantity), 0), [checkoutItems, returnEmptyJars]);
+  
+  // Calculate dynamic deposit based on net new jars per brand
+  const depositTotal = useMemo(() => {
+    let total = 0;
+    const purchasedJarsByBrand: Record<string, { quantity: number; depositAmount: number }> = {};
+    
+    checkoutItems.forEach(item => {
+      if (item.isJar && item.brandId) {
+        if (!purchasedJarsByBrand[item.brandId]) {
+          purchasedJarsByBrand[item.brandId] = { quantity: 0, depositAmount: item.depositAmount || 0 };
+        }
+        purchasedJarsByBrand[item.brandId].quantity += item.quantity;
+      }
+    });
+
+    for (const [brandId, purchased] of Object.entries(purchasedJarsByBrand)) {
+      const returnedQty = returnedJarsState[brandId] || 0;
+      const netNewJars = purchased.quantity - returnedQty;
+      if (netNewJars > 0) {
+        // We do a simplified UI calculation assuming no previous deposit limit here
+        // The real strict calculation happens on backend. This is just for UI estimate.
+        // Wait, if they are acquiring net new jars, we charge deposit for the net new jars.
+        total += netNewJars * purchased.depositAmount;
+      }
+    }
+    return total;
+  }, [checkoutItems, returnedJarsState]);
+
   const deliveryCharge = useMemo(() => checkoutItems.length > 0 ? (subTotal > 500 ? 0 : 50) : 0, [checkoutItems, subTotal]);
 
   const [promoInput, setPromoInput] = useState('');
@@ -116,7 +178,15 @@ export default function Checkout() {
     }
   }, [appliedPromo?.code, subTotal, deliveryCharge]);
 
-  const grandTotal = Math.max(0, subTotal + depositTotal + deliveryCharge - promoDiscount);
+  const baseTotal = Math.max(0, subTotal + depositTotal + deliveryCharge - promoDiscount);
+  
+  const walletDeduction = useMemo(() => {
+    if (paymentMethod === 'WALLET') return Math.min(walletBalance, baseTotal);
+    if (paymentMethod === 'HYBRID') return Math.min(walletBalance, baseTotal);
+    return 0;
+  }, [paymentMethod, walletBalance, baseTotal]);
+
+  const grandTotal = Math.max(0, baseTotal - walletDeduction);
 
   const handleApplyPromo = async () => {
     if (!promoInput.trim()) return;
@@ -224,7 +294,7 @@ export default function Checkout() {
         addressId: selectedAddressId,
         paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : paymentMethod,
         timeSlot: selectedSlot,
-        returnEmptyJars,
+        returnedJars: returnedJarsArray,
         promoCode: appliedPromo?.code || undefined
       };
 
@@ -488,17 +558,44 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                {/* Jar Return */}
-                <div className="bg-white p-3 md:p-5 rounded-[16px] border border-[#E2E8F0] shadow-sm">
-                  <label className={`flex items-center gap-3 cursor-pointer p-2 rounded-[12px] transition-colors`}>
-                    <div className={`flex items-center justify-center w-5 h-5 rounded border shrink-0 ${returnEmptyJars ? 'border-[#1E88E5] bg-[#1E88E5]' : 'border-[#E2E8F0] bg-[#F8FAFC]'}`}>
-                      {returnEmptyJars && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                {/* Brand-Wise Jar Return */}
+                <div className="bg-white p-4 md:p-6 rounded-[16px] border border-[#E2E8F0] shadow-sm">
+                  <h2 className="text-[16px] md:text-[18px] font-bold text-[#0F172A] mb-4 md:border-b md:border-[#E2E8F0] md:pb-3">Return Empty Jars</h2>
+                  {jarOwnerships.length === 0 ? (
+                    <p className="text-[13px] text-[#64748B]">You don't own any jars yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {jarOwnerships.map(ownership => {
+                        const totalOwned = ownership.ownedJars + ownership.companyJarsHeld;
+                        if (totalOwned === 0) return null;
+                        const returned = returnedJarsState[ownership.brandId] || 0;
+
+                        return (
+                          <div key={ownership.brandId} className="flex items-center justify-between p-3 rounded-[12px] border border-[#E2E8F0] bg-[#F8FAFC]">
+                            <div>
+                              <p className="font-semibold text-[14px] text-[#0F172A]">{ownership.brand?.name || 'Water Jar'}</p>
+                              <p className="text-[12px] text-[#64748B]">You have {totalOwned} empty jars</p>
+                            </div>
+                            <div className="flex items-center bg-white border border-[#E2E8F0] rounded-[8px] overflow-hidden shadow-sm h-8">
+                              <button 
+                                onClick={() => updateReturnedJars(ownership.brandId, -1)}
+                                className="w-8 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                              <span className="w-10 text-center text-[14px] font-bold text-[#0F172A]">{returned}</span>
+                              <button 
+                                onClick={() => updateReturnedJars(ownership.brandId, 1)}
+                                className="w-8 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div>
-                      <p className="font-semibold text-[14px] text-[#0F172A] leading-tight">Return Empty Jars</p>
-                      <p className="text-[12px] text-[#64748B] leading-tight mt-0.5">Deposit will be waived. Hand over jars to driver.</p>
-                    </div>
-                  </label>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -548,12 +645,7 @@ export default function Checkout() {
                       </div>
                     )}
 
-                    {depositTotal === 0 && checkoutItems.some(i => i.isJar) && (
-                      <div className="flex justify-between items-center text-[#1E88E5]">
-                        <span>Deposit Waived</span>
-                        <span className="font-semibold">-₹{checkoutItems.reduce((sum, item) => sum + (item.depositAmount * item.quantity), 0)}</span>
-                      </div>
-                    )}
+                    {/* Deposit waived calculation is complex per-brand now. We only show the total computed deposit above. */}
                     
                     <div className="flex justify-between">
                       <span>Delivery Charge</span>
@@ -566,10 +658,17 @@ export default function Checkout() {
                         <span className="font-semibold">-₹{promoDiscount}</span>
                       </div>
                     )}
+                    
+                    {walletDeduction > 0 && (
+                      <div className="flex justify-between text-[#1E88E5]">
+                        <span>Wallet Applied (Bal: ₹{walletBalance})</span>
+                        <span className="font-semibold">-₹{walletDeduction}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-[#0F172A] font-bold text-[16px] md:text-[18px]">Grand Total</span>
+                    <span className="text-[#0F172A] font-bold text-[16px] md:text-[18px]">{paymentMethod === 'WALLET' && grandTotal === 0 ? 'Fully Paid' : 'Amount Payable'}</span>
                     <span className="text-[24px] md:text-[28px] font-bold text-[#1E88E5]">₹{grandTotal}</span>
                   </div>
                 </div>

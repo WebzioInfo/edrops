@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from '@prisma/client';
@@ -58,9 +59,9 @@ export class CustomerController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  create(@Body() createCustomerDto: CreateCustomerDto) {
-    return this.customerService.create(createCustomerDto);
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  create(@Body() createCustomerDto: CreateCustomerDto, @Request() req) {
+    return this.customerService.create(createCustomerDto, req.user?.userId || req.user?.id);
   }
 
   @Get()
@@ -80,8 +81,9 @@ export class CustomerController {
   update(
     @Param('id') id: string,
     @Body() updateCustomerDto: UpdateCustomerDto,
+    @Request() req
   ) {
-    return this.customerService.update(id, updateCustomerDto);
+    return this.customerService.update(id, updateCustomerDto, req.user?.userId || req.user?.id);
   }
 
   @Delete(':id')

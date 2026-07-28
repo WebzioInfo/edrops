@@ -11,8 +11,7 @@ const listeners = new Set<() => void>();
 // Setup global listener early to capture beforeinstallprompt before React mounts
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent Chrome's minibar prompt from popping up on mobile
-    e.preventDefault();
+    // Allow Chrome's native install prompt to show up
     deferredPrompt = e;
     trackPWAEvent('Install prompt shown', { type: 'beforeinstallprompt' });
     listeners.forEach((l) => l());

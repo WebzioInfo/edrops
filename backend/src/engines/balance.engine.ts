@@ -8,13 +8,14 @@ export class BalanceEngine {
 
   async deductJars(
     customerId: string,
+    brandId: string,
     amount: number,
     referenceId?: string,
     description?: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const jarBalance = await tx.jarBalance.findUnique({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
       });
       if (!jarBalance)
         throw new BadRequestException('Customer jar balance record not found');
@@ -26,7 +27,7 @@ export class BalanceEngine {
       const balanceAfter = balanceBefore - amount;
 
       await tx.jarBalance.update({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
         data: { availableJars: balanceAfter },
       });
 
@@ -48,17 +49,18 @@ export class BalanceEngine {
 
   async addJars(
     customerId: string,
+    brandId: string,
     amount: number,
     referenceId?: string,
     description?: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
       let jarBalance = await tx.jarBalance.findUnique({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
       });
       if (!jarBalance) {
         jarBalance = await tx.jarBalance.create({
-          data: { customerId, availableJars: 0, totalPurchased: 0 },
+          data: { customerId, brandId, availableJars: 0, totalPurchased: 0 },
         });
       }
 
@@ -66,7 +68,7 @@ export class BalanceEngine {
       const balanceAfter = balanceBefore + amount;
 
       await tx.jarBalance.update({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
         data: {
           availableJars: balanceAfter,
           totalPurchased: { increment: amount },

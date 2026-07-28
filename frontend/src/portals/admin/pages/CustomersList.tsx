@@ -27,9 +27,12 @@ export default function CustomersList() {
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Customers</h1>
           <p className="text-slate-500 font-semibold mt-1">Manage users, view their balances, and support tickets.</p>
         </div>
-        <button className="flex items-center gap-2 bg-[#245361] hover:bg-[#245361]/90 text-white px-5 py-2.5 rounded-full font-black shadow-lg shadow-[#245361]/20 transition-all active:scale-95">
+        <button 
+          onClick={() => navigate('/admin/customers/add')}
+          className="flex items-center gap-2 bg-[#245361] hover:bg-[#245361]/90 text-white px-5 py-2.5 rounded-full font-black shadow-lg shadow-[#245361]/20 transition-all active:scale-95"
+        >
           <UserPlus className="w-5 h-5" />
-          Invite User
+          Add Customer
         </button>
       </div>
 

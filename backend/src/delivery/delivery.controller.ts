@@ -101,10 +101,11 @@ export class DeliveryController {
   }
 
   @Post(':id/confirm')
-  confirm(
+  confirmDelivery(
     @Param('id') id: string,
     @Body()
     body: {
+      brandId: string;
       deliveredQty: number;
       emptyCollected: number;
       damagedQty: number;
@@ -112,7 +113,7 @@ export class DeliveryController {
     },
     @Request() req,
   ) {
-    return this.deliveryService.confirm(id, {
+    return this.deliveryService.confirmDelivery(id, {
       ...body,
       staffId: req.user.id, // Staff identifier from JWT token context
     });
