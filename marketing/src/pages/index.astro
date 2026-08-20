@@ -1,23 +1,14 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-
-const capabilities = [
-  ['Subscription Intelligence', 'Recurring delivery schedules that adapt to customer rhythms. Pause, skip, reschedule — without losing a single subscription.'],
-  ['Prepaid Wallet Engine', 'Customers recharge their jar balance upfront. Every delivery consumes balance automatically. Zero chasing. Zero invoices.'],
-  ['Operational Clarity', 'Routes optimized. Drivers dispatched. Exceptions flagged. Low-balance customers notified — before they run out.'],
-];
+import Navigation from '../components/Navigation.astro';
+import '../styles/capabilities.css';
+import '../styles/journey.css';
 
 const metrics = [
   ['99.4%', 'On-time delivery rate'],
   ['3×', 'Faster route planning'],
   ['100%', 'Prepaid cashflow'],
   ['0', 'Outstanding invoices'],
-];
-
-const steps = [
-  ['01', 'Recharge', 'Customers purchase jar passes upfront via UPI, card, or wallet top-up.'],
-  ['02', 'Deliver', 'Drivers receive optimized routes. Each delivery auto-deducts from balance.'],
-  ['03', 'Predict', 'Edrops forecasts recharge timing and notifies customers before supply runs low.'],
 ];
 ---
 
@@ -26,43 +17,9 @@ const steps = [
   description="Edrops is the premium platform for 20L water subscription businesses. Prepaid wallets, automated deliveries, route intelligence, and customer trust — beautifully unified."
 >
 
-  {/* ═══════════════════════════════════════
-      NAVIGATION
-      ═══════════════════════════════════════ */}
-  <header class="fixed inset-x-0 top-0 z-50 bg-white/70 backdrop-blur-2xl border-b border-edrops-border/40">
-    <div class="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
-      <a href="/" class="flex items-center gap-2.5 group">
-        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-edrops-primary to-edrops-aqua text-white shadow-sm group-hover:shadow-md transition-shadow">
-          <span class="text-sm font-extrabold">E</span>
-        </div>
-        <span class="text-lg font-extrabold tracking-tight text-edrops-ocean">Edrops</span>
-      </a>
+  <Navigation />
 
-      <nav class="hidden items-center gap-8 text-[13px] font-semibold text-edrops-slate md:flex">
-        <a href="/features" class="hover:text-edrops-ocean transition-colors duration-200">Features</a>
-        <a href="/pricing" class="hover:text-edrops-ocean transition-colors duration-200">Pricing</a>
-        <a href="/how-it-works" class="hover:text-edrops-ocean transition-colors duration-200">How it works</a>
-        <a href="/about" class="hover:text-edrops-ocean transition-colors duration-200">About</a>
-      </nav>
-
-      <div class="flex items-center gap-3">
-        <a 
-          href="http://localhost:5173/login" 
-          class="hidden sm:inline-flex text-[13px] font-semibold text-edrops-slate hover:text-edrops-ocean transition-colors px-3 py-2"
-        >
-          Sign in
-        </a>
-        <a 
-          href="http://localhost:5173/login" 
-          class="inline-flex items-center rounded-full bg-edrops-ocean text-white text-[13px] font-bold px-5 py-2 hover:bg-edrops-navy transition-colors"
-        >
-          Open App
-        </a>
-      </div>
-    </div>
-  </header>
-
-  <main class="overflow-hidden">
+  <main id="main-content" class="overflow-hidden">
 
     {/* ═══════════════════════════════════════
         HERO — THE BRAND STATEMENT
@@ -152,62 +109,256 @@ const steps = [
     {/* ═══════════════════════════════════════
         CAPABILITIES — WHY EDROPS
         ═══════════════════════════════════════ */}
-    <section class="py-24 px-6">
-      <div class="mx-auto max-w-5xl space-y-20">
+    <section class="capabilities-section py-28 sm:py-36 px-6" id="capabilities-section">
+      
+      {/* Ambient background elements */}
+      <div class="capabilities-caustic"></div>
+      <div class="capabilities-shape capabilities-shape--1"></div>
+      <div class="capabilities-shape capabilities-shape--2"></div>
+      <div class="capabilities-shape capabilities-shape--3"></div>
+
+      <div class="mx-auto max-w-6xl space-y-20 sm:space-y-28">
         
-        <div class="max-w-2xl space-y-4">
-          <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
-            Purpose-built
-          </span>
-          <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-[1.1]">
+        {/* Editorial Header */}
+        <div class="capabilities-header">
+          <div class="capabilities-eyebrow">
+            <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
+              Purpose-built
+            </span>
+          </div>
+          <h2 class="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.08]">
             Not ERP. Not a delivery clone.<br>
             <span class="text-gradient-water">Water subscription intelligence.</span>
           </h2>
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-3">
-          {capabilities.map(([title, text]) => (
-            <article class="glass-card glass-card-hover rounded-2xl p-8 space-y-4">
-              <h3 class="text-lg font-bold text-edrops-ocean">{title}</h3>
-              <p class="text-sm text-edrops-slate leading-relaxed">{text}</p>
-            </article>
-          ))}
+        {/* Asymmetric Feature Grid */}
+        <div class="capabilities-grid">
+          
+          {/* Feature 1 — Hero Card (largest, introduces the idea) */}
+          <article class="capability-card capability-card--hero" data-capability="0">
+            <div class="capability-card__light"></div>
+            <span class="capability-card__number" aria-hidden="true">01</span>
+            <h3 class="capability-card__title">Subscription Intelligence</h3>
+            <p class="capability-card__text">Recurring delivery schedules that adapt to customer rhythms. Pause, skip, reschedule — without losing a single subscription.</p>
+          </article>
+
+          {/* Feature 2 — Secondary Card (expands the idea) */}
+          <article class="capability-card capability-card--secondary capability-card--delay-1" data-capability="1">
+            <div class="capability-card__light"></div>
+            <span class="capability-card__number" aria-hidden="true">02</span>
+            <h3 class="capability-card__title">Prepaid Wallet Engine</h3>
+            <p class="capability-card__text">Customers recharge their jar balance upfront. Every delivery consumes balance automatically. Zero chasing. Zero invoices.</p>
+          </article>
+
+          {/* Feature 3 — Tertiary Card (completes the story) */}
+          <article class="capability-card capability-card--tertiary capability-card--delay-2" data-capability="2">
+            <div class="capability-card__light"></div>
+            <span class="capability-card__number" aria-hidden="true">03</span>
+            <h3 class="capability-card__title">Operational Clarity</h3>
+            <p class="capability-card__text">Routes optimized. Drivers dispatched. Exceptions flagged. Low-balance customers notified — before they run out.</p>
+          </article>
+
         </div>
       </div>
     </section>
+
+    <script>
+      // ─── Capabilities: Scroll Reveal + Cursor Light ───
+      {
+        const section = document.getElementById('capabilities-section');
+        if (section) {
+          // Intersection Observer for scroll-triggered reveals
+          const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                section.classList.add('capabilities--visible');
+                // Reveal each card with stagger
+                const cards = section.querySelectorAll('.capability-card');
+                cards.forEach((card) => {
+                  card.classList.add('capability-card--visible');
+                });
+                observer.unobserve(entry.target);
+              }
+            });
+          }, {
+            threshold: 0.15,
+            rootMargin: '0px 0px -60px 0px'
+          });
+
+          observer.observe(section);
+
+          // Cursor-tracking light effect on cards
+          const cards = section.querySelectorAll('.capability-card');
+          cards.forEach((card) => {
+            card.addEventListener('mousemove', (e) => {
+              const rect = card.getBoundingClientRect();
+              const x = ((e.clientX - rect.left) / rect.width) * 100;
+              const y = ((e.clientY - rect.top) / rect.height) * 100;
+              const light = card.querySelector('.capability-card__light');
+              if (light) {
+                light.style.setProperty('--mouse-x', x + '%');
+                light.style.setProperty('--mouse-y', y + '%');
+              }
+            });
+          });
+        }
+      }
+    </script>
+
 
 
     {/* ═══════════════════════════════════════
-        HOW IT WORKS
+        HOW IT WORKS — TIMELINE STORYTELLING
         ═══════════════════════════════════════ */}
-    <section class="py-24 px-6">
-      <div class="mx-auto max-w-5xl">
-        <div class="rounded-3xl bg-edrops-ocean p-10 sm:p-16 text-white relative overflow-hidden">
-          <div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: url('/hero-caustics.png'); background-size: cover; background-position: center; mix-blend-mode: overlay;"></div>
-          
-          <div class="relative z-10 space-y-14">
-            <div class="max-w-xl space-y-4">
-              <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-aqua">
-                How it works
-              </span>
-              <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.1]">
-                Three steps to recurring water revenue.
-              </h2>
+    {/* ═══════════════════════════════════════
+        HOW IT WORKS — EDITORIAL STORY EXPERIENCE
+        Bright, Airy, Luxury Storytelling
+        ═══════════════════════════════════════ */}
+    {/* ═══════════════════════════════════════
+        HOW IT WORKS — THE LIQUID MONOLITH EXPERIENCE
+        A Signature Kinetic Fluid Product Launch
+        ═══════════════════════════════════════ */}
+    {/* ═══════════════════════════════════════
+        HOW IT WORKS — THE UNBOXED HYDRO-CINEMATIC GALLERY
+        Museum Installation Experience. Zero Cards. Zero Containers. Zero Boxes.
+        ═══════════════════════════════════════ */}
+    <section class="hydro-canvas" id="hydro-canvas">
+      
+      {/* Hydro-optic atmosphere & light pools */}
+      <div class="hydro-caustic-layer"></div>
+      <div class="hydro-light-pool hydro-light-pool--1"></div>
+      <div class="hydro-light-pool hydro-light-pool--2"></div>
+      <div class="hydro-light-pool hydro-light-pool--3"></div>
+
+      {/* Main Gallery Title Header */}
+      <div class="hydro-header">
+        <div class="hydro-status-pill">
+          <span class="hydro-status-dot"></span>
+          How it works
+        </div>
+        <h2 class="hydro-main-title">
+          Three steps to recurring water revenue.
+        </h2>
+      </div>
+
+      <div class="mx-auto max-w-6xl space-y-32 sm:space-y-44 lg:space-y-56">
+        
+        {/* SCENE I: RECHARGE */}
+        <div class="hydro-scene" data-scene="1">
+          <div class="hydro-scene-composition">
+            {/* Unboxed Floating Artwork (Left) */}
+            <div class="hydro-art-space">
+              <div class="art-recharge">
+                <div class="art-recharge__ring-1"></div>
+                <div class="art-recharge__ring-2"></div>
+                <div class="art-recharge__drop-orb">
+                  <div class="art-recharge__drop"></div>
+                </div>
+              </div>
             </div>
 
-            <div class="grid gap-8 md:grid-cols-3">
-              {steps.map(([num, title, text]) => (
-                <div class="space-y-4">
-                  <span class="text-sm font-extrabold text-edrops-aqua">{num}</span>
-                  <h3 class="text-xl font-bold">{title}</h3>
-                  <p class="text-sm text-white/65 leading-relaxed">{text}</p>
-                </div>
-              ))}
+            {/* Unboxed Editorial Typography (Right) */}
+            <div class="hydro-typography">
+              <div class="hydro-ghost-num">01</div>
+              <h3 class="hydro-scene-title">Recharge</h3>
+              <p class="hydro-scene-text">Customers purchase jar passes upfront via UPI, card, or wallet top-up.</p>
             </div>
           </div>
         </div>
+
+        {/* SCENE II: DELIVER */}
+        <div class="hydro-scene hydro-scene--reverse" data-scene="2">
+          <div class="hydro-scene-composition">
+            {/* Unboxed Floating Artwork (Right on Desktop) */}
+            <div class="hydro-art-space">
+              <div class="art-deliver">
+                <svg class="art-deliver__svg" viewBox="0 0 340 220">
+                  <defs>
+                    <linearGradient id="hydro-stream-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#2D79A8" />
+                      <stop offset="100%" stop-color="#33BFD0" />
+                    </linearGradient>
+                  </defs>
+                  <path class="art-deliver__path-bg" d="M 30,60 Q 170,210 310,60" />
+                  <path class="art-deliver__path-glow" d="M 30,60 Q 170,210 310,60" />
+                </svg>
+                <div class="art-deliver__particle"></div>
+              </div>
+            </div>
+
+            {/* Unboxed Editorial Typography (Left on Desktop) */}
+            <div class="hydro-typography">
+              <div class="hydro-ghost-num">02</div>
+              <h3 class="hydro-scene-title">Deliver</h3>
+              <p class="hydro-scene-text">Drivers receive optimized routes. Each delivery auto-deducts from balance.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* SCENE III: PREDICT */}
+        <div class="hydro-scene" data-scene="3">
+          <div class="hydro-scene-composition">
+            {/* Unboxed Floating Artwork (Left) */}
+            <div class="hydro-art-space">
+              <div class="art-predict">
+                <div class="art-predict__wave art-predict__wave--1"></div>
+                <div class="art-predict__wave art-predict__wave--2"></div>
+                <div class="art-predict__wave art-predict__wave--3"></div>
+                <div class="art-predict__infinity-core">
+                  <span>&infin;</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Unboxed Editorial Typography (Right) */}
+            <div class="hydro-typography">
+              <div class="hydro-ghost-num">03</div>
+              <h3 class="hydro-scene-title">Predict</h3>
+              <p class="hydro-scene-text">Edrops forecasts recharge timing and notifies customers before supply runs low.</p>
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
+
+    <script>
+      // ─── Hydro-Cinematic Gallery Controller ───
+      {
+        const canvas = document.getElementById('hydro-canvas');
+        if (canvas) {
+          // 1. Entrance Observer
+          const canvasObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                canvas.classList.add('hydro-canvas--visible');
+                canvasObserver.unobserve(entry.target);
+              }
+            });
+          }, { threshold: 0.08 });
+          
+          canvasObserver.observe(canvas);
+
+          // 2. Scene Reveal Observer
+          const scenes = canvas.querySelectorAll('.hydro-scene');
+          const sceneObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('hydro-scene--active');
+                sceneObserver.unobserve(entry.target);
+              }
+            });
+          }, {
+            threshold: 0.25,
+            rootMargin: '0px 0px -50px 0px'
+          });
+
+          scenes.forEach(scene => sceneObserver.observe(scene));
+        }
+      }
+    </script>
+
 
   </main>
 </BaseLayout>
