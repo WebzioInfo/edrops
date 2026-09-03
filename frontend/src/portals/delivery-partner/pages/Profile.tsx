@@ -10,7 +10,8 @@ import {
   RotateCw, 
   AlertCircle,
   Hash,
-  Activity
+  Activity,
+  IndianRupee
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -61,6 +62,16 @@ export default function Profile() {
   const email = activeUser?.email || '—';
   const partnerId = activeUser?.id ? `DP-${activeUser.id.slice(0, 8).toUpperCase()}` : 'DP-00000';
   const isActive = activeUser?.isActive !== false;
+
+  const rawJarPrice = activeUser?.deliveryPartner?.jarUnitPrice ?? activeUser?.jarUnitPrice;
+  const jarUnitPriceNum =
+    rawJarPrice !== undefined && rawJarPrice !== null && !isNaN(Number(rawJarPrice))
+      ? Number(rawJarPrice)
+      : null;
+  const jarPriceDisplay =
+    jarUnitPriceNum !== null && jarUnitPriceNum > 0
+      ? `₹${jarUnitPriceNum.toFixed(2)} / jar`
+      : 'Not set';
 
   const handleProfileUpdated = (updated: any) => {
     setProfile((prev: any) => ({ ...prev, ...updated }));
@@ -217,7 +228,7 @@ export default function Profile() {
           Delivery Partner Status
         </h3>
         <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 sm:p-5 shadow-2xs">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
             {/* Account Status */}
             <div className="space-y-1 sm:pr-4">
               <span className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider block">
@@ -241,13 +252,26 @@ export default function Profile() {
             </div>
 
             {/* Current Shift */}
-            <div className="pt-3 sm:pt-0 sm:pl-4 space-y-1">
+            <div className="pt-3 sm:pt-0 sm:px-4 space-y-1">
               <span className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider block">
                 Current Shift
               </span>
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#16324F]">
                 <Activity className="w-4 h-4 text-[#1677C8] shrink-0" />
                 <span>Active</span>
+              </div>
+            </div>
+
+            {/* Current Jar Price */}
+            <div className="pt-3 sm:pt-0 sm:pl-4 space-y-1">
+              <span className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider block">
+                Current Jar Price
+              </span>
+              <div className="flex items-center gap-1 text-xs font-bold text-[#16324F]">
+                <IndianRupee className="w-3.5 h-3.5 text-[#1677C8] shrink-0" />
+                <span className={jarUnitPriceNum !== null && jarUnitPriceNum > 0 ? 'text-[#1677C8] font-black' : 'text-gray-400 font-medium'}>
+                  {jarPriceDisplay}
+                </span>
               </div>
             </div>
           </div>

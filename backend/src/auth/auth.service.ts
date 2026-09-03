@@ -260,6 +260,10 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    if (user.deliveryPartner && user.deliveryPartner.jarUnitPrice !== undefined && user.deliveryPartner.jarUnitPrice !== null) {
+      (user.deliveryPartner as any).jarUnitPrice = Number(user.deliveryPartner.jarUnitPrice);
+    }
+
     return user;
   }
 
