@@ -122,6 +122,7 @@ model DeliveryPartner {
   userId       String               @unique
   vehicleType  String?
   vehiclePlate String?
+  jarUnitPrice Decimal              @default(0.00) @db.Decimal(10, 2)
   assignments  DeliveryAssignment[]
   user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -4,6 +4,8 @@ import { AdminController } from './admin.controller';
 import { AdminCheckoutController } from './admin-checkout.controller';
 import { AdminCustomersController } from './admin-customers.controller';
 import { AdminCustomersService } from './admin-customers.service';
+import { AdminUsersController, AdminDeliveryPartnersController } from './admin-users.controller';
+import { AdminUsersService } from './admin-users.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CheckoutModule } from '../checkout/checkout.module';
 
@@ -13,7 +15,13 @@ import { CheckoutModule } from '../checkout/checkout.module';
     AdminController,
     AdminCheckoutController,
     AdminCustomersController,
+    AdminUsersController,
+    AdminDeliveryPartnersController,
   ],
-  providers: [AdminService, AdminCustomersService],
+  providers: [
+    AdminService, 
+    AdminCustomersService,
+    AdminUsersService,
+  ],
 })
 export class AdminModule {}
