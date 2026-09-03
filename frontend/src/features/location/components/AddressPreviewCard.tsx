@@ -1,5 +1,4 @@
-import React from 'react';
-import { GeocodedAddress } from '../hooks/useReverseGeocoding';
+import type { GeocodedAddress } from '../hooks/useReverseGeocoding';
 
 interface AddressPreviewCardProps {
   address: GeocodedAddress | null;

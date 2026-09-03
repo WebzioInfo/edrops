@@ -8,7 +8,7 @@ export function useLocationPicker(defaultCenter = { lat: 20.5937, lng: 78.9629 }
     setMap(map);
   }, []);
 
-  const onUnmount = useCallback(function callback(map: google.maps.Map) {
+  const onUnmount = useCallback(function callback() {
     setMap(null);
   }, []);
 

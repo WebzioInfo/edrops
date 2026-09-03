@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../../api/client';
 import LocationPicker from '../../features/location/components/LocationPicker';
-import { GeocodedAddress } from '../../features/location/hooks/useReverseGeocoding';
+import type { GeocodedAddress } from '../../features/location/hooks/useReverseGeocoding';
 
 export default function CustomerForm({ basePath }: { basePath: string }) {
   const navigate = useNavigate();
@@ -267,8 +267,6 @@ export default function CustomerForm({ basePath }: { basePath: string }) {
                 defaultLng={addressData.longitude}
               />
             </div>
-            
-            <div className="md:col-span-3">
           </div>
         </section>
 

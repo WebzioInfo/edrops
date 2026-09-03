@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import MapDialog from './MapDialog';
-import { GeocodedAddress } from '../hooks/useReverseGeocoding';
+import type { GeocodedAddress } from '../hooks/useReverseGeocoding';
 
 interface LocationPickerProps {
   onLocationSelected: (lat: number, lng: number, address: GeocodedAddress, googleMapsUrl: string) => void;

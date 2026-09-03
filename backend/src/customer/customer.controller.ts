@@ -59,7 +59,7 @@ export class CustomerController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
   create(@Body() createCustomerDto: CreateCustomerDto, @Request() req) {
     return this.customerService.create(
       createCustomerDto,
@@ -68,19 +68,19 @@ export class CustomerController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
   findAll() {
     return this.customerService.findAll();
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
   findOne(@Param('id') id: string) {
     return this.customerService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
   update(
     @Param('id') id: string,
     @Body() updateCustomerDto: UpdateCustomerDto,
@@ -94,7 +94,7 @@ export class CustomerController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
   remove(@Param('id') id: string) {
     return this.customerService.remove(id);
   }

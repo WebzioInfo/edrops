@@ -1,4 +1,3 @@
-import React from 'react';
 import { LocateFixed } from 'lucide-react';
 
 interface CurrentLocationButtonProps {

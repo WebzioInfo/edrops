@@ -241,19 +241,126 @@ export class CustomerService {
     });
   }
 
-  update(
+  async update(
     id: string,
     updateCustomerDto: UpdateCustomerDto,
     updatedByUserId?: string,
   ) {
-    // Only basic update logic provided here for brevity, full implementation requires transactional updates to related entities.
-    return this.prisma.customer.update({
-      where: { id },
-      data: {
-        customerType: updateCustomerDto.customerType,
-        companyName: updateCustomerDto.companyName,
-        updatedById: updatedByUserId,
-      },
+    const {
+      firstName,
+      lastName,
+      phone,
+      email,
+      customerType,
+      companyName,
+      gstNumber,
+      contactPerson,
+      businessCategory,
+      addresses,
+    } = updateCustomerDto;
+
+    return this.prisma.$transaction(async (tx) => {
+      const existingCustomer = await tx.customer.findUnique({
+        where: { id },
+        include: { user: true, addresses: true },
+      });
+
+      if (!existingCustomer) {
+        throw new BadRequestException('Customer not found');
+      }
+
+      // Check phone uniqueness if phone is changing
+      if (phone && phone !== existingCustomer.user.phone) {
+        const phoneExists = await tx.user.findUnique({ where: { phone } });
+        if (phoneExists) {
+          throw new BadRequestException('Phone number is already registered.');
+        }
+      }
+
+      // Check email uniqueness if email is changing
+      if (email && email !== existingCustomer.user.email) {
+        const emailExists = await tx.user.findUnique({ where: { email } });
+        if (emailExists) {
+          throw new BadRequestException('Email is already registered.');
+        }
+      }
+
+      // 1. Update User
+      if (firstName || lastName || phone || email !== undefined) {
+        await tx.user.update({
+          where: { id: existingCustomer.userId },
+          data: {
+            ...(firstName ? { firstName } : {}),
+            ...(lastName ? { lastName } : {}),
+            ...(phone ? { phone } : {}),
+            ...(email !== undefined ? { email } : {}),
+          },
+        });
+      }
+
+      // 2. Update Customer
+      const updatedCustomer = await tx.customer.update({
+        where: { id },
+        data: {
+          ...(customerType !== undefined ? { customerType } : {}),
+          ...(companyName !== undefined ? { companyName } : {}),
+          ...(gstNumber !== undefined ? { gstNumber } : {}),
+          ...(contactPerson !== undefined ? { contactPerson } : {}),
+          ...(businessCategory !== undefined ? { businessCategory } : {}),
+          updatedById: updatedByUserId,
+        },
+      });
+
+      // 3. Update Address if provided
+      if (addresses && addresses.length > 0) {
+        const newAddr = addresses[0];
+        const defaultAddr = existingCustomer.addresses.find((a) => a.isDefault) || existingCustomer.addresses[0];
+
+        if (defaultAddr) {
+          await tx.address.update({
+            where: { id: defaultAddr.id },
+            data: {
+              street: newAddr.street ?? defaultAddr.street,
+              city: newAddr.city ?? defaultAddr.city,
+              state: newAddr.state ?? defaultAddr.state,
+              zipCode: newAddr.zipCode ?? defaultAddr.zipCode,
+              country: newAddr.country ?? defaultAddr.country ?? 'India',
+              houseName: newAddr.houseName !== undefined ? newAddr.houseName : defaultAddr.houseName,
+              buildingName: newAddr.buildingName !== undefined ? newAddr.buildingName : defaultAddr.buildingName,
+              area: newAddr.area !== undefined ? newAddr.area : defaultAddr.area,
+              landmark: newAddr.landmark !== undefined ? newAddr.landmark : defaultAddr.landmark,
+              district: newAddr.district !== undefined ? newAddr.district : defaultAddr.district,
+              latitude: newAddr.latitude !== undefined ? newAddr.latitude : defaultAddr.latitude,
+              longitude: newAddr.longitude !== undefined ? newAddr.longitude : defaultAddr.longitude,
+              googleMapsUrl: newAddr.googleMapsUrl !== undefined ? newAddr.googleMapsUrl : defaultAddr.googleMapsUrl,
+              addressNotes: newAddr.addressNotes !== undefined ? newAddr.addressNotes : defaultAddr.addressNotes,
+            },
+          });
+        } else {
+          await tx.address.create({
+            data: {
+              customerId: id,
+              street: newAddr.street,
+              city: newAddr.city,
+              state: newAddr.state,
+              zipCode: newAddr.zipCode,
+              country: newAddr.country || 'India',
+              houseName: newAddr.houseName,
+              buildingName: newAddr.buildingName,
+              area: newAddr.area,
+              landmark: newAddr.landmark,
+              district: newAddr.district,
+              latitude: newAddr.latitude,
+              longitude: newAddr.longitude,
+              googleMapsUrl: newAddr.googleMapsUrl,
+              addressNotes: newAddr.addressNotes,
+              isDefault: true,
+            },
+          });
+        }
+      }
+
+      return updatedCustomer;
     });
   }
 

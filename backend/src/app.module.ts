@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -34,6 +34,7 @@ import { CartModule } from './cart/cart.module';
 import { SupportModule } from './support/support.module';
 import { AddressModule } from './address/address.module';
 import { EventsModule } from './events/events.module';
+import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
   imports: [
@@ -74,4 +75,8 @@ import { EventsModule } from './events/events.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(HttpLoggerMiddleware).forRoutes('*');
+  }
+}

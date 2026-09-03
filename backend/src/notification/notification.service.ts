@@ -87,19 +87,35 @@ export class NotificationService {
     });
   }
 
-  notifyOrderStatusUpdate(data: {
+  async notifyOrderStatusUpdate(data: {
     orderId: string;
     customerId: string;
+    userId?: string;
     newStatus: string;
   }) {
+    let targetUserId = data.userId;
+    if (!targetUserId && data.customerId) {
+      try {
+        const cust = await this.prisma.customer.findUnique({
+          where: { id: data.customerId },
+          select: { userId: true },
+        });
+        targetUserId = cust?.userId;
+      } catch (e) {
+        // Ignore lookup error
+      }
+    }
+
     this.dispatcher.dispatch({
       id: crypto.randomUUID(),
       type: 'ORDER_STATUS_CHANGED',
       title: 'Order Status Updated',
       message: `Your order #${data.orderId.substring(0, 8)} is now ${data.newStatus.replace(/_/g, ' ')}.`,
-      channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
+      channels: targetUserId
+        ? [NotificationChannel.SOCKET, NotificationChannel.DATABASE]
+        : [NotificationChannel.SOCKET],
       recipients: {
-        userId: data.customerId,
+        userId: targetUserId,
         socketRoom: `customer-${data.customerId}`,
       },
       data: {

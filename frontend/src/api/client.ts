@@ -30,21 +30,31 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
       // JSON parsing failed
     }
 
-    const message =
-      Array.isArray(errorData?.message)
-        ? errorData.message[0]
-        : errorData?.message ?? `Request failed (${response.status})`;
+    let message = 'An error occurred. Please try again.';
+    if (Array.isArray(errorData?.message)) {
+      message = errorData.message.join(', ');
+    } else if (typeof errorData?.message === 'string') {
+      message = errorData.message;
+    } else if (response.status === 401) {
+      message = 'Your session has expired. Please sign in again.';
+    } else if (response.status === 403) {
+      message = 'You do not have permission to perform this action.';
+    } else if (response.status === 404) {
+      message = 'The requested resource was not found. Please try again.';
+    } else if (response.status >= 500) {
+      message = 'Something went wrong on the server. Please try again.';
+    } else {
+      message = `Request failed with status ${response.status}`;
+    }
 
     // Standardized Error Interception
     if (response.status === 401 && !endpoint.startsWith('/auth/')) {
-      toast.error('Session expired. Please log in again.');
+      toast.error('Your session has expired. Please sign in again.');
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem('edrops_user');
       window.location.href = '/login';
     } else if (response.status === 403) {
       toast.error('You do not have permission to perform this action.');
-    } else if (response.status === 404) {
-      // Optional: Ignore generic 404s or log them
     } else if (response.status >= 500) {
       toast.error('Server error. Our team has been notified.');
     }

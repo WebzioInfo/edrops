@@ -1,8 +1,8 @@
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import { useLocationPicker } from '../hooks/useLocationPicker';
 import { useCurrentLocation } from '../hooks/useCurrentLocation';
-import { useReverseGeocoding, GeocodedAddress } from '../hooks/useReverseGeocoding';
+import { useReverseGeocoding, type GeocodedAddress } from '../hooks/useReverseGeocoding';
 import { useAddressSearch } from '../hooks/useAddressSearch';
 import AddressSearch from './AddressSearch';
 import CurrentLocationButton from './CurrentLocationButton';
