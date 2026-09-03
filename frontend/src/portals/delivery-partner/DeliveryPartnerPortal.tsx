@@ -25,6 +25,7 @@ import Overview from './pages/Overview';
 import Customers from './pages/Customers';
 import Orders from './pages/Orders';
 import Profits from './pages/Profits';
+import Profile from './pages/Profile';
 import type { DeliveryTask } from './pages/Overview';
 
 interface NavItem {
@@ -52,6 +53,12 @@ const navSections: { title: string; items: NavItem[] }[] = [
     title: 'FINANCE',
     items: [
       { to: '/delivery-partner/profits', label: 'Profits', icon: Wallet },
+    ],
+  },
+  {
+    title: 'ACCOUNT',
+    items: [
+      { to: '/delivery-partner/profile', label: 'Profile', icon: User },
     ],
   },
 ];
@@ -224,6 +231,7 @@ export default function DeliveryPartnerPortal() {
     if (path.includes('/customers')) return 'Customers';
     if (path.includes('/orders')) return 'Orders';
     if (path.includes('/profits')) return 'Profits';
+    if (path.includes('/profile')) return 'Profile';
     return 'Delivery Workspace';
   };
 
@@ -300,22 +308,26 @@ export default function DeliveryPartnerPortal() {
         {/* Driver Profile Footer */}
         <div className="p-4 border-t border-[#E2E8F0] bg-slate-50/50">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs">
+            <NavLink
+              to="/delivery-partner/profile"
+              className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-85 transition group cursor-pointer"
+              title="View & Manage Profile"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors">
                 {user?.firstName?.[0] || 'D'}{user?.lastName?.[0] || 'P'}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-[#16324F] truncate">{driverName}</p>
+                <p className="text-xs font-bold text-[#16324F] truncate group-hover:text-[#1677C8] transition-colors">{driverName}</p>
                 <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span>Online</span>
                 </div>
               </div>
-            </div>
+            </NavLink>
             <button
               onClick={logout}
               title="Logout"
-              className="p-2 text-[#64748B] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+              className="p-2 text-[#64748B] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -411,21 +423,25 @@ export default function DeliveryPartnerPortal() {
               {/* Drawer Driver Info */}
               <div className="p-4 border-t border-[#E2E8F0] bg-slate-50">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs">
-                      <User className="w-4 h-4" />
+                  <NavLink
+                    to="/delivery-partner/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-85 transition group"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors">
+                      {user?.firstName?.[0] || 'D'}{user?.lastName?.[0] || 'P'}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-[#16324F] truncate">{driverName}</p>
+                      <p className="text-xs font-bold text-[#16324F] truncate group-hover:text-[#1677C8] transition-colors">{driverName}</p>
                       <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                         <span>Online</span>
                       </div>
                     </div>
-                  </div>
+                  </NavLink>
                   <button
                     onClick={logout}
-                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-lg transition cursor-pointer shrink-0"
                   >
                     Logout
                   </button>
@@ -482,9 +498,13 @@ export default function DeliveryPartnerPortal() {
 
             {/* Driver Profile */}
             <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs">
-                {user?.firstName?.[0] || 'D'}
-              </div>
+              <NavLink
+                to="/delivery-partner/profile"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs hover:bg-[#1677C8]/20 transition-colors cursor-pointer"
+                title="View Profile"
+              >
+                {user?.firstName?.[0] || 'D'}{user?.lastName?.[0] || 'P'}
+              </NavLink>
               <button
                 onClick={logout}
                 className="hidden sm:inline-flex text-xs font-semibold text-[#64748B] hover:text-rose-600 transition-colors"
@@ -527,6 +547,10 @@ export default function DeliveryPartnerPortal() {
                 <Route
                   path="profits"
                   element={<Profits tasks={tasks} loading={loading} />}
+                />
+                <Route
+                  path="profile"
+                  element={<Profile />}
                 />
                 <Route path="*" element={<Navigate to="/delivery-partner" replace />} />
               </Routes>

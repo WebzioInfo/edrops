@@ -57,7 +57,7 @@ export class AuthController {
   @Post('change-password')
   changePassword(
     @Request() req,
-    @Body() body: { otp: string; newPassword: string },
+    @Body() body: { currentPassword?: string; otp?: string; newPassword: string },
   ) {
     return this.authService.changePassword(req.user.id, body);
   }

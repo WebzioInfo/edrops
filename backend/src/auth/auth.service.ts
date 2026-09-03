@@ -340,28 +340,44 @@ export class AuthService {
     return { success: true, message: 'Verification code sent to your email.' };
   }
 
-  async changePassword(userId: string, data: { otp: string; newPassword }) {
+  async changePassword(
+    userId: string,
+    data: { currentPassword?: string; otp?: string; newPassword: string },
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    if (
-      !user.resetPasswordToken ||
-      !user.resetPasswordExpires ||
-      user.resetPasswordExpires.getTime() < Date.now()
-    ) {
-      throw new BadRequestException(
-        'Verification code has expired. Please request a new one.',
-      );
+    if (!data.newPassword || data.newPassword.length < 6) {
+      throw new BadRequestException('New password must be at least 6 characters long.');
     }
 
-    const hashedOtp = crypto
-      .createHash('sha256')
-      .update(data.otp)
-      .digest('hex');
-    if (hashedOtp !== user.resetPasswordToken) {
-      throw new BadRequestException('Invalid verification code.');
+    if (data.currentPassword) {
+      const isMatch = await bcrypt.compare(data.currentPassword, user.passwordHash);
+      if (!isMatch) {
+        throw new BadRequestException('Current password does not match.');
+      }
+    } else if (data.otp) {
+      if (
+        !user.resetPasswordToken ||
+        !user.resetPasswordExpires ||
+        user.resetPasswordExpires.getTime() < Date.now()
+      ) {
+        throw new BadRequestException(
+          'Verification code has expired. Please request a new one.',
+        );
+      }
+
+      const hashedOtp = crypto
+        .createHash('sha256')
+        .update(data.otp)
+        .digest('hex');
+      if (hashedOtp !== user.resetPasswordToken) {
+        throw new BadRequestException('Invalid verification code.');
+      }
+    } else {
+      throw new BadRequestException('Current password or OTP is required.');
     }
 
     const salt = await bcrypt.genSalt(10);

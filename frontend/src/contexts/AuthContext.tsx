@@ -7,7 +7,15 @@ type User = {
   firstName: string;
   lastName: string;
   phone?: string;
-  role: 'CUSTOMER' | 'STAFF' | 'ADMIN';
+  role: 'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER' | string;
+  isActive?: boolean;
+  createdAt?: string;
+  deliveryPartner?: {
+    id?: string;
+    vehicleType?: string;
+    vehicleNumber?: string;
+    status?: string;
+  };
   customer?: {
     jarOwnerships?: Array<{ brandId: string; companyJarsHeld: number; ownedJars: number; brand?: { name: string } }>;
   };
@@ -17,6 +25,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (token: string, user: User) => void;
+  updateUser: (updatedUser: Partial<User>) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -56,6 +65,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
   };
 
+  const updateUser = (updatedFields: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const merged = { ...prev, ...updatedFields };
+      localStorage.setItem(USER_KEY, JSON.stringify(merged));
+      return merged;
+    });
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -67,7 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, updateUser, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
