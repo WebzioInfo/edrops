@@ -11,12 +11,16 @@ import {
   Query,
 } from '@nestjs/common';
 import { DeliveryService } from './delivery.service';
+import { PartnerProfitsService } from './partner-profits.service';
 import { AuthGuard } from '@nestjs/passport';
 
-@Controller('delivery')
+@Controller(['delivery', 'delivery-partner'])
 @UseGuards(AuthGuard('jwt'))
 export class DeliveryController {
-  constructor(private readonly deliveryService: DeliveryService) {}
+  constructor(
+    private readonly deliveryService: DeliveryService,
+    private readonly partnerProfitsService: PartnerProfitsService,
+  ) {}
 
   @Post()
   create(@Body() data: any) {
@@ -33,9 +37,27 @@ export class DeliveryController {
     return this.deliveryService.findToday();
   }
 
-  @Get('partner/my-tasks')
+  @Get(['partner/my-tasks', 'my-tasks'])
   findMyTasks(@Request() req) {
-    return this.deliveryService.findByPartner(req.user.id);
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    return this.deliveryService.findByPartner(userId);
+  }
+
+  @Get(['partner/profits', 'profits'])
+  getPartnerProfits(
+    @Request() req,
+    @Query('period') period?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('paymentStatus') paymentStatus?: string,
+  ) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    return this.partnerProfitsService.getPartnerProfits(userId, {
+      period,
+      startDate,
+      endDate,
+      paymentStatus,
+    });
   }
 
   @Get('history')

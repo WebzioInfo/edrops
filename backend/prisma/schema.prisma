@@ -258,6 +258,7 @@ model DeliveryAssignment {
   deliveryId        String          @unique
   deliveryPartnerId String
   assignedAt        DateTime        @default(now())
+  rateSnapshot      Decimal?        @db.Decimal(10, 2)
   delivery          Delivery        @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
   deliveryPartner   DeliveryPartner @relation(fields: [deliveryPartnerId], references: [id])
 }
@@ -790,7 +791,8 @@ model Order {
   paymentStatus         PaymentStatus        @default(PENDING)
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
-  paymentMethod         String               @default("ONLINE")
+  deliveredAt           DateTime?
+  paymentMethod         String?
   hybridSecondaryMethod String?
   timeSlot              String?
   discountTotal         Float                @default(0.0)
@@ -829,6 +831,7 @@ model OrderItem {
   unitPrice              Float
   deposit                Float     @default(0.0)
   total                  Float
+  partnerCost            Decimal?  @db.Decimal(10, 2)
   declaredReturnQuantity Int       @default(0)
   verifiedReturnQuantity Int?
   deliveryVerifiedById   String?

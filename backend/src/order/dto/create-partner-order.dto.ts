@@ -25,6 +25,12 @@ export class CreatePartnerOrderItemDto {
   @Min(0)
   @Type(() => Number)
   unitPrice: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  partnerCost?: number;
 }
 
 export class OverrideAddressDto {

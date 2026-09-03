@@ -77,6 +77,21 @@ export class OrderService {
             },
           },
         },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
+        delivery: {
+          include: {
+            assignment: {
+              include: {
+                deliveryPartner: {
+                  include: { user: { select: { firstName: true, lastName: true, phone: true } } },
+                },
+              },
+            },
+            report: true,
+          },
+        },
         history: {
           include: {
             user: { select: { firstName: true, lastName: true, phone: true, role: true } },
@@ -176,6 +191,11 @@ export class OrderService {
       throw new BadRequestException('One or more selected products are invalid');
     }
 
+    // Check if creator is a delivery partner to snapshot their current rate if not custom specified
+    const partner = await this.prisma.deliveryPartner.findUnique({
+      where: { userId },
+    });
+
     // Recalculate totals authoritatively on backend
     let subTotal = 0;
     const orderItemsData = dto.items.map((item) => {
@@ -190,6 +210,13 @@ export class OrderService {
         throw new BadRequestException(`Invalid unit price for product: ${product.name}`);
       }
 
+      let itemPartnerCost: any = null;
+      if (item.partnerCost !== undefined && item.partnerCost !== null && !isNaN(Number(item.partnerCost))) {
+        itemPartnerCost = Number(item.partnerCost);
+      } else if (partner && partner.jarUnitPrice) {
+        itemPartnerCost = Number(partner.jarUnitPrice);
+      }
+
       const lineTotal = Number((qty * price).toFixed(2));
       subTotal += lineTotal;
 
@@ -197,6 +224,7 @@ export class OrderService {
         productId: product.id,
         quantity: qty,
         unitPrice: price,
+        partnerCost: itemPartnerCost !== null ? itemPartnerCost : null,
         deposit: 0,
         total: lineTotal,
       };
@@ -292,7 +320,7 @@ export class OrderService {
           discountTotal,
           totalAmount,
           deliveryAddressId: targetAddressId!,
-          paymentMethod: dto.paymentMethod || 'CASH_ON_DELIVERY',
+          paymentMethod: dto.paymentMethod || null,
           paymentStatus: PaymentStatus.PENDING,
           adminNotes: dto.adminNotes || 'Created by Delivery Partner',
           timeSlot: dto.timeSlot || 'Standard Delivery',
@@ -340,7 +368,7 @@ export class OrderService {
         customerName: `${customer.user?.firstName} ${customer.user?.lastName}`.trim(),
         customerPhone: customer.user?.phone,
         totalAmount: newOrder.totalAmount,
-        paymentMethod: newOrder.paymentMethod,
+        paymentMethod: newOrder.paymentMethod || 'PENDING_DELIVERY',
       });
     } catch (e) {
       console.warn('[OrderService] notification error:', e);
@@ -354,11 +382,19 @@ export class OrderService {
     newStatus: OrderStatus,
     staffUserId: string,
     reason?: string,
+    paymentConfirmation?: {
+      paymentReceived: boolean;
+      paymentMethod?: string;
+      amountReceived?: number;
+    },
     isAdminOverride: boolean = false,
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { customer: { include: { user: true } } },
+      include: {
+        customer: { include: { user: true } },
+        items: true,
+      },
     });
 
     if (!order) throw new BadRequestException('Order not found');
@@ -366,9 +402,9 @@ export class OrderService {
     const validTransitions: Record<OrderStatus, OrderStatus[]> = {
       NEW: ['PENDING_PAYMENT', 'PENDING_ASSIGNMENT', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
       PENDING_PAYMENT: ['PAYMENT_SUCCESS', 'FAILED', 'CANCELLED'],
-      PAYMENT_SUCCESS: ['PENDING_ASSIGNMENT', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'CANCELLED'],
-      PENDING_ASSIGNMENT: ['ASSIGNED', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'CANCELLED'],
-      ASSIGNED: ['ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'CANCELLED'],
+      PAYMENT_SUCCESS: ['PENDING_ASSIGNMENT', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
+      PENDING_ASSIGNMENT: ['ASSIGNED', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
+      ASSIGNED: ['ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
       ACCEPTED_BY_PARTNER: ['OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
       OUT_FOR_DELIVERY: [
         'DELIVERED',
@@ -376,6 +412,7 @@ export class OrderService {
         'CUSTOMER_NOT_AVAILABLE',
         'FAILED',
         'RETURNED',
+        'CANCELLED',
       ],
       DELIVERED: ['COMPLETED'],
       PARTIALLY_DELIVERED: ['COMPLETED'],
@@ -398,22 +435,119 @@ export class OrderService {
 
     // Use a transaction to ensure DB consistency
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
-      // 1. Update order status
+      let targetPaymentStatus = order.paymentStatus;
+      let targetPaymentMethod = order.paymentMethod;
+      let deliveredAt = order.deliveredAt;
+
+      const isDelivering = newStatus === OrderStatus.DELIVERED || newStatus === OrderStatus.COMPLETED;
+      const isAlreadyPaid = order.paymentStatus === PaymentStatus.SUCCESS;
+
+      if (isDelivering) {
+        deliveredAt = new Date();
+
+        if (paymentConfirmation) {
+          if (paymentConfirmation.paymentReceived) {
+            targetPaymentStatus = PaymentStatus.SUCCESS;
+            if (!paymentConfirmation.paymentMethod) {
+              throw new BadRequestException('Payment method is required when marking payment as received.');
+            }
+            targetPaymentMethod = paymentConfirmation.paymentMethod;
+
+            const paidAmt = paymentConfirmation.amountReceived !== undefined && paymentConfirmation.amountReceived !== null
+              ? Number(paymentConfirmation.amountReceived)
+              : order.totalAmount;
+
+            if (paidAmt <= 0) {
+              throw new BadRequestException('Amount received must be greater than 0 when payment is received.');
+            }
+
+            // Create payment record in DB
+            await tx.payment.create({
+              data: {
+                orderId,
+                customerId: order.customerId,
+                amount: paidAmt,
+                currency: 'INR',
+                status: PaymentStatus.SUCCESS,
+                provider: targetPaymentMethod,
+                receiptId: `RCP-${Date.now()}`,
+                description: `Payment confirmed upon delivery`,
+              },
+            });
+          } else {
+            // Unpaid delivery
+            if (!isAlreadyPaid) {
+              targetPaymentStatus = PaymentStatus.PENDING;
+              targetPaymentMethod = null;
+            }
+          }
+        }
+      }
+
+      // 1. Update order status, payment fields, and deliveredAt
       const updated = await tx.order.update({
         where: { id: orderId },
-        data: { status: newStatus },
+        data: {
+          status: newStatus,
+          paymentStatus: targetPaymentStatus,
+          paymentMethod: targetPaymentMethod,
+          deliveredAt,
+        },
       });
 
       // 2. Create history audit log
+      let historyReason = reason || `Status changed to ${newStatus}`;
+      if (isDelivering) {
+        if (isAlreadyPaid && !paymentConfirmation) {
+          historyReason = `Delivered (Pre-verified Online Payment: ₹${order.totalAmount})`;
+        } else if (paymentConfirmation?.paymentReceived) {
+          historyReason = `Delivered & Payment Received: ₹${paymentConfirmation.amountReceived ?? order.totalAmount} via ${paymentConfirmation.paymentMethod}`;
+        } else if (paymentConfirmation && !paymentConfirmation.paymentReceived) {
+          historyReason = `Delivered (Payment Pending / Unpaid)`;
+        }
+      }
+
       await tx.orderStatusHistory.create({
         data: {
           orderId,
           previousStatus: order.status,
           newStatus,
           changedByUserId: staffUserId,
-          reason: reason || `Status changed to ${newStatus}`,
+          reason: historyReason,
         },
       });
+
+      // 3. Sync associated Delivery record if exists
+      const delivery = await tx.delivery.findFirst({ where: { orderId } });
+      if (delivery) {
+        await tx.delivery.update({
+          where: { id: delivery.id },
+          data: {
+            status: newStatus === OrderStatus.DELIVERED || newStatus === OrderStatus.COMPLETED
+              ? OrderStatus.DELIVERED
+              : newStatus === OrderStatus.CANCELLED
+              ? OrderStatus.CANCELLED
+              : delivery.status,
+          },
+        });
+
+        if (isDelivering) {
+          const totalJars = order.items.reduce((sum, item) => sum + item.quantity, 0) || 1;
+          await tx.deliveryReport.upsert({
+            where: { deliveryId: delivery.id },
+            update: {
+              partnerDeliveredQty: totalJars,
+              partnerSubmittedAt: new Date(),
+            },
+            create: {
+              deliveryId: delivery.id,
+              partnerDeliveredQty: totalJars,
+              partnerEmptyCollected: 0,
+              partnerSubmittedAt: new Date(),
+            },
+          });
+        }
+      }
 
       return updated;
     });

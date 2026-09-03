@@ -67,9 +67,10 @@ export class OrderController {
     @Param('id') id: string,
     @Body('status') status: any,
     @Body('reason') reason: string,
+    @Body('paymentConfirmation') paymentConfirmation: any,
     @Req() req,
   ) {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;
-    return this.orderService.updateOrderStatus(id, status, userId, reason);
+    return this.orderService.updateOrderStatus(id, status, userId, reason, paymentConfirmation);
   }
 }

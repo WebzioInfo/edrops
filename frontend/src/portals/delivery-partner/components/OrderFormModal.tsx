@@ -135,7 +135,6 @@ export default function OrderFormModal({
   const [showProductDropdown, setShowProductDropdown] = useState(false);
 
   // Form State
-  const [paymentMethod, setPaymentMethod] = useState('CASH_ON_DELIVERY');
   const [adminNotes, setAdminNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -165,7 +164,6 @@ export default function OrderFormModal({
     setLocationSuggestions([]);
     setOrderItems([]);
     setProductSearchQuery('');
-    setPaymentMethod('CASH_ON_DELIVERY');
     setAdminNotes('');
     setFormError(null);
   }, []);
@@ -443,7 +441,6 @@ export default function OrderFormModal({
       const payload: any = {
         customerId: selectedCustomer.id,
         deliveryLocationMode: locationMode === 'SAVED' ? 'SAVED' : 'OVERRIDE',
-        paymentMethod,
         adminNotes: adminNotes.trim() || undefined,
         items: orderItems.map((item) => ({
           productId: item.product.id,
@@ -980,25 +977,13 @@ export default function OrderFormModal({
             )}
           </div>
 
-          {/* 4. PAYMENT METHOD & NOTES */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
-            <div>
-              <label className="block text-xs font-semibold text-[#16324F] mb-1">Payment Method</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1677C8] text-[#16324F]"
-              >
-                <option value="CASH_ON_DELIVERY">Cash on Delivery</option>
-                <option value="ONLINE">Online Payment (Razorpay / UPI)</option>
-                <option value="WALLET">Customer Wallet</option>
-              </select>
-            </div>
+          {/* 4. ORDER NOTES */}
+          <div className="pt-2 border-t border-gray-100">
             <div>
               <label className="block text-xs font-semibold text-[#16324F] mb-1">Order Notes (Optional)</label>
               <input
                 type="text"
-                placeholder="e.g. Deliver before 10 AM, Gate code 1234"
+                placeholder="e.g. Deliver before 10 AM, Gate code 1234, Leave at reception"
                 value={adminNotes}
                 onChange={(e) => setAdminNotes(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1677C8] text-[#16324F]"
