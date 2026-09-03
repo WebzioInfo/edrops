@@ -36,6 +36,8 @@ export class CustomerService {
       openingWalletBalance,
       openingJarBalance,
       openingDeposit,
+      jars_at_customer,
+      jarsAtCustomer,
       referralCode,
       referredById,
       password,
@@ -73,6 +75,13 @@ export class CustomerService {
     }
     const passwordHash = await bcrypt.hash(rawPassword, 10);
 
+    const initialJars =
+      jars_at_customer !== undefined
+        ? Number(jars_at_customer)
+        : jarsAtCustomer !== undefined
+        ? Number(jarsAtCustomer)
+        : 0;
+
     // Create via Transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // 1. Create User
@@ -99,6 +108,7 @@ export class CustomerService {
           companyName,
           contactPerson,
           businessCategory,
+          jarsAtCustomer: initialJars,
           referralCode,
           referredById,
           createdById: createdByUserId,
@@ -210,8 +220,8 @@ export class CustomerService {
     };
   }
 
-  findAll() {
-    return this.prisma.customer.findMany({
+  async findAll() {
+    const customers = await this.prisma.customer.findMany({
       include: {
         user: true,
         addresses: { where: { isDefault: true }, take: 1 },
@@ -220,10 +230,14 @@ export class CustomerService {
       },
       orderBy: { user: { createdAt: 'desc' } },
     });
+    return customers.map((c) => ({
+      ...c,
+      jars_at_customer: c.jarsAtCustomer,
+    }));
   }
 
-  findOne(id: string) {
-    return this.prisma.customer.findUnique({
+  async findOne(id: string) {
+    const customer = await this.prisma.customer.findUnique({
       where: { id },
       include: {
         user: true,
@@ -239,6 +253,11 @@ export class CustomerService {
         orders: { orderBy: { createdAt: 'desc' }, take: 20 },
       },
     });
+    if (!customer) return null;
+    return {
+      ...customer,
+      jars_at_customer: customer.jarsAtCustomer,
+    };
   }
 
   async update(
@@ -256,6 +275,8 @@ export class CustomerService {
       gstNumber,
       contactPerson,
       businessCategory,
+      jars_at_customer,
+      jarsAtCustomer,
       addresses,
     } = updateCustomerDto;
 
@@ -307,6 +328,11 @@ export class CustomerService {
           ...(gstNumber !== undefined ? { gstNumber } : {}),
           ...(contactPerson !== undefined ? { contactPerson } : {}),
           ...(businessCategory !== undefined ? { businessCategory } : {}),
+          ...(jars_at_customer !== undefined
+            ? { jarsAtCustomer: Number(jars_at_customer) }
+            : jarsAtCustomer !== undefined
+            ? { jarsAtCustomer: Number(jarsAtCustomer) }
+            : {}),
           updatedById: updatedByUserId,
         },
       });
@@ -360,7 +386,10 @@ export class CustomerService {
         }
       }
 
-      return updatedCustomer;
+      return {
+        ...updatedCustomer,
+        jars_at_customer: updatedCustomer.jarsAtCustomer,
+      };
     });
   }
 

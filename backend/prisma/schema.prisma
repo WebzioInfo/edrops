@@ -76,6 +76,8 @@ model Customer {
   source              String?
   createdFrom         String?
 
+  jarsAtCustomer      Int                  @default(0) @map("jars_at_customer")
+
   addresses           Address[]
   cart                Cart?
   forecast            ConsumptionForecast?

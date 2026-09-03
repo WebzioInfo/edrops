@@ -6,7 +6,8 @@ import {
   MapPin, 
   Navigation, 
   Building2, 
-  Edit
+  Edit,
+  Package,
 } from 'lucide-react';
 import type { CustomerRecord } from './CustomerFormModal';
 
@@ -109,6 +110,27 @@ export default function CustomerDetailModal({
               )}
             </div>
           )}
+
+          {/* Customer Jar Holding Operational Balance */}
+          <div className="p-3.5 bg-blue-50/50 border border-blue-200/80 rounded-xl space-y-1">
+            <span className="text-[10px] font-bold text-[#1677C8] uppercase tracking-wider flex items-center gap-1.5">
+              <Package className="w-3.5 h-3.5 text-[#1677C8]" />
+              <span>Jars at Customer</span>
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-extrabold text-[#16324F]">
+                {customer.jars_at_customer !== undefined
+                  ? customer.jars_at_customer
+                  : customer.jarsAtCustomer !== undefined
+                  ? customer.jarsAtCustomer
+                  : 0}
+              </span>
+              <span className="text-xs font-semibold text-[#64748B]">jars</span>
+            </div>
+            <p className="text-[11px] text-[#64748B]">
+              Currently with customer
+            </p>
+          </div>
 
           {/* Delivery Location & Address */}
           <div className="p-4 bg-blue-50/40 border border-blue-100 rounded-xl space-y-2">

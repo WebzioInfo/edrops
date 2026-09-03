@@ -9,7 +9,8 @@ import {
   Building2, 
   Phone, 
   Mail, 
-  AlertCircle
+  AlertCircle,
+  Package
 } from 'lucide-react';
 import LocationPickerField from '../../../features/location/components/LocationPickerField';
 import type { NormalizedLocation } from '../../../features/location/services/LocationEngine';
@@ -22,6 +23,8 @@ export interface CustomerRecord {
   customerType: string;
   companyName?: string;
   gstNumber?: string;
+  jars_at_customer?: number;
+  jarsAtCustomer?: number;
   user: {
     id?: string;
     firstName: string;
@@ -74,6 +77,8 @@ export default function CustomerFormModal({
     gstNumber: '',
   });
 
+  const [jarsAtCustomerStr, setJarsAtCustomerStr] = useState<string>('0');
+
   const [addressData, setAddressData] = useState({
     street: '',
     houseName: '',
@@ -102,6 +107,16 @@ export default function CustomerFormModal({
         companyName: customerToEdit.companyName || '',
         gstNumber: customerToEdit.gstNumber || '',
       });
+
+      setJarsAtCustomerStr(
+        String(
+          customerToEdit.jars_at_customer !== undefined
+            ? customerToEdit.jars_at_customer
+            : customerToEdit.jarsAtCustomer !== undefined
+            ? customerToEdit.jarsAtCustomer
+            : 0,
+        ),
+      );
 
       const defaultAddr = customerToEdit.addresses?.find((a) => a.isDefault) || customerToEdit.addresses?.[0];
       if (defaultAddr) {
@@ -147,6 +162,7 @@ export default function CustomerFormModal({
         companyName: '',
         gstNumber: '',
       });
+      setJarsAtCustomerStr('0');
       setAddressData({
         street: '',
         houseName: '',
@@ -210,6 +226,9 @@ export default function CustomerFormModal({
       return;
     }
 
+    const parsedJars = jarsAtCustomerStr.trim() === '' ? 0 : parseInt(jarsAtCustomerStr, 10);
+    const finalJars = Math.max(0, isNaN(parsedJars) ? 0 : parsedJars);
+
     const payload = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
@@ -218,6 +237,7 @@ export default function CustomerFormModal({
       customerType: formData.customerType,
       companyName: formData.companyName.trim() || undefined,
       gstNumber: formData.gstNumber.trim() || undefined,
+      jars_at_customer: finalJars,
       generateRandomPassword: true,
       addresses: [
         {
@@ -406,6 +426,39 @@ export default function CustomerFormModal({
                       />
                     </div>
                   )}
+                </div>
+
+                {/* Customer Jar Holding */}
+                <div className="pt-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#1677C8] uppercase tracking-wider pb-1 border-b border-gray-100 mb-3">
+                    <Package className="w-4 h-4" />
+                    <span>Customer Jar Holding</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#16324F] mb-1">
+                      Jars at Customer
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="0"
+                      value={jarsAtCustomerStr}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*$/.test(val)) {
+                          setJarsAtCustomerStr(val);
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1677C8] focus:ring-2 focus:ring-[#1677C8]/10 transition-all text-[#16324F]"
+                    />
+                    <p className="text-[11px] text-[#64748B] mt-1">
+                      {isEditing
+                        ? 'Current number of Edrops jars physically with this customer'
+                        : 'How many Edrops jars are currently with this customer?'}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Address Section */}

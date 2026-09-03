@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsEnum,
   IsNumber,
+  IsInt,
   Min,
   IsBoolean,
   ValidateNested,
@@ -63,6 +64,8 @@ export class CreateCustomerDto {
   @IsNumber() @IsOptional() @Min(0) openingWalletBalance?: number;
   @IsNumber() @IsOptional() @Min(0) openingJarBalance?: number;
   @IsNumber() @IsOptional() @Min(0) openingDeposit?: number;
+  @IsInt() @IsOptional() @Min(0) @Type(() => Number) jars_at_customer?: number;
+  @IsInt() @IsOptional() @Min(0) @Type(() => Number) jarsAtCustomer?: number;
 
   @IsString() @IsOptional() referralCode?: string;
   @IsString() @IsOptional() referredById?: string;
