@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { EdropsLogo } from '../../components/Logo';
+import MobileSidebarDrawer from '../../components/common/MobileSidebarDrawer';
 
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const CatalogManager = React.lazy(() => import('./pages/CatalogManager'));
@@ -282,111 +283,106 @@ export default function AdminPortal() {
       </aside>
 
       {/* ─── MOBILE DRAWER (SLIDE-OVER FOR SMALL SCREENS) ────────── */}
-      {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex animate-in fade-in">
-          {/* Overlay backdrop */}
-          <div 
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
+      <MobileSidebarDrawer
+        isOpen={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
+        className="w-72 max-w-[85vw] bg-white"
+        ariaLabel="Admin navigation drawer"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 h-16 border-b border-[#E2E8F0]">
+          <div className="flex flex-col justify-center">
+            <EdropsLogo variant="blue" className="h-6 w-auto" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
+              Admin Panel
+            </span>
+          </div>
+          <button
+            type="button"
             onClick={() => setMobileDrawerOpen(false)}
-          />
+            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition cursor-pointer"
+            aria-label="Close navigation menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-          {/* Drawer panel */}
-          <div className="relative flex flex-col w-72 max-w-[85vw] bg-white h-full shadow-2xl z-10 select-none animate-in slide-in-from-left">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 h-16 border-b border-[#E2E8F0]">
-              <div className="flex flex-col justify-center">
-                <EdropsLogo variant="blue" className="h-6 w-auto" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
-                  Admin Panel
-                </span>
+        {/* Mobile Nav Links */}
+        <nav className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
+          {navSections.map((section) => (
+            <div key={section.title} className="space-y-1">
+              <div className="px-3 text-[10px] font-bold tracking-wider text-[#94A3B8] uppercase mb-1.5">
+                {section.title}
               </div>
-              <button
-                type="button"
-                onClick={() => setMobileDrawerOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileDrawerOpen(false)}
+                    className={({ isActive }) => `
+                      flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors
+                      ${
+                        isActive
+                          ? 'bg-[#1677C8]/10 text-[#1677C8] font-bold'
+                          : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
+                      }
+                    `}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-[#1677C8]' : 'text-[#64748B]'}`} />
+                        <span className="flex-1">{item.label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
             </div>
+          ))}
 
-            {/* Mobile Nav Links */}
-            <nav className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
-              {navSections.map((section) => (
-                <div key={section.title} className="space-y-1">
-                  <div className="px-3 text-[10px] font-bold tracking-wider text-[#94A3B8] uppercase mb-1.5">
-                    {section.title}
-                  </div>
-                  {section.items.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        onClick={() => setMobileDrawerOpen(false)}
-                        className={({ isActive }) => `
-                          flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors
-                          ${
-                            isActive
-                              ? 'bg-[#1677C8]/10 text-[#1677C8] font-bold'
-                              : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
-                          }
-                        `}
-                      >
-                        {({ isActive }) => (
-                          <>
-                            <Icon className={`w-4 h-4 ${isActive ? 'text-[#1677C8]' : 'text-[#64748B]'}`} />
-                            <span className="flex-1">{item.label}</span>
-                          </>
-                        )}
-                      </NavLink>
-                    );
-                  })}
-                </div>
-              ))}
+          <div className="pt-2 border-t border-gray-100">
+            <NavLink
+              to="/admin/settings"
+              onClick={() => setMobileDrawerOpen(false)}
+              className={({ isActive }) => `
+                flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors
+                ${isActive ? 'bg-[#1677C8]/10 text-[#1677C8]' : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'}
+              `}
+            >
+              <Settings className="w-4 h-4 text-[#64748B]" />
+              <span>Settings</span>
+            </NavLink>
+          </div>
+        </nav>
 
-              <div className="pt-2 border-t border-gray-100">
-                <NavLink
-                  to="/admin/settings"
-                  onClick={() => setMobileDrawerOpen(false)}
-                  className={({ isActive }) => `
-                    flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors
-                    ${isActive ? 'bg-[#1677C8]/10 text-[#1677C8]' : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'}
-                  `}
-                >
-                  <Settings className="w-4 h-4 text-[#64748B]" />
-                  <span>Settings</span>
-                </NavLink>
+        {/* Mobile Drawer Footer */}
+        <div className="p-4 border-t border-[#E2E8F0] bg-slate-50">
+          <div className="flex items-center justify-between">
+            <NavLink
+              to="/admin/profile"
+              onClick={() => setMobileDrawerOpen(false)}
+              className="flex items-center gap-2.5 min-w-0 flex-1"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs">
+                {adminInitials}
               </div>
-            </nav>
-
-            {/* Mobile Drawer Footer */}
-            <div className="p-4 border-t border-[#E2E8F0] bg-slate-50">
-              <div className="flex items-center justify-between">
-                <NavLink
-                  to="/admin/profile"
-                  onClick={() => setMobileDrawerOpen(false)}
-                  className="flex items-center gap-2.5 min-w-0 flex-1"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs">
-                    {adminInitials}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-[#16324F] truncate">{adminName}</p>
-                    <p className="text-[10px] text-[#64748B]">Administrator</p>
-                  </div>
-                </NavLink>
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
-                >
-                  Logout
-                </button>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-[#16324F] truncate">{adminName}</p>
+                <p className="text-[10px] text-[#64748B]">Administrator</p>
               </div>
-            </div>
+            </NavLink>
+            <button
+              type="button"
+              onClick={logout}
+              className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+            >
+              Logout
+            </button>
           </div>
         </div>
-      )}
+      </MobileSidebarDrawer>
 
       {/* ─── MAIN CONTENT VIEWPORT ──────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
