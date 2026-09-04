@@ -28,11 +28,27 @@ const PageLoader = () => (
 );
 
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
+
+function RootRedirect() {
+  const { user, authStatus, isLoading } = useAuth();
+
+  if (isLoading || authStatus === 'loading') {
+    return <PageLoader />;
+  }
+
+  if (user) {
+    if (user.role === 'DELIVERY_PARTNER') return <Navigate to="/delivery-partner" replace />;
+    if (user.role === 'ADMIN') return <Navigate to="/admin" replace />;
+    if (user.role === 'STAFF') return <Navigate to="/staff" replace />;
+  }
+
+  return <Navigate to="/customer/shop" replace />;
+}
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(() => {
@@ -99,8 +115,8 @@ export default function App() {
                     <Route path="/admin/*" element={<AdminPortal />} />
                   </Route>
 
-                  <Route path="/" element={<Navigate to="/customer/shop" replace />} />
-                  <Route path="*" element={<Navigate to="/customer/shop" replace />} />
+                  <Route path="/" element={<RootRedirect />} />
+                  <Route path="*" element={<RootRedirect />} />
                 </Routes>
               </Suspense>
             </PullToRefresh>

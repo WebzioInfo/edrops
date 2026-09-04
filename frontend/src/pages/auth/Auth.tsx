@@ -187,7 +187,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
 
   const [state, setState] = useState<AuthState>(getInitial);
   const [searchParams] = useSearchParams();
-  const { login } = useAuth();
+  const { user, authStatus, isLoading, login } = useAuth();
   
   const [authToastMessage, setAuthToastMessage] = useState<string | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -200,35 +200,61 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
     };
   } | null>(null);
 
+  const redirectParam = searchParams.get('redirect') || (location.state as any)?.redirect || (location.state as any)?.from?.pathname;
+
+  const handleSuccessRedirect = (targetUser: any) => {
+    const roleDefault = ROLE_PATHS[targetUser?.role] ?? '/customer/shop';
+    let target = roleDefault;
+    if (redirectParam) {
+      const decoded = decodeURIComponent(redirectParam);
+      if (decoded.startsWith('/') && !decoded.startsWith('//') && !decoded.startsWith('/login')) {
+        target = decoded;
+      }
+    }
+    navigate(target, { replace: true });
+  };
+
   // Read auth redirect reason once on mount and clear from URL
   useEffect(() => {
-    const reason = searchParams.get('reason') || (location.state as any)?.reason;
-    const isAuthRequired = searchParams.get('auth_required') === 'true' || searchParams.get('redirect') || reason;
-
-    if (reason || isAuthRequired) {
-      let msg = 'Please log in to continue';
-      if (reason === 'purchase' || reason === 'buy_now') {
-        msg = 'Please log in to proceed with your purchase';
-      } else if (reason === 'cart') {
-        msg = 'Please log in to add items to your cart';
-      } else if (reason === 'checkout') {
-        msg = 'Please log in to proceed to checkout';
-      } else if (reason === 'account') {
-        msg = 'Please log in to access your account';
-      } else if (reason === 'permission_required') {
-        msg = 'Please log in with an authorized account to access that page';
-      } else if (reason === 'session_expired') {
-        msg = 'Your session has expired. Please log in again';
-      }
-      setAuthToastMessage(msg);
-
-      // Strip query parameters from URL so it doesn't persist on page refresh
-      const cleanPath = window.location.pathname;
-      window.history.replaceState({}, '', cleanPath);
+    // 1. Never trigger toasts while auth state is still loading / hydrating
+    if (isLoading || authStatus === 'loading') {
+      return;
     }
-  }, []);
 
-  const redirectParam = searchParams.get('redirect') || (location.state as any)?.redirect || (location.state as any)?.from?.pathname;
+    // 2. If user is already authenticated, forward to their authorized portal and never show unauthorized toast
+    if (authStatus === 'authenticated' && user) {
+      handleSuccessRedirect(user);
+      return;
+    }
+
+    // 3. Only show "Please log in with an authorized account" or other redirect toasts when authStatus is confirmed 'unauthenticated'
+    if (authStatus === 'unauthenticated') {
+      const reason = searchParams.get('reason') || (location.state as any)?.reason;
+      const isAuthRequired = searchParams.get('auth_required') === 'true' || searchParams.get('redirect') || reason;
+
+      if (reason || isAuthRequired) {
+        let msg = 'Please log in to continue';
+        if (reason === 'purchase' || reason === 'buy_now') {
+          msg = 'Please log in to proceed with your purchase';
+        } else if (reason === 'cart') {
+          msg = 'Please log in to add items to your cart';
+        } else if (reason === 'checkout') {
+          msg = 'Please log in to proceed to checkout';
+        } else if (reason === 'account') {
+          msg = 'Please log in to access your account';
+        } else if (reason === 'permission_required') {
+          msg = 'Please log in with an authorized account to access that page';
+        } else if (reason === 'session_expired') {
+          msg = 'Your session has expired. Please log in again';
+        }
+        setAuthToastMessage(msg);
+
+        // Strip query parameters from URL so it doesn't persist on page refresh
+        const cleanPath = window.location.pathname;
+        window.history.replaceState({}, '', cleanPath);
+      }
+    }
+  }, [authStatus, isLoading, user]);
 
   // Forgot password state & countdown
   const [forgotSuccess, setForgotSuccess] = useState(false);
@@ -260,18 +286,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
     setState(next);
     const path = next === 'signin' ? '/login' : next === 'signup' ? '/register' : '/forgot-password';
     window.history.replaceState(null, '', path);
-  };
-
-  const handleSuccessRedirect = (user: any) => {
-    const roleDefault = ROLE_PATHS[user.role] ?? '/customer/shop';
-    let target = roleDefault;
-    if (redirectParam) {
-      const decoded = decodeURIComponent(redirectParam);
-      if (decoded.startsWith('/') && !decoded.startsWith('//')) {
-        target = decoded;
-      }
-    }
-    navigate(target, { replace: true });
   };
 
   const handleGoogleCredential = async (credential: string) => {

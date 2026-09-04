@@ -7,10 +7,11 @@ type ProtectedRouteProps = {
 };
 
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-  const { user, token, isLoading } = useAuth();
+  const { user, token, authStatus, isLoading } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
+  // 1. While auth state is initializing or hydrating, NEVER make a redirect decision or show auth errors
+  if (isLoading || authStatus === 'loading') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC]">
         <LoadingSpinner size="lg" label="Verifying session..." />
@@ -24,10 +25,12 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   const target = encodeURIComponent(location.pathname + location.search);
 
-  if (!actualToken || !actualUser) {
+  // 2. Only redirect to login when confirmed unauthenticated
+  if (authStatus === 'unauthenticated' || !actualToken || !actualUser) {
     return <Navigate to={`/login?redirect=${target}&reason=auth_required`} state={{ from: location }} replace />;
   }
 
+  // 3. User is authenticated, but role is not allowed for this route
   if (allowedRoles && !allowedRoles.includes(actualUser.role)) {
     // Role not allowed: redirect to login with contextual reason
     return <Navigate to={`/login?redirect=${target}&reason=permission_required`} state={{ from: location }} replace />;
