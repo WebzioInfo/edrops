@@ -82,7 +82,7 @@ const navSections: NavSection[] = [
 
 const AdminLoader = () => (
   <div className="flex h-96 items-center justify-center">
-    <LoadingSpinner size="lg" label="Loading page..." />
+    <LoadingSpinner fullPage label="Loading page..." />
   </div>
 );
 

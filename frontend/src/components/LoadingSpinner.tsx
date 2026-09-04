@@ -1,3 +1,5 @@
+import { usePageLoader } from './common/CenteredPageLoader';
+
 interface LoadingSpinnerProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -7,6 +9,9 @@ interface LoadingSpinnerProps {
 }
 
 export default function LoadingSpinner({ className = '', size = 'md', fullPage = false, label, light = false }: LoadingSpinnerProps) {
+  // If fullPage, activate the global centered loading indicator
+  usePageLoader(fullPage);
+
   const sizeClasses = {
     sm: 'h-6 w-6 border-2',
     md: 'h-10 w-10 border-4',
@@ -22,8 +27,8 @@ export default function LoadingSpinner({ className = '', size = 'md', fullPage =
 
   if (fullPage) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center w-full">
-        {spinner}
+      <div className="flex min-h-[60vh] items-center justify-center w-full" aria-busy="true">
+        {/* TopSwipeLoader is actively displayed at the top; preserve layout height */}
       </div>
     );
   }

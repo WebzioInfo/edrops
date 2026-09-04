@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useDialog } from '../../../hooks/useDialog';
+import { CenteredPageLoader } from '../../../components/common/CenteredPageLoader';
+import { useRegisterRefreshHandler } from '../../../components/pwa/PullToRefresh';
 
 interface Delivery {
   id: string;
@@ -108,6 +110,8 @@ export default function TrackPage({ customerId }: { isAdmin?: boolean; customerI
       if (showLoading) setLoading(false);
     }
   };
+
+  useRegisterRefreshHandler(() => loadData(false));
 
   useEffect(() => {
     loadData(true);
@@ -313,9 +317,7 @@ export default function TrackPage({ customerId }: { isAdmin?: boolean; customerI
       {/* ─── 3. LOADING / EMPTY / CONTENT ─────────────────────────── */}
       {loading ? (
         <div className="flex min-h-[30vh] items-center justify-center">
-          <div className="relative h-12 w-12 rounded-full water-gradient shadow-xl shadow-edrops-aqua/30">
-            <div className="absolute inset-1.5 animate-ping rounded-full bg-white/40" />
-          </div>
+          <CenteredPageLoader isLoading={loading} />
         </div>
       ) : weeks.length === 0 ? (
         /* Empty State */

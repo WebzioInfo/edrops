@@ -18,6 +18,8 @@ import OrderDetailModal, {
   getOrderStatusConfig,
 } from '../components/OrderDetailModal';
 import { formatOrderId, getPaymentStatusLabel } from '../../../utils/orderFormatters';
+import { usePageLoader } from '../../../components/common/CenteredPageLoader';
+import { useRegisterRefreshHandler } from '../../../components/pwa/PullToRefresh';
 
 type TabFilter = 'ALL' | 'PENDING' | 'DELIVERED';
 
@@ -25,6 +27,7 @@ export default function Orders() {
   const { socket } = useSocket();
   const [orders, setOrders] = useState<OrderDetail[]>([]);
   const [loading, setLoading] = useState(true);
+  usePageLoader(loading);
   const [activeTab, setActiveTab] = useState<TabFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -61,6 +64,8 @@ export default function Orders() {
       if (!isSilent) setLoading(false);
     }
   }, []);
+
+  useRegisterRefreshHandler(loadOrders);
 
   useEffect(() => {
     loadOrders();

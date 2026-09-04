@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React, { Suspense, useState } from 'react';
-import LoadingSpinner from './components/LoadingSpinner';
 import PWAInstallPrompt from './components/pwa/PWAInstallPrompt';
 import SplashScreen from './components/pwa/SplashScreen';
 import { DialogProvider } from './contexts/DialogContext';
@@ -18,10 +17,13 @@ const Login = React.lazy(() => import('./pages/auth/Auth'));
 const ForgotPassword = React.lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = React.lazy(() => import('./pages/auth/ResetPassword'));
 
+import { GlobalCenteredPageLoader, CenteredPageLoader } from './components/common/CenteredPageLoader';
+import PullToRefresh from './components/pwa/PullToRefresh';
+
 // Loading Fallback
 const PageLoader = () => (
   <div className="flex min-h-screen items-center justify-center">
-    <LoadingSpinner size="lg" label="Loading application..." />
+    <CenteredPageLoader isLoading={true} />
   </div>
 );
 
@@ -64,41 +66,44 @@ export default function App() {
           />
           {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
           <BrowserRouter>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
+            <GlobalCenteredPageLoader />
+            <PullToRefresh isRoot={true}>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Login />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
 
-                <Route path="/customer/*" element={
-                  <CartProvider>
-                    <CustomerPortal />
-                  </CartProvider>
-                } />
-
-                <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
-                  <Route path="/staff/*" element={
-                    <SocketProvider>
-                      <NotificationProvider>
-                        <StaffPortal />
-                      </NotificationProvider>
-                    </SocketProvider>
+                  <Route path="/customer/*" element={
+                    <CartProvider>
+                      <CustomerPortal />
+                    </CartProvider>
                   } />
-                </Route>
 
-                <Route element={<ProtectedRoute allowedRoles={['DELIVERY_PARTNER']} />}>
-                  <Route path="/delivery-partner/*" element={<DeliveryPartnerPortal />} />
-                </Route>
+                  <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
+                    <Route path="/staff/*" element={
+                      <SocketProvider>
+                        <NotificationProvider>
+                          <StaffPortal />
+                        </NotificationProvider>
+                      </SocketProvider>
+                    } />
+                  </Route>
 
-                <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                  <Route path="/admin/*" element={<AdminPortal />} />
-                </Route>
+                  <Route element={<ProtectedRoute allowedRoles={['DELIVERY_PARTNER']} />}>
+                    <Route path="/delivery-partner/*" element={<DeliveryPartnerPortal />} />
+                  </Route>
 
-                <Route path="/" element={<Navigate to="/customer/shop" replace />} />
-                <Route path="*" element={<Navigate to="/customer/shop" replace />} />
-              </Routes>
-            </Suspense>
+                  <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                    <Route path="/admin/*" element={<AdminPortal />} />
+                  </Route>
+
+                  <Route path="/" element={<Navigate to="/customer/shop" replace />} />
+                  <Route path="*" element={<Navigate to="/customer/shop" replace />} />
+                </Routes>
+              </Suspense>
+            </PullToRefresh>
             <PWAInstallPrompt />
           </BrowserRouter>
         </DialogProvider>

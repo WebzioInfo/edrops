@@ -21,6 +21,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { EdropsLogo } from '../../components/Logo';
 import MobileSidebarDrawer from '../../components/common/MobileSidebarDrawer';
+import { useRegisterRefreshHandler } from '../../components/pwa/PullToRefresh';
 import { formatOrderId } from '../../utils/orderFormatters';
 
 import Overview from './pages/Overview';
@@ -138,6 +139,8 @@ export default function DeliveryPartnerPortal() {
       loadTasks();
     }
   }, [loadTasks]);
+
+  useRegisterRefreshHandler(loadTasks);
 
   useEffect(() => {
     loadTasks();
@@ -492,7 +495,7 @@ export default function DeliveryPartnerPortal() {
           <div className="w-full">
             {loading && tasks.length === 0 ? (
               <div className="flex items-center justify-center py-20">
-                <LoadingSpinner size="lg" label="Loading delivery workspace..." />
+                <LoadingSpinner fullPage label="Loading delivery workspace..." />
               </div>
             ) : (
               <Routes>
