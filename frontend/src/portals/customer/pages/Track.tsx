@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Truck, CheckCircle2, Clock3, AlertCircle, XCircle, CalendarDays, ChevronDown, ChevronUp, FilterX } from 'lucide-react';
+import { 
+  Truck, 
+  CheckCircle2, 
+  Clock3, 
+  AlertCircle, 
+  XCircle, 
+  CalendarDays, 
+  ChevronDown, 
+  ChevronUp, 
+  FilterX
+} from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useDialog } from '../../../hooks/useDialog';
 
@@ -130,44 +140,53 @@ export default function TrackPage({ customerId }: { isAdmin?: boolean; customerI
   const getStatusIcon = (status: Delivery['status']) => {
     switch (status) {
       case 'DELIVERED':
-        return <CheckCircle2 className="h-5 w-5 text-emerald-600" />;
+        return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
       case 'PENDING':
       case 'ASSIGNED':
       case 'IN_TRANSIT':
-        return <Clock3 className="h-5 w-5 text-[#2D79A8]" />;
+        return <Clock3 className="h-4 w-4 text-[#2D79A8]" />;
       case 'SKIPPED':
       case 'CANCELLED':
-        return <AlertCircle className="h-5 w-5 text-amber-600" />;
+        return <AlertCircle className="h-4 w-4 text-amber-600" />;
       case 'FAILED':
-        return <XCircle className="h-5 w-5 text-rose-600" />;
+        return <XCircle className="h-4 w-4 text-rose-600" />;
       default:
-        return <Clock3 className="h-5 w-5 text-slate-400" />;
+        return <Clock3 className="h-4 w-4 text-slate-400" />;
     }
   };
-
-
 
   const formatShortDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8 space-y-8">
+    <div className="mx-auto max-w-6xl px-3.5 py-4 sm:px-6 sm:py-6 space-y-3.5 sm:space-y-4">
       
-      {/* Header & Filters */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-semibold text-[#245361]">Delivery History</h1>
-          <p className="text-sm font-semibold text-[#245361]/80 mt-1">Track your past deliveries and weekly hydration schedule</p>
+      {/* ─── 1. COMPACT PAGE HEADER & INLINE FILTERS (~56–64px) ───── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white border border-[#E2E8F0] rounded-2xl p-3 sm:p-4 shadow-2xs">
+        {/* Left: Title & Subtitle */}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl font-bold text-[#16324F] tracking-tight">
+              Delivery History
+            </h1>
+            <span className="hidden sm:inline text-xs text-[#94A3B8]">/</span>
+            <span className="hidden sm:inline text-xs font-semibold text-[#64748B]">Tracking Log</span>
+          </div>
+          <p className="text-xs text-[#64748B] font-medium mt-0.5">
+            Track past deliveries and monitor your weekly hydration schedule
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-semibold uppercase tracking-widest text-[#245361]/70 ml-1">Year</label>
+        {/* Right: Inline Filter Dropdowns */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Year Filter */}
+          <div className="flex items-center gap-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-2.5 py-1">
+            <span className="text-[10px] font-bold uppercase text-[#94A3B8]">Year</span>
             <select 
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-              className="rounded-xl border border-border bg-white px-4 py-2 text-sm font-bold text-[#245361] shadow-sm focus:border-[#2D79A8] focus:ring-1 focus:ring-[#2D79A8]"
+              className="bg-transparent text-xs font-bold text-[#16324F] focus:outline-none cursor-pointer"
             >
               {[currentDate.getFullYear() - 1, currentDate.getFullYear(), currentDate.getFullYear() + 1].map(y => (
                 <option key={y} value={y}>{y}</option>
@@ -175,28 +194,34 @@ export default function TrackPage({ customerId }: { isAdmin?: boolean; customerI
             </select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-semibold uppercase tracking-widest text-[#245361]/70 ml-1">Month</label>
+          {/* Month Filter */}
+          <div className="flex items-center gap-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-2.5 py-1">
+            <span className="text-[10px] font-bold uppercase text-[#94A3B8]">Month</span>
             <select 
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
-              className="rounded-xl border border-border bg-white px-4 py-2 text-sm font-bold text-[#245361] shadow-sm focus:border-[#2D79A8] focus:ring-1 focus:ring-[#2D79A8]"
+              className="bg-transparent text-xs font-bold text-[#16324F] focus:outline-none cursor-pointer"
             >
               {Array.from({length: 12}, (_, i) => i + 1).map(m => {
                 const date = new Date(2000, m - 1, 1);
-                return <option key={m} value={m}>{date.toLocaleString('en-US', { month: 'long' })}</option>;
+                return (
+                  <option key={m} value={m}>
+                    {date.toLocaleString('en-US', { month: 'short' })}
+                  </option>
+                );
               })}
             </select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-semibold uppercase tracking-widest text-[#245361]/70 ml-1">Status</label>
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-2.5 py-1">
+            <span className="text-[10px] font-bold uppercase text-[#94A3B8]">Status</span>
             <select 
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="rounded-xl border border-border bg-white px-4 py-2 text-sm font-bold text-[#245361] shadow-sm focus:border-[#2D79A8] focus:ring-1 focus:ring-[#2D79A8]"
+              className="bg-transparent text-xs font-bold text-[#16324F] focus:outline-none cursor-pointer"
             >
-              <option value="ALL">All Status</option>
+              <option value="ALL">All</option>
               <option value="SCHEDULED">Scheduled</option>
               <option value="DELIVERED">Delivered</option>
               <option value="MISSED">Missed</option>
@@ -206,228 +231,301 @@ export default function TrackPage({ customerId }: { isAdmin?: boolean; customerI
         </div>
       </div>
 
-      {/* Global Summary Cards */}
+      {/* ─── 2. COMPACT 4-COLUMN STAT STRIP (72–80px Height) ──────── */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="enterprise-card p-5 border border-border bg-white flex flex-col justify-center">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Total Deliveries</p>
-            <h2 className="text-3xl font-semibold text-[#245361] mt-1">{summary.totalDeliveries}</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+          {/* Stat 1: Total Deliveries */}
+          <div className="bg-white border border-[#E2E8F0] rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                TOTAL DELIVERIES
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                Log
+              </span>
+            </div>
+            <div className="mt-1">
+              <span className="text-xl sm:text-2xl font-bold text-[#16324F] tracking-tight">
+                {summary.totalDeliveries}
+              </span>
+            </div>
           </div>
-          <div className="enterprise-card p-5 border border-emerald-100 bg-emerald-50/50 flex flex-col justify-center">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600/70">Delivered</p>
-            <h2 className="text-3xl font-semibold text-emerald-600 mt-1">{summary.deliveredCount}</h2>
+
+          {/* Stat 2: Delivered */}
+          <div className="bg-white border border-emerald-100 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                DELIVERED
+              </span>
+              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                Fulfilled
+              </span>
+            </div>
+            <div className="mt-1">
+              <span className="text-xl sm:text-2xl font-bold text-emerald-600 tracking-tight">
+                {summary.deliveredCount}
+              </span>
+            </div>
           </div>
-          <div className="enterprise-card p-5 border border-rose-100 bg-rose-50/50 flex flex-col justify-center">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-rose-600/70">Missed</p>
-            <h2 className="text-3xl font-semibold text-rose-600 mt-1">{summary.missedCount}</h2>
+
+          {/* Stat 3: Missed */}
+          <div className="bg-white border border-rose-100 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-rose-700">
+                MISSED
+              </span>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded ${summary.missedCount > 0 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-500'}`}>
+                {summary.missedCount > 0 ? 'Action' : '0'}
+              </span>
+            </div>
+            <div className="mt-1">
+              <span className="text-xl sm:text-2xl font-bold text-rose-600 tracking-tight">
+                {summary.missedCount}
+              </span>
+            </div>
           </div>
-          <div className="enterprise-card p-5 border border-[#BBDFF2] bg-[#BBDFF2]/10 flex flex-col justify-center relative overflow-hidden">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#2D79A8]/70">Success Rate</p>
-            <h2 className="text-3xl font-semibold text-[#2D79A8] mt-1">{summary.successRate}%</h2>
-            <div className="absolute right-0 bottom-0 top-0 w-2 bg-[#2D79A8]/10">
-              <div 
-                className="absolute bottom-0 w-full bg-[#2D79A8]" 
-                style={{ height: `${summary.successRate}%` }}
-              />
+
+          {/* Stat 4: Success Rate */}
+          <div className="bg-white border border-[#BBDFF2] rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#2D79A8]">
+                SUCCESS RATE
+              </span>
+              <span className="text-[10px] font-semibold text-[#2D79A8] bg-[#BBDFF2]/30 px-1.5 py-0.2 rounded">
+                Rate
+              </span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-xl sm:text-2xl font-bold text-[#2D79A8] tracking-tight">
+                {summary.successRate}%
+              </span>
+              <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden self-center">
+                <div 
+                  className="h-full bg-[#2D79A8] rounded-full transition-all duration-500" 
+                  style={{ width: `${summary.successRate}%` }} 
+                />
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Loading State */}
+      {/* ─── 3. LOADING / EMPTY / CONTENT ─────────────────────────── */}
       {loading ? (
-        <div className="flex min-h-[40vh] items-center justify-center">
-          <div className="relative h-16 w-16 rounded-full water-gradient shadow-2xl shadow-edrops-aqua/30">
-            <div className="absolute inset-2 animate-ping rounded-full bg-white/40" />
+        <div className="flex min-h-[30vh] items-center justify-center">
+          <div className="relative h-12 w-12 rounded-full water-gradient shadow-xl shadow-edrops-aqua/30">
+            <div className="absolute inset-1.5 animate-ping rounded-full bg-white/40" />
           </div>
         </div>
       ) : weeks.length === 0 ? (
         /* Empty State */
-        <div className="enterprise-card p-12 border border-border border-dashed text-center flex flex-col items-center justify-center bg-slate-50/50">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-4 shadow-sm">
-            <FilterX className="h-8 w-8" />
+        <div className="bg-white border border-dashed border-[#E2E8F0] rounded-2xl p-8 text-center flex flex-col items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 text-slate-400 mb-3 border border-slate-200/80">
+            <FilterX className="h-6 w-6" />
           </div>
-          <h3 className="text-xl font-semibold text-[#245361]">No Deliveries Found</h3>
-          <p className="text-sm font-medium text-slate-500 mt-2 max-w-sm">
-            We couldn't find any deliveries matching your selected filters ({selectedMonth}/{selectedYear} - {selectedStatus}). Try adjusting the filters or visit the Planner to schedule deliveries.
+          <h3 className="text-base font-bold text-[#16324F]">No Deliveries Found</h3>
+          <p className="text-xs text-[#64748B] mt-1 max-w-sm leading-relaxed">
+            No deliveries found for {selectedMonth}/{selectedYear} ({selectedStatus}). Adjust filters or visit Schedule to plan new deliveries.
           </p>
         </div>
       ) : (
-        /* Content Body */
-        <div className="space-y-8">
+        <div className="space-y-3 sm:space-y-3.5">
           
-          {/* Today's Delivery Card */}
+          {/* ─── 4. SLIM "TODAY'S DELIVERY" HIGHLIGHT ──────────────── */}
           {todayDelivery ? (
-            <div className="enterprise-card overflow-hidden bg-gradient-to-br from-[#2D79A8] to-[#245361] text-white">
-              <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-5">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white/10 shadow-inner shrink-0">
-                    <Truck className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-sm mb-2 inline-block">
+            <div className="bg-gradient-to-r from-[#245361] to-[#2D79A8] text-white rounded-2xl p-3.5 sm:p-4 shadow-2xs border border-[#245361] flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-white shrink-0">
+                  <Truck className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
                       Today's Delivery
                     </span>
-                    <h3 className="text-2xl font-semibold text-white">
-                      {todayDelivery.requiredQuantity} {todayDelivery.requiredQuantity === 1 ? 'Jar' : 'Jars'}
-                    </h3>
-                    <p className="text-sm font-semibold text-white/80 mt-1">
-                      {formatShortDate(todayDelivery.scheduledFor)}
-                    </p>
+                    {todayDelivery.timeSlot && (
+                      <span className="text-[10px] text-white/80 font-medium">
+                        • {todayDelivery.timeSlot}
+                      </span>
+                    )}
                   </div>
+                  <h3 className="text-base sm:text-lg font-bold text-white mt-0.5">
+                    {todayDelivery.requiredQuantity} {todayDelivery.requiredQuantity === 1 ? 'Jar' : 'Jars'} — {formatShortDate(todayDelivery.scheduledFor)}
+                  </h3>
                 </div>
+              </div>
 
-                <div className="flex flex-col items-start md:items-end gap-2">
-                  <span className={`rounded-xl px-4 py-2 text-sm font-semibold uppercase tracking-widest shadow-sm ${
-                    todayDelivery.status === 'DELIVERED' ? 'bg-emerald-500 text-white' :
-                    ['FAILED', 'SKIPPED', 'CANCELLED'].includes(todayDelivery.status) ? 'bg-rose-500 text-white' :
-                    'bg-white text-[#2D79A8]'
-                  }`}>
-                    Status: {todayDelivery.status}
-                  </span>
-                  {todayDelivery.timeSlot && (
-                    <p className="text-xs font-bold text-white/70 tracking-widest uppercase">
-                      Est: {todayDelivery.timeSlot}
-                    </p>
-                  )}
-                </div>
+              <div className="flex items-center gap-2">
+                <span className={`rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-2xs ${
+                  todayDelivery.status === 'DELIVERED' 
+                    ? 'bg-emerald-400 text-slate-900' 
+                    : ['FAILED', 'SKIPPED', 'CANCELLED'].includes(todayDelivery.status) 
+                      ? 'bg-rose-400 text-slate-900' 
+                      : 'bg-white text-[#245361]'
+                }`}>
+                  {todayDelivery.status}
+                </span>
               </div>
             </div>
           ) : (
-            <div className="enterprise-card overflow-hidden bg-slate-50 border border-border/60">
-              <div className="p-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200 text-slate-400 shadow-inner shrink-0">
-                  <Truck className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-slate-600">No delivery scheduled today</h3>
-                  <p className="text-sm font-semibold text-slate-400 mt-0.5">Check your upcoming weekly schedule below</p>
-                </div>
+            <div className="bg-white border border-[#E2E8F0] rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xs">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-400 shrink-0">
+                <Truck className="h-4 w-4" />
+              </div>
+              <div className="text-xs">
+                <span className="font-bold text-[#16324F]">No delivery scheduled for today.</span>
+                <span className="text-[#64748B] ml-1.5">Check your upcoming weekly log below.</span>
               </div>
             </div>
           )}
 
-          {/* Weekly Accordion List */}
-          <div className="space-y-6">
-          {weeks.map((week, index) => {
-            const isExpanded = expandedWeek === week.startDate;
+          {/* ─── 5. WEEKLY BREAKDOWN ACCORDION LIST ─────────────────── */}
+          <div className="space-y-2.5 sm:space-y-3">
+            {weeks.map((week, index) => {
+              const isExpanded = expandedWeek === week.startDate;
+              const isCurrentWeek = new Date() >= new Date(week.startDate) && new Date() <= new Date(week.endDate);
 
-            return (
-              <motion.div 
-                key={week.startDate}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="enterprise-card overflow-hidden"
-              >
-                {/* Week Header / Summary Card */}
-                <div 
-                  onClick={() => setExpandedWeek(isExpanded ? null : week.startDate)}
-                  className={`p-5 cursor-pointer transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${isExpanded ? 'bg-[#BBDFF2]/10 border-b border-[#BBDFF2]/30' : 'hover:bg-slate-50'}`}
+              return (
+                <motion.div 
+                  key={week.startDate}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-2xs"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2D79A8] text-white shadow-sm shrink-0">
-                      <CalendarDays className="h-6 w-6" />
+                  {/* Week Summary Header Row */}
+                  <div 
+                    onClick={() => setExpandedWeek(isExpanded ? null : week.startDate)}
+                    className={`p-3 sm:p-3.5 cursor-pointer transition flex items-center justify-between gap-3 select-none ${
+                      isExpanded ? 'bg-[#F8FAFC] border-b border-[#E2E8F0]' : 'hover:bg-slate-50/70'
+                    }`}
+                  >
+                    {/* Left: Calendar Icon + Week Label + Date Range */}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg shrink-0 ${
+                        isCurrentWeek ? 'bg-[#1677C8] text-white' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        <CalendarDays className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xs sm:text-sm font-bold text-[#16324F] truncate">
+                            {week.label}
+                          </h3>
+                          {isCurrentWeek && (
+                            <span className="rounded-full bg-[#1677C8]/10 text-[#1677C8] px-2 py-0.2 text-[9px] font-bold uppercase tracking-wider">
+                              Current Week
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#64748B] font-medium mt-0.5">
+                          {formatShortDate(week.startDate)} <span className="text-slate-300 mx-1">→</span> {formatShortDate(week.endDate)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-[#245361]">{week.label}</h3>
-                        {new Date() >= new Date(week.startDate) && new Date() <= new Date(week.endDate) && (
-                          <span className="rounded-full bg-[#BBDFF2] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-[#2D79A8]">
-                            Current Week
-                          </span>
+
+                    {/* Right: Quick Stat Badges + Chevron */}
+                    <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                      <div className="flex items-center gap-2 sm:gap-3 text-center text-xs">
+                        <div className="hidden sm:block">
+                          <span className="text-[10px] font-bold text-[#94A3B8] uppercase block">Scheduled</span>
+                          <span className="font-bold text-[#16324F] text-xs">{week.stats.scheduled}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-emerald-600 uppercase block">Delivered</span>
+                          <span className="font-bold text-emerald-600 text-xs">{week.stats.delivered}</span>
+                        </div>
+                        {week.stats.missed > 0 && (
+                          <div>
+                            <span className="text-[10px] font-bold text-rose-600 uppercase block">Missed</span>
+                            <span className="font-bold text-rose-600 text-xs">{week.stats.missed}</span>
+                          </div>
                         )}
                       </div>
-                      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
-                        {formatShortDate(week.startDate)} <span className="text-slate-300 mx-1">→</span> {formatShortDate(week.endDate)}
-                      </p>
+
+                      <div className="w-6 h-6 flex items-center justify-center text-[#94A3B8]">
+                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6 justify-between md:justify-end w-full md:w-auto mt-2 md:mt-0">
-                    <div className="flex gap-4 md:gap-6 text-center">
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase text-slate-400 tracking-widest">Scheduled</p>
-                        <p className="text-base font-semibold text-slate-700">{week.stats.scheduled}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase text-slate-400 tracking-widest">Delivered</p>
-                        <p className="text-base font-semibold text-emerald-600">{week.stats.delivered}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase text-slate-400 tracking-widest">Missed</p>
-                        <p className="text-base font-semibold text-rose-600">{week.stats.missed}</p>
-                      </div>
-                    </div>
-                    {isExpanded ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
-                  </div>
-                </div>
-
-                {/* Delivery Rows Accordion Body */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="bg-white/50"
-                    >
-                      <div className="p-0 divide-y divide-border/60">
+                  {/* Daily Rows Accordion Body */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="divide-y divide-slate-100 bg-white"
+                      >
                         {week.deliveries.length === 0 ? (
-                          <div className="p-6 text-center text-sm font-semibold text-slate-500">
-                            No matching deliveries for this week.
+                          <div className="p-4 text-center text-xs text-[#94A3B8] italic">
+                            No scheduled deliveries for this week.
                           </div>
                         ) : (
                           week.deliveries.map((delivery) => (
-                            <div key={delivery.id} className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:bg-white transition">
-                              <div className="flex items-center gap-4">
-                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background border border-border shadow-sm">
+                            <div 
+                              key={delivery.id} 
+                              className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-slate-50/60 transition-colors"
+                            >
+                              {/* Left: Status Icon + Date & Details */}
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F8FAFC] border border-[#E2E8F0]">
                                   {getStatusIcon(delivery.status)}
                                 </span>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="text-base font-semibold text-[#245361]">
-                                      {new Date(delivery.scheduledFor).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
-                                    </h4>
-                                  </div>
-                                  <p className="text-xs font-bold text-slate-500 mt-1 uppercase tracking-wider flex items-center gap-1.5">
-                                    <Truck className="h-3.5 w-3.5" />
-                                    {new Date(delivery.scheduledFor).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })}
-                                    <span className="text-slate-300 mx-1">•</span>
-                                    {delivery.requiredQuantity} {delivery.requiredQuantity === 1 ? 'Jar' : 'Jars'}
+                                <div className="min-w-0">
+                                  <h4 className="text-xs sm:text-sm font-bold text-[#16324F]">
+                                    {new Date(delivery.scheduledFor).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
+                                  </h4>
+                                  <p className="text-[11px] text-[#64748B] font-medium flex items-center gap-1.5 mt-0.5">
+                                    <span>{new Date(delivery.scheduledFor).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })}</span>
+                                    <span className="text-slate-300">•</span>
+                                    <span className="font-bold text-[#16324F]">{delivery.requiredQuantity} {delivery.requiredQuantity === 1 ? 'Jar' : 'Jars'}</span>
+                                    {delivery.timeSlot && (
+                                      <>
+                                        <span className="text-slate-300">•</span>
+                                        <span>{delivery.timeSlot}</span>
+                                      </>
+                                    )}
                                   </p>
                                 </div>
                               </div>
                               
-                              <div className="flex bg-slate-100/80 p-1 rounded-xl w-full xl:w-auto mt-3 xl:mt-0">
-                                  {[{label: 'Pending', val: 'PENDING'}, {label: 'Delivered', val: 'DELIVERED'}, {label: 'Missed', val: 'FAILED'}, {label: 'Cancelled', val: 'CANCELLED'}].map((statusOption) => {
-                                    const isActive = delivery.status === statusOption.val || (statusOption.val === 'FAILED' && delivery.status === 'SKIPPED');
-                                    return (
-                                      <button
-                                        key={statusOption.val}
-                                        onClick={() => updateStatus(delivery.id, statusOption.val)}
-                                        className={`px-3 py-2 text-[10px] sm:text-xs font-semibold uppercase tracking-wider rounded-lg transition-all flex-1 xl:flex-none text-center ${
-                                          isActive
-                                            ? 'bg-white shadow-sm text-[#2D79A8] border border-slate-200/60'
-                                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 border border-transparent'
-                                        }`}
-                                      >
-                                        {statusOption.label}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
+                              {/* Right: Compact Segmented-Control Status Pills */}
+                              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shrink-0 self-start sm:self-auto">
+                                {[
+                                  { label: 'Pending', val: 'PENDING' },
+                                  { label: 'Delivered', val: 'DELIVERED' },
+                                  { label: 'Missed', val: 'FAILED' },
+                                  { label: 'Cancelled', val: 'CANCELLED' }
+                                ].map((statusOption) => {
+                                  const isActive = delivery.status === statusOption.val || (statusOption.val === 'FAILED' && delivery.status === 'SKIPPED');
+                                  return (
+                                    <button
+                                      key={statusOption.val}
+                                      type="button"
+                                      onClick={() => updateStatus(delivery.id, statusOption.val)}
+                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        isActive
+                                          ? 'bg-white shadow-2xs text-[#1677C8] border border-slate-200/80'
+                                          : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-200/50 border border-transparent'
+                                      }`}
+                                    >
+                                      {statusOption.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
                           ))
                         )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
-              </motion.div>
-            );
-          })}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       )}
