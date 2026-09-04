@@ -80,3 +80,72 @@
   display: none;
 }
 
+/* ============================================================
+   AUTH FULL-BLEED GRADIENT & RADIAL GLOW ANIMATIONS
+   ============================================================ */
+
+@property --g1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #0088CC;
+}
+
+@property --g2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #0B3B5C;
+}
+
+.auth-state-signin {
+  --g1: #0088CC;
+  --g2: #0B3B5C;
+}
+
+.auth-state-signup {
+  --g1: #009FD6;
+  --g2: #0A4D68;
+}
+
+.auth-state-forgot {
+  --g1: #1E3A8A;
+  --g2: #0F172A;
+}
+
+.auth-gradient-panel {
+  background: linear-gradient(135deg, var(--g1, #0088CC), var(--g2, #0B3B5C));
+  transition: --g1 600ms cubic-bezier(0.32, 0.72, 0, 1),
+              --g2 600ms cubic-bezier(0.32, 0.72, 0, 1),
+              background 600ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes driftGlow1 {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(35px, -25px) scale(1.1);
+  }
+  100% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+@keyframes driftGlow2 {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(-30px, 30px) scale(1.08);
+  }
+  100% {
+    transform: translate(25px, -20px) scale(0.92);
+  }
+}
+
+.animate-glow-1 {
+  animation: driftGlow1 10s ease-in-out infinite alternate;
+}
+
+.animate-glow-2 {
+  animation: driftGlow2 12s ease-in-out infinite alternate;
+}
