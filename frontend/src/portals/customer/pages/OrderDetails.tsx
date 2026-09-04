@@ -16,13 +16,15 @@ import {
   AlertCircle,
   XCircle,
   LifeBuoy,
-  RefreshCw
+  RefreshCw,
+  Download
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useSocket } from '../../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { formatOrderStatus, formatDeliverySlot } from '../../../utils/orderFormatters';
+import { formatOrderStatus, formatDeliverySlot, formatPaymentDetails } from '../../../utils/orderFormatters';
+import { generateOrderInvoice } from '../../../utils/InvoiceGenerator';
 
 export default function OrderDetails() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -501,7 +503,9 @@ export default function OrderDetails() {
                 )}
 
                 <div className="pt-3 border-t border-[#F1F5F9] flex justify-between items-center">
-                  <span className="font-bold text-sm text-[#0F172A]">Total Paid</span>
+                  <span className="font-bold text-sm text-[#0F172A]">
+                    {order.paymentMethod === 'COD' && !['DELIVERED', 'COMPLETED'].includes(order.status) ? 'Total Due' : 'Total Paid'}
+                  </span>
                   <span className="text-2xl font-black text-[#1E88E5]">₹{grandTotal}</span>
                 </div>
               </div>
@@ -510,7 +514,7 @@ export default function OrderDetails() {
               <div className="mt-4 pt-3 border-t border-[#F1F5F9] flex items-center justify-between text-xs">
                 <span className="text-[#64748B] font-medium">Payment Mode</span>
                 <span className="font-bold text-[#0F172A] bg-[#F8FAFC] px-2.5 py-1 rounded-lg border border-[#E2E8F0]">
-                  {order.paymentMethod === 'RAZORPAY' || order.paymentMethod === 'ONLINE' ? 'Razorpay Online' : order.paymentMethod}
+                  {formatPaymentDetails(order).fullLabel}
                 </span>
               </div>
             </div>
@@ -519,11 +523,11 @@ export default function OrderDetails() {
             <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-xs space-y-3">
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="w-full py-3 rounded-xl bg-white border border-[#E2E8F0] text-[#0F172A] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                onClick={() => generateOrderInvoice(order)}
+                className="w-full py-3 rounded-xl bg-white border border-[#E2E8F0] text-[#0F172A] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-[#F8FAFC] transition-colors cursor-pointer shadow-2xs group"
               >
-                <Package className="w-4 h-4 text-[#1E88E5]" />
-                Download Receipt / Invoice
+                <Download className="w-4 h-4 text-[#1E88E5] group-hover:-translate-y-0.5 transition-transform" />
+                Download Receipt (PDF)
               </button>
               <Link
                 to="/customer/shop"
@@ -543,99 +547,6 @@ export default function OrderDetails() {
 
         </div>
 
-      </div>
-
-      {/* PRINT-ONLY INVOICE (HIDDEN ON SCREEN, VISIBLE ON PRINT) */}
-      <div className="hidden print:block w-[794px] mx-auto bg-white text-black p-8 font-sans h-[1123px] overflow-hidden box-border">
-        <div className="flex justify-between items-start border-b border-gray-300 pb-4 mb-6">
-          <div>
-            <h1 className="text-[28px] font-black text-black m-0 leading-none tracking-tight">Edrops</h1>
-            <p className="text-[12px] text-gray-500 mt-1">Official Order Receipt</p>
-          </div>
-          <div className="text-right">
-            <h2 className="text-[16px] font-bold m-0">Order #{order.id.substring(0, 8).toUpperCase()}</h2>
-            <p className="text-[12px] text-gray-600 m-0 mt-1">
-              Date: {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </p>
-            <p className="text-[12px] text-gray-600 m-0 font-semibold mt-1">Status: {formatOrderStatus(order.status)}</p>
-          </div>
-        </div>
-
-        <div className="flex justify-between mb-8">
-          <div className="w-1/2 pr-4">
-            <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2">Billed To</h3>
-            <p className="text-[14px] font-bold m-0">{order.customer?.user?.firstName || 'Customer'} {order.customer?.user?.lastName || ''}</p>
-            {order.customer?.user?.phone && <p className="text-[12px] text-gray-600 m-0 mt-1">{order.customer.user.phone}</p>}
-            {order.customer?.user?.email && <p className="text-[12px] text-gray-600 m-0 mt-1">{order.customer.user.email}</p>}
-          </div>
-          <div className="w-1/2 pl-4 border-l border-gray-200">
-            <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2">Delivery Address</h3>
-            {order.address ? (
-              <>
-                <p className="text-[14px] font-bold m-0">{order.address.label || 'Home'}</p>
-                <p className="text-[12px] text-gray-600 m-0 mt-1">{order.address.street}</p>
-                <p className="text-[12px] text-gray-600 m-0 mt-1">{order.address.city} {order.address.zipCode}</p>
-              </>
-            ) : (
-              <p className="text-[12px] text-gray-600 m-0">Default Account Address</p>
-            )}
-          </div>
-        </div>
-
-        <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2">Order Items</h3>
-        <table className="w-full text-left border-collapse mb-8">
-          <thead>
-            <tr className="border-y border-gray-300">
-              <th className="py-2 px-1 text-[12px] font-bold text-gray-600">Product</th>
-              <th className="py-2 px-1 text-[12px] font-bold text-gray-600 text-center">Qty</th>
-              <th className="py-2 px-1 text-[12px] font-bold text-gray-600 text-right">Unit Price</th>
-              <th className="py-2 px-1 text-[12px] font-bold text-gray-600 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.items?.map((item: any) => {
-              const unitPrice = safeNumber(item.unitPrice || item.price);
-              const qty = safeNumber(item.quantity);
-              return (
-                <tr key={item.id} className="border-b border-gray-100">
-                  <td className="py-2 px-1 text-[13px]">{item.product?.name || 'Water Product'}</td>
-                  <td className="py-2 px-1 text-[13px] text-center">{qty}</td>
-                  <td className="py-2 px-1 text-[13px] text-right">₹{unitPrice}</td>
-                  <td className="py-2 px-1 text-[13px] font-bold text-right">₹{unitPrice * qty}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        <div className="flex justify-end">
-          <div className="w-64 space-y-1.5 text-[13px] text-gray-700">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span className="font-bold">₹{itemsTotal}</span>
-            </div>
-            {depositTotal > 0 && (
-              <div className="flex justify-between">
-                <span>Security Deposit:</span>
-                <span className="font-bold">₹{depositTotal}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span>Delivery Fee:</span>
-              <span className="font-bold">{deliveryCharge === 0 ? 'FREE' : `₹${deliveryCharge}`}</span>
-            </div>
-            {discountTotal > 0 && (
-              <div className="flex justify-between text-emerald-700">
-                <span>Discount:</span>
-                <span className="font-bold">-₹{discountTotal}</span>
-              </div>
-            )}
-            <div className="flex justify-between border-t border-gray-300 pt-2 text-[15px] font-black text-black">
-              <span>Grand Total:</span>
-              <span>₹{grandTotal}</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

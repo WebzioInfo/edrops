@@ -393,7 +393,7 @@ export class CheckoutService {
           orderSource: (dto.orderSource as any) || 'CUSTOMER_APP',
           adminNotes: dto.adminOverride?.adminNotes || null,
           paymentStatus:
-            dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET'
+            dto.paymentMethod === 'WALLET'
               ? PaymentStatus.SUCCESS
               : PaymentStatus.PENDING,
           items: {

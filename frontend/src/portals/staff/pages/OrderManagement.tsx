@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../contexts/SocketContext';
 import { ShoppingCart, Clock, CheckCircle2, Package } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { formatOrderStatus } from '../../../utils/orderFormatters';
+import { formatOrderStatus, formatPaymentDetails } from '../../../utils/orderFormatters';
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -115,7 +115,10 @@ export default function OrderManagement() {
         </div>
         <div className="divide-y divide-[#E2E8F0]">
           <AnimatePresence>
-            {orders.map((order) => (
+            {orders.map((order) => {
+              const payment = formatPaymentDetails(order);
+              const isPaid = payment.status === 'Paid' || payment.status === 'Collected';
+              return (
               <motion.div
                 key={order.id}
                 initial={{ opacity: 0, y: -20 }}
@@ -131,7 +134,7 @@ export default function OrderManagement() {
                     <h4 className="text-lg font-bold text-[#0F172A]">
                       {order.customer?.user?.firstName} {order.customer?.user?.lastName}
                     </h4>
-                    <p className="text-xs text-[#64748B] mt-1 font-mono">ID: {order.id.substring(0, 8)}</p>
+                    <p className="text-xs text-[#64748B] mt-1 font-mono">ID: #{order.id.substring(0, 8).toUpperCase()}</p>
                     <div className="mt-3 space-y-1">
                       {order.items?.map((item: any) => (
                         <div key={item.id} className="text-sm text-[#475569] flex items-center gap-2">
@@ -150,9 +153,9 @@ export default function OrderManagement() {
                   <div className="text-xl font-black text-[#0F172A]">₹{order.totalAmount}</div>
                   <div className="flex gap-2">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      order.paymentStatus === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
+                      isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
                     }`}>
-                      {order.paymentMethod} {order.paymentStatus}
+                      {payment.fullLabel}
                     </span>
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                       order.status === 'CONFIRMED' || order.status === 'PROCESSING' || order.status === 'OUT_FOR_DELIVERY' ? 'bg-emerald-100 text-emerald-700' : 
@@ -187,7 +190,7 @@ export default function OrderManagement() {
                   </div>
                 </div>
               </motion.div>
-            ))}
+            )})}
           </AnimatePresence>
           {orders.length === 0 && (
             <div className="p-10 text-center text-[#64748B]">

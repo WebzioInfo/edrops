@@ -58,9 +58,9 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
         window.location.href = `/login?redirect=${target}&reason=session_expired`;
       }
     } else if (response.status === 403) {
-      toast.error('You do not have permission to perform this action.');
+      toast.error('You do not have permission to perform this action.', { id: 'auth-forbidden-toast' });
     } else if (response.status >= 500) {
-      toast.error('Server error. Our team has been notified.');
+      toast.error('Server error. Our team has been notified.', { id: 'server-error-toast' });
     }
 
     throw new Error(message);

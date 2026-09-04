@@ -57,3 +57,67 @@ export function formatDeliverySlot(slot?: string | null): string {
   if (lower === 'evening') return '3PM - 6PM';
   return slot;
 }
+
+export function formatPaymentDetails(order: any): { method: string; status: string; fullLabel: string } {
+  if (!order) {
+    return { method: 'N/A', status: 'Pending', fullLabel: 'N/A (Pending)' };
+  }
+
+  const deliveryStatus = (order.deliveryStatus || order.status || '').toUpperCase();
+  const isDelivered = deliveryStatus === 'DELIVERED' || deliveryStatus === 'COMPLETED';
+  const rawMethod = (order.paymentMethod || '').toUpperCase();
+  const rawStatus = (order.paymentStatus || '').toUpperCase();
+
+  // 1. CASH ON DELIVERY (COD)
+  // Payment is collected only when delivery actually completes
+  if (rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY' || rawMethod.includes('COD') || rawMethod.includes('CASH')) {
+    if (isDelivered) {
+      return {
+        method: 'Cash on Delivery (COD)',
+        status: 'Collected',
+        fullLabel: 'COD (Collected)',
+      };
+    }
+    return {
+      method: 'Cash on Delivery (COD)',
+      status: 'Pending — due on delivery',
+      fullLabel: 'COD (Pending — due on delivery)',
+    };
+  }
+
+  // 2. WALLET
+  if (rawMethod === 'WALLET') {
+    return {
+      method: 'Wallet Balance',
+      status: 'Paid',
+      fullLabel: 'Wallet (Paid)',
+    };
+  }
+
+  // 3. ONLINE / RAZORPAY / GATEWAY
+  // Online payment is confirmed at checkout regardless of delivery progress
+  if (rawMethod === 'RAZORPAY' || rawMethod === 'ONLINE' || rawMethod === 'PREPAID') {
+    const isPaidOnline = rawStatus === 'SUCCESS' || rawStatus === 'PAID' || !order.paymentStatus;
+    if (isPaidOnline) {
+      return {
+        method: 'Razorpay Online',
+        status: 'Paid',
+        fullLabel: 'Online (Paid)',
+      };
+    }
+    return {
+      method: 'Razorpay Online',
+      status: 'Pending',
+      fullLabel: 'Online (Pending)',
+    };
+  }
+
+  // 4. FALLBACK
+  const isSuccess = rawStatus === 'SUCCESS' || rawStatus === 'PAID';
+  const displayMethod = order.paymentMethod ? order.paymentMethod.replace(/_/g, ' ') : 'Payment';
+  return {
+    method: displayMethod,
+    status: isSuccess ? 'Paid' : 'Pending',
+    fullLabel: `${displayMethod} (${isSuccess ? 'Paid' : 'Pending'})`,
+  };
+}

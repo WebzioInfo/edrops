@@ -37,7 +37,7 @@ export default function RouteOperations() {
       setStops(deliveriesData || []);
       setPartners(partnersData || []);
     } catch (err: any) {
-      toast.error('Failed to load operational data');
+      toast.error('Failed to load operational data', { id: 'operational-data-error' });
     } finally {
       setLoading(false);
     }
