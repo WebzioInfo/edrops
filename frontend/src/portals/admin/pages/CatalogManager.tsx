@@ -411,9 +411,9 @@ export default function CatalogManager() {
                 <thead className="sticky top-0 bg-[#F8FAFC] z-10 border-b border-[#E2E8F0]">
                   <tr className="text-[#64748B] uppercase tracking-wider text-[10px] font-bold">
                     <th className="py-2.5 px-3.5">Product</th>
-                    <th className="py-2.5 px-3.5">Brand / Category</th>
+                    <th className="py-2.5 px-3.5 hidden md:table-cell">Brand / Category</th>
                     <th className="py-2.5 px-3.5 text-right">Price</th>
-                    <th className="py-2.5 px-3.5 text-right">Deposit</th>
+                    <th className="py-2.5 px-3.5 text-right hidden md:table-cell">Deposit</th>
                     <th className="py-2.5 px-3.5 text-center w-24">Actions</th>
                   </tr>
                 </thead>
@@ -458,11 +458,11 @@ export default function CatalogManager() {
                                 </div>
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="font-bold text-[#16324F] text-xs truncate max-w-[200px] sm:max-w-xs group-hover:text-[#1677C8] transition-colors">
+                                <p className="font-bold text-[#16324F] text-xs line-clamp-2 md:truncate max-w-[200px] sm:max-w-xs group-hover:text-[#1677C8] transition-colors">
                                   {p.name}
                                 </p>
                                 {p.description && (
-                                  <p className="text-[11px] text-[#64748B] truncate max-w-[200px] sm:max-w-xs font-normal">
+                                  <p className="text-[11px] text-[#64748B] line-clamp-2 md:truncate max-w-[200px] sm:max-w-xs font-normal">
                                     {p.description}
                                   </p>
                                 )}
@@ -471,7 +471,7 @@ export default function CatalogManager() {
                           </td>
 
                           {/* Brand / Category */}
-                          <td className="py-2 px-3.5">
+                          <td className="py-2 px-3.5 hidden md:table-cell">
                             <div className="flex flex-col leading-tight">
                               <span className="font-semibold text-[#16324F] text-xs">
                                 {p.brand?.name || '—'}
@@ -488,7 +488,7 @@ export default function CatalogManager() {
                           </td>
 
                           {/* Deposit Column (Right-aligned) */}
-                          <td className="py-2 px-3.5 text-right">
+                          <td className="py-2 px-3.5 text-right hidden md:table-cell">
                             {isDepositRequired ? (
                               <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200/80 px-2 py-0.5 rounded text-[10px] font-bold">
                                 <ShieldCheck className="w-3 h-3 text-amber-600" />

@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   OnModuleInit,
+  OnModuleDestroy,
   INestApplication,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
@@ -29,12 +30,13 @@ export interface DbHealth {
 }
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit {
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
   private _dbHost: string = 'unknown';
   private _dbPort: number | null = null;
   private _isPooler: boolean = false;
   private _sslEnabled: boolean = false;
+  private pool: Pool;
 
   constructor() {
     const rawUrl = process.env.DATABASE_URL ?? '';
@@ -73,10 +75,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     const pool = new Pool({
       connectionString: cleanUrl,
       ssl: sslEnabled ? { rejectUnauthorized: false } : false,
+      max: process.env.DB_POOL_MAX ? parseInt(process.env.DB_POOL_MAX, 10) : 20,
     });
 
     const adapter = new PrismaPg(pool);
     super({ adapter });
+    this.pool = pool;
 
     // Extract metadata for logging and health checks
     try {
@@ -241,5 +245,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     this.$on('beforeExit' as never, async () => {
       await app.close();
     });
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    this.logger.log('Disconnecting from database and terminating connection pool...');
+    await this.$disconnect();
+    if (this.pool) {
+      await this.pool.end();
+    }
+    this.logger.log('Database connection pool terminated successfully.');
   }
 }
