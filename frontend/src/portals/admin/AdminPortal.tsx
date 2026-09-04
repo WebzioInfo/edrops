@@ -125,18 +125,18 @@ export default function AdminPortal() {
       {/* ─── DESKTOP SIDEBAR ────────────────────────────────────── */}
       <aside 
         className={`hidden lg:flex flex-col bg-white border-r border-[#E2E8F0] shrink-0 z-30 transition-all duration-200 ease-in-out select-none ${
-          collapsed ? 'w-[72px]' : 'w-64'
+          collapsed ? 'w-16' : 'w-60'
         }`}
       >
         {/* Brand Header */}
-        <div className={`flex items-center h-16 border-b border-[#E2E8F0] px-4 ${collapsed ? 'justify-center' : 'justify-between px-5'}`}>
+        <div className={`flex items-center h-14 border-b border-[#E2E8F0] ${collapsed ? 'justify-center px-2' : 'justify-between px-4'}`}>
           <NavLink to="/admin/dashboard" className="flex items-center min-w-0" title="Edrops Admin">
             {collapsed ? (
-              <EdropsLogo variant="icon" color="blue" className="h-7 w-7 shrink-0" />
+              <EdropsLogo variant="icon" color="blue" className="h-6 w-6 shrink-0" />
             ) : (
               <div className="flex flex-col justify-center">
-                <EdropsLogo variant="blue" className="h-6 w-auto" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
+                <EdropsLogo variant="blue" className="h-5 w-auto" />
+                <span className="text-[9px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
                   Admin Panel
                 </span>
               </div>
@@ -148,7 +148,7 @@ export default function AdminPortal() {
             <button
               type="button"
               onClick={toggleCollapsed}
-              className="p-1.5 text-gray-400 hover:text-[#1677C8] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              className="p-1 text-gray-400 hover:text-[#1677C8] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               title="Collapse Sidebar"
               aria-label="Collapse Sidebar"
             >
@@ -159,11 +159,11 @@ export default function AdminPortal() {
 
         {/* Collapsed Expand Trigger */}
         {collapsed && (
-          <div className="flex justify-center py-2 border-b border-[#E2E8F0] bg-slate-50/50">
+          <div className="flex justify-center py-1.5 border-b border-[#E2E8F0] bg-slate-50/50">
             <button
               type="button"
               onClick={toggleCollapsed}
-              className="p-1.5 text-gray-400 hover:text-[#1677C8] hover:bg-slate-200/60 rounded-lg transition-colors cursor-pointer"
+              className="p-1 text-gray-400 hover:text-[#1677C8] hover:bg-slate-200/60 rounded-lg transition-colors cursor-pointer"
               title="Expand Sidebar"
               aria-label="Expand Sidebar"
             >
@@ -173,11 +173,11 @@ export default function AdminPortal() {
         )}
 
         {/* Navigation Item Sections */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-4">
           {navSections.map((section) => (
-            <div key={section.title} className="space-y-1">
+            <div key={section.title} className="space-y-0.5">
               {!collapsed && (
-                <div className="px-3 text-[10px] font-bold tracking-wider text-[#94A3B8] uppercase mb-1.5">
+                <div className="px-2.5 text-[9px] font-bold tracking-wider text-[#94A3B8] uppercase mb-1">
                   {section.title}
                 </div>
               )}
@@ -189,8 +189,8 @@ export default function AdminPortal() {
                     to={item.to}
                     title={collapsed ? item.label : undefined}
                     className={({ isActive }) => `
-                      group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150
-                      ${collapsed ? 'justify-center px-0 h-10 w-10 mx-auto' : ''}
+                      group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150
+                      ${collapsed ? 'justify-center px-0 h-9 w-9 mx-auto' : ''}
                       ${
                         isActive
                           ? 'bg-[#1677C8]/10 text-[#1677C8] font-bold shadow-2xs'
@@ -209,7 +209,7 @@ export default function AdminPortal() {
 
                         {/* Collapsed Tooltip Floating label */}
                         {collapsed && (
-                          <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+                          <div className="absolute left-full ml-3 px-2 py-1 bg-slate-800 text-white text-xs font-semibold rounded-md shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
                             {item.label}
                           </div>
                         )}
@@ -223,21 +223,21 @@ export default function AdminPortal() {
         </nav>
 
         {/* Sidebar Footer / Account Actions */}
-        <div className="p-3 border-t border-[#E2E8F0] bg-slate-50/70">
+        <div className="p-2.5 border-t border-[#E2E8F0] bg-slate-50/70">
           {/* Settings NavLink */}
           <NavLink
             to="/admin/settings"
             title={collapsed ? 'Settings' : undefined}
             className={({ isActive }) => `
-              group relative flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors mb-2
-              ${collapsed ? 'justify-center px-0 h-9 w-9 mx-auto' : ''}
+              group relative flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors mb-1.5
+              ${collapsed ? 'justify-center px-0 h-8 w-8 mx-auto' : ''}
               ${isActive ? 'bg-[#1677C8]/10 text-[#1677C8]' : 'text-[#64748B] hover:text-[#16324F] hover:bg-white'}
             `}
           >
             <Settings className="w-4 h-4 shrink-0 text-[#64748B] group-hover:text-[#16324F]" />
             {!collapsed && <span className="truncate">Settings</span>}
             {collapsed && (
-              <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+              <div className="absolute left-full ml-3 px-2 py-1 bg-slate-800 text-white text-xs font-semibold rounded-md shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
                 Settings
               </div>
             )}
@@ -247,12 +247,12 @@ export default function AdminPortal() {
           <div className="pt-2 border-t border-gray-200/60 flex items-center justify-between">
             <NavLink
               to="/admin/profile"
-              className={`flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-85 transition group ${
+              className={`flex items-center gap-2 min-w-0 flex-1 hover:opacity-85 transition group ${
                 collapsed ? 'justify-center' : ''
               }`}
               title={collapsed ? adminName : 'View Profile'}
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors">
                 {adminInitials}
               </div>
               {!collapsed && (
@@ -260,7 +260,7 @@ export default function AdminPortal() {
                   <p className="text-xs font-bold text-[#16324F] truncate group-hover:text-[#1677C8] transition-colors leading-tight">
                     {adminName}
                   </p>
-                  <p className="text-[10px] font-semibold text-[#64748B] truncate">
+                  <p className="text-[9px] font-semibold text-[#64748B] truncate">
                     Administrator
                   </p>
                 </div>
@@ -272,9 +272,9 @@ export default function AdminPortal() {
                 type="button"
                 onClick={logout}
                 title="Logout"
-                className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                className="p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
@@ -420,8 +420,8 @@ export default function AdminPortal() {
         </header>
 
         {/* Scrollable Page Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#F8FAFC]">
-          <div className="max-w-[1440px] mx-auto">
+        <main className="flex-1 overflow-y-auto p-3.5 sm:p-4 lg:p-5 bg-[#F8F9FA]">
+          <div className="w-full max-w-[1600px] mx-auto">
             <Suspense fallback={<AdminLoader />}>
               <Routes>
                 <Route path="dashboard" element={<AdminDashboard />} />
