@@ -4,10 +4,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-hot-toast';
-import { Eye, EyeOff, Lock, Mail, ArrowLeft, Check, AlertCircle, RotateCcw } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Check, AlertCircle, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchWithAuth } from '../../api/client';
 import { EdropsLogo } from '../../components/Logo';
+import SplashScreen from '../../components/pwa/SplashScreen';
 
 export type AuthState = 'signin' | 'signup' | 'forgot';
 
@@ -45,8 +46,8 @@ const ROLE_PATHS: Record<string, string> = {
   DELIVERY_PARTNER: '/delivery-partner',
 };
 
-// --- MINIMAL INPUT COMPONENT ---
-const MinimalInput = ({
+// --- ARIMO-STYLE MINIMAL INPUT COMPONENT ---
+const ArimoInput = ({
   field,
   form,
   icon: Icon,
@@ -62,7 +63,7 @@ const MinimalInput = ({
   const hasError = Boolean(form.touched[field.name] && form.errors[field.name]);
 
   return (
-    <div className="mb-3.5">
+    <div className="mb-3 text-left">
       {label && (
         <label className="block text-xs font-semibold text-slate-700 mb-1">
           {label}
@@ -70,7 +71,7 @@ const MinimalInput = ({
       )}
       <div className="relative flex items-center">
         {Icon && (
-          <div className="absolute left-3 text-slate-400 pointer-events-none">
+          <div className="absolute left-3.5 text-slate-400 pointer-events-none">
             <Icon className="w-4 h-4" />
           </div>
         )}
@@ -82,12 +83,12 @@ const MinimalInput = ({
           type={inputType}
           autoComplete={autoComplete}
           placeholder={placeholder}
-          className={`w-full h-11 ${
-            Icon ? 'pl-9' : 'pl-3.5'
-          } ${isPassword ? 'pr-10' : 'pr-3.5'} rounded-xl bg-slate-50/80 border outline-none text-sm placeholder:text-slate-400 text-slate-900 transition-colors duration-200 ${
+          className={`w-full h-11 sm:h-12 ${
+            Icon ? 'pl-10' : 'pl-3.5'
+          } ${isPassword ? 'pr-10' : 'pr-3.5'} rounded-2xl bg-white border outline-none text-sm placeholder:text-slate-400 text-slate-900 transition-all duration-200 ${
             hasError
-              ? 'border-rose-300 bg-rose-50/20 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
-              : 'border-slate-200 focus:bg-white focus:border-[#0088CC] focus:ring-2 focus:ring-[#0088CC]/20'
+              ? 'border-rose-300 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
+              : 'border-slate-200 focus:border-[#0088CC] focus:ring-4 focus:ring-[#0088CC]/10 hover:border-slate-300'
           }`}
         />
 
@@ -96,7 +97,7 @@ const MinimalInput = ({
             type="button"
             tabIndex={-1}
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 text-slate-400 hover:text-slate-700 transition-colors p-1 cursor-pointer"
+            className="absolute right-3.5 text-slate-400 hover:text-slate-700 transition-colors p-1 cursor-pointer"
           >
             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
@@ -104,7 +105,7 @@ const MinimalInput = ({
       </div>
 
       {hasError && (
-        <p className="mt-1 text-xs text-rose-500 font-medium pl-0.5 flex items-center gap-1">
+        <p className="mt-1 text-xs text-rose-500 font-medium pl-1 flex items-center gap-1">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>{form.errors[field.name]}</span>
         </p>
@@ -144,25 +145,6 @@ const PasswordStrength = ({ password }: { password: string }) => {
       </div>
     </div>
   );
-};
-
-// --- LEFT PANEL COPY MATRIX ---
-const LEFT_PANEL_COPY: Record<AuthState, { headline: string; subtext: string; stateClass: string }> = {
-  signin: {
-    headline: 'Pure Water.\nDelivered Daily.',
-    subtext: 'Smart hydration for modern spaces.',
-    stateClass: 'auth-state-signin',
-  },
-  signup: {
-    headline: 'Join The\nMovement.',
-    subtext: 'Doorstep water delivery on your schedule.',
-    stateClass: 'auth-state-signup',
-  },
-  forgot: {
-    headline: 'Account\nRecovery.',
-    subtext: "We'll send a secure one-time reset link.",
-    stateClass: 'auth-state-forgot',
-  },
 };
 
 const easeBezier = [0.32, 0.72, 0, 1] as const;
@@ -296,383 +278,390 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
     }
   };
 
-  const currentCopy = LEFT_PANEL_COPY[state];
-
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row overflow-hidden bg-white">
+    <div className="w-screen h-[100dvh] bg-white lg:bg-gradient-to-br lg:from-[#061826] lg:via-[#0B2545] lg:to-[#13315C] flex flex-col items-center justify-start lg:justify-center p-0 lg:p-6 relative select-none overflow-hidden">
       
-      {/* ========================================================================= */}
-      {/* 1. LEFT PANEL / MOBILE HEADER: COMPACT ON MOBILE, FULL SPLIT ON DESKTOP   */}
-      {/* ========================================================================= */}
-      <div
-        className={`w-full lg:w-1/2 h-16 lg:h-screen lg:min-h-[280px] relative auth-gradient-panel ${currentCopy.stateClass} flex items-center lg:flex-col lg:justify-between px-6 lg:p-16 overflow-hidden shrink-0`}
-      >
-        {/* Soft Moving Radial Gradient Glow Orbs */}
-        <div className="absolute -right-20 -top-20 w-[420px] h-[420px] bg-white/10 rounded-full blur-[100px] pointer-events-none animate-glow-1" />
-        <div className="absolute -left-20 -bottom-20 w-[420px] h-[420px] bg-sky-300/10 rounded-full blur-[100px] pointer-events-none animate-glow-2" />
-        <div className="absolute top-1/2 left-1/3 w-[300px] h-[300px] bg-cyan-400/10 rounded-full blur-[100px] pointer-events-none animate-glow-1" />
+      {/* PWA / First Launch Splash Screen */}
+      <SplashScreen />
 
-        {/* Quiet Logo (Left-aligned & Vertically Centered on Mobile, Top-Left on Desktop) */}
-        <div className="relative z-10 flex items-center">
-          <button
-            onClick={() => navigate('/')}
-            className="cursor-pointer transition-opacity hover:opacity-90 focus:outline-none flex items-center"
-          >
-            <EdropsLogo variant="white" className="h-6 sm:h-7 w-auto" />
-          </button>
-        </div>
-
-        {/* Directional Headline + Subtext (DESKTOP ONLY — Completely excluded from mobile flow) */}
-        <div className="hidden lg:flex relative z-10 my-auto py-8 lg:py-0 max-w-md flex-col">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={state}
-              initial={{ opacity: 0, x: state === 'signup' ? 24 : -24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: state === 'signup' ? -24 : 24 }}
-              transition={{ duration: 0.3, ease: easeBezier }}
-            >
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight whitespace-pre-line mb-3">
-                {currentCopy.headline}
-              </h1>
-              <p className="text-sm sm:text-base text-sky-100/85 font-medium">
-                {currentCopy.subtext}
-              </p>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Empty bottom space to maintain balanced vertical centering on desktop */}
-        <div className="relative z-10 hidden lg:block h-7" />
-      </div>
+      {/* Desktop Atmospheric Ambient Glow Orbs */}
+      <div className="hidden lg:block absolute -top-32 -left-32 w-[550px] h-[550px] bg-sky-500/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="hidden lg:block absolute -bottom-32 -right-32 w-[550px] h-[550px] bg-indigo-500/15 rounded-full blur-[140px] pointer-events-none" />
 
       {/* ========================================================================= */}
-      {/* 2. RIGHT/FORM PANEL: FULL-BLEED MOBILE SCROLLABLE, CENTERED DESKTOP VIEW  */}
+      {/* AUTH CONTAINER (TRUE 100vw x 100dvh on mobile; Centered card on desktop) */}
       {/* ========================================================================= */}
-      <div className="flex-1 w-full lg:w-1/2 min-h-0 lg:h-screen bg-white flex items-start lg:items-center justify-center px-6 py-6 sm:px-10 sm:py-8 lg:p-16 overflow-y-auto">
-        <div className="w-full max-w-[440px] my-auto">
+      <div className="w-full h-full lg:h-[620px] lg:max-w-[450px] flex flex-col bg-white lg:rounded-[32px] lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] overflow-hidden relative">
+        
+        {/* ========================================================================= */}
+        {/* 1. OVERLAPPING COLORED HEADER BANNER (Consistent Logo Across All States) */}
+        {/* ========================================================================= */}
+        <div className="w-full h-[20dvh] min-h-[120px] max-h-[155px] lg:h-32 bg-gradient-to-br from-[#00AEEF] via-[#0088CC] to-[#0B3B5C] relative px-6 pt-5 pb-8 flex items-start justify-between overflow-hidden shrink-0">
           
-          {/* Segmented Control Switcher */}
-          {state !== 'forgot' && (
-            <div className="relative flex bg-slate-100 rounded-full p-1 w-fit mb-6 sm:mb-8 select-none">
-              {(['signin', 'signup'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => handleState(tab)}
-                  className="relative px-5 sm:px-6 py-2 text-xs sm:text-sm font-medium z-10 cursor-pointer focus:outline-none"
-                >
-                  {state === tab && (
-                    <motion.div
-                      layoutId="tab-pill"
-                      className="absolute inset-0 bg-white rounded-full shadow-sm"
-                      transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                    />
-                  )}
-                  <span
-                    className={
-                      state === tab
-                        ? 'text-slate-900 relative z-10 font-semibold transition-colors duration-200'
-                        : 'text-slate-400 relative z-10 hover:text-slate-600 transition-colors duration-200'
-                    }
-                  >
-                    {tab === 'signin' ? 'Sign In' : 'Sign Up'}
-                  </span>
-                </button>
-              ))}
+          {/* Subtle Water Topography Texture */}
+          <div className="absolute inset-0 opacity-[0.09] pointer-events-none">
+            <svg className="w-full h-full object-cover" viewBox="0 0 800 400" preserveAspectRatio="none">
+              <path d="M0,80 C200,160 400,20 600,120 C700,170 750,90 800,110 L800,400 L0,400 Z" fill="white" />
+              <path d="M0,180 C150,220 350,140 550,210 C680,260 740,190 800,200 L800,400 L0,400 Z" fill="white" opacity="0.4" />
+            </svg>
+          </div>
+
+          {/* Top Bar: Always Logo on Left, Badge on Right */}
+          <div className="relative z-10 w-full flex items-center justify-between">
+            <button onClick={() => navigate('/')} className="cursor-pointer flex items-center focus:outline-none">
+              <EdropsLogo variant="white" className="h-6 sm:h-7 w-auto drop-shadow-sm" />
+            </button>
+
+            <div className="px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-md text-white text-[11px] font-semibold tracking-wide">
+              Edrops
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Smooth Morphing Form Content Area */}
-          <motion.div layout transition={{ duration: 0.3, ease: easeBezier }} className="w-full">
-            <AnimatePresence mode="wait" initial={false}>
-              
-              {/* --- SIGN IN MODE --- */}
-              {state === 'signin' && (
-                <motion.div
-                  key="signin"
-                  initial={{ opacity: 0, x: -24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 24 }}
-                  transition={{ duration: 0.3, ease: easeBezier }}
-                  className="w-full"
+        {/* ========================================================================= */}
+        {/* 2. PULLED-UP WHITE CARD WITH COMPACT TOP-TO-BOTTOM FLOW                  */}
+        {/* ========================================================================= */}
+        <div className="flex-1 w-full -mt-6 bg-white rounded-t-[28px] sm:rounded-t-[32px] px-6 pt-6 pb-6 flex flex-col shadow-[0_-8px_24px_rgba(0,0,0,0.04)] relative z-20 overflow-hidden">
+          
+          <AnimatePresence mode="wait" initial={false}>
+            
+            {/* --- SIGN IN VIEW --- */}
+            {state === 'signin' && (
+              <motion.div
+                key="signin-view"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.28, ease: easeBezier }}
+                className="w-full flex-1 flex flex-col overflow-y-auto no-scrollbar"
+              >
+                <div className="mb-5 text-center">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
+                    Welcome to Edrops<br />Login now!
+                  </h1>
+                </div>
+
+                <Formik
+                  initialValues={{ identifier: '', password: '', rememberMe: false }}
+                  validationSchema={loginSchema}
+                  onSubmit={handleLoginSubmit}
                 >
-                  <div className="mb-5 sm:mb-6">
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
-                  </div>
+                  {({ isSubmitting }) => (
+                    <Form>
+                      <Field
+                        name="identifier"
+                        component={ArimoInput}
+                        label="Phone or Email"
+                        placeholder="Phone number or email"
+                        autoComplete="username"
+                      />
+                      <Field
+                        name="password"
+                        component={ArimoInput}
+                        icon={Lock}
+                        type="password"
+                        label="Password"
+                        placeholder="Password"
+                        autoComplete="current-password"
+                      />
 
+                      <div className="flex items-center justify-between mt-1 mb-5">
+                        <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600">
+                          <Field
+                            type="checkbox"
+                            name="rememberMe"
+                            className="w-4 h-4 rounded border-slate-300 text-[#0088CC] focus:ring-0 cursor-pointer accent-[#0088CC]"
+                          />
+                          <span>Remember me</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => handleState('forgot')}
+                          className="text-xs font-semibold text-[#0088CC] hover:underline cursor-pointer"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full h-12 rounded-2xl bg-[#0088CC] hover:bg-[#0077B3] text-white font-semibold text-base shadow-[0_4px_16px_rgba(0,136,204,0.25)] active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-1"
+                      >
+                        {isSubmitting ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          'Continue'
+                        )}
+                      </button>
+
+                      {/* Toggle Link immediately below button */}
+                      <div className="mt-5 text-center">
+                        <p className="text-sm text-slate-500">
+                          Don't have an account?{' '}
+                          <button
+                            type="button"
+                            onClick={() => handleState('signup')}
+                            className="font-bold text-[#0088CC] hover:underline transition-colors ml-1 cursor-pointer"
+                          >
+                            Create an account
+                          </button>
+                        </p>
+                      </div>
+                    </Form>
+                  )}
+                </Formik>
+              </motion.div>
+            )}
+
+            {/* --- SIGN UP VIEW --- */}
+            {state === 'signup' && (
+              <motion.div
+                key="signup-view"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.28, ease: easeBezier }}
+                className="w-full flex-1 flex flex-col overflow-y-auto no-scrollbar"
+              >
+                <div className="mb-4 text-center">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
+                    Finish signing up
+                  </h1>
+                </div>
+
+                <Formik
+                  initialValues={{
+                    fullName: '',
+                    phone: '',
+                    email: '',
+                    address: '',
+                    password: '',
+                    confirmPassword: '',
+                    acceptTerms: false,
+                  }}
+                  validationSchema={registerSchema}
+                  onSubmit={handleRegisterSubmit}
+                >
+                  {({ isSubmitting, values }) => (
+                    <Form>
+                      <Field
+                        name="fullName"
+                        component={ArimoInput}
+                        label="Full Name"
+                        placeholder="e.g. James Anderson"
+                        autoComplete="name"
+                      />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2">
+                        <Field
+                          name="phone"
+                          component={ArimoInput}
+                          type="tel"
+                          label="Phone Number"
+                          placeholder="+1 (555) 000-0000"
+                          autoComplete="tel"
+                        />
+                        <Field
+                          name="email"
+                          component={ArimoInput}
+                          icon={Mail}
+                          type="email"
+                          label="Email Address (Optional)"
+                          placeholder="james@example.com"
+                          autoComplete="email"
+                        />
+                      </div>
+
+                      <Field
+                        name="address"
+                        component={ArimoInput}
+                        label="Delivery Address"
+                        placeholder="Apartment, Street, Building"
+                        autoComplete="street-address"
+                      />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2">
+                        <div>
+                          <Field
+                            name="password"
+                            component={ArimoInput}
+                            icon={Lock}
+                            type="password"
+                            label="Password"
+                            placeholder="8+ characters"
+                            autoComplete="new-password"
+                          />
+                          <PasswordStrength password={values.password} />
+                        </div>
+                        <div>
+                          <Field
+                            name="confirmPassword"
+                            component={ArimoInput}
+                            icon={Lock}
+                            type="password"
+                            label="Confirm Password"
+                            placeholder="Confirm password"
+                            autoComplete="new-password"
+                          />
+                        </div>
+                      </div>
+
+                      <label className="flex items-start gap-2 mt-1 mb-4 cursor-pointer select-none text-xs text-slate-500">
+                        <Field
+                          type="checkbox"
+                          name="acceptTerms"
+                          className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#0088CC] focus:ring-0 cursor-pointer accent-[#0088CC]"
+                        />
+                        <span>
+                          I read and agreed to{' '}
+                          <span className="text-[#0088CC] font-semibold hover:underline">User Agreement</span>{' '}
+                          and{' '}
+                          <span className="text-[#0088CC] font-semibold hover:underline">Privacy Policy</span>
+                        </span>
+                      </label>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full h-12 rounded-2xl bg-[#0088CC] hover:bg-[#0077B3] text-white font-semibold text-base shadow-[0_4px_16px_rgba(0,136,204,0.25)] active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-1"
+                      >
+                        {isSubmitting ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          'Sign Up'
+                        )}
+                      </button>
+
+                      {/* Toggle Link immediately below button */}
+                      <div className="mt-5 text-center">
+                        <p className="text-sm text-slate-500">
+                          Already have an account?{' '}
+                          <button
+                            type="button"
+                            onClick={() => handleState('signin')}
+                            className="font-bold text-[#0088CC] hover:underline transition-colors ml-1 cursor-pointer"
+                          >
+                            Log in
+                          </button>
+                        </p>
+                      </div>
+                    </Form>
+                  )}
+                </Formik>
+              </motion.div>
+            )}
+
+            {/* --- FORGOT PASSWORD VIEW --- */}
+            {state === 'forgot' && (
+              <motion.div
+                key="forgot-view"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.28, ease: easeBezier }}
+                className="w-full flex-1 flex flex-col overflow-y-auto no-scrollbar"
+              >
+                <div className="mb-5 text-center">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
+                    {forgotSuccess ? 'Check your email' : 'Reset password'}
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-2">
+                    {forgotSuccess
+                      ? `Instructions sent to ${forgotEmail}`
+                      : "Enter your registered email address and we'll send you reset instructions."}
+                  </p>
+                </div>
+
+                {!forgotSuccess ? (
                   <Formik
-                    initialValues={{ identifier: '', password: '', rememberMe: false }}
-                    validationSchema={loginSchema}
-                    onSubmit={handleLoginSubmit}
+                    initialValues={{ email: '' }}
+                    validationSchema={forgotSchema}
+                    onSubmit={handleForgotSubmit}
                   >
                     {({ isSubmitting }) => (
                       <Form>
                         <Field
-                          name="identifier"
-                          component={MinimalInput}
-                          label="Phone or Email"
-                          placeholder="Phone number or email"
-                          autoComplete="username"
-                        />
-                        <Field
-                          name="password"
-                          component={MinimalInput}
-                          icon={Lock}
-                          type="password"
-                          label="Password"
-                          placeholder="Password"
-                          autoComplete="current-password"
+                          name="email"
+                          component={ArimoInput}
+                          icon={Mail}
+                          label="Email Address"
+                          placeholder="name@company.com"
+                          autoComplete="email"
                         />
 
-                        <div className="flex items-center justify-between mt-2 mb-5 sm:mb-6">
-                          <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600">
-                            <Field
-                              type="checkbox"
-                              name="rememberMe"
-                              className="w-4 h-4 rounded border-slate-300 text-[#0088CC] focus:ring-0 cursor-pointer accent-[#0088CC]"
-                            />
-                            <span>Remember me</span>
-                          </label>
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="w-full h-12 mt-4 rounded-2xl bg-[#0088CC] hover:bg-[#0077B3] text-white font-semibold text-base shadow-[0_4px_16px_rgba(0,136,204,0.25)] active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer disabled:opacity-50"
+                        >
+                          {isSubmitting ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            'Send Reset Link'
+                          )}
+                        </button>
+
+                        <div className="mt-5 text-center">
                           <button
                             type="button"
-                            onClick={() => handleState('forgot')}
-                            className="text-xs font-semibold text-[#0088CC] hover:underline cursor-pointer"
+                            onClick={() => {
+                              setForgotSuccess(false);
+                              handleState('signin');
+                            }}
+                            className="text-sm font-semibold text-[#0088CC] hover:underline cursor-pointer"
                           >
-                            Forgot password?
+                            Back to Log in
                           </button>
                         </div>
-
-                        <button
-                          type="submit"
-                          disabled={isSubmitting}
-                          className="w-full h-11 rounded-xl bg-[#0088CC] hover:bg-[#0077B3] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
-                        >
-                          {isSubmitting ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            'Sign In'
-                          )}
-                        </button>
                       </Form>
                     )}
                   </Formik>
-                </motion.div>
-              )}
-
-              {/* --- SIGN UP MODE --- */}
-              {state === 'signup' && (
-                <motion.div
-                  key="signup"
-                  initial={{ opacity: 0, x: 24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -24 }}
-                  transition={{ duration: 0.3, ease: easeBezier }}
-                  className="w-full"
-                >
-                  <div className="mb-4 sm:mb-5">
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Create account</h2>
-                  </div>
-
-                  <Formik
-                    initialValues={{
-                      fullName: '',
-                      phone: '',
-                      email: '',
-                      address: '',
-                      password: '',
-                      confirmPassword: '',
-                      acceptTerms: false,
-                    }}
-                    validationSchema={registerSchema}
-                    onSubmit={handleRegisterSubmit}
-                  >
-                    {({ isSubmitting, values }) => (
-                      <Form>
-                        <Field
-                          name="fullName"
-                          component={MinimalInput}
-                          label="Full Name"
-                          placeholder="Full name"
-                          autoComplete="name"
-                        />
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
-                          <Field
-                            name="phone"
-                            component={MinimalInput}
-                            type="tel"
-                            label="Phone Number"
-                            placeholder="Phone number"
-                            autoComplete="tel"
-                          />
-                          <Field
-                            name="email"
-                            component={MinimalInput}
-                            icon={Mail}
-                            type="email"
-                            label="Email (Optional)"
-                            placeholder="Email address"
-                            autoComplete="email"
-                          />
-                        </div>
-
-                        <Field
-                          name="address"
-                          component={MinimalInput}
-                          label="Delivery Address"
-                          placeholder="Street or building address"
-                          autoComplete="street-address"
-                        />
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
-                          <div>
-                            <Field
-                              name="password"
-                              component={MinimalInput}
-                              icon={Lock}
-                              type="password"
-                              label="Password"
-                              placeholder="8+ characters"
-                              autoComplete="new-password"
-                            />
-                            <PasswordStrength password={values.password} />
-                          </div>
-                          <div>
-                            <Field
-                              name="confirmPassword"
-                              component={MinimalInput}
-                              icon={Lock}
-                              type="password"
-                              label="Confirm Password"
-                              placeholder="Confirm password"
-                              autoComplete="new-password"
-                            />
-                          </div>
-                        </div>
-
-                        <label className="flex items-start gap-2 mt-1 mb-4 sm:mb-5 cursor-pointer select-none text-xs text-slate-500">
-                          <Field
-                            type="checkbox"
-                            name="acceptTerms"
-                            className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#0088CC] focus:ring-0 cursor-pointer accent-[#0088CC]"
-                          />
-                          <span>
-                            I agree to the{' '}
-                            <span className="text-[#0088CC] font-semibold hover:underline">Terms</span> &{' '}
-                            <span className="text-[#0088CC] font-semibold hover:underline">Privacy</span>
-                          </span>
-                        </label>
-
-                        <button
-                          type="submit"
-                          disabled={isSubmitting}
-                          className="w-full h-11 rounded-xl bg-[#0088CC] hover:bg-[#0077B3] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
-                        >
-                          {isSubmitting ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            'Create Account'
-                          )}
-                        </button>
-                      </Form>
-                    )}
-                  </Formik>
-                </motion.div>
-              )}
-
-              {/* --- FORGOT PASSWORD MODE --- */}
-              {state === 'forgot' && (
-                <motion.div
-                  key="forgot"
-                  initial={{ opacity: 0, x: -24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 24 }}
-                  transition={{ duration: 0.3, ease: easeBezier }}
-                  className="w-full"
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setForgotSuccess(false);
-                      handleState('signin');
-                    }}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors mb-4 sm:mb-5 cursor-pointer group"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
-                    <span>Back to Sign In</span>
-                  </button>
-
-                  <div className="mb-5 sm:mb-6">
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                      {forgotSuccess ? 'Check your email' : 'Reset password'}
-                    </h2>
-                  </div>
-
-                  {!forgotSuccess ? (
-                    <Formik
-                      initialValues={{ email: '' }}
-                      validationSchema={forgotSchema}
-                      onSubmit={handleForgotSubmit}
+                ) : (
+                  <div className="text-center py-3 space-y-4">
+                    <div className="mx-auto w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
+                      <Check className="w-7 h-7 stroke-[2.5]" />
+                    </div>
+                    <p className="text-sm text-slate-600 px-4">
+                      Please check your inbox or spam folder for your one-time password recovery link.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={countdown > 0 || isResending}
+                      className="w-full h-11 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
-                      {({ isSubmitting }) => (
-                        <Form>
-                          <Field
-                            name="email"
-                            component={MinimalInput}
-                            icon={Mail}
-                            label="Email Address"
-                            placeholder="name@company.com"
-                            autoComplete="email"
-                          />
-
-                          <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full h-11 mt-4 rounded-xl bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
-                          >
-                            {isSubmitting ? (
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                              'Send Reset Link'
-                            )}
-                          </button>
-                        </Form>
+                      {isResending ? (
+                        <div className="w-4 h-4 border-2 border-slate-400 border-t-slate-800 rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <RotateCcw className="w-4 h-4" />
+                          <span>{countdown > 0 ? `Resend in ${countdown}s` : 'Resend Email Link'}</span>
+                        </>
                       )}
-                    </Formik>
-                  ) : (
-                    <div className="text-center py-2 space-y-4">
-                      <div className="mx-auto w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                        <Check className="w-6 h-6 stroke-[2.5]" />
-                      </div>
-                      <p className="text-xs text-slate-600">
-                        Instructions sent to <span className="font-semibold text-slate-900">{forgotEmail}</span>
-                      </p>
+                    </button>
+
+                    <div className="mt-4 text-center">
                       <button
                         type="button"
-                        onClick={handleResend}
-                        disabled={countdown > 0 || isResending}
-                        className="w-full h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        onClick={() => {
+                          setForgotSuccess(false);
+                          handleState('signin');
+                        }}
+                        className="text-sm font-semibold text-[#0088CC] hover:underline cursor-pointer"
                       >
-                        {isResending ? (
-                          <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-slate-800 rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            <span>{countdown > 0 ? `Resend in ${countdown}s` : 'Resend Email'}</span>
-                          </>
-                        )}
+                        Back to Log in
                       </button>
                     </div>
-                  )}
-                </motion.div>
-              )}
+                  </div>
+                )}
+              </motion.div>
+            )}
 
-            </AnimatePresence>
-          </motion.div>
+          </AnimatePresence>
         </div>
-      </div>
 
+      </div>
     </div>
   );
 }
