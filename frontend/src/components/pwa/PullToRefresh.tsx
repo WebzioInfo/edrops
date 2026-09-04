@@ -137,41 +137,48 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
     ? createPortal(
         <AnimatePresence>
           {(pullDistance > 0 || isRefreshing) && (
-            <motion.div
-              initial={{ opacity: 0, y: -30 }}
-              animate={{
-                opacity: isRefreshing ? 1 : opacity,
-                y: isRefreshing ? 60 : pullDistance,
-                transition: isPulling ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 32 },
-              }}
-              exit={{ opacity: 0, y: -30, transition: { duration: 0.2 } }}
+            <div
               style={{
                 position: 'fixed',
-                top: '0px',
-                left: '50%',
-                transform: 'translateX(-50%)',
+                top: 0,
+                left: 0,
+                right: 0,
+                width: '100vw',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
                 zIndex: 99999,
                 pointerEvents: 'none',
               }}
-              className="flex justify-center items-center pointer-events-none"
             >
-              <div
-                className="w-12 h-12 rounded-full bg-white/95 backdrop-blur-md shadow-[0_10px_30px_rgba(0,136,204,0.35)] border border-sky-100 flex items-center justify-center transition-transform duration-75 mt-2"
-                style={{
-                  transform: `scale(${scale})`,
+              <motion.div
+                initial={{ opacity: 0, y: -30 }}
+                animate={{
+                  opacity: isRefreshing ? 1 : opacity,
+                  y: isRefreshing ? 60 : Math.max(pullDistance - 30, 8),
+                  transition: isPulling ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 32 },
                 }}
+                exit={{ opacity: 0, y: -30, transition: { duration: 0.2 } }}
+                className="flex justify-center items-center pointer-events-none"
               >
                 <div
-                  className={`flex items-center justify-center ${isRefreshing ? 'animate-spin' : ''}`}
+                  className="w-12 h-12 rounded-full bg-white/95 backdrop-blur-md shadow-[0_10px_30px_rgba(0,136,204,0.35)] border border-sky-100 flex items-center justify-center transition-transform duration-75 mt-2"
                   style={{
-                    transform: isRefreshing ? undefined : `rotate(${rotation}deg)`,
-                    transition: isPulling ? 'none' : 'transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)',
+                    transform: `scale(${scale})`,
                   }}
                 >
-                  <EdropsLogo variant="icon" size={26} className="h-6.5 w-6.5 pointer-events-none" />
+                  <div
+                    className={`flex items-center justify-center ${isRefreshing ? 'animate-spin' : ''}`}
+                    style={{
+                      transform: isRefreshing ? undefined : `rotate(${rotation}deg)`,
+                      transition: isPulling ? 'none' : 'transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)',
+                    }}
+                  >
+                    <EdropsLogo variant="icon" size={26} className="h-6.5 w-6.5 pointer-events-none" />
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>,
         document.body
