@@ -186,55 +186,59 @@ export default function Shop() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
                 key={product.id}
-                className="bg-white rounded-[24px] border border-[#E2E8F0] shadow-sm p-4 flex flex-col hover:-translate-y-1 transition-transform duration-300 relative group"
+                className="bg-white rounded-[20px] border border-[#E2E8F0] shadow-sm p-3.5 flex flex-col hover:-translate-y-1 transition-transform duration-300 relative group"
               >
                 
-                {/* Product Image Area */}
-                <div className="h-[220px] rounded-[16px] bg-[#F8FAFC] mb-4 overflow-hidden flex items-center justify-center relative">
+                {/* Product Image Area with Aspect Ratio */}
+                <div className="aspect-[4/3] w-full rounded-[14px] bg-[#F1F5F9] mb-3 overflow-hidden flex items-center justify-center relative">
                   {product.images && product.images.length > 0 ? (
                     <img src={product.images[0].url} alt={product.name} className="object-cover h-full w-full group-hover:scale-105 transition-transform duration-500" />
                   ) : (
-                    <div className="text-[#64748B] text-[14px] font-medium flex items-center justify-center h-full">No Image</div>
+                    <div className="flex flex-col items-center justify-center gap-1 text-[#94A3B8]">
+                      <ShoppingCart className="w-7 h-7 stroke-[1.5]" />
+                    </div>
                   )}
-                  {/* Brand badge */}
-                  <div className="absolute top-3 left-3 bg-[#EBF5FB] text-[#1E88E5] text-[12px] font-semibold px-3 py-1 rounded-full border border-[#BBDFF2]">
-                    {product.brand?.name}
-                  </div>
+                  {/* Brand badge overlay inside image */}
+                  {product.brand?.name && (
+                    <div className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-md text-[#1E88E5] text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-sky-100 shadow-xs">
+                      {product.brand.name}
+                    </div>
+                  )}
                 </div>
 
-                {/* Content Area */}
-                <div className="flex-1 px-1">
-                  <h3 className="text-[18px] font-bold text-[#0F172A] truncate" title={product.name}>{product.name}</h3>
-                  <p className="text-[14px] font-medium text-[#64748B] mt-1 line-clamp-2 min-h-[40px] leading-relaxed">
+                {/* Content Area with Tight Intentional Rhythm */}
+                <div className="flex-1 px-0.5">
+                  <h3 className="text-[16px] font-bold text-[#0F172A] truncate" title={product.name}>{product.name}</h3>
+                  <p className="text-[13px] font-medium text-[#64748B] mt-1 line-clamp-2 min-h-[36px] leading-snug">
                     {product.description}
                   </p>
                 </div>
 
                 {/* Pricing Area */}
-                <div className="mt-5 px-1 flex flex-col gap-1">
+                <div className="mt-3 px-0.5 flex flex-col gap-1">
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-[28px] font-bold text-[#1E88E5]">₹{product.price}</span>
-                    <span className="text-[14px] font-medium text-[#64748B]">Per Jar</span>
+                    <span className="text-[22px] font-extrabold text-[#1E88E5]">₹{product.price}</span>
+                    <span className="text-[12px] font-medium text-[#64748B]">Per Jar</span>
                   </div>
                   {product.isJar && (
-                    <div className="flex items-center gap-1.5 text-[#64748B] text-[12px] font-medium bg-[#F8FAFC] px-2 py-1 rounded-md self-start border border-[#E2E8F0]">
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#42A5F5]" />
-                      Security Deposit ₹{product.depositAmount}
+                    <div className="flex items-center gap-1.5 text-[#64748B] text-[11px] font-medium bg-[#F8FAFC] px-2 py-0.5 rounded-md self-start border border-[#E2E8F0]">
+                      <ShieldCheck className="w-3 h-3 text-[#42A5F5]" />
+                      Deposit ₹{product.depositAmount}
                     </div>
                   )}
                 </div>
 
                 {/* Actions Area */}
-                <div className="mt-5 pt-5 border-t border-[#E2E8F0] grid grid-cols-2 gap-3">
+                <div className="mt-3.5 pt-3 border-t border-[#E2E8F0] grid grid-cols-2 gap-2.5">
                   <button
                     onClick={() => handleBuyNow(product)}
-                    className="min-h-[44px] rounded-xl bg-white text-[#1E88E5] border border-[#1E88E5] font-semibold text-[14px] flex items-center justify-center hover:bg-[#EBF5FB] transition-colors cursor-pointer"
+                    className="min-h-[40px] rounded-xl bg-white text-[#1E88E5] border border-[#1E88E5] font-semibold text-[13px] flex items-center justify-center hover:bg-[#EBF5FB] transition-colors cursor-pointer"
                   >
                     Buy Now
                   </button>
                   <button
                     onClick={() => handleAddToCart(product)}
-                    className="min-h-[44px] rounded-xl bg-[#1E88E5] text-white border border-[#1E88E5] font-semibold text-[14px] flex items-center justify-center hover:bg-[#1565C0] transition-colors shadow-sm cursor-pointer"
+                    className="min-h-[40px] rounded-xl bg-[#1E88E5] text-white border border-[#1E88E5] font-semibold text-[13px] flex items-center justify-center hover:bg-[#1565C0] transition-colors shadow-sm cursor-pointer"
                   >
                     Add to Cart
                   </button>
