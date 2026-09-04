@@ -6,6 +6,13 @@ type ProtectedRouteProps = {
   allowedRoles?: Array<'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER'>;
 };
 
+const ROLE_PATHS: Record<string, string> = {
+  CUSTOMER: '/customer/shop',
+  STAFF: '/staff',
+  ADMIN: '/admin',
+  DELIVERY_PARTNER: '/delivery-partner',
+};
+
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   const { user, token, authStatus, isLoading } = useAuth();
   const location = useLocation();
@@ -30,10 +37,10 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     return <Navigate to={`/login?redirect=${target}&reason=auth_required`} state={{ from: location }} replace />;
   }
 
-  // 3. User is authenticated, but role is not allowed for this route
+  // 3. User is authenticated, but role is not allowed for this route: safely route to their portal
   if (allowedRoles && !allowedRoles.includes(actualUser.role)) {
-    // Role not allowed: redirect to login with contextual reason
-    return <Navigate to={`/login?redirect=${target}&reason=permission_required`} state={{ from: location }} replace />;
+    const defaultPortal = ROLE_PATHS[actualUser.role] ?? '/customer/shop';
+    return <Navigate to={defaultPortal} replace />;
   }
 
   return <Outlet />;

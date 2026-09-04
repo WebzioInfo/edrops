@@ -202,12 +202,27 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
 
   const redirectParam = searchParams.get('redirect') || (location.state as any)?.redirect || (location.state as any)?.from?.pathname;
 
+  const isPathAllowedForRole = (role?: string, path?: string): boolean => {
+    if (!path || !role) return false;
+    if (path === '/' || path === '/customer/shop') return true;
+    if (role === 'ADMIN') return path.startsWith('/admin');
+    if (role === 'DELIVERY_PARTNER') return path.startsWith('/delivery-partner');
+    if (role === 'STAFF') return path.startsWith('/staff');
+    if (role === 'CUSTOMER') return path.startsWith('/customer');
+    return false;
+  };
+
   const handleSuccessRedirect = (targetUser: any) => {
     const roleDefault = ROLE_PATHS[targetUser?.role] ?? '/customer/shop';
     let target = roleDefault;
     if (redirectParam) {
       const decoded = decodeURIComponent(redirectParam);
-      if (decoded.startsWith('/') && !decoded.startsWith('//') && !decoded.startsWith('/login')) {
+      if (
+        decoded.startsWith('/') &&
+        !decoded.startsWith('//') &&
+        !decoded.startsWith('/login') &&
+        isPathAllowedForRole(targetUser?.role, decoded)
+      ) {
         target = decoded;
       }
     }
