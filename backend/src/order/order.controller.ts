@@ -28,8 +28,13 @@ export class OrderController {
   @Get('staff/all')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
-  findStaffAll() {
-    return this.orderService.findStaffAll();
+  findStaffAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.orderService.findStaffAll({ page, limit, search, status });
   }
 
   @Get('partner/all')
@@ -72,5 +77,17 @@ export class OrderController {
   ) {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;
     return this.orderService.updateOrderStatus(id, status, userId, reason, paymentConfirmation);
+  }
+
+  @Patch(':id/assign')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  assignPartner(
+    @Param('id') id: string,
+    @Body('deliveryPartnerId') deliveryPartnerId: string,
+    @Req() req,
+  ) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    return this.orderService.assignDeliveryPartner(id, deliveryPartnerId, userId);
   }
 }

@@ -72,17 +72,36 @@ export default function OrderDetails() {
   useEffect(() => {
     if (!socket || !orderId) return;
 
+    // Join order-specific room for real-time live tracking
+    socket.emit('join-order', orderId);
+
     const handleStatusChanged = (data: { orderId: string; status: string }) => {
       if (data.orderId === orderId) {
         setOrder((prev: any) => (prev ? { ...prev, status: data.status } : prev));
-        toast.success(`Order status updated to: ${formatOrderStatus(data.status)}`, { icon: '📦' });
+        toast.success(`Order status updated: ${formatOrderStatus(data.status)}`, { icon: '📦' });
+        fetchOrder();
+      }
+    };
+
+    const handleOrderUpdated = (data: any) => {
+      if (data && (data.id === orderId || data.orderId === orderId)) {
+        if (data.status) {
+          setOrder((prev: any) => (prev ? { ...prev, status: data.status, ...data } : { ...data }));
+          toast.success(`Order updated: ${formatOrderStatus(data.status)}`, { icon: '📦' });
+        }
         fetchOrder();
       }
     };
 
     socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
+    socket.on('order:updated', handleOrderUpdated);
+    socket.on('order:assigned', handleOrderUpdated);
+
     return () => {
+      socket.emit('leave-order', orderId);
       socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
+      socket.off('order:updated', handleOrderUpdated);
+      socket.off('order:assigned', handleOrderUpdated);
     };
   }, [socket, orderId]);
 

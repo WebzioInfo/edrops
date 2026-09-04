@@ -1,203 +1,442 @@
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState, useCallback } from 'react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../contexts/SocketContext';
-import { ShoppingCart, Clock, CheckCircle2, Package } from 'lucide-react';
+import {
+  ShoppingCart,
+  Search,
+  RotateCw,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { formatOrderStatus, formatPaymentDetails } from '../../../utils/orderFormatters';
+import OrderRow, { type DeliveryPartner } from '../components/OrderRow';
+
+type StatusFilter = 'ALL' | 'PENDING' | 'ACTIVE' | 'DELIVERED' | 'CANCELLED';
+
+interface PaginationInfo {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+interface OrderStats {
+  totalOrders: number;
+  pendingCount: number;
+  activeCount: number;
+  todayCount: number;
+  totalRevenue: number;
+}
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState<any[]>([]);
+  const [partners, setPartners] = useState<DeliveryPartner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [assigningOrderId, setAssigningOrderId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+  // Filters & Pagination
+  const [activeFilter, setActiveFilter] = useState<StatusFilter>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 15;
+
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    total: 0,
+    page: 1,
+    limit: 15,
+    totalPages: 1,
+  });
+
+  const [stats, setStats] = useState<OrderStats>({
+    totalOrders: 0,
+    pendingCount: 0,
+    activeCount: 0,
+    todayCount: 0,
+    totalRevenue: 0,
+  });
+
   const { socket } = useSocket();
 
-  const loadOrders = async () => {
+  // Load Orders from backend with pagination & filters
+  const loadOrders = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
-      const res = await fetchWithAuth('/order/staff/all');
-      setOrders(res || []);
-    } catch (err: any) {
+      if (!isSilent) {
+        if (orders.length === 0) setLoading(true);
+        else setRefreshing(true);
+      }
+
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', String(limit));
+      if (activeFilter !== 'ALL') {
+        params.set('status', activeFilter);
+      }
+      if (searchQuery.trim()) {
+        params.set('search', searchQuery.trim());
+      }
+
+      const res = await fetchWithAuth(`/order/staff/all?${params.toString()}`);
+
+      if (res && res.data && Array.isArray(res.data)) {
+        setOrders(res.data);
+        if (res.pagination) {
+          setPagination(res.pagination);
+        }
+        if (res.stats) {
+          setStats(res.stats);
+        }
+      } else if (Array.isArray(res)) {
+        // Fallback for direct array response
+        setOrders(res);
+        setPagination({
+          total: res.length,
+          page: 1,
+          limit: res.length || 15,
+          totalPages: 1,
+        });
+      } else {
+        setOrders([]);
+      }
+    } catch {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [page, limit, activeFilter, searchQuery, orders.length]);
+
+  // Load active delivery partners
+  const loadPartners = useCallback(async () => {
+    try {
+      const res = await fetchWithAuth('/staff/delivery-partners');
+      setPartners(Array.isArray(res) ? res : []);
+    } catch (err) {
+      console.warn('Failed to load delivery partners:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPartners();
+  }, [loadPartners]);
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [loadOrders]);
 
+  // Handle status update
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     try {
-      // Optimistic UI update
-      setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-      
-      await fetchWithAuth(`/order/${orderId}/status`, {
+      // Optimistic update
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+
+      await fetchWithAuth(`/staff/orders/${orderId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: newStatus }),
       });
-      toast.success('Order ' + newStatus);
-    } catch (err) {
-      toast.error('Failed to update status');
-      loadOrders(); // Revert on failure
+      toast.success(`Order #${orderId.substring(0, 8).toUpperCase()} updated successfully`);
+      loadOrders(true);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update status');
+      loadOrders(true); // Revert
     }
   };
 
+  // Handle delivery partner assignment
+  const handleAssignPartner = async (orderId: string, deliveryPartnerId: string) => {
+    if (!deliveryPartnerId) return;
+    setAssigningOrderId(orderId);
+    try {
+      const assignedPartner = partners.find(p => p.id === deliveryPartnerId);
+      
+      // Optimistic update
+      setOrders(prev => prev.map(o => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            status: ['NEW', 'PENDING', 'PENDING_ASSIGNMENT'].includes(o.status) ? 'ASSIGNED' : o.status,
+            delivery: {
+              ...o.delivery,
+              assignment: {
+                ...o.delivery?.assignment,
+                deliveryPartnerId,
+                deliveryPartner: assignedPartner,
+              },
+            },
+          };
+        }
+        return o;
+      }));
+
+      await fetchWithAuth(`/staff/orders/${orderId}/assign`, {
+        method: 'PATCH',
+        body: JSON.stringify({ deliveryPartnerId }),
+      });
+
+      const partnerName = assignedPartner ? `${assignedPartner.user.firstName} ${assignedPartner.user.lastName}` : 'Partner';
+      toast.success(`Assigned to ${partnerName}`);
+      loadOrders(true);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to assign delivery partner');
+      loadOrders(true); // Revert
+    } finally {
+      setAssigningOrderId(null);
+    }
+  };
+
+  // Real-time socket sync
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewOrderEvent = (data: { order: any }) => {
-      console.log('New order received via socket', data.order);
-      // Data might just contain { id, amount, customerId, customerName, time }
-      // We will refresh the orders list to get the full order items OR optimistically insert.
-      // Easiest and safest is to just reload orders or prepend a basic placeholder and let them refresh.
-      // Since we want full items to display, calling loadOrders is safer if we want all details.
-      loadOrders();
+    const handleNewOrderEvent = () => {
+      loadOrders(true);
+      toast.success('New order received!', { icon: '📦' });
+    };
+
+    const handleStatusChanged = (data: { orderId: string; status: string; order?: any }) => {
+      setOrders(prev => prev.map(o => {
+        if (o.id === data.orderId) {
+          return data.order ? { ...o, ...data.order } : { ...o, status: data.status };
+        }
+        return o;
+      }));
+    };
+
+    const handleOrderUpdated = (data: any) => {
+      if (!data?.id) return;
+      setOrders(prev => {
+        const exists = prev.some(o => o.id === data.id);
+        if (exists) {
+          return prev.map(o => o.id === data.id ? { ...o, ...data } : o);
+        }
+        return [data, ...prev];
+      });
+    };
+
+    const handleOrderAssigned = (data: any) => {
+      const order = data.order || data;
+      if (!order?.id) return;
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...order } : o));
     };
 
     socket.on('NEW_ORDER', handleNewOrderEvent);
+    socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
+    socket.on('order:updated', handleOrderUpdated);
+    socket.on('order:assigned', handleOrderAssigned);
 
     return () => {
       socket.off('NEW_ORDER', handleNewOrderEvent);
+      socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
+      socket.off('order:updated', handleOrderUpdated);
+      socket.off('order:assigned', handleOrderAssigned);
     };
-  }, [socket]);
+  }, [socket, loadOrders]);
+
+  const toggleExpand = (orderId: string) => {
+    setExpandedOrderId(prev => prev === orderId ? null : orderId);
+  };
+
+  // Display calculations
+  const totalDisplayOrders = pagination.total || orders.length;
+  const startOrderIndex = totalDisplayOrders === 0 ? 0 : (page - 1) * limit + 1;
+  const endOrderIndex = Math.min(page * limit, totalDisplayOrders);
 
   if (loading && orders.length === 0) {
     return <LoadingSpinner fullPage label="Loading order feed..." />;
   }
 
-  // Dashboard Stats
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  
-  const todaysOrders = orders.filter(o => new Date(o.createdAt) >= todayStart);
-  const pendingCount = orders.filter(o => o.status === 'PENDING').length;
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.paymentStatus === 'SUCCESS' ? o.totalAmount : 0), 0);
-
   return (
     <main className="min-h-screen px-4 py-5 text-[#245361] sm:px-6 lg:px-10 space-y-6">
-      <section className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-[#E2E8F0]">
+      {/* Top Header & Stat Cards */}
+      <section className="bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-[#E2E8F0]">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-[#EBF5FB] px-4 py-2 text-xs font-black uppercase tracking-wider text-[#2D79A8]">
               <ShoppingCart className="h-4 w-4" />
               Live Orders
             </span>
-            <h1 className="mt-5 text-3xl font-black tracking-tight sm:text-4xl text-[#245361]">
+            <h1 className="mt-4 text-2xl sm:text-3xl font-black tracking-tight text-[#245361]">
               Order Management
             </h1>
-            <p className="mt-2 text-sm text-[#64748B]">
+            <p className="mt-1 text-xs sm:text-sm text-[#64748B]">
               Real-time feed of all customer orders. Updates automatically.
             </p>
           </div>
 
-          <div className="flex gap-4">
-            <div className="rounded-2xl bg-[#F8FAFC] p-4 text-center min-w-[100px] border border-[#E2E8F0]">
-              <p className="text-2xl font-black text-[#2D79A8]">{pendingCount}</p>
-              <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-[#64748B]">Pending</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-2xl bg-[#F8FAFC] p-3.5 text-center min-w-[100px] border border-[#E2E8F0]">
+              <p className="text-xl sm:text-2xl font-black text-amber-600">{stats.pendingCount}</p>
+              <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#64748B]">New / Placed</p>
             </div>
-            <div className="rounded-2xl bg-[#F8FAFC] p-4 text-center min-w-[100px] border border-[#E2E8F0]">
-              <p className="text-2xl font-black text-[#2D79A8]">{todaysOrders.length}</p>
-              <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-[#64748B]">Today's</p>
+            <div className="rounded-2xl bg-[#F8FAFC] p-3.5 text-center min-w-[100px] border border-[#E2E8F0]">
+              <p className="text-xl sm:text-2xl font-black text-[#2D79A8]">{stats.activeCount}</p>
+              <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#64748B]">Active</p>
             </div>
-            <div className="rounded-2xl bg-[#F8FAFC] p-4 text-center min-w-[100px] border border-[#E2E8F0]">
-              <p className="text-2xl font-black text-emerald-600">₹{totalRevenue}</p>
-              <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-[#64748B]">Revenue</p>
+            <div className="rounded-2xl bg-[#F8FAFC] p-3.5 text-center min-w-[100px] border border-[#E2E8F0]">
+              <p className="text-xl sm:text-2xl font-black text-[#2D79A8]">{stats.todayCount}</p>
+              <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#64748B]">Today's</p>
+            </div>
+            <div className="rounded-2xl bg-[#F8FAFC] p-3.5 text-center min-w-[100px] border border-[#E2E8F0]">
+              <p className="text-xl sm:text-2xl font-black text-emerald-600">₹{stats.totalRevenue.toLocaleString('en-IN')}</p>
+              <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#64748B]">Revenue</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="bg-white rounded-3xl shadow-sm border border-[#E2E8F0] overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <h3 className="font-bold text-[#0F172A]">Recent Orders</h3>
-        </div>
-        <div className="divide-y divide-[#E2E8F0]">
-          <AnimatePresence>
-            {orders.map((order) => {
-              const payment = formatPaymentDetails(order);
-              const isPaid = payment.status === 'Paid' || payment.status === 'Collected';
+      {/* Orders List & Controls Container */}
+      <section className="bg-white rounded-3xl shadow-xs border border-[#E2E8F0] overflow-hidden">
+        {/* Controls Header: Tabs + Search + Live indicator */}
+        <div className="p-4 sm:p-5 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
+            {(['ALL', 'PENDING', 'ACTIVE', 'DELIVERED', 'CANCELLED'] as StatusFilter[]).map((tab) => {
+              const label = tab === 'ALL' ? 'All Orders' : tab === 'PENDING' ? 'New / Placed' : tab === 'ACTIVE' ? 'Active' : tab === 'DELIVERED' ? 'Delivered' : 'Cancelled';
+              const isActive = activeFilter === tab;
               return (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="p-6 flex flex-col md:flex-row gap-6 hover:bg-[#F8FAFC] transition-colors"
-              >
-                <div className="flex items-start gap-4 flex-1">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${order.status === 'CONFIRMED' || order.status === 'DELIVERED' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                    {order.status === 'CONFIRMED' || order.status === 'DELIVERED' ? <CheckCircle2 className="h-6 w-6" /> : <Clock className="h-6 w-6" />}
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-[#0F172A]">
-                      {order.customer?.user?.firstName} {order.customer?.user?.lastName}
-                    </h4>
-                    <p className="text-xs text-[#64748B] mt-1 font-mono">ID: #{order.id.substring(0, 8).toUpperCase()}</p>
-                    <div className="mt-3 space-y-1">
-                      {order.items?.map((item: any) => (
-                        <div key={item.id} className="text-sm text-[#475569] flex items-center gap-2">
-                          <Package className="h-3 w-3 text-[#94A3B8]" />
-                          {item.quantity}x {item.product?.name}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    setActiveFilter(tab);
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+                    isActive
+                      ? 'bg-[#1E88E5] text-white shadow-2xs'
+                      : 'bg-white text-[#64748B] hover:text-[#0F172A] border border-[#E2E8F0]'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
 
-                <div className="flex flex-col items-end gap-3 min-w-[200px]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">{new Date(order.createdAt).toLocaleTimeString()}</span>
-                  </div>
-                  <div className="text-xl font-black text-[#0F172A]">₹{order.totalAmount}</div>
-                  <div className="flex gap-2">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
-                    }`}>
-                      {payment.fullLabel}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      order.status === 'CONFIRMED' || order.status === 'PROCESSING' || order.status === 'OUT_FOR_DELIVERY' ? 'bg-emerald-100 text-emerald-700' : 
-                      order.status === 'DELIVERED' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {formatOrderStatus(order.status)}
-                    </span>
-                  </div>
-
-                  {/* Actions based on current status */}
-                  <div className="flex flex-wrap gap-2 justify-end mt-2">
-                    {order.status === 'PENDING' && (
-                      <button onClick={() => handleStatusUpdate(order.id, 'CONFIRMED')} className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors">
-                        Confirm Order
-                      </button>
-                    )}
-                    {order.status === 'CONFIRMED' && (
-                      <button onClick={() => handleStatusUpdate(order.id, 'PROCESSING')} className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors">
-                        Start Processing
-                      </button>
-                    )}
-                    {order.status === 'PROCESSING' && (
-                      <button onClick={() => handleStatusUpdate(order.id, 'OUT_FOR_DELIVERY')} className="px-3 py-1 bg-[#2D79A8] hover:bg-[#245361] text-white rounded-lg text-xs font-bold transition-colors">
-                        Out for Delivery
-                      </button>
-                    )}
-                    {order.status === 'OUT_FOR_DELIVERY' && (
-                      <button onClick={() => handleStatusUpdate(order.id, 'DELIVERED')} className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors">
-                        Mark Delivered
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )})}
-          </AnimatePresence>
-          {orders.length === 0 && (
-            <div className="p-10 text-center text-[#64748B]">
-              <p>No orders found.</p>
+          {/* Search Bar & Refresh */}
+          <div className="flex items-center gap-2.5 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Search order ID, name, phone..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-[#CBD5E1] rounded-xl outline-none focus:border-[#1E88E5] text-[#0F172A]"
+              />
             </div>
+
+            <button
+              type="button"
+              onClick={() => loadOrders()}
+              disabled={refreshing}
+              title="Refresh Orders"
+              className="p-2 text-[#64748B] hover:text-[#1E88E5] hover:bg-white bg-white border border-[#CBD5E1] rounded-xl transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+            >
+              <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 hidden lg:flex items-center gap-1.5 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live
+            </span>
+          </div>
+        </div>
+
+        {/* Order Rows (Collapsed by default, Expandable on Manage) */}
+        <div className="divide-y divide-[#E2E8F0]">
+          {orders.length === 0 ? (
+            <div className="py-16 px-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#1E88E5] flex items-center justify-center mx-auto mb-3">
+                <ShoppingCart className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-[#0F172A]">No orders found</h3>
+              <p className="text-xs text-[#64748B] mt-1 max-w-sm mx-auto">
+                {searchQuery || activeFilter !== 'ALL'
+                  ? 'No orders match your active search or status filters.'
+                  : 'New orders will appear here automatically in real time.'}
+              </p>
+            </div>
+          ) : (
+            orders.map((order) => (
+              <OrderRow
+                key={order.id}
+                order={order}
+                partners={partners}
+                isExpanded={expandedOrderId === order.id}
+                onToggleExpand={() => toggleExpand(order.id)}
+                onStatusUpdate={handleStatusUpdate}
+                onAssignPartner={handleAssignPartner}
+                isAssigning={assigningOrderId === order.id}
+              />
+            ))
           )}
         </div>
+
+        {/* 4. PAGINATION FOOTER */}
+        {totalDisplayOrders > 0 && (
+          <div className="p-4 sm:px-6 bg-[#F8FAFC] border-t border-[#E2E8F0] flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-xs text-[#64748B] font-medium">
+              Showing <span className="font-bold text-[#0F172A]">{startOrderIndex}</span> to{' '}
+              <span className="font-bold text-[#0F172A]">{endOrderIndex}</span> of{' '}
+              <span className="font-bold text-[#0F172A]">{totalDisplayOrders}</span> orders
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-2.5 py-1.5 text-xs font-bold text-[#64748B] bg-white border border-[#CBD5E1] rounded-xl hover:bg-[#F1F5F9] hover:text-[#0F172A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Prev</span>
+              </button>
+
+              {/* Page Number Chips */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === pagination.totalPages || Math.abs(p - page) <= 1)
+                  .map((p, idx, arr) => {
+                    const isCurrent = p === page;
+                    const prevP = arr[idx - 1];
+                    const showEllipsis = prevP && p - prevP > 1;
+
+                    return (
+                      <div key={p} className="flex items-center gap-1">
+                        {showEllipsis && <span className="text-xs text-[#94A3B8] px-1">...</span>}
+                        <button
+                          type="button"
+                          onClick={() => setPage(p)}
+                          className={`w-7 h-7 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                            isCurrent
+                              ? 'bg-[#1E88E5] text-white shadow-2xs'
+                              : 'bg-white text-[#64748B] hover:bg-[#F1F5F9] border border-[#CBD5E1]'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              <button
+                type="button"
+                disabled={page >= pagination.totalPages}
+                onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                className="px-2.5 py-1.5 text-xs font-bold text-[#64748B] bg-white border border-[#CBD5E1] rounded-xl hover:bg-[#F1F5F9] hover:text-[#0F172A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );

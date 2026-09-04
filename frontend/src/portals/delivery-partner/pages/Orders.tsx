@@ -8,6 +8,8 @@ import {
   RotateCw,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
+import { useSocket } from '../../../contexts/SocketContext';
+import { toast } from 'react-hot-toast';
 import OrderFormModal from '../components/OrderFormModal';
 import OrderDetailModal, {
   type OrderDetail,
@@ -17,6 +19,7 @@ import OrderDetailModal, {
 type TabFilter = 'ALL' | 'PENDING' | 'DELIVERED';
 
 export default function Orders() {
+  const { socket } = useSocket();
   const [orders, setOrders] = useState<OrderDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabFilter>('ALL');
@@ -28,9 +31,9 @@ export default function Orders() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   // Load Orders from Backend
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       console.log('[Orders] GET /order/partner/all');
       let data: any;
       try {
@@ -42,6 +45,8 @@ export default function Orders() {
 
       if (Array.isArray(data)) {
         setOrders(data);
+      } else if (data && Array.isArray(data.data)) {
+        setOrders(data.data);
       } else {
         setOrders([]);
       }
@@ -49,13 +54,44 @@ export default function Orders() {
       console.error('Failed to load orders:', err);
       setOrders([]);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  // Real-time WebSocket subscriptions
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleOrderAssigned = (data: any) => {
+      const orderShortId = data?.id ? String(data.id).slice(-6) : '';
+      toast.success(`New order assigned${orderShortId ? ` (#${orderShortId})` : ''}!`, { icon: '🛵' });
+      loadOrders(true);
+    };
+
+    const handleOrderUpdated = () => {
+      loadOrders(true);
+    };
+
+    const handleStatusChanged = () => {
+      loadOrders(true);
+    };
+
+    socket.on('order:assigned', handleOrderAssigned);
+    socket.on('order:updated', handleOrderUpdated);
+    socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
+    socket.on('NEW_ORDER', () => loadOrders(true));
+
+    return () => {
+      socket.off('order:assigned', handleOrderAssigned);
+      socket.off('order:updated', handleOrderUpdated);
+      socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
+      socket.off('NEW_ORDER');
+    };
+  }, [socket, loadOrders]);
 
   // Tab & Search Filtering
   const filteredOrders = useMemo(() => {
@@ -137,7 +173,7 @@ export default function Orders() {
 
         <div className="flex items-center gap-2.5">
           <button
-            onClick={loadOrders}
+            onClick={() => loadOrders()}
             disabled={loading}
             title="Refresh Orders"
             className="p-2.5 text-[#64748B] hover:text-[#1677C8] hover:bg-blue-50 bg-white border border-[#E2E8F0] rounded-xl transition-colors cursor-pointer disabled:opacity-50"

@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
+import { EventsGateway } from '../events/events.gateway';
 import { OrderStatus, OrderSource, OrderType, PaymentStatus } from '@prisma/client';
 
 import { CreatePartnerOrderDto, CreatePartnerOrderItemDto } from './dto/create-partner-order.dto';
@@ -10,6 +11,7 @@ export class OrderService {
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
+    private eventsGateway: EventsGateway,
   ) {}
 
   findAll(customerId: string) {
@@ -32,29 +34,133 @@ export class OrderService {
     });
   }
 
-  findStaffAll() {
-    return this.prisma.order.findMany({
-      include: {
-        customer: {
-          include: {
-            user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+  async findStaffAll(query?: { page?: number | string; limit?: number | string; search?: string; status?: string }) {
+    const page = Math.max(1, parseInt(String(query?.page || 1), 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(String(query?.limit || 15), 10) || 15));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (query?.status && query.status !== 'ALL') {
+      if (query.status === 'PENDING') {
+        where.status = { in: [OrderStatus.NEW, OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ASSIGNMENT] };
+      } else if (query.status === 'ACTIVE') {
+        where.status = { in: [OrderStatus.ASSIGNED, OrderStatus.ACCEPTED_BY_PARTNER, OrderStatus.OUT_FOR_DELIVERY] };
+      } else if (query.status === 'DELIVERED') {
+        where.status = { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] };
+      } else if (query.status === 'CANCELLED') {
+        where.status = OrderStatus.CANCELLED;
+      } else {
+        where.status = query.status as OrderStatus;
+      }
+    }
+
+    if (query?.search?.trim()) {
+      const q = query.search.trim();
+      where.OR = [
+        { id: { contains: q, mode: 'insensitive' } },
+        { customer: { user: { firstName: { contains: q, mode: 'insensitive' } } } },
+        { customer: { user: { lastName: { contains: q, mode: 'insensitive' } } } },
+        { customer: { user: { phone: { contains: q, mode: 'insensitive' } } } },
+        { customer: { companyName: { contains: q, mode: 'insensitive' } } },
+        { address: { city: { contains: q, mode: 'insensitive' } } },
+        { address: { street: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [totalMatching, orders, allStats] = await Promise.all([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        include: {
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+            },
           },
-        },
-        address: true,
-        items: {
-          include: {
-            product: {
-              include: {
-                images: true,
-                brand: true,
+          address: true,
+          items: {
+            include: {
+              product: {
+                include: {
+                  images: true,
+                  brand: true,
+                },
               },
             },
           },
+          delivery: {
+            include: {
+              assignment: {
+                include: {
+                  deliveryPartner: {
+                    include: { user: { select: { firstName: true, lastName: true, phone: true, id: true } } },
+                  },
+                },
+              },
+              report: true,
+            },
+          },
+          history: {
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+            },
+            orderBy: { createdAt: 'asc' },
+          },
         },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      // Independent global totals across ALL orders (not affected by pagination or filters)
+      Promise.all([
+        this.prisma.order.count(),
+        this.prisma.order.count({
+          where: {
+            status: { in: [OrderStatus.NEW, OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ASSIGNMENT] },
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            status: { in: [OrderStatus.ASSIGNED, OrderStatus.ACCEPTED_BY_PARTNER, OrderStatus.OUT_FOR_DELIVERY] },
+          },
+        }),
+        this.prisma.order.count({
+          where: { createdAt: { gte: todayStart } },
+        }),
+        this.prisma.order.aggregate({
+          _sum: { totalAmount: true },
+          where: {
+            OR: [
+              { paymentStatus: PaymentStatus.SUCCESS },
+              { status: { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] } },
+            ],
+          },
+        }),
+      ]),
+    ]);
+
+    const [totalOrders, pendingCount, activeCount, todayCount, revenueAggregate] = allStats;
+
+    return {
+      data: orders,
+      pagination: {
+        total: totalMatching,
+        page,
+        limit,
+        totalPages: Math.ceil(totalMatching / limit) || 1,
       },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
+      stats: {
+        totalOrders,
+        pendingCount,
+        activeCount,
+        todayCount,
+        totalRevenue: Number(revenueAggregate._sum.totalAmount || 0),
+      },
+    };
   }
 
   async findOne(orderId: string) {
@@ -393,6 +499,7 @@ export class OrderService {
       where: { id: orderId },
       include: {
         customer: { include: { user: true } },
+        delivery: { include: { assignment: true } },
         items: true,
       },
     });
@@ -400,26 +507,56 @@ export class OrderService {
     if (!order) throw new BadRequestException('Order not found');
 
     const validTransitions: Record<OrderStatus, OrderStatus[]> = {
-      NEW: ['PENDING_PAYMENT', 'PENDING_ASSIGNMENT', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
-      PENDING_PAYMENT: ['PAYMENT_SUCCESS', 'FAILED', 'CANCELLED'],
-      PAYMENT_SUCCESS: ['PENDING_ASSIGNMENT', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
-      PENDING_ASSIGNMENT: ['ASSIGNED', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
-      ASSIGNED: ['ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
-      ACCEPTED_BY_PARTNER: ['OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'],
-      OUT_FOR_DELIVERY: [
-        'DELIVERED',
-        'PARTIALLY_DELIVERED',
-        'CUSTOMER_NOT_AVAILABLE',
-        'FAILED',
-        'RETURNED',
-        'CANCELLED',
+      NEW: [
+        OrderStatus.PENDING_PAYMENT,
+        OrderStatus.PENDING_ASSIGNMENT,
+        OrderStatus.ASSIGNED,
+        OrderStatus.ACCEPTED_BY_PARTNER,
+        OrderStatus.OUT_FOR_DELIVERY,
+        OrderStatus.DELIVERED,
+        OrderStatus.CANCELLED,
       ],
-      DELIVERED: ['COMPLETED'],
-      PARTIALLY_DELIVERED: ['COMPLETED'],
-      CUSTOMER_NOT_AVAILABLE: ['RESCHEDULED', 'CANCELLED'],
-      FAILED: ['RESCHEDULED', 'CANCELLED'],
-      RESCHEDULED: ['PENDING_ASSIGNMENT'],
-      RETURNED: ['COMPLETED'],
+      PENDING_PAYMENT: [OrderStatus.PAYMENT_SUCCESS, OrderStatus.FAILED, OrderStatus.CANCELLED],
+      PAYMENT_SUCCESS: [
+        OrderStatus.PENDING_ASSIGNMENT,
+        OrderStatus.ASSIGNED,
+        OrderStatus.ACCEPTED_BY_PARTNER,
+        OrderStatus.OUT_FOR_DELIVERY,
+        OrderStatus.DELIVERED,
+        OrderStatus.CANCELLED,
+      ],
+      PENDING_ASSIGNMENT: [
+        OrderStatus.ASSIGNED,
+        OrderStatus.ACCEPTED_BY_PARTNER,
+        OrderStatus.OUT_FOR_DELIVERY,
+        OrderStatus.DELIVERED,
+        OrderStatus.CANCELLED,
+      ],
+      ASSIGNED: [
+        OrderStatus.ACCEPTED_BY_PARTNER,
+        OrderStatus.OUT_FOR_DELIVERY,
+        OrderStatus.DELIVERED,
+        OrderStatus.CANCELLED,
+      ],
+      ACCEPTED_BY_PARTNER: [
+        OrderStatus.OUT_FOR_DELIVERY,
+        OrderStatus.DELIVERED,
+        OrderStatus.CANCELLED,
+      ],
+      OUT_FOR_DELIVERY: [
+        OrderStatus.DELIVERED,
+        OrderStatus.PARTIALLY_DELIVERED,
+        OrderStatus.CUSTOMER_NOT_AVAILABLE,
+        OrderStatus.FAILED,
+        OrderStatus.RETURNED,
+        OrderStatus.CANCELLED,
+      ],
+      DELIVERED: [OrderStatus.COMPLETED],
+      PARTIALLY_DELIVERED: [OrderStatus.COMPLETED],
+      CUSTOMER_NOT_AVAILABLE: [OrderStatus.RESCHEDULED, OrderStatus.CANCELLED],
+      FAILED: [OrderStatus.RESCHEDULED, OrderStatus.CANCELLED],
+      RESCHEDULED: [OrderStatus.PENDING_ASSIGNMENT, OrderStatus.ASSIGNED],
+      RETURNED: [OrderStatus.COMPLETED],
       CANCELLED: [],
       COMPLETED: [],
     };
@@ -431,6 +568,14 @@ export class OrderService {
       throw new BadRequestException(
         'Invalid status transition from ' + order.status + ' to ' + newStatus,
       );
+    }
+
+    // Enforce delivery partner requirement before marking Out for Delivery
+    if (newStatus === OrderStatus.OUT_FOR_DELIVERY) {
+      const partnerId = order.delivery?.assignment?.deliveryPartnerId || (order as any).deliveryPartnerId;
+      if (!partnerId) {
+        throw new BadRequestException('Please assign a delivery partner before marking this order out for delivery');
+      }
     }
 
     // Use a transaction to ensure DB consistency
@@ -493,6 +638,37 @@ export class OrderService {
           paymentMethod: targetPaymentMethod,
           deliveredAt,
         },
+        include: {
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+            },
+          },
+          address: true,
+          items: {
+            include: {
+              product: {
+                include: { images: true, brand: true },
+              },
+            },
+          },
+          delivery: {
+            include: {
+              assignment: {
+                include: {
+                  deliveryPartner: {
+                    include: { user: { select: { firstName: true, lastName: true, phone: true, id: true } } },
+                  },
+                },
+              },
+              report: true,
+            },
+          },
+          history: {
+            include: { user: { select: { firstName: true, lastName: true, role: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
       });
 
       // 2. Create history audit log
@@ -552,7 +728,7 @@ export class OrderService {
       return updated;
     });
 
-    // 4. Fire notifications safely outside transaction
+    // 4. Fire notifications and socket broadcasts
     try {
       this.notificationService.notifyOrderStatusUpdate({
         orderId,
@@ -560,8 +736,177 @@ export class OrderService {
         userId: order.customer?.userId || order.customer?.user?.id,
         newStatus,
       });
+      this.eventsGateway.emitOrderStatusUpdate(orderId, newStatus, order.customerId, updatedOrder);
     } catch (e) {
-      console.warn('[OrderService] notification error:', e);
+      console.warn('[OrderService] notification/socket error:', e);
+    }
+
+    return updatedOrder;
+  }
+
+  async assignDeliveryPartner(orderId: string, deliveryPartnerId: string, staffUserId?: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: {
+          include: {
+            user: true,
+            addresses: true,
+          },
+        },
+        delivery: { include: { assignment: true } },
+        items: true,
+      },
+    });
+
+    if (!order) throw new NotFoundException(`Order not found: ${orderId}`);
+
+    if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.COMPLETED) {
+      throw new BadRequestException(`Cannot assign delivery partner to an order in status ${order.status}`);
+    }
+
+    const partner = await this.prisma.deliveryPartner.findUnique({
+      where: { id: deliveryPartnerId },
+      include: { user: true },
+    });
+
+    if (!partner) {
+      throw new NotFoundException(`Delivery partner not found: ${deliveryPartnerId}`);
+    }
+
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      // 1. Ensure Delivery record exists
+      let deliveryId = order.delivery?.id;
+      const hasAssignment = !!order.delivery?.assignment;
+      const assignmentId = order.delivery?.assignment?.id;
+
+      if (!deliveryId) {
+        let addressId = (order as any).addressId || (order as any).deliveryAddressId || order.customer?.addresses?.[0]?.id;
+        if (!addressId) {
+          const firstAddr = await tx.address.findFirst({ where: { customerId: order.customerId } });
+          addressId = firstAddr?.id;
+        }
+
+        if (!addressId) {
+          // Create fallback default address if customer has none
+          const newAddr = await tx.address.create({
+            data: {
+              customerId: order.customerId,
+              street: 'Default Address',
+              city: 'Default City',
+              state: 'Default State',
+              zipCode: '000000',
+              label: 'Delivery Location',
+            },
+          });
+          addressId = newAddr.id;
+        }
+
+        const totalQty = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) || 1;
+
+        const newDel = await tx.delivery.create({
+          data: {
+            orderId: order.id,
+            customerId: order.customerId,
+            addressId,
+            requiredQuantity: totalQty,
+            scheduledFor: order.createdAt || new Date(),
+            timeSlot: order.timeSlot || 'Standard Delivery',
+            status: OrderStatus.ASSIGNED,
+          },
+        });
+        deliveryId = newDel.id;
+      }
+
+      // 2. Upsert DeliveryAssignment
+      if (hasAssignment && assignmentId) {
+        await tx.deliveryAssignment.update({
+          where: { id: assignmentId },
+          data: {
+            deliveryPartnerId,
+            assignedAt: new Date(),
+            rateSnapshot: partner.jarUnitPrice || 35.0,
+          },
+        });
+      } else if (deliveryId) {
+        await tx.deliveryAssignment.create({
+          data: {
+            deliveryId,
+            deliveryPartnerId,
+            assignedAt: new Date(),
+            rateSnapshot: partner.jarUnitPrice || 35.0,
+          },
+        });
+      }
+
+      // 3. Update order status if currently unassigned / placed
+      let targetStatus = order.status;
+      if (
+        order.status === OrderStatus.NEW ||
+        order.status === OrderStatus.PENDING_ASSIGNMENT ||
+        order.status === OrderStatus.PENDING_PAYMENT ||
+        (order.status as string) === 'PENDING'
+      ) {
+        targetStatus = OrderStatus.ASSIGNED;
+      }
+
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: targetStatus,
+        },
+        include: {
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+            },
+          },
+          address: true,
+          items: {
+            include: {
+              product: {
+                include: { images: true, brand: true },
+              },
+            },
+          },
+          delivery: {
+            include: {
+              assignment: {
+                include: {
+                  deliveryPartner: {
+                    include: { user: { select: { firstName: true, lastName: true, phone: true, id: true } } },
+                  },
+                },
+              },
+              report: true,
+            },
+          },
+          history: {
+            include: { user: { select: { firstName: true, lastName: true, role: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+
+      // 4. Create audit history
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId,
+          previousStatus: order.status,
+          newStatus: targetStatus,
+          changedByUserId: staffUserId,
+          reason: `Assigned delivery partner ${partner.user.firstName} ${partner.user.lastName} (${partner.user.phone})`,
+        },
+      });
+
+      return updated;
+    });
+
+    // 5. Emit real-time broadcasts
+    try {
+      this.eventsGateway.emitOrderAssigned(updatedOrder, deliveryPartnerId);
+    } catch (e) {
+      console.warn('[OrderService] Socket emit error:', e);
     }
 
     return updatedOrder;
