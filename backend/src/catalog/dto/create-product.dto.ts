@@ -5,8 +5,9 @@ import {
   IsNumber,
   IsUUID,
   IsUrl,
+  Min,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Transform } from 'class-transformer';
 
 export class CreateProductDto {
   @IsString()
@@ -14,10 +15,12 @@ export class CreateProductDto {
 
   @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   description?: string;
 
-  @Type(() => Number)
+  @Transform(({ value }) => Number(value))
   @IsNumber()
+  @Min(0)
   price: number;
 
   @IsUUID()
@@ -31,8 +34,9 @@ export class CreateProductDto {
   @IsOptional()
   isJar?: boolean;
 
-  @Type(() => Number)
+  @Transform(({ value }) => (value === '' || value === undefined || value === null ? 0 : Number(value)))
   @IsNumber()
+  @Min(0)
   @IsOptional()
   depositAmount?: number;
 

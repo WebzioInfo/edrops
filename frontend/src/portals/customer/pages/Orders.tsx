@@ -483,6 +483,13 @@ export default function Orders() {
                   const otherItemsText = totalItemsCount > 1 ? ` + ${totalItemsCount - 1} other item${totalItemsCount > 2 ? 's' : ''}` : '';
                   const fullTitle = `${primaryName}${otherItemsText}`;
 
+                  // Canonical product image resolution matching OrderDetails.tsx
+                  const productImageUrl =
+                    primaryItem?.product?.images?.[0]?.url ||
+                    primaryItem?.product?.imageUrl ||
+                    primaryItem?.images?.[0]?.url ||
+                    null;
+
                   const pmt = formatPaymentDetails(order);
                   const statusKey = (order.status || '').toUpperCase();
                   const isDelivered = statusKey === 'DELIVERED' || statusKey === 'COMPLETED';
@@ -527,13 +534,27 @@ export default function Orders() {
                       <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                         
                         {/* Thumbnail Image */}
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center p-1.5 shrink-0 relative overflow-hidden group-hover:border-blue-300 transition-colors">
-                          <img
-                            src="https://images.unsplash.com/photo-1548839140-29a749e1bc4e?auto=format&fit=crop&q=80&w=200"
-                            alt="Water Jar"
-                            className="w-full h-full object-contain mix-blend-multiply"
-                            loading="lazy"
-                          />
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] overflow-hidden flex items-center justify-center shrink-0 relative group-hover:border-blue-300 transition-colors">
+                          {productImageUrl ? (
+                            <img
+                              src={productImageUrl}
+                              alt={primaryName}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                const fallback = e.currentTarget.parentElement?.querySelector('.order-img-fallback');
+                                if (fallback) (fallback as HTMLElement).classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className={`order-img-fallback flex items-center justify-center text-[#94A3B8] ${
+                              productImageUrl ? 'hidden' : 'flex'
+                            }`}
+                          >
+                            <ShoppingBag className="w-6 h-6 text-[#94A3B8]" />
+                          </div>
                           {totalItemsCount > 1 && (
                             <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-slate-900/80 text-white text-[9px] font-bold">
                               +{totalItemsCount - 1}

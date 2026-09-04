@@ -7,6 +7,7 @@ export class CreateCategoryDto {
 
   @IsString()
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   description?: string;
 
   @IsUrl()

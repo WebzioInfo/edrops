@@ -38,20 +38,28 @@ export default function CatalogManager() {
 
       Object.keys(data).forEach(key => {
         if (data[key] !== undefined && data[key] !== null && !forbiddenKeys.includes(key)) {
-          formData.append(key, data[key]);
+          if (key === 'depositAmount' && (data[key] === '' || isNaN(Number(data[key])))) {
+            formData.append('depositAmount', '0');
+          } else {
+            formData.append(key, data[key]);
+          }
         }
       });
 
       return fetchWithAuth(url, {
         method,
         body: formData,
-        // Don't set Content-Type header manually when using FormData, browser will set it with boundary
-      }); // fetchWithAuth handles FormData automatically
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`admin_${activeTab}`] });
+      queryClient.invalidateQueries({ queryKey: ['shop_products'] });
+      toast.success(`${editingItem ? 'Updated' : 'Created'} ${activeTab === 'products' ? 'product' : activeTab === 'categories' ? 'category' : 'brand'} successfully!`);
       setIsModalOpen(false);
       setEditingItem(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to save item. Please try again.');
     },
   });
 

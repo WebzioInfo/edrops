@@ -12,11 +12,11 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import 'multer';
 import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from '@prisma/client';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { multerOptions } from '../config/multer.config';
+import type { MulterFile } from '../config/cloudinary.service';
 import { CatalogService } from './catalog.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -29,6 +29,9 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 
+  // =====================
+  // BRANDS
+  // =====================
   @Get('brands')
   async getBrands() {
     return this.catalogService.getBrands();
@@ -38,11 +41,11 @@ export class CatalogController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @UseInterceptors(FileInterceptor('image', multerOptions))
-  async createBrand(@Body() dto: CreateBrandDto, @UploadedFile() file?: any) {
-    if (file) {
-      dto.logoUrl = file.path;
-    }
-    return this.catalogService.createBrand(dto);
+  async createBrand(
+    @Body() dto: CreateBrandDto,
+    @UploadedFile() file?: MulterFile,
+  ) {
+    return this.catalogService.createBrand(dto, file);
   }
 
   @Patch('brands/:id')
@@ -52,12 +55,9 @@ export class CatalogController {
   async updateBrand(
     @Param('id') id: string,
     @Body() dto: UpdateBrandDto,
-    @UploadedFile() file?: any,
+    @UploadedFile() file?: MulterFile,
   ) {
-    if (file) {
-      dto.logoUrl = file.path;
-    }
-    return this.catalogService.updateBrand(id, dto);
+    return this.catalogService.updateBrand(id, dto, file);
   }
 
   @Delete('brands/:id')
@@ -72,6 +72,9 @@ export class CatalogController {
     return this.catalogService.getBrandById(id);
   }
 
+  // =====================
+  // CATEGORIES
+  // =====================
   @Get('categories')
   async getCategories() {
     return this.catalogService.getCategories();
@@ -83,12 +86,9 @@ export class CatalogController {
   @UseInterceptors(FileInterceptor('image', multerOptions))
   async createCategory(
     @Body() dto: CreateCategoryDto,
-    @UploadedFile() file?: any,
+    @UploadedFile() file?: MulterFile,
   ) {
-    if (file) {
-      dto.imageUrl = file.path;
-    }
-    return this.catalogService.createCategory(dto);
+    return this.catalogService.createCategory(dto, file);
   }
 
   @Patch('categories/:id')
@@ -98,12 +98,9 @@ export class CatalogController {
   async updateCategory(
     @Param('id') id: string,
     @Body() dto: UpdateCategoryDto,
-    @UploadedFile() file?: any,
+    @UploadedFile() file?: MulterFile,
   ) {
-    if (file) {
-      dto.imageUrl = file.path;
-    }
-    return this.catalogService.updateCategory(id, dto);
+    return this.catalogService.updateCategory(id, dto, file);
   }
 
   @Delete('categories/:id')
@@ -118,6 +115,9 @@ export class CatalogController {
     return this.catalogService.getCategoryById(id);
   }
 
+  // =====================
+  // PRODUCTS
+  // =====================
   @Get('products')
   async getProducts(
     @Query('categoryId') categoryId?: string,
@@ -140,12 +140,9 @@ export class CatalogController {
   @UseInterceptors(FileInterceptor('image', multerOptions))
   async createProduct(
     @Body() dto: CreateProductDto,
-    @UploadedFile() file?: any,
+    @UploadedFile() file?: MulterFile,
   ) {
-    if (file) {
-      dto.imageUrl = file.path;
-    }
-    return this.catalogService.createProduct(dto);
+    return this.catalogService.createProduct(dto, file);
   }
 
   @Patch('products/:id')
@@ -155,12 +152,9 @@ export class CatalogController {
   async updateProduct(
     @Param('id') id: string,
     @Body() dto: UpdateProductDto,
-    @UploadedFile() file?: any,
+    @UploadedFile() file?: MulterFile,
   ) {
-    if (file) {
-      dto.imageUrl = file.path;
-    }
-    return this.catalogService.updateProduct(id, dto);
+    return this.catalogService.updateProduct(id, dto, file);
   }
 
   @Delete('products/:id')

@@ -1,22 +1,24 @@
-const multerStorageCloudinary = require('multer-storage-cloudinary');
-const CloudinaryStorage =
-  multerStorageCloudinary.CloudinaryStorage || multerStorageCloudinary;
-import { v2 as cloudinary } from 'cloudinary';
+import { memoryStorage, Options } from 'multer';
+import { BadRequestException } from '@nestjs/common';
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
-export const multerOptions = {
-  storage: new CloudinaryStorage({
-    cloudinary: cloudinary,
-    params: async (req, file) => {
-      return {
-        folder: 'edrops_products',
-        transformation: [{ quality: 'auto', fetch_format: 'auto' }],
-      };
-    },
-  }),
+export const multerOptions: Options = {
+  storage: memoryStorage(),
+  limits: {
+    fileSize: MAX_FILE_SIZE,
+    files: 1,
+  },
+  fileFilter: (req, file, callback) => {
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype.toLowerCase())) {
+      return callback(
+        new BadRequestException(
+          `Invalid file type (${file.mimetype}). Only JPEG, JPG, PNG, and WEBP images are allowed.`,
+        ),
+        false,
+      );
+    }
+    callback(null, true);
+  },
 };
