@@ -1,10 +1,11 @@
 import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
-import { Droplets, Menu, Bell, User, LogOut, ChevronDown, Truck, Users, Package, ClipboardList } from 'lucide-react';
+import { Menu, Bell, User, LogOut, ChevronDown, Truck, Users, Package, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { Check, CheckCircle2, ShoppingCart } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { EdropsLogo } from '../../components/Logo';
 
 const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
 const RouteOperations = React.lazy(() => import('./pages/RouteOperations'));
@@ -67,10 +68,12 @@ export default function StaffPortal() {
           
           {/* Logo */}
           <NavLink to="/staff/operations" className="flex items-center gap-3 mr-8 shrink-0">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#2D79A8] text-white">
-              <Droplets className="h-5 w-5" />
-            </span>
-            <span className="block text-xl font-bold tracking-tight text-[#2D79A8]">Edrops Staff</span>
+            <div className="flex flex-col justify-center">
+              <EdropsLogo variant="blue" className="h-6 w-auto" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
+                Staff Portal
+              </span>
+            </div>
           </NavLink>
 
           {/* Center Navigation */}

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Droplets, Lock, ArrowLeft } from 'lucide-react';
+import { Lock, ArrowLeft } from 'lucide-react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { InputBox } from '../../components/InputBox';
 import { Button } from '../../components/Button';
 import { fetchWithAuth } from '../../api/client';
+import { EdropsLogo } from '../../components/Logo';
 
 const ResetPasswordSchema = Yup.object().shape({
   password: Yup.string()
@@ -89,12 +90,7 @@ export default function ResetPassword() {
       <section className="relative flex items-center justify-center p-6 sm:p-12">
         <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
           <Link to="/" className="inline-flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-edrops-blue text-white shadow-lg">
-              <Droplets className="h-6 w-6" />
-            </span>
-            <span className="hidden sm:block text-xl font-bold tracking-tight text-edrops-ocean">
-              Edrops
-            </span>
+            <EdropsLogo variant="blue" className="h-8 w-auto" />
           </Link>
         </div>
 
@@ -115,14 +111,6 @@ export default function ResetPassword() {
               </div>
             )}
 
-            {!token && (
-               <div className="mt-8 text-center text-sm">
-                 <Link to="/forgot-password" className="inline-flex items-center font-bold text-edrops-blue hover:underline">
-                   Request a new link
-                 </Link>
-               </div>
-            )}
-
             {token && status.type !== 'success' && (
               <Formik
                 initialValues={{ password: '', confirmPassword: '' }}
@@ -130,31 +118,34 @@ export default function ResetPassword() {
                 onSubmit={handleSubmit}
               >
                 {({ isSubmitting, values }) => (
-                  <Form className="space-y-5">
+                  <Form className="space-y-4">
                     <div>
-                      <InputBox 
-                        name="password" 
-                        label="New Password" 
-                        type="password" 
-                        placeholder="••••••••" 
-                        icon={<Lock className="w-5 h-5" />} 
+                      <InputBox
+                        label="New Password"
+                        name="password"
+                        type="password"
+                        placeholder="••••••••"
+                        icon={<Lock className="h-5 w-5 text-gray-400" />}
                       />
                       <StrengthMeter password={values.password} />
                     </div>
-                    
-                    <InputBox 
-                      name="confirmPassword" 
-                      label="Confirm Password" 
-                      type="password" 
-                      placeholder="••••••••" 
-                      icon={<Lock className="w-5 h-5" />} 
-                    />
+
+                    <div>
+                      <InputBox
+                        label="Confirm New Password"
+                        name="confirmPassword"
+                        type="password"
+                        placeholder="••••••••"
+                        icon={<Lock className="h-5 w-5 text-gray-400" />}
+                      />
+                    </div>
 
                     <Button 
                       type="submit" 
                       fullWidth 
                       size="lg" 
                       isLoading={isSubmitting}
+                      className="mt-6"
                     >
                       Reset Password
                     </Button>
@@ -163,9 +154,12 @@ export default function ResetPassword() {
               </Formik>
             )}
 
-            <div className="mt-8 text-center text-sm">
-              <Link to="/login" className="inline-flex items-center font-bold text-gray-500 hover:text-edrops-ocean transition-colors">
-                <ArrowLeft className="w-4 h-4 mr-2" />
+            <div className="mt-8 text-center">
+              <Link 
+                to="/login" 
+                className="inline-flex items-center gap-2 text-sm font-semibold text-edrops-blue hover:underline"
+              >
+                <ArrowLeft className="h-4 w-4" />
                 Back to Login
               </Link>
             </div>
@@ -174,8 +168,9 @@ export default function ResetPassword() {
       </section>
 
       <section className="hidden lg:flex relative bg-edrops-ocean text-white items-center justify-center p-12 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-edrops-blue to-edrops-ocean opacity-90" />
-        <div className="relative z-10 max-w-lg text-center">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#00AEEF] to-[#0077A8] opacity-95" />
+        <div className="relative z-10 max-w-lg text-center flex flex-col items-center">
+          <EdropsLogo variant="white" className="h-12 w-auto mb-8" />
           <h2 className="text-5xl font-black tracking-tight mb-6 leading-tight">
             Fresh start.
           </h2>

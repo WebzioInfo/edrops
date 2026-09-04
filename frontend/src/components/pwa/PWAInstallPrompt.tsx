@@ -89,12 +89,12 @@ export default function PWAInstallPrompt() {
           transition={{ type: 'spring', damping: 25, stiffness: 220 }}
           className="relative w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl overflow-hidden border border-slate-200/80 p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto no-scrollbar"
         >
-          {/* Close Button */}
+          {/* Dismiss Icon */}
           <button
             ref={closeButtonRef}
             onClick={handleClose}
             aria-label="Dismiss installation prompt"
-            className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:ring-2 focus:ring-[#2D79A8] outline-none"
+            className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:ring-2 focus:ring-[#00AEEF] outline-none"
           >
             <X size={18} />
           </button>
@@ -106,16 +106,8 @@ export default function PWAInstallPrompt() {
             /* Android/Desktop Standard Flow */
             <div className="flex flex-col items-center text-center gap-4 py-2">
               {/* App Icon Circle */}
-              <div className="relative h-20 w-20 rounded-2xl bg-[#EBF5FB] border border-[#BBDFF2]/60 shadow-sm flex items-center justify-center p-3">
-                <img 
-                  src="/icon-192.png" 
-                  alt="Edrops App Icon" 
-                  className="h-full w-full object-contain rounded-xl"
-                  onError={(e) => {
-                    // Fallback to inline SVG logo if asset fails to load
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
+              <div className="relative h-20 w-20 flex items-center justify-center">
+                <img src="/logo-pwa.png" alt="E Drops" className="h-20 w-20 shadow-md rounded-[18px] object-contain" />
               </div>
 
               {/* Title & Description */}

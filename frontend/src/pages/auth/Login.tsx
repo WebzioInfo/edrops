@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Droplets, ShieldCheck, Mail, Lock, User as UserIcon } from 'lucide-react';
+import { Mail, Lock, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { InputBox } from '../../components/InputBox';
 import { Button } from '../../components/Button';
 import { fetchWithAuth } from '../../api/client';
+import { EdropsLogo } from '../../components/Logo';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email').required('Required'),
@@ -56,12 +57,7 @@ export default function Login() {
       <section className="relative flex items-center justify-center p-6 sm:p-12">
         <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
           <Link to="/" className="inline-flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-edrops-blue text-white shadow-lg">
-              <Droplets className="h-6 w-6" />
-            </span>
-            <span className="hidden sm:block">
-              <span className="block text-xl font-bold tracking-tight text-edrops-ocean">Edrops</span>
-            </span>
+            <EdropsLogo variant="blue" className="h-8 w-auto" />
           </Link>
         </div>
 
@@ -101,42 +97,44 @@ export default function Login() {
                   onSubmit={handleAuth}
                 >
                   {({ isSubmitting }) => (
-                    <Form className="space-y-5">
+                    <Form className="space-y-4">
                       {!isLogin && (
                         <div className="grid grid-cols-2 gap-4">
-                          <InputBox 
-                            name="firstName" 
-                            label="First Name" 
-                            placeholder="John" 
-                            icon={<UserIcon className="w-5 h-5" />} 
+                          <InputBox
+                            label="First Name"
+                            name="firstName"
+                            type="text"
+                            placeholder="John"
+                            icon={<UserIcon className="h-5 w-5 text-gray-400" />}
                           />
-                          <InputBox 
-                            name="lastName" 
-                            label="Last Name" 
-                            placeholder="Doe" 
-                            icon={<UserIcon className="w-5 h-5" />} 
+                          <InputBox
+                            label="Last Name"
+                            name="lastName"
+                            type="text"
+                            placeholder="Doe"
+                            icon={<UserIcon className="h-5 w-5 text-gray-400" />}
                           />
                         </div>
                       )}
-                      
-                      <InputBox 
-                        name="email" 
-                        label="Email Address" 
-                        type="email" 
-                        placeholder="you@example.com" 
-                        icon={<Mail className="w-5 h-5" />} 
+
+                      <InputBox
+                        label="Email Address"
+                        name="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        icon={<Mail className="h-5 w-5 text-gray-400" />}
                       />
-                      
-                      <div className="space-y-2">
-                        <InputBox 
-                          name="password" 
-                          label="Password" 
-                          type="password" 
-                          placeholder="••••••••" 
-                          icon={<Lock className="w-5 h-5" />} 
+
+                      <div>
+                        <InputBox
+                          label="Password"
+                          name="password"
+                          type="password"
+                          placeholder="••••••••"
+                          icon={<Lock className="h-5 w-5 text-gray-400" />}
                         />
                         {isLogin && (
-                          <div className="text-right">
+                          <div className="mt-2 text-right">
                             <Link to="/forgot-password" className="text-sm font-semibold text-edrops-blue hover:underline">
                               Forgot password?
                             </Link>
@@ -176,9 +174,9 @@ export default function Login() {
       </section>
 
       <section className="hidden lg:flex relative bg-edrops-ocean text-white items-center justify-center p-12 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-edrops-blue to-edrops-ocean opacity-90" />
-        <div className="relative z-10 max-w-lg text-center">
-          <ShieldCheck className="h-16 w-16 mx-auto mb-8 text-edrops-aqua" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#00AEEF] to-[#0077A8] opacity-95" />
+        <div className="relative z-10 max-w-lg text-center flex flex-col items-center">
+          <EdropsLogo variant="white" className="h-12 w-auto mb-8" />
           <h2 className="text-5xl font-black tracking-tight mb-6 leading-tight">
             Pure hydration,<br/>seamless delivery.
           </h2>

@@ -1,7 +1,6 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { 
-  Droplets, 
   Menu, 
   X, 
   LogOut, 
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { EdropsLogo } from '../../components/Logo';
 
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const CatalogManager = React.lazy(() => import('./pages/CatalogManager'));
@@ -130,16 +130,13 @@ export default function AdminPortal() {
       >
         {/* Brand Header */}
         <div className={`flex items-center h-16 border-b border-[#E2E8F0] px-4 ${collapsed ? 'justify-center' : 'justify-between px-5'}`}>
-          <NavLink to="/admin/dashboard" className="flex items-center gap-3 min-w-0" title="Edrops Admin">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1677C8] text-white shadow-xs">
-              <Droplets className="h-5 w-5" />
-            </div>
-            {!collapsed && (
-              <div className="min-w-0">
-                <span className="block font-bold text-base tracking-tight text-[#16324F] leading-tight">
-                  Edrops
-                </span>
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-[#1677C8]">
+          <NavLink to="/admin/dashboard" className="flex items-center min-w-0" title="Edrops Admin">
+            {collapsed ? (
+              <EdropsLogo variant="icon" color="blue" className="h-7 w-7 shrink-0" />
+            ) : (
+              <div className="flex flex-col justify-center">
+                <EdropsLogo variant="blue" className="h-6 w-auto" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
                   Admin Panel
                 </span>
               </div>
@@ -297,14 +294,11 @@ export default function AdminPortal() {
           <div className="relative flex flex-col w-72 max-w-[85vw] bg-white h-full shadow-2xl z-10 select-none animate-in slide-in-from-left">
             {/* Header */}
             <div className="flex items-center justify-between px-5 h-16 border-b border-[#E2E8F0]">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1677C8] text-white">
-                  <Droplets className="h-4 w-4" />
-                </div>
-                <div>
-                  <span className="font-bold text-base text-[#16324F]">Edrops</span>
-                  <span className="block text-[10px] uppercase font-bold text-[#1677C8]">Admin Panel</span>
-                </div>
+              <div className="flex flex-col justify-center">
+                <EdropsLogo variant="blue" className="h-6 w-auto" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
+                  Admin Panel
+                </span>
               </div>
               <button
                 type="button"
@@ -409,10 +403,10 @@ export default function AdminPortal() {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1677C8] text-white">
-                <Droplets className="h-4 w-4" />
-              </div>
-              <span className="font-bold text-sm text-[#16324F]">Edrops Admin</span>
+              <EdropsLogo variant="blue" className="h-5 w-auto" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] bg-[#00AEEF]/10 px-1.5 py-0.5 rounded">
+                Admin
+              </span>
             </div>
           </div>
 

@@ -1,18 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Droplets, 
-  LayoutDashboard, 
-  Users, 
-  ClipboardList, 
-  Wallet, 
-  Menu, 
-  X, 
-  LogOut, 
-  User, 
-  Save, 
-  Plus, 
+import {
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  Wallet,
+  Menu,
+  X,
+  LogOut,
+  User,
+  Save,
+  Plus,
   Minus,
   RotateCw
 } from 'lucide-react';
@@ -20,6 +19,7 @@ import { fetchWithAuth } from '../../api/client';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { EdropsLogo } from '../../components/Logo';
 
 import Overview from './pages/Overview';
 import Customers from './pages/Customers';
@@ -207,13 +207,13 @@ export default function DeliveryPartnerPortal() {
           prev.map((t) =>
             t.id === activeTask.id
               ? {
-                  ...t,
-                  report: {
-                    partnerDeliveredQty: deliveredQty,
-                    partnerEmptyCollected: emptyCollected,
-                    partnerNotes: notes,
-                  },
-                }
+                ...t,
+                report: {
+                  partnerDeliveredQty: deliveredQty,
+                  partnerEmptyCollected: emptyCollected,
+                  partnerNotes: notes,
+                },
+              }
               : t
           )
         );
@@ -239,22 +239,15 @@ export default function DeliveryPartnerPortal() {
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] text-[#16324F] font-sans antialiased overflow-hidden">
-      
+
       {/* ─── DESKTOP SIDEBAR ────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-[#E2E8F0] shrink-0 select-none z-30">
-        
+
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-6 h-16 border-b border-[#E2E8F0]">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1677C8] text-white shadow-xs">
-            <Droplets className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5 font-bold text-base tracking-tight text-[#16324F]">
-              <span>Edrops</span>
-            </div>
-            <div className="text-[11px] font-medium uppercase tracking-wider text-[#64748B]">
-              Delivery Partner
-            </div>
+        <div className="flex items-center justify-between px-6 h-16 border-b border-[#E2E8F0]">
+          <div className="flex flex-col justify-center">
+            <EdropsLogo variant="blue" className="h-6 w-auto" />
+
           </div>
         </div>
 
@@ -274,25 +267,22 @@ export default function DeliveryPartnerPortal() {
                     end={item.end}
                     className={({ isActive }) => `
                       group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
-                      ${
-                        isActive
-                          ? 'bg-[#1677C8]/10 text-[#1677C8] font-semibold shadow-2xs'
-                          : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
+                      ${isActive
+                        ? 'bg-[#1677C8]/10 text-[#1677C8] font-semibold shadow-2xs'
+                        : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
                       }
                     `}
                   >
                     {({ isActive }) => (
                       <>
                         <Icon
-                          className={`w-5 h-5 shrink-0 transition-colors ${
-                            isActive ? 'text-[#1677C8]' : 'text-[#64748B] group-hover:text-[#16324F]'
-                          }`}
+                          className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-[#1677C8]' : 'text-[#64748B] group-hover:text-[#16324F]'
+                            }`}
                         />
                         <span className="flex-1">{item.label}</span>
                         {item.to === '/delivery-partner' && tasks.length > 0 && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            isActive ? 'bg-[#1677C8] text-white' : 'bg-slate-100 text-[#64748B]'
-                          }`}>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-[#1677C8] text-white' : 'bg-slate-100 text-[#64748B]'
+                            }`}>
                             {tasks.length}
                           </span>
                         )}
@@ -358,14 +348,11 @@ export default function DeliveryPartnerPortal() {
             >
               {/* Drawer Header */}
               <div className="flex items-center justify-between px-5 h-16 border-b border-[#E2E8F0]">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1677C8] text-white">
-                    <Droplets className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-base text-[#16324F]">Edrops</span>
-                    <span className="block text-[10px] uppercase font-semibold text-[#64748B]">Driver App</span>
-                  </div>
+                <div className="flex flex-col justify-center">
+                  <EdropsLogo variant="blue" className="h-6 w-auto" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
+                    Delivery Partner
+                  </span>
                 </div>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
@@ -393,10 +380,9 @@ export default function DeliveryPartnerPortal() {
                           onClick={() => setMobileMenuOpen(false)}
                           className={({ isActive }) => `
                             flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition-colors
-                            ${
-                              isActive
-                                ? 'bg-[#1677C8]/10 text-[#1677C8] font-semibold'
-                                : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
+                            ${isActive
+                              ? 'bg-[#1677C8]/10 text-[#1677C8] font-semibold'
+                              : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
                             }
                           `}
                         >
@@ -405,9 +391,8 @@ export default function DeliveryPartnerPortal() {
                               <Icon className={`w-5 h-5 ${isActive ? 'text-[#1677C8]' : 'text-[#64748B]'}`} />
                               <span className="flex-1">{item.label}</span>
                               {item.to === '/delivery-partner' && tasks.length > 0 && (
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  isActive ? 'bg-[#1677C8] text-white' : 'bg-slate-100 text-[#64748B]'
-                                }`}>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-[#1677C8] text-white' : 'bg-slate-100 text-[#64748B]'
+                                  }`}>
                                   {tasks.length}
                                 </span>
                               )}
@@ -454,7 +439,7 @@ export default function DeliveryPartnerPortal() {
 
       {/* ─── MAIN CONTENT WRAPPER ───────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        
+
         {/* Top Header (64px) */}
         <header className="h-16 bg-white border-b border-[#E2E8F0] px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 z-20">
           <div className="flex items-center gap-3">

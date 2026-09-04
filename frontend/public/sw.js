@@ -1,10 +1,16 @@
-const CACHE_NAME = 'edrops-cache-v1';
+const CACHE_NAME = 'edrops-cache-v7';
 const OFFLINE_URL = '/offline.html';
 
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/favicon.svg',
+  '/logo-pwa.png',
+  '/logo-full-blue.svg',
+  '/logo-full-white.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-192-maskable.png',
+  '/icon-512-maskable.png',
   '/icons.svg',
   '/offline.html',
   '/manifest.json'

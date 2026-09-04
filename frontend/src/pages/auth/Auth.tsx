@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { Eye, EyeOff, CheckCircle2, ShieldCheck, Truck, Zap, Mail, Phone, Lock, User, MapPin } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchWithAuth } from '../../api/client';
-import logo from '../../assets/logo22.png';
+import { EdropsLogo } from '../../components/Logo';
 
 // --- VALIDATION SCHEMAS ---
 const loginSchema = Yup.object({
@@ -279,10 +279,9 @@ export default function Auth() {
       
       {/* Mobile Branding Header (Hidden on Desktop) */}
       <div className="lg:hidden w-full max-w-[420px] mb-4 md:mb-8 text-center relative z-10 flex flex-col items-center">
-        <button onClick={() => navigate('/')} className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-white rounded-[16px] shadow-sm mb-2 md:mb-4">
-          <img src={logo} alt="Edrops" className="w-7 h-7 md:w-8 md:h-8 object-contain" />
+        <button onClick={() => navigate('/')} className="inline-flex items-center justify-center p-2 mb-2 cursor-pointer">
+          <EdropsLogo variant="blue" className="h-9 w-auto" />
         </button>
-        <h1 className="text-[28px] font-bold text-[#0F172A] tracking-tight mb-1 md:mb-2">Edrops</h1>
         <p className="text-[14px] text-[#64748B] leading-[20px]">Pure Water. Delivered Daily.</p>
       </div>
 
@@ -290,18 +289,15 @@ export default function Auth() {
       <div className="relative w-full max-w-[420px] lg:max-w-[1100px] bg-white rounded-[20px] md:rounded-[24px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-[#E2E8F0]/50 overflow-hidden flex flex-col lg:flex-row z-10 md:min-h-[600px] lg:h-[700px]">
         
         {/* LEFT PANEL - BRAND EXPERIENCE (Desktop Only) */}
-        <div className="hidden lg:flex w-1/2 relative bg-gradient-to-br from-[#1E88E5] to-[#1565C0] p-12 flex-col justify-between overflow-hidden">
+        <div className="hidden lg:flex w-1/2 relative bg-gradient-to-br from-[#00AEEF] to-[#0092C8] p-12 flex-col justify-between overflow-hidden">
           {/* Glass Overlay Elements */}
           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none" />
           <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-[#42A5F5]/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-[#33BFD0]/20 rounded-full blur-3xl pointer-events-none" />
 
           {/* Top Logo */}
           <button onClick={() => navigate('/')} className="relative z-10 flex items-center gap-3 cursor-pointer group w-max">
-            <div className="w-12 h-12 bg-white rounded-[14px] shadow-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-              <img src={logo} alt="Edrops Logo" className="w-7 h-7 object-contain" />
-            </div>
-            <span className="font-bold text-2xl tracking-tight text-white font-['Outfit']">Edrops</span>
+            <EdropsLogo variant="white" className="h-9 w-auto group-hover:scale-105 transition-transform" />
           </button>
 
           {/* Middle Copy */}

@@ -1,10 +1,11 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { Bell, CalendarDays, Droplets, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, ShoppingBag, Gift, LifeBuoy } from 'lucide-react';
+import { Bell, CalendarDays, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, ShoppingBag, Gift, LifeBuoy } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { EdropsLogo } from '../../components/Logo';
 
 const Shop = React.lazy(() => import('./pages/Shop'));
 const Cart = React.lazy(() => import('./pages/Cart'));
@@ -90,10 +91,7 @@ export default function CustomerPortal() {
           
           {/* Logo */}
           <NavLink to="/customer/shop" className="flex items-center gap-3 mr-8 shrink-0">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#2D79A8] text-white">
-              <Droplets className="h-5 w-5" />
-            </span>
-            <span className="block text-xl font-bold tracking-tight text-[#2D79A8]">Edrops</span>
+            <EdropsLogo variant="blue" className="h-8 w-auto" />
           </NavLink>
 
           {/* Center Navigation */}

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Droplets, Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { InputBox } from '../../components/InputBox';
 import { Button } from '../../components/Button';
 import { fetchWithAuth } from '../../api/client';
+import { EdropsLogo } from '../../components/Logo';
 
 const ForgotPasswordSchema = Yup.object().shape({
   email: Yup.string().trim().email('Please enter a valid email address').required('Email is required'),
@@ -65,13 +66,8 @@ export default function ForgotPassword() {
       {/* Left side: Form */}
       <section className="relative flex items-center justify-center p-6 sm:p-12">
         <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
-          <Link to="/" className="inline-flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-edrops-blue focus:ring-offset-4 focus:ring-offset-gray-50 rounded-lg">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-edrops-blue text-white shadow-md transition-transform group-hover:scale-105">
-              <Droplets className="h-6 w-6" />
-            </span>
-            <span className="hidden sm:block text-xl font-bold tracking-tight text-edrops-ocean">
-              Edrops
-            </span>
+          <Link to="/" className="inline-flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-[#00AEEF] focus:ring-offset-4 focus:ring-offset-gray-50 rounded-lg">
+            <EdropsLogo variant="blue" className="h-8 w-auto transition-transform group-hover:scale-105" />
           </Link>
         </div>
 

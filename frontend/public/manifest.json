@@ -1,13 +1,19 @@
 {
-  "name": "Edrops Delivery & Order Management",
-  "short_name": "Edrops",
-  "description": "Enterprise logistics, delivery scheduling, and order tracking application for Edrops.",
+  "name": "E Drops - Pure Hydration Delivered",
+  "short_name": "E Drops",
+  "description": "Enterprise logistics, delivery scheduling, and order tracking application for E Drops.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F8FAFC",
-  "theme_color": "#2D79A8",
+  "theme_color": "#00AEEF",
   "orientation": "any",
   "icons": [
+    {
+      "src": "/logo-pwa.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
     {
       "src": "/icon-192.png",
       "type": "image/png",
@@ -15,16 +21,16 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-192-maskable.png",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "maskable"
-    },
-    {
       "src": "/icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
+    },
+    {
+      "src": "/icon-192-maskable.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512-maskable.png",
