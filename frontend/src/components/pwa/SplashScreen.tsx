@@ -4,32 +4,22 @@ import { EdropsLogo } from '../Logo';
 
 interface SplashScreenProps {
   onComplete?: () => void;
-  forceShow?: boolean;
 }
 
-export default function SplashScreen({ onComplete, forceShow = false }: SplashScreenProps) {
-  const [isVisible, setIsVisible] = useState(() => {
-    if (forceShow) return true;
-    return !sessionStorage.getItem('edrops_splash_shown');
-  });
+export default function SplashScreen({ onComplete }: SplashScreenProps) {
+  const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    if (!isVisible) {
-      onComplete?.();
-      return;
-    }
-
     // Sequence: 900ms reveal + 600ms hold = 1500ms before triggering exit animation
     const timer = setTimeout(() => {
-      sessionStorage.setItem('edrops_splash_shown', 'true');
       setIsVisible(false);
       setTimeout(() => {
         onComplete?.();
       }, 500); // Wait for exit animation to complete
-    }, 1600);
+    }, 1500);
 
     return () => clearTimeout(timer);
-  }, [isVisible, onComplete]);
+  }, [onComplete]);
 
   return (
     <AnimatePresence>
@@ -43,7 +33,7 @@ export default function SplashScreen({ onComplete, forceShow = false }: SplashSc
             filter: 'blur(8px)',
             transition: { duration: 0.5, ease: [0.76, 0, 0.24, 1] },
           }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-[#0088CC] via-[#006EAA] to-[#0B3B5C] select-none overflow-hidden"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-gradient-to-br from-[#0088CC] via-[#006EAA] to-[#0B3B5C] select-none overflow-hidden"
         >
           {/* Subtle Water Topography Watermark */}
           <div className="absolute inset-0 opacity-[0.07] pointer-events-none">

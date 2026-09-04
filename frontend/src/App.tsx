@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React, { Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 import LoadingSpinner from './components/LoadingSpinner';
 import PWAInstallPrompt from './components/pwa/PWAInstallPrompt';
+import SplashScreen from './components/pwa/SplashScreen';
 import { DialogProvider } from './contexts/DialogContext';
 
 // Providers
@@ -31,10 +32,20 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(() => {
+    return !sessionStorage.getItem('edrops_splash_shown');
+  });
+
+  const handleSplashComplete = () => {
+    sessionStorage.setItem('edrops_splash_shown', 'true');
+    setShowSplash(false);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <DialogProvider>
+          {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
           <Routes>

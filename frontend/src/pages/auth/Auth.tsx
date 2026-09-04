@@ -8,7 +8,7 @@ import { Eye, EyeOff, Lock, Mail, Check, AlertCircle, RotateCcw } from 'lucide-r
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchWithAuth } from '../../api/client';
 import { EdropsLogo } from '../../components/Logo';
-import SplashScreen from '../../components/pwa/SplashScreen';
+import PullToRefresh from '../../components/pwa/PullToRefresh';
 
 export type AuthState = 'signin' | 'signup' | 'forgot';
 
@@ -287,20 +287,23 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
     }
   };
 
+  const handleRefresh = async () => {
+    // Soft reset state / refresh feedback
+    await new Promise((resolve) => setTimeout(resolve, 450));
+  };
+
   return (
-    <div className="w-screen h-[100dvh] bg-white lg:bg-gradient-to-br lg:from-[#061826] lg:via-[#0B2545] lg:to-[#13315C] flex flex-col items-center justify-start lg:justify-center p-0 lg:p-6 relative select-none overflow-hidden">
-      
-      {/* PWA / First Launch Splash Screen */}
-      <SplashScreen />
+    <PullToRefresh onRefresh={handleRefresh} className="h-[100dvh]">
+      <div className="w-screen h-[100dvh] bg-white lg:bg-gradient-to-br lg:from-[#061826] lg:via-[#0B2545] lg:to-[#13315C] flex flex-col items-center justify-start lg:justify-center p-0 lg:p-6 relative select-none overflow-hidden">
+        
+        {/* Desktop Atmospheric Ambient Glow Orbs */}
+        <div className="hidden lg:block absolute -top-32 -left-32 w-[550px] h-[550px] bg-sky-500/10 rounded-full blur-[140px] pointer-events-none" />
+        <div className="hidden lg:block absolute -bottom-32 -right-32 w-[550px] h-[550px] bg-indigo-500/15 rounded-full blur-[140px] pointer-events-none" />
 
-      {/* Desktop Atmospheric Ambient Glow Orbs */}
-      <div className="hidden lg:block absolute -top-32 -left-32 w-[550px] h-[550px] bg-sky-500/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="hidden lg:block absolute -bottom-32 -right-32 w-[550px] h-[550px] bg-indigo-500/15 rounded-full blur-[140px] pointer-events-none" />
-
-      {/* ========================================================================= */}
-      {/* AUTH CONTAINER (TRUE 100vw x 100dvh on mobile; Centered card on desktop) */}
-      {/* ========================================================================= */}
-      <div className="w-full h-full lg:h-[720px] lg:max-h-[92vh] lg:max-w-[460px] flex flex-col bg-white lg:rounded-[32px] lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] overflow-hidden relative">
+        {/* ========================================================================= */}
+        {/* AUTH CONTAINER (TRUE 100vw x 100dvh on mobile; Centered card on desktop) */}
+        {/* ========================================================================= */}
+        <div className="w-full h-full lg:h-[720px] lg:max-h-[92vh] lg:max-w-[460px] flex flex-col bg-white lg:rounded-[32px] lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] overflow-hidden relative">
         
         {/* ========================================================================= */}
         {/* 1. OVERLAPPING COLORED HEADER BANNER (Consistent Logo & Tab Switcher)    */}
@@ -698,5 +701,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
 
       </div>
     </div>
+    </PullToRefresh>
   );
 }
