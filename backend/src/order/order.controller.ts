@@ -55,7 +55,7 @@ export class OrderController {
 
   @Get(':id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.CUSTOMER)
   findOne(@Param('id') id: string) {
     return this.orderService.findOne(id);
   }

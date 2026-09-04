@@ -3,6 +3,7 @@ import { ShoppingBag, Package } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { formatOrderStatus } from '../../../utils/orderFormatters';
 
 export default function OrdersDashboard() {
   const [filter, setFilter] = useState<'ALL' | 'ONETIME_ORDER' | 'SUBSCRIPTION_ORDER'>('ALL');
@@ -112,11 +113,11 @@ export default function OrdersDashboard() {
                     </td>
                     <td className="py-4 px-4">
                       <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border
-                        ${order.status === 'DELIVERED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 
-                          order.status === 'PENDING' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                        ${order.status === 'DELIVERED' || order.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 
+                          order.status === 'CANCELLED' ? 'bg-rose-50 text-rose-600 border-rose-200' :
                           'bg-blue-50 text-blue-600 border-blue-200'}
                       `}>
-                        {order.status}
+                        {formatOrderStatus(order.status)}
                       </span>
                     </td>
                   </tr>

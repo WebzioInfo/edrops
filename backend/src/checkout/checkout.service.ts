@@ -53,12 +53,22 @@ export class CheckoutService {
     });
   }
 
+  formatDeliverySlot(slot?: string): string {
+    if (!slot) return '6AM - 9AM';
+    const lower = slot.toLowerCase().trim();
+    if (lower === 'morning') return '6AM - 9AM';
+    if (lower === 'midday') return '9AM - 12PM';
+    if (lower === 'afternoon') return '12PM - 3PM';
+    if (lower === 'evening') return '3PM - 6PM';
+    return slot;
+  }
+
   getDeliverySlots() {
     return [
-      { id: 'morning', label: '6AM - 9AM' },
-      { id: 'midday', label: '9AM - 12PM' },
-      { id: 'afternoon', label: '12PM - 3PM' },
-      { id: 'evening', label: '3PM - 6PM' },
+      { id: '6AM - 9AM', label: '6AM - 9AM' },
+      { id: '9AM - 12PM', label: '9AM - 12PM' },
+      { id: '12PM - 3PM', label: '12PM - 3PM' },
+      { id: '3PM - 6PM', label: '3PM - 6PM' },
     ];
   }
 
@@ -312,25 +322,7 @@ export class CheckoutService {
 
       if (hybridRemainingAmount <= 0) {
         dto.paymentMethod = 'WALLET'; // Wallet covers everything
-      } else {
-        const paymentIntent = await this.paymentService.createPaymentIntent({
-          customerId,
-          amount: hybridRemainingAmount,
-          orderId,
-          description: `Order #${orderId.substring(0, 8)} (Hybrid)`,
-        });
-        razorpayOrderId = paymentIntent.orderId;
       }
-    }
-
-    if (dto.paymentMethod === 'RAZORPAY') {
-      const paymentIntent = await this.paymentService.createPaymentIntent({
-        customerId,
-        amount: totalAmount,
-        orderId,
-        description: `Order #${orderId.substring(0, 8)}`,
-      });
-      razorpayOrderId = paymentIntent.orderId;
     }
 
     const order = await this.prisma.$transaction(async (tx) => {
@@ -395,7 +387,7 @@ export class CheckoutService {
           totalAmount,
           promoCode: dto.promoCode ? dto.promoCode.toUpperCase() : null,
           deliveryAddressId: dto.addressId,
-          timeSlot: dto.timeSlot,
+          timeSlot: this.formatDeliverySlot(dto.timeSlot),
           paymentMethod: dto.paymentMethod,
           hybridSecondaryMethod: dto.hybridSecondaryMethod || null,
           orderSource: (dto.orderSource as any) || 'CUSTOMER_APP',
@@ -473,6 +465,24 @@ export class CheckoutService {
 
       return newOrder;
     });
+
+    if (dto.paymentMethod === 'HYBRID' && hybridRemainingAmount > 0) {
+      const paymentIntent = await this.paymentService.createPaymentIntent({
+        customerId,
+        amount: hybridRemainingAmount,
+        orderId: order.id,
+        description: `Order #${order.id.substring(0, 8)} (Hybrid)`,
+      });
+      razorpayOrderId = paymentIntent.orderId;
+    } else if (dto.paymentMethod === 'RAZORPAY') {
+      const paymentIntent = await this.paymentService.createPaymentIntent({
+        customerId,
+        amount: totalAmount,
+        orderId: order.id,
+        description: `Order #${order.id.substring(0, 8)}`,
+      });
+      razorpayOrderId = paymentIntent.orderId;
+    }
 
     // Fire events AFTER successful commit
     if (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') {

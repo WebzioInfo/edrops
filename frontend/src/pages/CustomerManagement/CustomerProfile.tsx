@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../api/client';
+import { formatOrderStatus } from '../../utils/orderFormatters';
 
 export default function CustomerProfile({ basePath }: { basePath: string }) {
   const { id } = useParams();
@@ -113,7 +114,7 @@ export default function CustomerProfile({ basePath }: { basePath: string }) {
                       </div>
                       <div className="text-right">
                         <p className="font-medium text-gray-800">₹{order.totalAmount}</p>
-                        <p className={`text-xs ${order.status === 'DELIVERED' ? 'text-green-600' : 'text-[#F69C14]'}`}>{order.status}</p>
+                        <p className={`text-xs ${order.status === 'DELIVERED' || order.status === 'COMPLETED' ? 'text-green-600' : 'text-[#F69C14]'}`}>{formatOrderStatus(order.status)}</p>
                       </div>
                     </div>
                   ))}

@@ -20,6 +20,7 @@ const ReferPage = React.lazy(() => import('./pages/Refer'));
 const SupportPage = React.lazy(() => import('./pages/Support'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 const Orders = React.lazy(() => import('./pages/Orders'));
+const OrderDetails = React.lazy(() => import('./pages/OrderDetails'));
 const OrderSuccess = React.lazy(() => import('./pages/OrderSuccess'));
 
 // Desktop specific groupings
@@ -240,6 +241,7 @@ export default function CustomerPortal() {
               <Route path="schedule" element={<SchedulePlanner />} />
               <Route path="deliveries" element={<TrackPage />} />
               <Route path="orders" element={<Orders />} />
+              <Route path="orders/:orderId" element={<OrderDetails />} />
               <Route path="order-success" element={<OrderSuccess />} />
               <Route path="recharge" element={<RechargePage />} />
               <Route path="referrals" element={<ReferPage />} />

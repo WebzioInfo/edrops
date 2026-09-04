@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import { Truck, CheckSquare, Square, Edit3 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { formatOrderStatus } from '../../../utils/orderFormatters';
 
 export default function OrderManagement() {
   const queryClient = useQueryClient();
@@ -116,7 +117,7 @@ export default function OrderManagement() {
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-500 font-bold">No pending assignments found.</td>
+                    <td colSpan={6} className="py-10 text-center text-slate-500 font-bold">No pending orders found.</td>
                   </tr>
                 ) : (
                   orders.map((order: any) => (
@@ -139,7 +140,7 @@ export default function OrderManagement() {
                       </td>
                       <td className="py-4 px-4">
                         <span className="bg-orange-100 text-orange-700 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider">
-                          {order.status}
+                          {formatOrderStatus(order.status)}
                         </span>
                       </td>
                       <td className="py-4 px-4 text-right">

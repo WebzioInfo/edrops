@@ -3,6 +3,7 @@ import { ArrowLeft, Wallet, Package, ShoppingBag, Clock, ShieldCheck, LifeBuoy }
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { formatOrderStatus } from '../../../utils/orderFormatters';
 
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -135,10 +136,10 @@ export default function CustomerDetail() {
                         <td className="py-3 px-2">
                           <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${
                             order.status === 'DELIVERED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
-                            ['PENDING_ASSIGNMENT', 'ASSIGNED', 'OUT_FOR_DELIVERY'].includes(order.status) ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                            ['CONFIRMED', 'ASSIGNED', 'OUT_FOR_DELIVERY'].includes(order.status) ? 'bg-blue-50 text-blue-600 border-blue-200' :
                             'bg-slate-50 text-slate-600 border-slate-200'
                           }`}>
-                            {order.status}
+                            {formatOrderStatus(order.status)}
                           </span>
                         </td>
                       </tr>

@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
-import { CheckCircle, Copy, ShoppingBag, ArrowRight } from 'lucide-react';
+import { CheckCircle, Copy, ShoppingBag, ArrowRight, Clock } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import { formatDeliverySlot } from '../../../utils/orderFormatters';
 
 export default function OrderSuccess() {
   const [searchParams] = useSearchParams();
@@ -156,6 +157,15 @@ export default function OrderSuccess() {
                   {deliveryCharge === 0 ? <span className="text-[#1E88E5]">Free</span> : `₹${deliveryCharge}`}
                 </span>
               </div>
+
+              {order.timeSlot && (
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-[#1E88E5]" /> Delivery Slot
+                  </span>
+                  <span className="text-[#0F172A] font-semibold">{formatDeliverySlot(order.timeSlot)}</span>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between items-center">
@@ -173,7 +183,7 @@ export default function OrderSuccess() {
           className="flex flex-col gap-3 md:flex-row md:justify-between w-full"
         >
           <button 
-            onClick={() => navigate('/customer/deliveries')}
+            onClick={() => navigate(orderId ? `/customer/orders/${orderId}` : '/customer/orders')}
             className="w-full md:flex-1 h-[56px] rounded-[16px] bg-[#1E88E5] text-white font-semibold text-[15px] shadow-sm hover:bg-[#1565C0] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             Track My Order <ArrowRight className="w-4 h-4" />

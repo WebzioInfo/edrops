@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../contexts/SocketContext';
 import { ShoppingCart, Clock, CheckCircle2, Package } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { formatOrderStatus } from '../../../utils/orderFormatters';
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -157,7 +158,7 @@ export default function OrderManagement() {
                       order.status === 'CONFIRMED' || order.status === 'PROCESSING' || order.status === 'OUT_FOR_DELIVERY' ? 'bg-emerald-100 text-emerald-700' : 
                       order.status === 'DELIVERED' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
                     }`}>
-                      {order.status.replace(/_/g, ' ')}
+                      {formatOrderStatus(order.status)}
                     </span>
                   </div>
 
