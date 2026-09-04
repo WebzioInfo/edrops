@@ -3,7 +3,7 @@ import { ShoppingBag, Package } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { formatOrderStatus } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
 
 export default function OrdersDashboard() {
   const [filter, setFilter] = useState<'ALL' | 'ONETIME_ORDER' | 'SUBSCRIPTION_ORDER'>('ALL');
@@ -95,7 +95,7 @@ export default function OrdersDashboard() {
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2">
                         <Package className="w-4 h-4 text-slate-400" />
-                        <span className="font-bold text-slate-800">{order.id.split('-')[0].toUpperCase()}</span>
+                        <span className="font-bold text-slate-800">{formatOrderId(order.id)}</span>
                       </div>
                       <p className="text-[10px] text-slate-500 mt-1">{new Date(order.createdAt).toLocaleDateString()}</p>
                     </td>

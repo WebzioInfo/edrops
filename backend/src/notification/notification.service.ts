@@ -64,7 +64,7 @@ export class NotificationService {
       id: crypto.randomUUID(),
       type: 'NEW_ORDER',
       title: 'New Order Received',
-      message: `${data.customerName} placed Order #${data.orderId.substring(0, 8)}`,
+      message: `${data.customerName} placed Order ${data.orderId.substring(0, 8).toUpperCase()}`,
       channels: [
         NotificationChannel.SLACK,
         NotificationChannel.SOCKET,
@@ -110,7 +110,7 @@ export class NotificationService {
       id: crypto.randomUUID(),
       type: 'ORDER_STATUS_CHANGED',
       title: 'Order Status Updated',
-      message: `Your order #${data.orderId.substring(0, 8)} is now ${data.newStatus.replace(/_/g, ' ')}.`,
+      message: `Your order ${data.orderId.substring(0, 8).toUpperCase()} is now ${data.newStatus.replace(/_/g, ' ')}.`,
       channels: targetUserId
         ? [NotificationChannel.SOCKET, NotificationChannel.DATABASE]
         : [NotificationChannel.SOCKET],
@@ -130,7 +130,7 @@ export class NotificationService {
       id: crypto.randomUUID(),
       type: 'ORDER_STATUS_CHANGED',
       title: 'Order Status Updated',
-      message: `Order #${data.orderId.substring(0, 8)} is now ${data.newStatus.replace(/_/g, ' ')}.`,
+      message: `Order ${data.orderId.substring(0, 8).toUpperCase()} is now ${data.newStatus.replace(/_/g, ' ')}.`,
       channels: [NotificationChannel.SOCKET],
       recipients: {
         socketRoom: 'staff-notifications',

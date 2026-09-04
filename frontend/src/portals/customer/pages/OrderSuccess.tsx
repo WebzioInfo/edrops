@@ -4,7 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
-import { formatDeliverySlot } from '../../../utils/orderFormatters';
+import { formatOrderId, formatDeliverySlot } from '../../../utils/orderFormatters';
 
 export default function OrderSuccess() {
   const [searchParams] = useSearchParams();
@@ -99,7 +99,7 @@ export default function OrderSuccess() {
                   onClick={copyOrderId}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#E2E8F0] rounded-full text-[14px] font-semibold text-[#0F172A] shadow-sm hover:bg-[#F8FAFC] transition-colors cursor-pointer group"
                 >
-                  Order #{orderId.substring(0, 8).toUpperCase()}
+                  Order {formatOrderId(orderId)}
                   <Copy className="w-4 h-4 text-[#64748B] group-hover:text-[#1E88E5]" />
                 </button>
               </div>

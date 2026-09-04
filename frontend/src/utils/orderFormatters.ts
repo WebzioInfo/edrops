@@ -1,3 +1,15 @@
+export function formatOrderId(id?: string | null): string {
+  if (!id) return '';
+  let cleanId = id.trim();
+  if (cleanId.startsWith('#ORD-')) cleanId = cleanId.slice(5);
+  else if (cleanId.startsWith('ORD-')) cleanId = cleanId.slice(4);
+  else if (cleanId.startsWith('#DEL-')) cleanId = cleanId.slice(5);
+  else if (cleanId.startsWith('DEL-')) cleanId = cleanId.slice(4);
+  else if (cleanId.startsWith('#')) cleanId = cleanId.slice(1);
+  const canonical = cleanId.length >= 8 ? cleanId.substring(0, 8).toUpperCase() : cleanId.toUpperCase();
+  return canonical;
+}
+
 export function formatOrderStatus(status?: string | null): string {
   if (!status) return 'Order Placed';
   switch (status.toUpperCase()) {
@@ -58,9 +70,14 @@ export function formatDeliverySlot(slot?: string | null): string {
   return slot;
 }
 
-export function formatPaymentDetails(order: any): { method: string; status: string; fullLabel: string } {
+export function formatPaymentDetails(order: any): { method: string; status: 'Collected' | 'Paid' | 'Pending'; fullLabel: string; badgeClass: string } {
   if (!order) {
-    return { method: 'N/A', status: 'Pending', fullLabel: 'N/A (Pending)' };
+    return {
+      method: 'N/A',
+      status: 'Pending',
+      fullLabel: 'N/A (Pending)',
+      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+    };
   }
 
   const deliveryStatus = (order.deliveryStatus || order.status || '').toUpperCase();
@@ -69,19 +86,22 @@ export function formatPaymentDetails(order: any): { method: string; status: stri
   const rawStatus = (order.paymentStatus || '').toUpperCase();
 
   // 1. CASH ON DELIVERY (COD)
-  // Payment is collected only when delivery actually completes
+  // Payment is collected only if order is delivered AND payment was explicitly confirmed/collected
   if (rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY' || rawMethod.includes('COD') || rawMethod.includes('CASH')) {
-    if (isDelivered) {
+    const isCollected = isDelivered && (rawStatus === 'SUCCESS' || rawStatus === 'PAID' || rawStatus === 'COLLECTED' || !!order.paymentCollected);
+    if (isCollected) {
       return {
         method: 'Cash on Delivery (COD)',
         status: 'Collected',
         fullLabel: 'COD (Collected)',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       };
     }
     return {
       method: 'Cash on Delivery (COD)',
-      status: 'Pending — due on delivery',
-      fullLabel: 'COD (Pending — due on delivery)',
+      status: 'Pending',
+      fullLabel: isDelivered ? 'COD (Pending)' : 'COD (Pending — due on delivery)',
+      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
     };
   }
 
@@ -91,6 +111,7 @@ export function formatPaymentDetails(order: any): { method: string; status: stri
       method: 'Wallet Balance',
       status: 'Paid',
       fullLabel: 'Wallet (Paid)',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     };
   }
 
@@ -103,12 +124,14 @@ export function formatPaymentDetails(order: any): { method: string; status: stri
         method: 'Razorpay Online',
         status: 'Paid',
         fullLabel: 'Online (Paid)',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       };
     }
     return {
       method: 'Razorpay Online',
       status: 'Pending',
       fullLabel: 'Online (Pending)',
+      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
     };
   }
 
@@ -119,5 +142,18 @@ export function formatPaymentDetails(order: any): { method: string; status: stri
     method: displayMethod,
     status: isSuccess ? 'Paid' : 'Pending',
     fullLabel: `${displayMethod} (${isSuccess ? 'Paid' : 'Pending'})`,
+    badgeClass: isSuccess
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      : 'bg-amber-50 text-amber-700 border-amber-200',
+  };
+}
+
+export function getPaymentStatusLabel(order: any): { label: string; badgeClass: string; isPaid: boolean } {
+  const details = formatPaymentDetails(order);
+  const isPaid = details.status === 'Paid' || details.status === 'Collected';
+  return {
+    label: details.status.toUpperCase(),
+    badgeClass: details.badgeClass,
+    isPaid,
   };
 }

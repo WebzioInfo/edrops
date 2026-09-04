@@ -9,11 +9,12 @@ import {
   UserCheck,
   MapPin,
   Calendar,
+  CreditCard,
   AlertTriangle,
   Package,
   ShieldCheck,
 } from 'lucide-react';
-import { formatOrderStatus, formatPaymentDetails, formatDeliverySlot } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus, formatPaymentDetails, formatDeliverySlot } from '../../../utils/orderFormatters';
 
 export interface DeliveryPartner {
   id: string;
@@ -32,7 +33,7 @@ interface OrderRowProps {
   partners: DeliveryPartner[];
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onStatusUpdate: (orderId: string, newStatus: string) => Promise<void>;
+  onStatusUpdate: (orderId: string, newStatus: string, paymentConfirmation?: any) => Promise<void>;
   onAssignPartner: (orderId: string, deliveryPartnerId: string) => Promise<void>;
   isAssigning: boolean;
 }
@@ -48,9 +49,14 @@ export default function OrderRow({
 }: OrderRowProps) {
   const [partnerPromptError, setPartnerPromptError] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [paymentCollected, setPaymentCollected] = useState(false);
   const partnerSelectRef = useRef<HTMLSelectElement>(null);
 
   const payment = formatPaymentDetails(order);
+  const rawMethod = (order.paymentMethod || '').toUpperCase();
+  const isCOD = rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY' || rawMethod.includes('COD') || rawMethod.includes('CASH');
+  const isOnline = rawMethod === 'RAZORPAY' || rawMethod === 'ONLINE' || rawMethod === 'PREPAID' || rawMethod === 'WALLET';
+
   const assignedPartner = order.delivery?.assignment?.deliveryPartner;
   const assignedPartnerId = order.delivery?.assignment?.deliveryPartnerId || assignedPartner?.id;
   const isDelivered = order.status === 'DELIVERED' || order.status === 'COMPLETED';
@@ -127,11 +133,11 @@ export default function OrderRow({
     }
   };
 
-  const handleStatusChange = async (targetStatus: string) => {
+  const handleStatusChange = async (targetStatus: string, paymentConfirmation?: any) => {
     setPartnerPromptError(null);
     setUpdatingStatus(true);
     try {
-      await onStatusUpdate(order.id, targetStatus);
+      await onStatusUpdate(order.id, targetStatus, paymentConfirmation);
     } finally {
       setUpdatingStatus(false);
     }
@@ -154,7 +160,7 @@ export default function OrderRow({
             {/* Top line: Order ID + Customer Name + Phone */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-xs font-bold text-[#1E88E5] bg-[#EBF5FB] px-1.5 py-0.5 rounded">
-                #{order.id.substring(0, 8).toUpperCase()}
+                {formatOrderId(order.id)}
               </span>
               <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate">
                 {order.customer?.user?.firstName} {order.customer?.user?.lastName}
@@ -173,15 +179,27 @@ export default function OrderRow({
           </div>
         </div>
 
-        {/* Right: Price + Status Badge + Manage Button */}
+        {/* Right: Price + Payment Status Indicator + Delivery Status Badge + Manage Button */}
         <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
-          {/* Price */}
+          {/* Price & Payment Status */}
           <div className="text-right">
             <div className="text-xs sm:text-sm font-black text-[#0F172A]">
               ₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}
             </div>
-            <div className="text-[10px] font-medium text-[#64748B]">
-              {payment.method || 'COD'}
+            <div className="text-[10px] font-medium text-[#64748B] flex items-center justify-end gap-1.5 mt-0.5">
+              <span>{isCOD ? 'COD' : isOnline ? 'Online' : (order.paymentMethod || 'Payment')}</span>
+              <span className="text-[#CBD5E1]">•</span>
+              {payment.status === 'Paid' || payment.status === 'Collected' ? (
+                <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  {payment.status}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 font-bold text-amber-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  Pending
+                </span>
+              )}
             </div>
           </div>
 
@@ -229,10 +247,10 @@ export default function OrderRow({
               )}
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Column 1: Address & Timestamps */}
+                {/* Column 1: Address & Timestamps & Payment State */}
                 <div className="p-4 bg-white rounded-2xl border border-[#E2E8F0] space-y-2.5 text-xs">
                   <div className="font-bold text-[#0F172A] uppercase tracking-wider text-[11px] flex items-center gap-1.5 pb-1 border-b border-[#F1F5F9]">
-                    <MapPin className="w-3.5 h-3.5 text-[#1E88E5]" /> Delivery Details
+                    <MapPin className="w-3.5 h-3.5 text-[#1E88E5]" /> Delivery & Payment Info
                   </div>
                   <div>
                     <span className="font-semibold text-[#64748B]">Address:</span>
@@ -254,13 +272,28 @@ export default function OrderRow({
                     )}
                   </div>
 
-                  <div className="pt-1 text-[11px] text-[#64748B] space-y-1">
+                  <div className="pt-1 text-[11px] text-[#64748B] space-y-1.5">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-[#64748B]" />
                       <span>Placed: {new Date(order.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
                     </div>
                     <div>
                       <span className="font-semibold text-[#0F172A]">Slot:</span> {formatDeliverySlot(order.timeSlot)}
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <CreditCard className="w-3.5 h-3.5 text-[#64748B]" />
+                      <span className="font-semibold text-[#0F172A]">Payment Status:</span>
+                      {payment.status === 'Paid' || payment.status === 'Collected' ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          {isCOD ? 'COD (Collected)' : `${payment.method} (Paid)`}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          {isCOD ? 'COD (Pending)' : `${payment.method} (Pending)`}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -347,14 +380,14 @@ export default function OrderRow({
                       Order Lifecycle Actions
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="space-y-2">
                       {/* NEW / PENDING STATES */}
                       {['NEW', 'PENDING', 'PENDING_ASSIGNMENT', 'PENDING_PAYMENT'].includes(order.status) && (
                         <button
                           type="button"
                           disabled={updatingStatus}
                           onClick={() => handleStatusChange('ASSIGNED')}
-                          className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                         >
                           <Truck className="w-3.5 h-3.5" />
                           <span>Confirm Order</span>
@@ -367,24 +400,59 @@ export default function OrderRow({
                           type="button"
                           disabled={updatingStatus}
                           onClick={handleMoveToOutForDelivery}
-                          className="flex-1 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          className="w-full px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                         >
                           <Truck className="w-3.5 h-3.5" />
                           <span>Out for Delivery</span>
                         </button>
                       )}
 
-                      {/* OUT FOR DELIVERY STATE */}
+                      {/* OUT FOR DELIVERY STATE (With COD Payment Confirmation Gate) */}
                       {order.status === 'OUT_FOR_DELIVERY' && (
-                        <button
-                          type="button"
-                          disabled={updatingStatus}
-                          onClick={() => handleStatusChange('DELIVERED')}
-                          className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          <span>Mark Delivered</span>
-                        </button>
+                        <div className="space-y-2">
+                          {isCOD && (
+                            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+                              <label className="flex items-start gap-2 cursor-pointer select-none text-xs font-bold text-amber-950">
+                                <input
+                                  type="checkbox"
+                                  checked={paymentCollected}
+                                  onChange={(e) => setPaymentCollected(e.target.checked)}
+                                  className="w-4 h-4 mt-0.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
+                                />
+                                <span>Payment of ₹{Number(order.totalAmount || 0).toLocaleString('en-IN')} collected from customer</span>
+                              </label>
+                              {!paymentCollected && (
+                                <p className="text-[10px] text-amber-700 pl-6">
+                                  Confirmation required: Check box above to confirm cash collection.
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            disabled={updatingStatus || (isCOD && !paymentCollected)}
+                            onClick={() => {
+                              if (isCOD) {
+                                handleStatusChange('DELIVERED', {
+                                  paymentReceived: true,
+                                  paymentMethod: 'COD',
+                                  amountReceived: order.totalAmount,
+                                });
+                              } else {
+                                handleStatusChange('DELIVERED');
+                              }
+                            }}
+                            className={`w-full px-3 py-2 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 ${
+                              isCOD && !paymentCollected
+                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-60'
+                                : 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer disabled:opacity-50'
+                            }`}
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            <span>{isCOD ? 'Mark Delivered & Confirm Payment' : 'Mark Delivered'}</span>
+                          </button>
+                        </div>
                       )}
 
                       {/* CANCEL ACTION (For any non-final state) */}
@@ -397,10 +465,10 @@ export default function OrderRow({
                               handleStatusChange('CANCELLED');
                             }
                           }}
-                          className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          className="w-full px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                         >
                           <Ban className="w-3.5 h-3.5" />
-                          <span>Cancel</span>
+                          <span>Cancel Order</span>
                         </button>
                       )}
 

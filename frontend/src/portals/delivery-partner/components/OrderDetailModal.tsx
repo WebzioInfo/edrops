@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import CompleteDeliveryModal from './CompleteDeliveryModal';
+import { formatOrderId, formatPaymentDetails, getPaymentStatusLabel } from '../../../utils/orderFormatters';
 
 export interface OrderDetail {
   id: string;
@@ -137,17 +138,19 @@ export function getOrderStatusConfig(status?: string): StatusConfig {
     case 'NEW':
     case 'PLACED':
     case 'PENDING_ASSIGNMENT':
-    case 'ASSIGNED':
       return {
         label: 'Placed',
         badgeClass: 'bg-amber-50 text-amber-800 border border-amber-200',
         dotColor: 'bg-amber-500',
         stepIndex: 0,
       };
+    case 'CONFIRMED':
+    case 'PROCESSING':
+    case 'ASSIGNED':
     case 'ACCEPTED_BY_PARTNER':
     case 'SHIPPED':
       return {
-        label: 'Shipped',
+        label: 'Confirmed',
         badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
         dotColor: 'bg-[#1677C8]',
         stepIndex: 1,
@@ -186,7 +189,7 @@ export function getOrderStatusConfig(status?: string): StatusConfig {
 
 const STATUS_PROGRESSION_STEPS = [
   { key: 'PLACED', label: 'Placed', icon: Clock },
-  { key: 'SHIPPED', label: 'Shipped', icon: Package },
+  { key: 'CONFIRMED', label: 'Confirmed', icon: Package },
   { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: Truck },
   { key: 'DELIVERED', label: 'Delivered', icon: CheckCircle },
 ];
@@ -234,18 +237,23 @@ export default function OrderDetailModal({
 
   // Extract Real Timestamps for Timeline Stages from History & DB records
   const timelineTimestamps = useMemo(() => {
-    if (!order) return { placed: null, shipped: null, outForDelivery: null, delivered: null, payment: null };
+    if (!order) return { placed: null, confirmed: null, outForDelivery: null, delivered: null, payment: null };
 
     let placedTime: string | null = order.createdAt;
-    let shippedTime: string | null = null;
+    let confirmedTime: string | null = null;
     let outTime: string | null = null;
     let deliveredTime: string | null = null;
     let paymentTime: string | null = null;
 
     if (order.history && Array.isArray(order.history)) {
       for (const h of order.history) {
-        if (h.newStatus === 'ACCEPTED_BY_PARTNER' || h.newStatus === 'SHIPPED') {
-          if (!shippedTime) shippedTime = h.createdAt;
+        if (
+          h.newStatus === 'CONFIRMED' ||
+          h.newStatus === 'ASSIGNED' ||
+          h.newStatus === 'ACCEPTED_BY_PARTNER' ||
+          h.newStatus === 'SHIPPED'
+        ) {
+          if (!confirmedTime) confirmedTime = h.createdAt;
         } else if (h.newStatus === 'OUT_FOR_DELIVERY') {
           if (!outTime) outTime = h.createdAt;
         } else if (h.newStatus === 'DELIVERED' || h.newStatus === 'COMPLETED') {
@@ -267,7 +275,7 @@ export default function OrderDetailModal({
 
     return {
       placed: placedTime,
-      shipped: shippedTime,
+      confirmed: confirmedTime,
       outForDelivery: outTime,
       delivered: deliveredTime,
       payment: paymentTime,
@@ -310,7 +318,8 @@ export default function OrderDetailModal({
     const partnerProfit = Number((customerRevenue - edropsCost).toFixed(2));
 
     const isDelivered = order.status === 'DELIVERED' || order.status === 'COMPLETED';
-    const isPaid = order.paymentStatus === 'PAID' || order.paymentStatus === 'SUCCESS';
+    const paymentDetails = formatPaymentDetails(order);
+    const isPaid = paymentDetails.status === 'Paid' || paymentDetails.status === 'Collected';
     const isEligible = isDelivered && isPaid;
 
     return {
@@ -336,13 +345,15 @@ export default function OrderDetailModal({
       case 'NEW':
       case 'PLACED':
       case 'PENDING_ASSIGNMENT':
-      case 'ASSIGNED':
         return {
-          label: 'Mark as Shipped',
+          label: 'Confirm Order',
           nextStatus: 'ACCEPTED_BY_PARTNER',
           icon: Package,
           btnClass: 'bg-[#1677C8] hover:bg-[#1362a4]',
         };
+      case 'CONFIRMED':
+      case 'PROCESSING':
+      case 'ASSIGNED':
       case 'ACCEPTED_BY_PARTNER':
       case 'SHIPPED':
         return {
@@ -448,7 +459,7 @@ export default function OrderDetailModal({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-bold text-[#16324F]">
-                    Order #{order ? order.id.slice(-6).toUpperCase() : '...'}
+                    Order {order ? formatOrderId(order.id) : '...'}
                   </h2>
                   {order && (
                     <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${statusConfig.badgeClass}`}>
@@ -519,7 +530,7 @@ export default function OrderDetailModal({
                       
                       let stageTime: string | null = null;
                       if (step.key === 'PLACED') stageTime = timelineTimestamps.placed;
-                      else if (step.key === 'SHIPPED') stageTime = timelineTimestamps.shipped;
+                      else if (step.key === 'CONFIRMED') stageTime = timelineTimestamps.confirmed;
                       else if (step.key === 'OUT_FOR_DELIVERY') stageTime = timelineTimestamps.outForDelivery;
                       else if (step.key === 'DELIVERED') stageTime = timelineTimestamps.delivered;
 
@@ -676,20 +687,21 @@ export default function OrderDetailModal({
                     <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
                       Payment Details
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      profitEconomics?.isPaid
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                        : 'bg-amber-50 text-amber-700 border border-amber-100'
-                    }`}>
-                      {profitEconomics?.isPaid ? 'PAID' : 'PENDING'}
-                    </span>
+                    {(() => {
+                      const pmt = getPaymentStatusLabel(order);
+                      return (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${pmt.badgeClass}`}>
+                          {pmt.label}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
                     <div>
                       <span className="text-[#64748B] block">Payment Method:</span>
                       <span className="font-semibold text-[#16324F]">
-                        {order.paymentMethod ? order.paymentMethod.replace(/_/g, ' ') : 'Not recorded'}
+                        {formatPaymentDetails(order).method}
                       </span>
                     </div>
 

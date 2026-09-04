@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatOrderStatus, formatDeliverySlot, formatPaymentDetails } from './orderFormatters';
+import { formatOrderId, formatOrderStatus, formatDeliverySlot, formatPaymentDetails } from './orderFormatters';
 import { EDROPS_LOGO_PNG } from '../assets/logoBase64';
 
 export function generateOrderInvoice(order: any) {
@@ -99,8 +99,8 @@ export function generateOrderInvoice(order: any) {
   doc.setFontSize(8.5);
   doc.setTextColor(darkSlate[0], darkSlate[1], darkSlate[2]);
 
-  const shortId = (order.id || '').substring(0, 8).toUpperCase();
-  doc.text(`Order ID: #${shortId}`, rightColX, metaY + 5);
+  const canonicalId = formatOrderId(order.id);
+  doc.text(`Order ID: ${canonicalId}`, rightColX, metaY + 5);
   
   const paymentDetails = formatPaymentDetails(order);
   doc.text(`Payment: ${paymentDetails.fullLabel}`, rightColX, metaY + 9.5);
@@ -237,5 +237,5 @@ export function generateOrderInvoice(order: any) {
   );
 
   // Save the generated PDF
-  doc.save(`Edrops-Order-${shortId}.pdf`);
+  doc.save(`Edrops-Order-${canonicalId}.pdf`);
 }

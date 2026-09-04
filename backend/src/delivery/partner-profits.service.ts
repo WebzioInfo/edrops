@@ -279,7 +279,7 @@ export class PartnerProfitsService {
         }
       }
 
-      const orderNumber = order ? `#ORD-${order.id.slice(0, 6).toUpperCase()}` : `#DEL-${d.id.slice(0, 6).toUpperCase()}`;
+      const orderNumber = order ? order.id.slice(0, 8).toUpperCase() : d.id.slice(0, 8).toUpperCase();
 
       transactions.push({
         id: d.id,
@@ -379,7 +379,7 @@ export class PartnerProfitsService {
       transactions.push({
         id: ord.id,
         orderId: ord.id,
-        orderNumber: `#ORD-${ord.id.slice(0, 6).toUpperCase()}`,
+        orderNumber: ord.id.slice(0, 8).toUpperCase(),
         date: ord.createdAt.toISOString(),
         customerName,
         customerPhone,

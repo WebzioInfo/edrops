@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { formatOrderId } from '../../../utils/orderFormatters';
 import type { DeliveryTask } from './Overview';
 
 interface ProfitsProps {
@@ -86,7 +87,7 @@ export default function Profits({ tasks = [] }: ProfitsProps) {
     return rawTransactions.filter((tx) => {
       const matchesSearch =
         !term ||
-        tx.orderNumber.toLowerCase().includes(term) ||
+        formatOrderId(tx.orderNumber || tx.orderId || tx.id).toLowerCase().includes(term) ||
         tx.customerName.toLowerCase().includes(term) ||
         tx.customerPhone.includes(term) ||
         tx.address.toLowerCase().includes(term);
@@ -399,7 +400,7 @@ export default function Profits({ tasks = [] }: ProfitsProps) {
                         {/* Order */}
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span className="font-mono font-bold text-[#1677C8] text-xs">
-                            {tx.orderNumber}
+                            {formatOrderId(tx.orderNumber || tx.orderId || tx.id)}
                           </span>
                         </td>
 
@@ -487,7 +488,7 @@ export default function Profits({ tasks = [] }: ProfitsProps) {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="font-mono font-bold text-xs text-[#1677C8]">{tx.orderNumber}</span>
+                      <span className="font-mono font-bold text-xs text-[#1677C8]">{formatOrderId(tx.orderNumber || tx.orderId || tx.id)}</span>
                       <p className="text-xs font-bold text-[#16324F] mt-0.5">{tx.customerName}</p>
                     </div>
                     <div className="text-right">
@@ -602,7 +603,7 @@ export default function Profits({ tasks = [] }: ProfitsProps) {
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-[#16324F]">Profit Calculation Breakdown</h3>
                   <span className="font-mono text-xs font-bold text-[#1677C8] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
-                    {selectedTx.orderNumber}
+                    {formatOrderId(selectedTx.orderNumber || selectedTx.orderId || selectedTx.id)}
                   </span>
                 </div>
                 <p className="text-xs text-[#64748B] mt-0.5">

@@ -593,10 +593,7 @@ export class OrderService {
         if (paymentConfirmation) {
           if (paymentConfirmation.paymentReceived) {
             targetPaymentStatus = PaymentStatus.SUCCESS;
-            if (!paymentConfirmation.paymentMethod) {
-              throw new BadRequestException('Payment method is required when marking payment as received.');
-            }
-            targetPaymentMethod = paymentConfirmation.paymentMethod;
+            targetPaymentMethod = paymentConfirmation.paymentMethod || order.paymentMethod || 'COD';
 
             const paidAmt = paymentConfirmation.amountReceived !== undefined && paymentConfirmation.amountReceived !== null
               ? Number(paymentConfirmation.amountReceived)

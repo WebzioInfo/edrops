@@ -20,6 +20,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { EdropsLogo } from '../../components/Logo';
+import { formatOrderId } from '../../utils/orderFormatters';
 
 import Overview from './pages/Overview';
 import Customers from './pages/Customers';
@@ -558,7 +559,7 @@ export default function DeliveryPartnerPortal() {
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-[#16324F]">Submit Delivery Log</h3>
                   <p className="text-xs text-[#64748B] mt-0.5">
-                    Stop #{activeTask.id.slice(-6).toUpperCase()} • {activeTask.customer?.user?.firstName || 'Customer'}
+                    Stop {formatOrderId(activeTask.id)} • {activeTask.customer?.user?.firstName || 'Customer'}
                   </p>
                 </div>
                 <button

@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../api/client';
-import { formatOrderStatus } from '../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus } from '../../utils/orderFormatters';
 
 export default function CustomerProfile({ basePath }: { basePath: string }) {
   const { id } = useParams();
@@ -109,7 +109,7 @@ export default function CustomerProfile({ basePath }: { basePath: string }) {
                   {customer.orders.slice(0,5).map((order: any) => (
                     <div key={order.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0 last:pb-0">
                       <div>
-                        <p className="font-medium text-gray-800">#{order.id.substring(0,8)}</p>
+                        <p className="font-medium text-gray-800">{formatOrderId(order.id)}</p>
                         <p className="text-gray-500 text-xs">{new Date(order.createdAt).toLocaleString()}</p>
                       </div>
                       <div className="text-right">

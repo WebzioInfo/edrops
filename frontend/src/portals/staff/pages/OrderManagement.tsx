@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import OrderRow, { type DeliveryPartner } from '../components/OrderRow';
+import { formatOrderId } from '../../../utils/orderFormatters';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'ACTIVE' | 'DELIVERED' | 'CANCELLED';
 
@@ -50,7 +51,7 @@ export default function OrderManagement() {
     totalPages: 1,
   });
 
-  const [stats, setStats] = useState<OrderStats>({
+  const [, setStats] = useState<OrderStats>({
     totalOrders: 0,
     pendingCount: 0,
     activeCount: 0,
@@ -127,16 +128,29 @@ export default function OrderManagement() {
   }, [loadOrders]);
 
   // Handle status update
-  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
+  const handleStatusUpdate = async (orderId: string, newStatus: string, paymentConfirmation?: any) => {
     try {
       // Optimistic update
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      setOrders(prev => prev.map(o => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            status: newStatus,
+            paymentStatus: paymentConfirmation?.paymentReceived ? 'SUCCESS' : o.paymentStatus,
+            paymentCollected: !!paymentConfirmation?.paymentReceived,
+          };
+        }
+        return o;
+      }));
 
       await fetchWithAuth(`/staff/orders/${orderId}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({
+          status: newStatus,
+          paymentConfirmation,
+        }),
       });
-      toast.success(`Order #${orderId.substring(0, 8).toUpperCase()} updated successfully`);
+      toast.success(`Order ${formatOrderId(orderId)} updated successfully`);
       loadOrders(true);
     } catch (err: any) {
       toast.error(err.message || 'Failed to update status');
@@ -248,43 +262,16 @@ export default function OrderManagement() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-5 text-[#245361] sm:px-6 lg:px-10 space-y-6">
-      {/* Top Header & Stat Cards */}
-      <section className="bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-[#E2E8F0]">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#EBF5FB] px-4 py-2 text-xs font-black uppercase tracking-wider text-[#2D79A8]">
-              <ShoppingCart className="h-4 w-4" />
-              Live Orders
-            </span>
-            <h1 className="mt-4 text-2xl sm:text-3xl font-black tracking-tight text-[#245361]">
-              Order Management
-            </h1>
-            <p className="mt-1 text-xs sm:text-sm text-[#64748B]">
-              Real-time feed of all customer orders. Updates automatically.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-2xl bg-[#F8FAFC] p-3.5 text-center min-w-[100px] border border-[#E2E8F0]">
-              <p className="text-xl sm:text-2xl font-black text-amber-600">{stats.pendingCount}</p>
-              <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#64748B]">New / Placed</p>
-            </div>
-            <div className="rounded-2xl bg-[#F8FAFC] p-3.5 text-center min-w-[100px] border border-[#E2E8F0]">
-              <p className="text-xl sm:text-2xl font-black text-[#2D79A8]">{stats.activeCount}</p>
-              <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#64748B]">Active</p>
-            </div>
-            <div className="rounded-2xl bg-[#F8FAFC] p-3.5 text-center min-w-[100px] border border-[#E2E8F0]">
-              <p className="text-xl sm:text-2xl font-black text-[#2D79A8]">{stats.todayCount}</p>
-              <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#64748B]">Today's</p>
-            </div>
-            <div className="rounded-2xl bg-[#F8FAFC] p-3.5 text-center min-w-[100px] border border-[#E2E8F0]">
-              <p className="text-xl sm:text-2xl font-black text-emerald-600">₹{stats.totalRevenue.toLocaleString('en-IN')}</p>
-              <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#64748B]">Revenue</p>
-            </div>
-          </div>
-        </div>
-      </section>
+    <main className="min-h-screen px-4 py-5 text-[#245361] sm:px-6 lg:px-10 space-y-4">
+      {/* Header (Plain text, no card wrapper) */}
+      <div className="pt-1 pb-0.5">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#245361]">
+          Order Management
+        </h1>
+        <p className="mt-1 text-xs sm:text-sm text-[#64748B]">
+          Real-time feed of all customer orders. Updates automatically.
+        </p>
+      </div>
 
       {/* Orders List & Controls Container */}
       <section className="bg-white rounded-3xl shadow-xs border border-[#E2E8F0] overflow-hidden">

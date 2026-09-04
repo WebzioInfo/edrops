@@ -23,7 +23,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { useSocket } from '../../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { formatOrderStatus, formatDeliverySlot, formatPaymentDetails } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus, formatDeliverySlot, formatPaymentDetails } from '../../../utils/orderFormatters';
 import { generateOrderInvoice } from '../../../utils/InvoiceGenerator';
 
 export default function OrderDetails() {
@@ -204,7 +204,7 @@ export default function OrderDetails() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-black text-[#0F172A]">
-                  Order #{order.id.substring(0, 8).toUpperCase()}
+                  Order {formatOrderId(order.id)}
                 </h1>
                 <button
                   onClick={copyOrderId}

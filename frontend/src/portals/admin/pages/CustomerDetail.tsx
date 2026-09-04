@@ -3,7 +3,7 @@ import { ArrowLeft, Wallet, Package, ShoppingBag, Clock, ShieldCheck, LifeBuoy }
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { formatOrderStatus } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
 
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -130,7 +130,7 @@ export default function CustomerDetail() {
                   {customer.orders?.length > 0 ? (
                     customer.orders.map((order: any) => (
                       <tr key={order.id} className="border-b border-slate-100 last:border-0">
-                        <td className="py-3 px-2 font-bold text-slate-700">{order.id.split('-')[0].toUpperCase()}</td>
+                        <td className="py-3 px-2 font-bold text-slate-700">{formatOrderId(order.id)}</td>
                         <td className="py-3 px-2 text-slate-500 text-xs">{new Date(order.createdAt).toLocaleDateString()}</td>
                         <td className="py-3 px-2 font-black text-slate-700">₹{order.totalAmount}</td>
                         <td className="py-3 px-2">

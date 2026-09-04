@@ -15,6 +15,7 @@ import OrderDetailModal, {
   type OrderDetail,
   getOrderStatusConfig,
 } from '../components/OrderDetailModal';
+import { formatOrderId, getPaymentStatusLabel } from '../../../utils/orderFormatters';
 
 type TabFilter = 'ALL' | 'PENDING' | 'DELIVERED';
 
@@ -67,8 +68,8 @@ export default function Orders() {
     if (!socket) return;
 
     const handleOrderAssigned = (data: any) => {
-      const orderShortId = data?.id ? String(data.id).slice(-6) : '';
-      toast.success(`New order assigned${orderShortId ? ` (#${orderShortId})` : ''}!`, { icon: '🛵' });
+      const orderShortId = data?.id ? formatOrderId(data.id) : '';
+      toast.success(`New order assigned${orderShortId ? ` (${orderShortId})` : ''}!`, { icon: '🛵' });
       loadOrders(true);
     };
 
@@ -311,7 +312,7 @@ export default function Orders() {
                     <tr key={order.id} className="hover:bg-blue-50/30 transition-colors">
                       {/* Order ID */}
                       <td className="py-3.5 px-4 font-mono font-bold text-[#16324F]">
-                        #{order.id.slice(-6).toUpperCase()}
+                        {formatOrderId(order.id)}
                       </td>
 
                       {/* Customer */}
@@ -354,17 +355,16 @@ export default function Orders() {
                             <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
                             <span>{statusConfig.label}</span>
                           </span>
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                              order.paymentStatus === 'PAID' || order.paymentStatus === 'SUCCESS'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
-                            }`}
-                          >
-                            {order.paymentStatus === 'PAID' || order.paymentStatus === 'SUCCESS'
-                              ? 'PAID'
-                              : 'PAYMENT PENDING'}
-                          </span>
+                          {(() => {
+                            const pmt = getPaymentStatusLabel(order);
+                            return (
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold ${pmt.badgeClass}`}
+                              >
+                                {pmt.label}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </td>
 
@@ -435,7 +435,7 @@ export default function Orders() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-[#64748B]">
-                          #{order.id.slice(-6).toUpperCase()}
+                          {formatOrderId(order.id)}
                         </span>
                         <h3 className="text-sm font-bold text-[#16324F]">{customerName}</h3>
                       </div>
@@ -452,17 +452,16 @@ export default function Orders() {
                         <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
                         <span>{statusConfig.label}</span>
                       </span>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold ${
-                          order.paymentStatus === 'PAID' || order.paymentStatus === 'SUCCESS'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}
-                      >
-                        {order.paymentStatus === 'PAID' || order.paymentStatus === 'SUCCESS'
-                          ? 'PAID'
-                          : 'PAYMENT PENDING'}
-                      </span>
+                      {(() => {
+                        const pmt = getPaymentStatusLabel(order);
+                        return (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold ${pmt.badgeClass}`}
+                          >
+                            {pmt.label}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 

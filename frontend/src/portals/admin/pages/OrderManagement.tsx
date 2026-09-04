@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import { Truck, CheckSquare, Square, Edit3 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { formatOrderStatus } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
 
 export default function OrderManagement() {
   const queryClient = useQueryClient();
@@ -128,7 +128,7 @@ export default function OrderManagement() {
                         </button>
                       </td>
                       <td className="py-4 px-4">
-                        <p className="font-bold text-slate-800">{order.id.split('-')[0].toUpperCase()}</p>
+                        <p className="font-bold text-slate-800">{formatOrderId(order.id)}</p>
                         <p className="text-[10px] text-slate-500">{order.type}</p>
                       </td>
                       <td className="py-4 px-4">

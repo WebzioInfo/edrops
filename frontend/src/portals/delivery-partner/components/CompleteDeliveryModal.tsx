@@ -12,6 +12,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { OrderDetail } from './OrderDetailModal';
+import { formatOrderId } from '../../../utils/orderFormatters';
 
 interface CompleteDeliveryModalProps {
   order: OrderDetail | null;
@@ -30,7 +31,9 @@ export default function CompleteDeliveryModal({
   onClose,
   onConfirm,
 }: CompleteDeliveryModalProps) {
-  const isAlreadyPaid = order?.paymentStatus === 'PAID' || order?.paymentStatus === 'SUCCESS';
+  const rawMethod = (order?.paymentMethod || '').toUpperCase();
+  const isCOD = rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY' || rawMethod.includes('COD') || rawMethod.includes('CASH');
+  const isAlreadyPaid = !isCOD && (order?.paymentStatus === 'PAID' || order?.paymentStatus === 'SUCCESS');
 
   const [paymentReceived, setPaymentReceived] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<string>('CASH');
@@ -107,7 +110,7 @@ export default function CompleteDeliveryModal({
             <div className="flex items-center gap-2">
               <h3 className="text-base font-bold text-[#16324F]">Complete Delivery</h3>
               <span className="font-mono text-xs font-bold text-[#1677C8] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
-                #{order.id.slice(-6).toUpperCase()}
+                {formatOrderId(order.id)}
               </span>
             </div>
             <p className="text-xs text-[#64748B] mt-0.5">
