@@ -300,10 +300,10 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
       {/* ========================================================================= */}
       {/* AUTH CONTAINER (TRUE 100vw x 100dvh on mobile; Centered card on desktop) */}
       {/* ========================================================================= */}
-      <div className="w-full h-full lg:h-[620px] lg:max-w-[450px] flex flex-col bg-white lg:rounded-[32px] lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] overflow-hidden relative">
+      <div className="w-full h-full lg:h-[720px] lg:max-h-[92vh] lg:max-w-[460px] flex flex-col bg-white lg:rounded-[32px] lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] overflow-hidden relative">
         
         {/* ========================================================================= */}
-        {/* 1. OVERLAPPING COLORED HEADER BANNER (Consistent Logo Across All States) */}
+        {/* 1. OVERLAPPING COLORED HEADER BANNER (Consistent Logo & Tab Switcher)    */}
         {/* ========================================================================= */}
         <div className="w-full h-[20dvh] min-h-[120px] max-h-[155px] lg:h-32 bg-gradient-to-br from-[#00AEEF] via-[#0088CC] to-[#0B3B5C] relative px-6 pt-5 pb-8 flex items-start justify-between overflow-hidden shrink-0">
           
@@ -315,14 +315,47 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
             </svg>
           </div>
 
-          {/* Top Bar: Always Logo on Left, Badge on Right */}
-          <div className="relative z-10 w-full flex items-center justify-between">
-            <button onClick={() => navigate('/')} className="cursor-pointer flex items-center focus:outline-none">
+          {/* Top Bar: Logo on Left, Segmented Tab Switcher on Right */}
+          <div className="relative z-10 w-full flex items-center justify-between gap-3">
+            <button onClick={() => navigate('/')} className="cursor-pointer flex items-center focus:outline-none shrink-0">
               <EdropsLogo variant="white" className="h-6 sm:h-7 w-auto drop-shadow-sm" />
             </button>
 
-            <div className="px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-md text-white text-[11px] font-semibold tracking-wide">
-              Edrops
+            {/* Segmented Sign In / Sign Up Switcher on colored header */}
+            <div className="flex items-center p-1 rounded-full bg-white/20 backdrop-blur-md border border-white/25 shadow-inner">
+              <button
+                type="button"
+                onClick={() => handleState('signin')}
+                className={`relative px-3.5 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer select-none ${
+                  state === 'signin' ? 'text-slate-900 font-bold' : 'text-white/80 hover:text-white'
+                }`}
+              >
+                {state === 'signin' && (
+                  <motion.div
+                    layoutId="header-auth-pill"
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+                    className="absolute inset-0 bg-white rounded-full shadow-sm"
+                  />
+                )}
+                <span className="relative z-10">Sign In</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleState('signup')}
+                className={`relative px-3.5 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer select-none ${
+                  state === 'signup' ? 'text-slate-900 font-bold' : 'text-white/80 hover:text-white'
+                }`}
+              >
+                {state === 'signup' && (
+                  <motion.div
+                    layoutId="header-auth-pill"
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+                    className="absolute inset-0 bg-white rounded-full shadow-sm"
+                  />
+                )}
+                <span className="relative z-10">Sign Up</span>
+              </button>
             </div>
           </div>
         </div>
@@ -342,7 +375,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.28, ease: easeBezier }}
-                className="w-full flex-1 flex flex-col overflow-y-auto no-scrollbar"
+                className="w-full flex-1 flex flex-col justify-center overflow-y-auto no-scrollbar py-2"
               >
                 {redirectParam && (
                   <motion.div
@@ -365,7 +398,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                   </motion.div>
                 )}
 
-                <div className="mb-5 text-center">
+                <div className="mb-6 text-center">
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
                     Welcome to Edrops<br />Login now!
                   </h1>
@@ -395,7 +428,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                         autoComplete="current-password"
                       />
 
-                      <div className="flex items-center justify-between mt-1 mb-5">
+                      <div className="flex items-center justify-between mt-1 mb-6">
                         <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600">
                           <Field
                             type="checkbox"
@@ -416,7 +449,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                       <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full h-12 rounded-2xl bg-[#0088CC] hover:bg-[#0077B3] text-white font-semibold text-base shadow-[0_4px_16px_rgba(0,136,204,0.25)] active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-1"
+                        className="w-full h-12 rounded-2xl bg-[#0088CC] hover:bg-[#0077B3] text-white font-semibold text-base shadow-[0_4px_16px_rgba(0,136,204,0.25)] active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-2"
                       >
                         {isSubmitting ? (
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -424,20 +457,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                           'Continue'
                         )}
                       </button>
-
-                      {/* Toggle Link immediately below button */}
-                      <div className="mt-5 text-center">
-                        <p className="text-sm text-slate-500">
-                          Don't have an account?{' '}
-                          <button
-                            type="button"
-                            onClick={() => handleState('signup')}
-                            className="font-bold text-[#0088CC] hover:underline transition-colors ml-1 cursor-pointer"
-                          >
-                            Create an account
-                          </button>
-                        </p>
-                      </div>
                     </Form>
                   )}
                 </Formik>
@@ -452,7 +471,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.28, ease: easeBezier }}
-                className="w-full flex-1 flex flex-col overflow-y-auto no-scrollbar"
+                className="w-full flex-1 flex flex-col overflow-y-auto no-scrollbar py-1"
               >
                 <div className="mb-4 text-center">
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
@@ -474,7 +493,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                   onSubmit={handleRegisterSubmit}
                 >
                   {({ isSubmitting, values }) => (
-                    <Form>
+                    <Form className="flex flex-col">
                       <Field
                         name="fullName"
                         component={ArimoInput}
@@ -554,7 +573,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                       <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full h-12 rounded-2xl bg-[#0088CC] hover:bg-[#0077B3] text-white font-semibold text-base shadow-[0_4px_16px_rgba(0,136,204,0.25)] active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-1"
+                        className="w-full h-12 rounded-2xl bg-[#0088CC] hover:bg-[#0077B3] text-white font-semibold text-base shadow-[0_4px_16px_rgba(0,136,204,0.25)] active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-1 mb-2"
                       >
                         {isSubmitting ? (
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -562,20 +581,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                           'Sign Up'
                         )}
                       </button>
-
-                      {/* Toggle Link immediately below button */}
-                      <div className="mt-5 text-center">
-                        <p className="text-sm text-slate-500">
-                          Already have an account?{' '}
-                          <button
-                            type="button"
-                            onClick={() => handleState('signin')}
-                            className="font-bold text-[#0088CC] hover:underline transition-colors ml-1 cursor-pointer"
-                          >
-                            Log in
-                          </button>
-                        </p>
-                      </div>
                     </Form>
                   )}
                 </Formik>
