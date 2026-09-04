@@ -80,7 +80,7 @@ export default function Shop() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 lg:px-8 bg-[#F8FAFC] min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-[#F8FAFC] min-h-screen">
       
       {/* Hero Banner */}
       <AnimatePresence>
@@ -174,20 +174,20 @@ export default function Shop() {
       </section>
 
       {/* Responsive Dense Product Grid */}
-      <section>
+      <section className="w-full">
         {prodLoading ? (
-          <div className="flex justify-center py-20 w-full">
+          <div className="flex justify-center items-center py-24 w-full">
             <LoadingSpinner size="md" label="Loading catalog..." />
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4 lg:gap-5 w-full">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6 w-full">
             {products?.map((product: any, idx: number) => (
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.03, duration: 0.2 }}
                 key={product.id}
-                className="h-full w-full"
+                className="h-full w-full flex"
               >
                 <ProductCard
                   product={product}

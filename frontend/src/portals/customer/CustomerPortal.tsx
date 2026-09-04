@@ -54,7 +54,11 @@ const mobileMoreNavItems = [
 ];
 
 function CustomerLoader() {
-  return <LoadingSpinner fullPage label="Loading portal..." />;
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <LoadingSpinner fullPage label="Loading portal..." />
+    </div>
+  );
 }
 
 export default function CustomerPortal() {

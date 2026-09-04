@@ -73,4 +73,16 @@ export class AuthController {
   logout() {
     return { success: true, message: 'Logged out successfully' };
   }
+
+  @Post('google')
+  googleAuth(@Body() body: { idToken?: string; token?: string }) {
+    const token = body.idToken || body.token;
+    return this.authService.googleAuth(token as string);
+  }
+
+  @Post('complete-phone')
+  completePhone(@Body() body: { tempToken?: string; temp_token?: string; phone: string }) {
+    const token = body.tempToken || body.temp_token;
+    return this.authService.completePhone(token as string, body.phone);
+  }
 }

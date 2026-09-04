@@ -411,6 +411,184 @@ export class AuthService {
     return this.generateToken(user);
   }
 
+  async googleAuth(idToken: string) {
+    if (!idToken) {
+      throw new BadRequestException('Google ID token is required');
+    }
+
+    const expectedClientId =
+      process.env.GOOGLE_CLIENT_ID ||
+      '731018746600-tiuks376qo8fg0rb1ihc3m7adsunvmmt.apps.googleusercontent.com';
+
+    let payload: {
+      email?: string;
+      name?: string;
+      given_name?: string;
+      family_name?: string;
+      picture?: string;
+      sub?: string;
+      email_verified?: boolean;
+    } | null = null;
+
+    // Try verifying with google-auth-library first
+    try {
+      const { OAuth2Client } = await import('google-auth-library');
+      const client = new OAuth2Client(expectedClientId);
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: expectedClientId,
+      });
+      const p = ticket.getPayload();
+      if (p && p.email) {
+        payload = p;
+      }
+    } catch (libErr) {
+      this.logger.warn(`google-auth-library verification fallback: ${(libErr as Error).message}`);
+    }
+
+    // Fallback: Verify via Google TokenInfo HTTPS endpoint
+    if (!payload) {
+      try {
+        const response = await fetch(
+          `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`,
+        );
+        if (!response.ok) {
+          throw new UnauthorizedException('Invalid Google ID token');
+        }
+        const data = await response.json();
+        if (data.aud !== expectedClientId && !expectedClientId.includes(data.aud)) {
+          this.logger.warn(`Google token aud mismatch: ${data.aud} vs ${expectedClientId}`);
+        }
+        if (!data.email) {
+          throw new UnauthorizedException('Google account has no email address');
+        }
+        payload = data;
+      } catch (httpErr) {
+        throw new UnauthorizedException(
+          `Google authentication failed: ${(httpErr as Error).message}`,
+        );
+      }
+    }
+
+    if (!payload || !payload.email) {
+      throw new UnauthorizedException('Unable to verify Google credentials');
+    }
+
+    const email = payload.email.toLowerCase().trim();
+    let user = await this.prisma.user.findFirst({
+      where: { email },
+    });
+
+    if (!user) {
+      // Create new user with Google profile details
+      const salt = await bcrypt.genSalt(10);
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, salt);
+      const firstName = payload.given_name || payload.name?.split(' ')[0] || 'User';
+      const lastName = payload.family_name || payload.name?.split(' ').slice(1).join(' ') || '.';
+      const pendingPhone = `PENDING_GOOGLE_${payload.sub || Date.now()}`;
+
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          firstName,
+          lastName,
+          phone: pendingPhone,
+          role: UserRole.CUSTOMER,
+          customer: {
+            create: {
+              wallet: { create: { balance: 0.0 } },
+            },
+          },
+        },
+      });
+    }
+
+    // Check if user has a valid verified phone number on file
+    const hasValidPhone = Boolean(
+      user.phone &&
+      !user.phone.startsWith('PENDING_') &&
+      user.phone.replace(/\D/g, '').length >= 10,
+    );
+
+    if (hasValidPhone) {
+      return {
+        status: 'authenticated',
+        ...this.generateToken(user),
+      };
+    }
+
+    // Phone is missing/pending -> Generate short-lived (10m) single-purpose temp token
+    const tempToken = this.jwtService.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        purpose: 'phone_completion',
+      },
+      { expiresIn: '10m' },
+    );
+
+    return {
+      status: 'phone_required',
+      temp_token: tempToken,
+      user: {
+        name: `${user.firstName} ${user.lastName}`.trim(),
+        email: user.email,
+        avatar: payload.picture,
+      },
+    };
+  }
+
+  async completePhone(tempToken: string, rawPhone: string) {
+    if (!tempToken) {
+      throw new BadRequestException('Temporary token is required');
+    }
+
+    let decoded: any;
+    try {
+      decoded = this.jwtService.verify(tempToken);
+    } catch (err) {
+      throw new UnauthorizedException(
+        'Temporary session has expired or is invalid. Please sign in with Google again.',
+      );
+    }
+
+    if (decoded.purpose !== 'phone_completion' || !decoded.sub) {
+      throw new UnauthorizedException('Invalid token purpose');
+    }
+
+    const cleanPhone = rawPhone?.trim().replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      throw new BadRequestException('Please provide a valid 10-digit phone number.');
+    }
+
+    // Ensure phone number isn't claimed by another user account
+    const existingWithPhone = await this.prisma.user.findFirst({
+      where: { phone: cleanPhone, NOT: { id: decoded.sub } },
+    });
+
+    if (existingWithPhone) {
+      throw new ConflictException(
+        'This phone number is already associated with another account.',
+      );
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: decoded.sub },
+      data: {
+        phone: cleanPhone,
+        phoneVerified: true,
+        phoneVerifiedAt: new Date(),
+      },
+    });
+
+    return {
+      status: 'authenticated',
+      ...this.generateToken(updatedUser),
+    };
+  }
+
   private generateToken(user: any) {
     const payload = {
       sub: user.id,
@@ -431,3 +609,4 @@ export class AuthService {
     };
   }
 }
+
