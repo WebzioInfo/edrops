@@ -43,13 +43,11 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
-              <Route path="/customer/*" element={
-                <CartProvider>
-                  <CustomerPortal />
-                </CartProvider>
-              } />
-            </Route>
+            <Route path="/customer/*" element={
+              <CartProvider>
+                <CustomerPortal />
+              </CartProvider>
+            } />
 
             <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
               <Route path="/staff/*" element={
@@ -70,7 +68,7 @@ export default function App() {
             </Route>
 
             <Route path="/unauthorized" element={<div className="flex h-screen items-center justify-center font-black text-2xl">Unauthorized Access</div>} />
-            <Route path="/" element={<Navigate to="/customer" replace />} />
+            <Route path="/" element={<Navigate to="/customer/shop" replace />} />
           </Routes>
         </Suspense>
         <PWAInstallPrompt />

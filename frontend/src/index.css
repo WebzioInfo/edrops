@@ -50,6 +50,13 @@
     @apply border-border;
   }
 
+  html,
+  body,
+  #root {
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }

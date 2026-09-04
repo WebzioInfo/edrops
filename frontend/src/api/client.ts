@@ -49,10 +49,13 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
 
     // Standardized Error Interception
     if (response.status === 401 && !endpoint.startsWith('/auth/')) {
-      toast.error('Your session has expired. Please sign in again.');
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem('edrops_user');
-      window.location.href = '/login';
+      const storedToken = localStorage.getItem(TOKEN_KEY);
+      if (storedToken) {
+        toast.error('Your session has expired. Please sign in again.');
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem('edrops_user');
+        window.location.href = '/login';
+      }
     } else if (response.status === 403) {
       toast.error('You do not have permission to perform this action.');
     } else if (response.status >= 500) {

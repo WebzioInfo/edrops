@@ -7,11 +7,14 @@ import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCart } from '../../../contexts/CartContext';
+import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import PullToRefresh from '../../../components/pwa/PullToRefresh';
 
 export default function Shop() {
   const { user } = useAuth();
   const { addItem } = useCart();
+  const { requireAuth } = useRequireAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -24,12 +27,12 @@ export default function Shop() {
     localStorage.setItem('edrops_banner_closed', 'true');
   };
 
-  const { data: categories } = useQuery({
+  const { data: categories, refetch: refetchCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: () => fetchWithAuth('/catalog/categories'),
   });
 
-  const { data: products, isLoading: prodLoading } = useQuery({
+  const { data: products, isLoading: prodLoading, refetch: refetchProducts } = useQuery({
     queryKey: ['products', selectedCategory, search],
     queryFn: () => {
       let url = '/catalog/products?';
@@ -39,25 +42,44 @@ export default function Shop() {
     },
   });
 
+  const handleRefresh = async () => {
+    await Promise.all([
+      refetchProducts(),
+      refetchCategories(),
+    ]);
+  };
+
   const handleAddToCart = (product: any) => {
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      isJar: product.isJar,
-      depositAmount: product.depositAmount,
-      imageUrl: product.images?.[0]?.url,
-      brandName: product.brand?.name,
-    });
-    toast.success(`Added ${product.name} to cart!`);
+    requireAuth(
+      () => {
+        addItem({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          isJar: product.isJar,
+          depositAmount: product.depositAmount,
+          imageUrl: product.images?.[0]?.url,
+          brandName: product.brand?.name,
+        });
+        toast.success(`Added ${product.name} to cart!`);
+      },
+      { redirect: '/customer/shop', reason: 'cart' }
+    );
   };
 
   const handleBuyNow = (product: any) => {
-    navigate(`/customer/checkout?buyNow=true&productId=${product.id}&quantity=1&name=${encodeURIComponent(product.name)}&price=${product.price}&imageUrl=${encodeURIComponent(product.images[0]?.url || '')}&brandName=${encodeURIComponent(product.brand?.name || '')}`);
+    const buyNowUrl = `/customer/checkout?buyNow=true&productId=${product.id}&quantity=1&name=${encodeURIComponent(product.name)}&price=${product.price}&imageUrl=${encodeURIComponent(product.images?.[0]?.url || '')}&brandName=${encodeURIComponent(product.brand?.name || '')}`;
+    requireAuth(
+      () => {
+        navigate(buyNowUrl);
+      },
+      { redirect: buyNowUrl, reason: 'purchase' }
+    );
   };
 
   return (
-    <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 bg-[#F8FAFC] min-h-screen">
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 bg-[#F8FAFC] min-h-screen">
       
       {/* Hero Banner */}
       <AnimatePresence>
@@ -80,7 +102,7 @@ export default function Shop() {
                 Fresh water, <br /><span className="text-[#1E88E5]">delivered instantly.</span>
               </h1>
               <p className="mt-4 text-[14px] font-medium text-[#64748B]">
-                Welcome back, {user?.firstName}. Browse our premium brands and request a delivery in seconds. No subscriptions required.
+                Welcome{user?.firstName ? `, ${user.firstName}` : ' to Edrops'}. Browse our premium brands and request a delivery in seconds. No subscriptions required.
               </p>
             </div>
             <div className="absolute -right-10 -bottom-10 opacity-10 hidden md:block z-0 pointer-events-none">
@@ -229,5 +251,6 @@ export default function Shop() {
         )}
       </section>
     </div>
+    </PullToRefresh>
   );
 }

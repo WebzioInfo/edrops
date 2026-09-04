@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-hot-toast';
@@ -40,7 +40,7 @@ const forgotSchema = Yup.object({
 });
 
 const ROLE_PATHS: Record<string, string> = {
-  CUSTOMER: '/customer',
+  CUSTOMER: '/customer/shop',
   STAFF: '/staff',
   ADMIN: '/admin',
   DELIVERY_PARTNER: '/delivery-partner',
@@ -162,8 +162,11 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
   };
 
   const [state, setState] = useState<AuthState>(getInitial);
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
-  const from = (location.state as any)?.from?.pathname;
+  
+  const redirectParam = searchParams.get('redirect') || (location.state as any)?.redirect || (location.state as any)?.from?.pathname;
+  const reasonParam = searchParams.get('reason') || (location.state as any)?.reason;
 
   // Forgot password state & countdown
   const [forgotSuccess, setForgotSuccess] = useState(false);
@@ -207,8 +210,14 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
       if (values.rememberMe) localStorage.setItem('edrops_remember', 'true');
       toast.success(`Welcome back, ${response.user.firstName}!`);
 
-      const rolePath = ROLE_PATHS[response.user.role] ?? '/customer';
-      const target = from && from.startsWith(rolePath) ? from : rolePath;
+      const roleDefault = ROLE_PATHS[response.user.role] ?? '/customer/shop';
+      let target = roleDefault;
+      if (redirectParam) {
+        const decoded = decodeURIComponent(redirectParam);
+        if (decoded.startsWith('/') && !decoded.startsWith('//')) {
+          target = decoded;
+        }
+      }
       navigate(target, { replace: true });
     } catch (err: any) {
       toast.error(err.message ?? 'Login failed. Check your credentials.');
@@ -335,6 +344,27 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                 transition={{ duration: 0.28, ease: easeBezier }}
                 className="w-full flex-1 flex flex-col overflow-y-auto no-scrollbar"
               >
+                {redirectParam && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-4 px-3.5 py-2.5 rounded-2xl bg-sky-50 border border-sky-200/80 flex items-center justify-center gap-2 text-xs font-semibold text-[#0088CC] shadow-sm"
+                  >
+                    <Lock className="w-3.5 h-3.5 shrink-0 text-[#0088CC]" />
+                    <span>
+                      {reasonParam === 'purchase'
+                        ? 'Please log in to proceed with your purchase'
+                        : reasonParam === 'cart'
+                        ? 'Please log in to add items to your cart'
+                        : reasonParam === 'checkout'
+                        ? 'Please log in to proceed to checkout'
+                        : reasonParam === 'account'
+                        ? 'Please log in to access your account'
+                        : 'Please log in to continue'}
+                    </span>
+                  </motion.div>
+                )}
+
                 <div className="mb-5 text-center">
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
                     Welcome to Edrops<br />Login now!

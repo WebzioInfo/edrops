@@ -23,11 +23,8 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   const actualUser = user || (localStorage.getItem('edrops_user') ? JSON.parse(localStorage.getItem('edrops_user') as string) : null);
 
   if (!actualToken || !actualUser) {
-    // Redirect them to the /login page, but save the current location they were
-    // trying to go to when they were redirected. This allows us to send them
-    // along to that page after they login, which is a nicer user experience
-    // than dropping them off on the home page.
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const target = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${target}&reason=auth_required`} state={{ from: location }} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(actualUser.role)) {

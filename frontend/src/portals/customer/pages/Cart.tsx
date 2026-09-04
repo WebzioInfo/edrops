@@ -6,8 +6,11 @@ import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 
+import { useRequireAuth } from '../../../hooks/useRequireAuth';
+
 export default function Cart() {
   const { items, returnEmptyJars, removeItem, updateQuantity } = useCart();
+  const { requireAuth } = useRequireAuth();
   const navigate = useNavigate();
   
   const [checkoutItems, setCheckoutItems] = useState(items);
@@ -112,11 +115,16 @@ export default function Cart() {
   };
 
   const handleProceedToCheckout = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      navigate('/customer/checkout');
-      setIsProcessing(false);
-    }, 300);
+    requireAuth(
+      () => {
+        setIsProcessing(true);
+        setTimeout(() => {
+          navigate('/customer/checkout');
+          setIsProcessing(false);
+        }, 300);
+      },
+      { redirect: '/customer/checkout', reason: 'checkout' }
+    );
   };
 
   if (checkoutItems.length === 0) {

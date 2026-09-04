@@ -1,11 +1,12 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { Bell, CalendarDays, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, ShoppingBag, Gift, LifeBuoy } from 'lucide-react';
+import { Bell, CalendarDays, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, ShoppingBag, Gift, LifeBuoy, LogIn } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { EdropsLogo } from '../../components/Logo';
+import ProtectedRoute from '../../components/ProtectedRoute';
 
 const Shop = React.lazy(() => import('./pages/Shop'));
 const Cart = React.lazy(() => import('./pages/Cart'));
@@ -57,14 +58,18 @@ function CustomerLoader() {
 }
 
 export default function CustomerPortal() {
-  const { logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const { totalItems } = useCart();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   
+  const isAuthenticated = Boolean((token || localStorage.getItem('edrops_token')) && (user || localStorage.getItem('edrops_user')));
+
   useEffect(() => {
+    if (!isAuthenticated) return;
+    
     fetchWithAuth('/order')
       .then((orders: any[]) => {
         if (Array.isArray(orders)) {
@@ -81,7 +86,7 @@ export default function CustomerPortal() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <div className="relative min-h-screen pb-24 lg:pb-0 bg-[#F8FAFC] text-[#245361]">
@@ -160,43 +165,59 @@ export default function CustomerPortal() {
                 )}
               </NavLink>
               
-              <button className="relative flex h-10 w-10 items-center justify-center rounded-full transition-colors text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#2D79A8] hidden lg:flex">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-[#EF4444] border border-white"></span>
-              </button>
-            </div>
-
-            {/* Profile Dropdown */}
-            <div className="hidden lg:block relative" ref={profileRef}>
-              <button 
-                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EBF5FB] text-[#2D79A8]">
-                  <User className="h-4 w-4" />
-                </div>
-                <ChevronDown className="h-4 w-4 text-[#64748B] mr-1" />
-              </button>
-              
-              {profileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[#E2E8F0] bg-white shadow-lg overflow-hidden py-1 z-50">
-                  <div className="px-4 py-3 border-b border-[#E2E8F0]">
-                    <p className="text-sm font-semibold text-[#0F172A]">My Account</p>
-                    <p className="text-xs text-[#64748B] truncate">Manage your settings</p>
-                  </div>
-                  <NavLink to="/customer/profile" onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#2D79A8] transition-colors">
-                    <User className="h-4 w-4" /> Profile
-                  </NavLink>
-                  <NavLink to="/customer/support" onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#2D79A8] transition-colors">
-                    <LifeBuoy className="h-4 w-4" /> Support
-                  </NavLink>
-                  <div className="border-t border-[#E2E8F0] my-1"></div>
-                  <button onClick={logout} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-[#FEF2F2] transition-colors text-left cursor-pointer">
-                    <LogOut className="h-4 w-4" /> Logout
-                  </button>
-                </div>
+              {isAuthenticated && (
+                <button className="relative flex h-10 w-10 items-center justify-center rounded-full transition-colors text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#2D79A8] hidden lg:flex">
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-[#EF4444] border border-white"></span>
+                </button>
               )}
             </div>
+
+            {/* Profile Dropdown or Sign In Button */}
+            {isAuthenticated && user ? (
+              <div className="hidden lg:block relative" ref={profileRef}>
+                <button 
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="flex items-center gap-2 pl-2 pr-2 py-1 rounded-full border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EBF5FB] text-[#2D79A8]">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-700 max-w-[80px] truncate">{user.firstName}</span>
+                  <ChevronDown className="h-4 w-4 text-[#64748B]" />
+                </button>
+                
+                {profileDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[#E2E8F0] bg-white shadow-lg overflow-hidden py-1 z-50">
+                    <div className="px-4 py-3 border-b border-[#E2E8F0]">
+                      <p className="text-sm font-semibold text-[#0F172A]">{user.firstName} {user.lastName}</p>
+                      <p className="text-xs text-[#64748B] truncate">{user.email || user.phone}</p>
+                    </div>
+                    <NavLink to="/customer/profile" onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#2D79A8] transition-colors">
+                      <User className="h-4 w-4" /> Profile
+                    </NavLink>
+                    <NavLink to="/customer/orders" onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#2D79A8] transition-colors">
+                      <Package className="h-4 w-4" /> My Orders
+                    </NavLink>
+                    <NavLink to="/customer/support" onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#2D79A8] transition-colors">
+                      <LifeBuoy className="h-4 w-4" /> Support
+                    </NavLink>
+                    <div className="border-t border-[#E2E8F0] my-1"></div>
+                    <button onClick={logout} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-[#FEF2F2] transition-colors text-left cursor-pointer">
+                      <LogOut className="h-4 w-4" /> Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <NavLink
+                to="/login"
+                className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2D79A8] hover:bg-[#245361] text-white text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign In
+              </NavLink>
+            )}
 
           </div>
         </div>
@@ -207,16 +228,18 @@ export default function CustomerPortal() {
           <Routes>
             <Route path="shop" element={<Shop />} />
             <Route path="cart" element={<Cart />} />
-            <Route path="checkout" element={<Checkout />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="wallet" element={<WalletPage />} />
-            <Route path="schedule" element={<SchedulePlanner />} />
-            <Route path="deliveries" element={<TrackPage />} />
-            <Route path="orders" element={<Orders />} />
-            <Route path="order-success" element={<OrderSuccess />} />
-            <Route path="recharge" element={<RechargePage />} />
-            <Route path="referrals" element={<ReferPage />} />
+            <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
+              <Route path="checkout" element={<Checkout />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="wallet" element={<WalletPage />} />
+              <Route path="schedule" element={<SchedulePlanner />} />
+              <Route path="deliveries" element={<TrackPage />} />
+              <Route path="orders" element={<Orders />} />
+              <Route path="order-success" element={<OrderSuccess />} />
+              <Route path="recharge" element={<RechargePage />} />
+              <Route path="referrals" element={<ReferPage />} />
+            </Route>
             <Route path="support" element={<SupportPage />} />
             <Route path="" element={<Navigate to="shop" replace />} />
             <Route path="*" element={<Navigate to="shop" replace />} />
@@ -257,12 +280,22 @@ export default function CustomerPortal() {
               })}
             </div>
             <div className="border-t border-[#E2E8F0] pt-4">
-              <button
-                onClick={() => { setMoreMenuOpen(false); logout(); }}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#FEF2F2] hover:text-[#EF4444] text-[#475569] text-sm font-semibold transition-colors cursor-pointer"
-              >
-                <LogOut className="h-4 w-4" /> Logout
-              </button>
+              {isAuthenticated ? (
+                <button
+                  onClick={() => { setMoreMenuOpen(false); logout(); }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#FEF2F2] hover:text-[#EF4444] text-[#475569] text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" /> Logout
+                </button>
+              ) : (
+                <NavLink
+                  to="/login"
+                  onClick={() => setMoreMenuOpen(false)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#2D79A8] text-white text-sm font-semibold shadow-sm transition-colors cursor-pointer"
+                >
+                  <LogIn className="h-4 w-4" /> Sign In / Sign Up
+                </NavLink>
+              )}
             </div>
           </div>
         </div>

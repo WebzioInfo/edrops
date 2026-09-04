@@ -1,0 +1,184 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { EdropsLogo } from '../Logo';
+
+export interface PullToRefreshProps {
+  children: React.ReactNode;
+  onRefresh: () => Promise<any> | void;
+  disabled?: boolean;
+  threshold?: number;
+  maxPull?: number;
+}
+
+export const PullToRefresh: React.FC<PullToRefreshProps> = ({
+  children,
+  onRefresh,
+  disabled = false,
+  threshold = 60,
+  maxPull = 95,
+}) => {
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const startYRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const isRefreshingRef = useRef(false);
+
+  // Sync ref with state
+  useEffect(() => {
+    isRefreshingRef.current = isRefreshing;
+  }, [isRefreshing]);
+
+  const getScrollTop = (): number => {
+    if (typeof window === 'undefined') return 0;
+    return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  };
+
+  const handleTouchStart = useCallback(
+    (e: TouchEvent) => {
+      if (disabled || isRefreshingRef.current) return;
+      if (getScrollTop() <= 0) {
+        startYRef.current = e.touches[0].clientY;
+        isDraggingRef.current = true;
+      }
+    },
+    [disabled]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (!isDraggingRef.current || disabled || isRefreshingRef.current) return;
+
+      const currentY = e.touches[0].clientY;
+      const rawPull = currentY - startYRef.current;
+
+      if (rawPull > 0 && getScrollTop() <= 0) {
+        // Prevent default browser bounce / pull-down behavior
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        // Apply damping resistance curve: visualPull = min(maxPull, rawPull * 0.48)
+        const visualPull = Math.min(maxPull, rawPull * 0.48);
+        setPullDistance(visualPull);
+        setIsPulling(true);
+      } else if (rawPull <= 0) {
+        isDraggingRef.current = false;
+        setPullDistance(0);
+        setIsPulling(false);
+      }
+    },
+    [disabled, maxPull]
+  );
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!isDraggingRef.current || disabled || isRefreshingRef.current) {
+      isDraggingRef.current = false;
+      return;
+    }
+
+    isDraggingRef.current = false;
+    setIsPulling(false);
+
+    if (pullDistance >= threshold) {
+      setIsRefreshing(true);
+      setPullDistance(threshold);
+
+      try {
+        const startTime = Date.now();
+        await Promise.resolve(onRefresh());
+        // Maintain at least 650ms minimum spin so user sees smooth feedback
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 650) {
+          await new Promise((resolve) => setTimeout(resolve, 650 - elapsed));
+        }
+      } catch (err) {
+        console.error('Pull to refresh failed', err);
+      } finally {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }
+    } else {
+      setPullDistance(0);
+    }
+  }, [disabled, pullDistance, threshold, onRefresh]);
+
+  useEffect(() => {
+    const el = containerRef.current || window;
+
+    const onTouchStart = (e: any) => handleTouchStart(e);
+    const onTouchMove = (e: any) => handleTouchMove(e);
+    const onTouchEnd = () => handleTouchEnd();
+    const onTouchCancel = () => handleTouchEnd();
+
+    el.addEventListener('touchstart', onTouchStart as any, { passive: true });
+    // touchmove needs passive: false to prevent native browser refresh on Android & iOS
+    el.addEventListener('touchmove', onTouchMove as any, { passive: false });
+    el.addEventListener('touchend', onTouchEnd as any, { passive: true });
+    el.addEventListener('touchcancel', onTouchCancel as any, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart as any);
+      el.removeEventListener('touchmove', onTouchMove as any);
+      el.removeEventListener('touchend', onTouchEnd as any);
+      el.removeEventListener('touchcancel', onTouchCancel as any);
+    };
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+
+  // Compute rotation proportional to pull distance (0° to 360°)
+  const rotation = Math.min(360, (pullDistance / threshold) * 360);
+  const opacity = Math.min(1, Math.max(0.2, pullDistance / (threshold * 0.7)));
+  const scale = Math.min(1, Math.max(0.65, 0.65 + (pullDistance / threshold) * 0.35));
+
+  return (
+    <div ref={containerRef} className="relative w-full min-h-full">
+      {/* Pull Indicator Area */}
+      <AnimatePresence>
+        {(pullDistance > 0 || isRefreshing) && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{
+              opacity: isRefreshing ? 1 : opacity,
+              y: pullDistance,
+              transition: isPulling ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 30 },
+            }}
+            exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+            className="fixed top-0 inset-x-0 z-50 flex justify-center items-center pointer-events-none"
+            style={{ height: '0px' }}
+          >
+            <div
+              className="w-11 h-11 rounded-full bg-white/95 backdrop-blur-md shadow-[0_6px_20px_rgba(0,136,204,0.25)] border border-sky-100 flex items-center justify-center transition-transform duration-75"
+              style={{
+                transform: `scale(${scale})`,
+              }}
+            >
+              <div
+                className={`flex items-center justify-center ${isRefreshing ? 'animate-spin' : ''}`}
+                style={{
+                  transform: isRefreshing ? undefined : `rotate(${rotation}deg)`,
+                  transition: isPulling ? 'none' : 'transform 0.2s ease-out',
+                }}
+              >
+                <EdropsLogo variant="icon" size={24} className="h-6 w-6 pointer-events-none" />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content with subtle responsive visual travel */}
+      <motion.div
+        animate={{
+          y: isRefreshing ? threshold * 0.6 : isPulling ? pullDistance * 0.35 : 0,
+          transition: isPulling ? { duration: 0 } : { type: 'spring', stiffness: 350, damping: 28 },
+        }}
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+};
+
+export default PullToRefresh;
