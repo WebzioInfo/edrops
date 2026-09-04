@@ -25,6 +25,7 @@ const PageLoader = () => (
   </div>
 );
 
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { SocketProvider } from './contexts/SocketContext';
@@ -45,44 +46,60 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <DialogProvider>
+          <Toaster
+            position="top-center"
+            reverseOrder={false}
+            toastOptions={{
+              duration: 4000,
+              style: {
+                borderRadius: '12px',
+                background: '#0F172A',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 500,
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                zIndex: 99999,
+              },
+            }}
+          />
           {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
-            <Route path="/customer/*" element={
-              <CartProvider>
-                <CustomerPortal />
-              </CartProvider>
-            } />
+                <Route path="/customer/*" element={
+                  <CartProvider>
+                    <CustomerPortal />
+                  </CartProvider>
+                } />
 
-            <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
-              <Route path="/staff/*" element={
-                <SocketProvider>
-                  <NotificationProvider>
-                    <StaffPortal />
-                  </NotificationProvider>
-                </SocketProvider>
-              } />
-            </Route>
+                <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
+                  <Route path="/staff/*" element={
+                    <SocketProvider>
+                      <NotificationProvider>
+                        <StaffPortal />
+                      </NotificationProvider>
+                    </SocketProvider>
+                  } />
+                </Route>
 
-            <Route element={<ProtectedRoute allowedRoles={['DELIVERY_PARTNER']} />}>
-              <Route path="/delivery-partner/*" element={<DeliveryPartnerPortal />} />
-            </Route>
+                <Route element={<ProtectedRoute allowedRoles={['DELIVERY_PARTNER']} />}>
+                  <Route path="/delivery-partner/*" element={<DeliveryPartnerPortal />} />
+                </Route>
 
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-              <Route path="/admin/*" element={<AdminPortal />} />
-            </Route>
+                <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                  <Route path="/admin/*" element={<AdminPortal />} />
+                </Route>
 
-            <Route path="/unauthorized" element={<div className="flex h-screen items-center justify-center font-black text-2xl">Unauthorized Access</div>} />
-            <Route path="/" element={<Navigate to="/customer/shop" replace />} />
-          </Routes>
-        </Suspense>
-        <PWAInstallPrompt />
+                <Route path="/" element={<Navigate to="/customer/shop" replace />} />
+                <Route path="*" element={<Navigate to="/customer/shop" replace />} />
+              </Routes>
+            </Suspense>
+            <PWAInstallPrompt />
           </BrowserRouter>
         </DialogProvider>
       </AuthProvider>

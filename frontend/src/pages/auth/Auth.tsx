@@ -215,6 +215,10 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
         msg = 'Please log in to proceed to checkout';
       } else if (reason === 'account') {
         msg = 'Please log in to access your account';
+      } else if (reason === 'permission_required') {
+        msg = 'Please log in with an authorized account to access that page';
+      } else if (reason === 'session_expired') {
+        msg = 'Your session has expired. Please log in again';
       }
       setAuthToastMessage(msg);
 
@@ -350,7 +354,24 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
       toast.success(`Welcome back, ${response.user.firstName}!`);
       handleSuccessRedirect(response.user);
     } catch (err: any) {
-      toast.error(err.message ?? 'Login failed. Check your credentials.');
+      const errorMsg = (err?.message || '').toLowerCase();
+      if (
+        errorMsg.includes('invalid credentials') ||
+        errorMsg.includes('wrong password') ||
+        errorMsg.includes('user not found') ||
+        errorMsg.includes('unauthorized') ||
+        errorMsg.includes('401')
+      ) {
+        toast.error('Incorrect email or password. Please try again.');
+      } else if (errorMsg.includes('failed to fetch') || errorMsg.includes('network')) {
+        toast.error('Unable to connect to server. Please check your internet connection.');
+      } else if (errorMsg.includes('deactivated') || errorMsg.includes('inactive')) {
+        toast.error('This account has been deactivated. Please contact support.');
+      } else if (err?.message) {
+        toast.error(err.message);
+      } else {
+        toast.error('Login failed. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }

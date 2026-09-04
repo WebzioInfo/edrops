@@ -22,14 +22,15 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   const actualToken = token || localStorage.getItem('edrops_token');
   const actualUser = user || (localStorage.getItem('edrops_user') ? JSON.parse(localStorage.getItem('edrops_user') as string) : null);
 
+  const target = encodeURIComponent(location.pathname + location.search);
+
   if (!actualToken || !actualUser) {
-    const target = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/login?redirect=${target}&reason=auth_required`} state={{ from: location }} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(actualUser.role)) {
-    // Role not allowed
-    return <Navigate to="/unauthorized" replace />;
+    // Role not allowed: redirect to login with contextual reason
+    return <Navigate to={`/login?redirect=${target}&reason=permission_required`} state={{ from: location }} replace />;
   }
 
   return <Outlet />;

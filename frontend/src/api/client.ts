@@ -51,10 +51,11 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     if (response.status === 401 && !endpoint.startsWith('/auth/')) {
       const storedToken = localStorage.getItem(TOKEN_KEY);
       if (storedToken) {
-        toast.error('Your session has expired. Please sign in again.');
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem('edrops_user');
-        window.location.href = '/login';
+        const currentTarget = window.location.pathname + window.location.search;
+        const target = encodeURIComponent(currentTarget);
+        window.location.href = `/login?redirect=${target}&reason=session_expired`;
       }
     } else if (response.status === 403) {
       toast.error('You do not have permission to perform this action.');
