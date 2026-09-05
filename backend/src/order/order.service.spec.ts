@@ -16,6 +16,7 @@ describe('OrderService', () => {
     prisma = {
       order: {
         findUnique: jest.fn(),
+        findMany: jest.fn(),
         update: jest.fn(),
       },
       user: {
@@ -181,6 +182,104 @@ describe('OrderService', () => {
         'cust-1',
         expect.anything(),
       );
+    });
+  });
+
+  describe('findPartnerAll - delivery partner access scoping', () => {
+    it('should scope queries to assigned partner or partner-created orders for DELIVERY_PARTNER role', async () => {
+      prisma.deliveryPartner.findUnique.mockResolvedValue({
+        id: 'partner-rahman',
+        userId: 'user-rahman',
+      });
+      prisma.order.findMany.mockResolvedValue([
+        { id: 'order-assigned-to-rahman' },
+        { id: 'order-created-by-rahman' },
+      ]);
+
+      const results = await service.findPartnerAll(
+        { status: 'PENDING' },
+        'user-rahman',
+        UserRole.DELIVERY_PARTNER,
+      );
+
+      expect(results).toHaveLength(2);
+      expect(prisma.deliveryPartner.findUnique).toHaveBeenCalledWith({
+        where: { userId: 'user-rahman' },
+      });
+      expect(prisma.order.findMany).toHaveBeenCalled();
+
+      const callArg = prisma.order.findMany.mock.calls[0][0];
+      expect(callArg.where.AND).toBeDefined();
+
+      // Verify partner scope clause is present
+      const partnerScope = callArg.where.AND.find((clause: any) => clause.OR && clause.OR.length > 0);
+      expect(partnerScope).toBeDefined();
+      expect(partnerScope.OR).toEqual(
+        expect.arrayContaining([
+          {
+            delivery: {
+              assignment: {
+                deliveryPartnerId: 'partner-rahman',
+              },
+            },
+          },
+          {
+            history: {
+              some: {
+                changedByUserId: 'user-rahman',
+                reason: { contains: 'Delivery Partner', mode: 'insensitive' },
+              },
+            },
+          },
+          {
+            history: {
+              some: {
+                changedByUserId: 'user-rahman',
+                previousStatus: OrderStatus.NEW,
+                newStatus: OrderStatus.NEW,
+              },
+            },
+          },
+        ]),
+      );
+
+      // Verify status clause is present
+      const statusScope = callArg.where.AND.find((clause: any) => clause.status);
+      expect(statusScope).toBeDefined();
+    });
+
+    it('should return empty list if delivery partner record does not exist for partner user', async () => {
+      prisma.deliveryPartner.findUnique.mockResolvedValue(null);
+
+      const results = await service.findPartnerAll(
+        { status: 'PENDING' },
+        'user-unknown',
+        UserRole.DELIVERY_PARTNER,
+      );
+
+      expect(results).toEqual([]);
+      expect(prisma.order.findMany).not.toHaveBeenCalled();
+    });
+
+    it('should NOT apply partner scoping for staff or admin roles', async () => {
+      prisma.order.findMany.mockResolvedValue([
+        { id: 'all-orders-1' },
+        { id: 'all-orders-2' },
+      ]);
+
+      const results = await service.findPartnerAll(
+        { status: 'PENDING' },
+        'user-staff',
+        UserRole.STAFF,
+      );
+
+      expect(results).toHaveLength(2);
+      expect(prisma.deliveryPartner.findUnique).not.toHaveBeenCalled();
+
+      const callArg = prisma.order.findMany.mock.calls[0][0];
+      // Staff query should only filter by status, not partner assignment
+      const partnerScope = callArg.where?.AND?.find((clause: any) => clause.OR && clause.OR.some((sub: any) => sub.delivery));
+      expect(partnerScope).toBeUndefined();
     });
   });
 });

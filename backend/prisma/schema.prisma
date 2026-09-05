@@ -249,7 +249,7 @@ model Delivery {
   orderId          String?             @unique
   order            Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
-  @@unique([customerId, scheduledFor])
+  @@index([customerId, scheduledFor])
   @@index([status])
 }
 

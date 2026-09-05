@@ -63,7 +63,10 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
       toast.error('Server error. Our team has been notified.', { id: 'server-error-toast' });
     }
 
-    throw new Error(message);
+    const error: any = new Error(message);
+    error.status = response.status;
+    error.handledToast = response.status >= 500 || response.status === 403;
+    throw error;
   }
 
   return response.json();

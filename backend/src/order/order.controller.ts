@@ -43,8 +43,11 @@ export class OrderController {
   findPartnerAll(
     @Query('status') status?: string,
     @Query('search') search?: string,
+    @Req() req?: any,
   ) {
-    return this.orderService.findPartnerAll({ status, search });
+    const userId = req?.user?.sub || req?.user?.id || req?.user?.userId;
+    const userRole = req?.user?.role;
+    return this.orderService.findPartnerAll({ status, search }, userId, userRole);
   }
 
   @Post()

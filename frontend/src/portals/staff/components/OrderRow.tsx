@@ -111,10 +111,15 @@ export default function OrderRow({
     const val = e.target.value;
     if (!val) return;
     setPartnerPromptError(null);
-    await onAssignPartner(order.id, val);
+    try {
+      await onAssignPartner(order.id, val);
+    } catch {
+      // Assignment failed; do not attempt subsequent status transitions
+    }
   };
 
   const handleMoveToOutForDelivery = async () => {
+    if (isAssigning || updatingStatus) return;
     if (!assignedPartnerId) {
       setPartnerPromptError('Please assign a delivery partner before marking this order out for delivery.');
       if (partnerSelectRef.current) {
@@ -134,6 +139,7 @@ export default function OrderRow({
   };
 
   const handleStatusChange = async (targetStatus: string, paymentConfirmation?: any) => {
+    if (isAssigning || updatingStatus) return;
     setPartnerPromptError(null);
     setUpdatingStatus(true);
     try {
@@ -385,7 +391,7 @@ export default function OrderRow({
                       {['NEW', 'PENDING', 'PENDING_ASSIGNMENT', 'PENDING_PAYMENT'].includes(order.status) && (
                         <button
                           type="button"
-                          disabled={updatingStatus}
+                          disabled={updatingStatus || isAssigning}
                           onClick={() => handleStatusChange('ASSIGNED')}
                           className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                         >
@@ -398,7 +404,7 @@ export default function OrderRow({
                       {['ASSIGNED', 'ACCEPTED_BY_PARTNER'].includes(order.status) && (
                         <button
                           type="button"
-                          disabled={updatingStatus}
+                          disabled={updatingStatus || isAssigning}
                           onClick={handleMoveToOutForDelivery}
                           className="w-full px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                         >
@@ -431,7 +437,7 @@ export default function OrderRow({
 
                           <button
                             type="button"
-                            disabled={updatingStatus || (isCOD && !paymentCollected)}
+                            disabled={updatingStatus || isAssigning || (isCOD && !paymentCollected)}
                             onClick={() => {
                               if (isCOD) {
                                 handleStatusChange('DELIVERED', {
@@ -459,7 +465,7 @@ export default function OrderRow({
                       {!isDelivered && !isCancelled && (
                         <button
                           type="button"
-                          disabled={updatingStatus}
+                          disabled={updatingStatus || isAssigning}
                           onClick={() => {
                             if (window.confirm('Are you sure you want to cancel this order?')) {
                               handleStatusChange('CANCELLED');

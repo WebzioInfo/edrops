@@ -37,14 +37,7 @@ export default function Orders() {
 
   // Load Orders from Backend
   const fetchOrders = useCallback(async (): Promise<OrderDetail[]> => {
-    console.log('[Orders] GET /order/partner/all');
-    let data: any;
-    try {
-      data = await fetchWithAuth('/order/partner/all');
-    } catch {
-      console.log('[Orders] Fallback GET /order/staff/all');
-      data = await fetchWithAuth('/order/staff/all');
-    }
+    const data = await fetchWithAuth('/order/partner/all');
 
     if (Array.isArray(data)) {
       return data;

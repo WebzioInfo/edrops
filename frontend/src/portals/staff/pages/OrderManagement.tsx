@@ -200,10 +200,12 @@ export default function OrderManagement() {
           paymentConfirmation,
         }),
       });
-      toast.success(`Order ${formatOrderId(orderId)} updated successfully`);
+      toast.success(`Order ${formatOrderId(orderId)} updated successfully`, { id: 'order-action-toast' });
       loadOrders(true);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update status');
+      if (!err?.handledToast && err?.status !== 500) {
+        toast.error(err.message || 'Failed to update status', { id: 'order-action-toast' });
+      }
       loadOrders(true); // Revert
     }
   };
@@ -214,8 +216,13 @@ export default function OrderManagement() {
     setAssigningOrderId(orderId);
     try {
       const assignedPartner = partners.find(p => p.id === deliveryPartnerId);
-      
-      // Optimistic update
+
+      await fetchWithAuth(`/staff/orders/${orderId}/assign`, {
+        method: 'PATCH',
+        body: JSON.stringify({ deliveryPartnerId }),
+      });
+
+      // Update state only after server successfully persists assignment
       setOrders(prev => prev.map(o => {
         if (o.id === orderId) {
           return {
@@ -234,17 +241,15 @@ export default function OrderManagement() {
         return o;
       }));
 
-      await fetchWithAuth(`/staff/orders/${orderId}/assign`, {
-        method: 'PATCH',
-        body: JSON.stringify({ deliveryPartnerId }),
-      });
-
       const partnerName = assignedPartner ? `${assignedPartner.user.firstName} ${assignedPartner.user.lastName}` : 'Partner';
-      toast.success(`Assigned to ${partnerName}`);
+      toast.success(`Assigned to ${partnerName}`, { id: 'order-action-toast' });
       loadOrders(true);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to assign delivery partner');
+      if (!err?.handledToast && err?.status !== 500) {
+        toast.error(err.message || 'Failed to assign delivery partner', { id: 'order-action-toast' });
+      }
       loadOrders(true); // Revert
+      throw err; // Re-throw so caller in OrderRow can prevent chaining
     } finally {
       setAssigningOrderId(null);
     }

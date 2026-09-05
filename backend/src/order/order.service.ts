@@ -212,31 +212,89 @@ export class OrderService {
     return order;
   }
 
-  async findPartnerAll(query?: { status?: string; search?: string }) {
-    const where: any = {};
+  async findPartnerAll(
+    query?: { status?: string; search?: string },
+    userId?: string,
+    userRole?: string,
+  ) {
+    const andClauses: any[] = [];
+
+    const isStaffOrAdmin =
+      userRole === UserRole.ADMIN ||
+      userRole === UserRole.MANAGER ||
+      userRole === UserRole.STAFF;
+
+    if (!isStaffOrAdmin && userId) {
+      const partner = await this.prisma.deliveryPartner.findUnique({
+        where: { userId },
+      });
+
+      if (!partner) {
+        return [];
+      }
+
+      andClauses.push({
+        OR: [
+          {
+            delivery: {
+              assignment: {
+                deliveryPartnerId: partner.id,
+              },
+            },
+          },
+          {
+            history: {
+              some: {
+                changedByUserId: userId,
+                reason: { contains: 'Delivery Partner', mode: 'insensitive' },
+              },
+            },
+          },
+          {
+            history: {
+              some: {
+                changedByUserId: userId,
+                previousStatus: OrderStatus.NEW,
+                newStatus: OrderStatus.NEW,
+              },
+            },
+          },
+        ],
+      });
+    }
 
     if (query?.status && query.status !== 'ALL') {
       if (query.status === 'PENDING') {
-        where.status = { in: [OrderStatus.NEW, OrderStatus.ASSIGNED, OrderStatus.ACCEPTED_BY_PARTNER, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.PENDING_ASSIGNMENT] };
+        andClauses.push({
+          status: { in: [OrderStatus.NEW, OrderStatus.ASSIGNED, OrderStatus.ACCEPTED_BY_PARTNER, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.PENDING_ASSIGNMENT] },
+        });
       } else if (query.status === 'DELIVERED') {
-        where.status = { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] };
+        andClauses.push({
+          status: { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] },
+        });
       } else {
-        where.status = query.status as OrderStatus;
+        andClauses.push({
+          status: query.status as OrderStatus,
+        });
       }
     }
 
     if (query?.search?.trim()) {
       const q = query.search.trim();
-      where.OR = [
-        { id: { contains: q, mode: 'insensitive' } },
-        { customer: { user: { firstName: { contains: q, mode: 'insensitive' } } } },
-        { customer: { user: { lastName: { contains: q, mode: 'insensitive' } } } },
-        { customer: { user: { phone: { contains: q, mode: 'insensitive' } } } },
-        { customer: { companyName: { contains: q, mode: 'insensitive' } } },
-        { address: { city: { contains: q, mode: 'insensitive' } } },
-        { address: { street: { contains: q, mode: 'insensitive' } } },
-      ];
+      andClauses.push({
+        OR: [
+          { id: { contains: q, mode: 'insensitive' } },
+          { customer: { user: { firstName: { contains: q, mode: 'insensitive' } } } },
+          { customer: { user: { lastName: { contains: q, mode: 'insensitive' } } } },
+          { customer: { user: { phone: { contains: q, mode: 'insensitive' } } } },
+          { customer: { companyName: { contains: q, mode: 'insensitive' } } },
+          { address: { city: { contains: q, mode: 'insensitive' } } },
+          { address: { street: { contains: q, mode: 'insensitive' } } },
+        ],
+      });
     }
+
+    const where = andClauses.length > 0 ? { AND: andClauses } : {};
 
     return this.prisma.order.findMany({
       where,
