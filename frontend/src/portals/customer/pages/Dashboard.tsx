@@ -1,5 +1,6 @@
-import { motion } from 'framer-motion';
-import { Package, Award, Truck, Route, CreditCard, CheckCircle2, History, Plus, Calendar, Clock, MapPin, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Package, Award, Truck, Route, CreditCard, CheckCircle2, History, Plus, Calendar, MapPin, Zap, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PremiumWaterJar from '../components/PremiumWaterJar';
 import { fetchWithAuth } from '../../../api/client';
@@ -10,6 +11,15 @@ import LoadingSpinner from '../../../components/LoadingSpinner';
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const [greetingDismissed, setGreetingDismissed] = useState<boolean>(() => {
+    return sessionStorage.getItem('dashboard_greeting_dismissed') === 'true';
+  });
+
+  const handleDismissGreeting = () => {
+    setGreetingDismissed(true);
+    sessionStorage.setItem('dashboard_greeting_dismissed', 'true');
+  };
 
   const { data: userProfile, isLoading } = useQuery({
     queryKey: ['userProfile'],
@@ -56,28 +66,42 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[#F7FAFC] pb-24">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-8">
         
-        {/* SECTION 1: WELCOME HEADER */}
+        {/* SECTION 1: WELCOME HEADER & ACTIONS */}
         <motion.section 
           initial={{ opacity: 0, y: -10 }} 
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
+          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
         >
-          <div>
-            <h1 className="text-[24px] md:text-[28px] font-bold text-[#0F172A] tracking-tight">
-              Good Morning, {userProfile?.firstName || 'User'} 👋
-            </h1>
-            <p className="text-[#64748B] text-[14px] mt-1 font-medium">Your hydration plan is active.</p>
-            <div className="flex flex-wrap gap-3 mt-4">
-              <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#10B981] bg-[#10B981]/10 px-3 py-1.5 rounded-full border border-[#10B981]/20">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Verified Customer
-              </span>
-              <span className="flex items-center gap-1.5 text-[12px] font-medium text-[#64748B] bg-white border border-[#E2E8F0] shadow-sm px-3 py-1.5 rounded-full">
-                <Clock className="w-3.5 h-3.5 text-[#1E88E5]" /> Next Delivery: Tomorrow • Morning Slot
-              </span>
-            </div>
-          </div>
+          <AnimatePresence initial={false}>
+            {!greetingDismissed && (
+              <motion.div
+                key="dashboard-greeting-block"
+                initial={{ opacity: 1, height: 'auto' }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="relative"
+              >
+                <div className="flex items-center gap-2.5">
+                  <h1 className="text-[24px] md:text-[28px] font-bold text-[#0F172A] tracking-tight">
+                    Good Morning, {userProfile?.firstName || 'User'} 👋
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={handleDismissGreeting}
+                    aria-label="Dismiss greeting"
+                    title="Dismiss greeting"
+                    className="p-1 text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#E2E8F0]/60 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-[#64748B] text-[14px] mt-1 font-medium">Your hydration plan is active.</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto md:ml-auto">
             <button onClick={() => navigate('/customer/shop')} className="flex items-center justify-center gap-2 h-11 px-5 bg-white border border-[#E2E8F0] shadow-sm hover:bg-[#F8FAFC] text-[#0F172A] text-[14px] font-semibold rounded-[12px] transition-colors">
               <Plus className="w-4 h-4 text-[#1E88E5]" /> Order Water
             </button>

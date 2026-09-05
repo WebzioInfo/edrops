@@ -130,6 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('edrops_remember');
     localStorage.removeItem('edrops_banner_closed');
     sessionStorage.removeItem(SESSION_WELCOME_KEY);
+    sessionStorage.removeItem('dashboard_greeting_dismissed');
     window.location.href = '/login';
   };
 
