@@ -76,7 +76,8 @@ export class OrderController {
     @Req() req,
   ) {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;
-    return this.orderService.updateOrderStatus(id, status, userId, reason, paymentConfirmation);
+    const userRole = req.user?.role;
+    return this.orderService.updateOrderStatus(id, status, userId, reason, paymentConfirmation, false, userRole);
   }
 
   @Patch(':id/assign')

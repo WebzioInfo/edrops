@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { DataErrorState } from '../../../components/common/DataErrorState';
 import UserFormModal, { type UserRecord } from '../components/UserFormModal';
 import DeliveryPartnerDetailModal from '../components/DeliveryPartnerDetailModal';
 import QuickJarPriceEditModal from '../components/QuickJarPriceEditModal';
@@ -33,7 +34,7 @@ export default function DeliveryPartnersList() {
   const [detailPartner, setDetailPartner] = useState<any | null>(null);
   const [priceEditPartner, setPriceEditPartner] = useState<any | null>(null);
 
-  const { data: partners = [], isLoading, isFetching, refetch } = useQuery({
+  const { data: partners = [], isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['adminDeliveryPartners'],
     queryFn: () => fetchWithAuth('/admin/delivery-partners'),
   });
@@ -250,6 +251,14 @@ export default function DeliveryPartnersList() {
         {isLoading ? (
           <div className="text-center py-20 flex flex-col items-center justify-center">
             <LoadingSpinner size="md" label="Loading delivery partners..." />
+          </div>
+        ) : isError ? (
+          <div className="p-6">
+            <DataErrorState
+              title="Unable to load delivery partners"
+              message={(error as any)?.message || 'Failed to fetch delivery partners. Please check your connection.'}
+              onRetry={() => refetch()}
+            />
           </div>
         ) : filteredPartners.length === 0 ? (
           /* Empty State */

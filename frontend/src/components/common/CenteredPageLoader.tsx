@@ -7,15 +7,36 @@ import { useIsPullGestureActive } from '../pwa/PullToRefresh';
 
 // Global subscriber registry for multi-source loading coordination
 let globalLoaders = new Set<string>();
+let loaderTimeouts = new Map<string, any>();
 let listeners = new Set<() => void>();
 
 function registerLoader(id: string) {
   globalLoaders.add(id);
+  // Clear any existing timeout for this ID
+  if (loaderTimeouts.has(id)) {
+    clearTimeout(loaderTimeouts.get(id));
+  }
+  // Safety timeout: auto-release after 8 seconds to prevent permanently stuck spinners
+  const timer = setTimeout(() => {
+    unregisterLoader(id);
+  }, 8000);
+  loaderTimeouts.set(id, timer);
   listeners.forEach((fn) => fn());
 }
 
 function unregisterLoader(id: string) {
   globalLoaders.delete(id);
+  if (loaderTimeouts.has(id)) {
+    clearTimeout(loaderTimeouts.get(id));
+    loaderTimeouts.delete(id);
+  }
+  listeners.forEach((fn) => fn());
+}
+
+export function clearAllLoaders() {
+  globalLoaders.clear();
+  loaderTimeouts.forEach((t) => clearTimeout(t));
+  loaderTimeouts.clear();
   listeners.forEach((fn) => fn());
 }
 

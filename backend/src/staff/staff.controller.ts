@@ -47,7 +47,8 @@ export class StaffController {
     @Req() req: any,
   ) {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;
-    return this.orderService.updateOrderStatus(orderId, status, userId, reason, paymentConfirmation);
+    const userRole = req.user?.role;
+    return this.orderService.updateOrderStatus(orderId, status, userId, reason, paymentConfirmation, false, userRole);
   }
 
   @Patch('orders/:orderId/assign')

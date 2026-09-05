@@ -5,19 +5,13 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
-
-const StaffLoader = () => (
-  <div className="flex min-h-[60vh] items-center justify-center">
-    <div className="relative h-16 w-16 rounded-full water-gradient shadow-2xl shadow-edrops-aqua/30">
-      <div className="absolute inset-2 animate-ping rounded-full bg-white/40" />
-    </div>
-  </div>
-);
+import { DataErrorState } from '../../../components/common/DataErrorState';
 
 export default function RouteOperations() {
   const [stops, setStops] = useState<any[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Confirmation Modal state
   const [activeConfirmId, setActiveConfirmId] = useState<string | null>(null);
@@ -29,6 +23,7 @@ export default function RouteOperations() {
 
   const loadData = async () => {
     try {
+      setError(null);
       setLoading(true);
       const [deliveriesData, partnersData] = await Promise.all([
         fetchWithAuth('/delivery/today'),
@@ -37,6 +32,7 @@ export default function RouteOperations() {
       setStops(deliveriesData || []);
       setPartners(partnersData || []);
     } catch (err: any) {
+      setError(err?.message || 'Failed to load operational data');
       toast.error('Failed to load operational data', { id: 'operational-data-error' });
     } finally {
       setLoading(false);
@@ -102,8 +98,6 @@ export default function RouteOperations() {
     }
   };
 
-  if (loading) return <StaffLoader />;
-
   const stats = [
     [stops.length.toString(), 'Stops'],
     [stops.reduce((acc, s) => acc + s.requiredQuantity, 0).toString(), 'Jars'],
@@ -153,102 +147,114 @@ export default function RouteOperations() {
 
       <section className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="grid gap-4">
-          {stops.map((stop, index) => {
-            const hasReport = !!stop.report;
-            const isConfirmed = stop.status === 'DELIVERED';
-            const assignedPartnerId = stop.assignment?.deliveryPartnerId || '';
-
-            return (
-              <motion.article
-                key={stop.id}
-                initial={{ opacity: 0, x: -14 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.06 }}
-                className="clay-card p-5 space-y-4"
-              >
-                <div className="flex items-start gap-4">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-primary text-primary-foreground'}`}>
-                    {isConfirmed ? <CheckCircle2 className="h-6 w-6" /> : <Droplets className="h-6 w-6" />}
-                  </div>
-                  
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <h2 className="text-xl font-black text-[#245361]">{stop.customer?.user?.firstName} {stop.customer?.user?.lastName}</h2>
-                        <p className="mt-1 text-sm font-semibold text-slate-700">{stop.address?.street}, {stop.address?.city}</p>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
-                          Jar balance: {stop.customer?.jarBalance?.availableJars} Available
-                        </p>
-                      </div>
-                      <span className={`w-fit rounded-full px-3.5 py-1 text-xs font-black uppercase tracking-[0.16em] ${
-                        isConfirmed 
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : hasReport
-                          ? 'bg-amber-50 text-amber-700 animate-pulse'
-                          : 'bg-primary/10 text-primary'
-                      }`}>
-                        {isConfirmed ? 'CONFIRMED & DEDUCTED' : hasReport ? 'PARTNER REPORTED' : stop.status}
-                      </span>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-4 items-center justify-between border-t border-border/40 pt-4">
-                      <div className="flex items-center gap-2">
-                        <UserPlus className="h-4 w-4 text-primary" />
-                        <select
-                          disabled={isConfirmed}
-                          value={assignedPartnerId}
-                          onChange={(e) => handleAssign(stop.id, e.target.value)}
-                          className="bg-secondary/15 border-transparent text-sm font-bold text-[#245361] py-2 px-3.5 rounded-xl outline-none"
-                        >
-                          <option value="">Unassigned</option>
-                          {partners.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.user?.firstName} {p.user?.lastName} ({p.vehiclePlate})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <span className="text-sm font-black text-[#245361] bg-secondary/10 px-3.5 py-2 rounded-xl">
-                          Required: {stop.requiredQuantity} Jars
-                        </span>
-                        
-                        {hasReport && !isConfirmed && (
-                          <button
-                            onClick={() => openConfirmModal(stop)}
-                            className="clay-btn bg-emerald-600 text-white hover:bg-emerald-700 px-4.5 py-2 flex items-center gap-1.5 cursor-pointer text-xs font-black uppercase tracking-wider"
-                          >
-                            <FileSignature className="h-4 w-4" />
-                            Verify & Confirm
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {hasReport && (
-                  <div className="bg-secondary/10 border border-secondary/20 rounded-2xl p-4.5 text-xs font-semibold text-slate-800 space-y-2 mt-2">
-                    <p className="font-black text-[#245361] uppercase tracking-wider">Driver Submission:</p>
-                    <div className="grid grid-cols-2 gap-2 text-slate-700">
-                      <p>Delivered Qty: <span className="font-black text-foreground">{stop.report.partnerDeliveredQty}</span></p>
-                      <p>Empties Collected: <span className="font-black text-foreground">{stop.report.partnerEmptyCollected}</span></p>
-                    </div>
-                    {stop.report.partnerNotes && (
-                      <p className="italic text-slate-600">Notes: "{stop.report.partnerNotes}"</p>
-                    )}
-                  </div>
-                )}
-              </motion.article>
-            );
-          })}
-          {stops.length === 0 && (
+          {loading ? (
+            <div className="clay-card p-10 text-center space-y-2">
+              <Clock className="h-10 w-10 text-primary mx-auto animate-spin" />
+              <h3 className="text-lg font-black text-[#245361]">Loading today's route board...</h3>
+            </div>
+          ) : error ? (
+            <DataErrorState
+              title="Unable to load operations"
+              message={error}
+              onRetry={() => loadData()}
+            />
+          ) : stops.length === 0 ? (
             <div className="clay-card p-10 text-center space-y-2">
               <Clock className="h-10 w-10 text-primary mx-auto" />
               <h3 className="text-lg font-black">No stops generated for today yet</h3>
               <p className="text-sm text-slate-600">Click the 'Generate' button above to build today's hydration routes.</p>
             </div>
+          ) : (
+            stops.map((stop, index) => {
+              const hasReport = !!stop.report;
+              const isConfirmed = stop.status === 'DELIVERED';
+              const assignedPartnerId = stop.assignment?.deliveryPartnerId || '';
+
+              return (
+                <motion.article
+                  key={stop.id}
+                  initial={{ opacity: 0, x: -14 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.06 }}
+                  className="clay-card p-5 space-y-4"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-primary text-primary-foreground'}`}>
+                      {isConfirmed ? <CheckCircle2 className="h-6 w-6" /> : <Droplets className="h-6 w-6" />}
+                    </div>
+                    
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h2 className="text-xl font-black text-[#245361]">{stop.customer?.user?.firstName} {stop.customer?.user?.lastName}</h2>
+                          <p className="mt-1 text-sm font-semibold text-slate-700">{stop.address?.street}, {stop.address?.city}</p>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+                            Jar balance: {stop.customer?.jarBalance?.availableJars} Available
+                          </p>
+                        </div>
+                        <span className={`w-fit rounded-full px-3.5 py-1 text-xs font-black uppercase tracking-[0.16em] ${
+                          isConfirmed 
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : hasReport
+                            ? 'bg-amber-50 text-amber-700 animate-pulse'
+                            : 'bg-primary/10 text-primary'
+                        }`}>
+                          {isConfirmed ? 'CONFIRMED & DEDUCTED' : hasReport ? 'PARTNER REPORTED' : stop.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-4 items-center justify-between border-t border-border/40 pt-4">
+                        <div className="flex items-center gap-2">
+                          <UserPlus className="h-4 w-4 text-primary" />
+                          <select
+                            disabled={isConfirmed}
+                            value={assignedPartnerId}
+                            onChange={(e) => handleAssign(stop.id, e.target.value)}
+                            className="bg-secondary/15 border-transparent text-sm font-bold text-[#245361] py-2 px-3.5 rounded-xl outline-none"
+                          >
+                            <option value="">Unassigned</option>
+                            {partners.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.user?.firstName} {p.user?.lastName} ({p.vehiclePlate})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <span className="text-sm font-black text-[#245361] bg-secondary/10 px-3.5 py-2 rounded-xl">
+                            Required: {stop.requiredQuantity} Jars
+                          </span>
+                          
+                          {hasReport && !isConfirmed && (
+                            <button
+                              onClick={() => openConfirmModal(stop)}
+                              className="clay-btn bg-emerald-600 text-white hover:bg-emerald-700 px-4.5 py-2 flex items-center gap-1.5 cursor-pointer text-xs font-black uppercase tracking-wider"
+                            >
+                              <FileSignature className="h-4 w-4" />
+                              Verify & Confirm
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {hasReport && (
+                    <div className="bg-secondary/10 border border-secondary/20 rounded-2xl p-4.5 text-xs font-semibold text-slate-800 space-y-2 mt-2">
+                      <p className="font-black text-[#245361] uppercase tracking-wider">Driver Submission:</p>
+                      <div className="grid grid-cols-2 gap-2 text-slate-700">
+                        <p>Delivered Qty: <span className="font-black text-foreground">{stop.report.partnerDeliveredQty}</span></p>
+                        <p>Empties Collected: <span className="font-black text-foreground">{stop.report.partnerEmptyCollected}</span></p>
+                      </div>
+                      {stop.report.partnerNotes && (
+                        <p className="italic text-slate-600">Notes: "{stop.report.partnerNotes}"</p>
+                      )}
+                    </div>
+                  )}
+                </motion.article>
+              );
+            })
           )}
         </div>
 

@@ -12,6 +12,7 @@ import {
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import OrderRow, { type DeliveryPartner } from '../components/OrderRow';
 import { formatOrderId } from '../../../utils/orderFormatters';
+import { DataErrorState } from '../../../components/common/DataErrorState';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'ACTIVE' | 'DELIVERED' | 'CANCELLED';
 
@@ -34,6 +35,7 @@ export default function OrderManagement() {
   const [orders, setOrders] = useState<any[]>([]);
   const [partners, setPartners] = useState<DeliveryPartner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [assigningOrderId, setAssigningOrderId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export default function OrderManagement() {
   // Load Orders from backend with pagination & filters
   const loadOrders = useCallback(async (isSilent = false) => {
     try {
+      setError(null);
       if (!isSilent) {
         if (orders.length === 0) setLoading(true);
         else setRefreshing(true);
@@ -101,7 +104,8 @@ export default function OrderManagement() {
       } else {
         setOrders([]);
       }
-    } catch {
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load orders');
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
@@ -127,8 +131,54 @@ export default function OrderManagement() {
     loadOrders();
   }, [loadOrders]);
 
+  // Real-time WebSocket subscriptions
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleOrderAssigned = (data: any) => {
+      const orderShortId = data?.id ? formatOrderId(data.id) : '';
+      toast.success(`Order assigned${orderShortId ? ` (${orderShortId})` : ''}`, { icon: '🛵' });
+      loadOrders(true);
+    };
+
+    const handleOrderUpdated = (data: any) => {
+      if (data?.id && data?.status) {
+        setOrders(prev => prev.map(o => o.id === data.id ? { ...o, ...data } : o));
+      } else {
+        loadOrders(true);
+      }
+    };
+
+    const handleStatusChanged = (data: any) => {
+      const orderId = data?.orderId || data?.order?.id;
+      const status = data?.status || data?.order?.status;
+      if (orderId && status) {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, ...(data.order || {}) } : o));
+      } else {
+        loadOrders(true);
+      }
+    };
+
+    socket.on('order:assigned', handleOrderAssigned);
+    socket.on('order:updated', handleOrderUpdated);
+    socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
+    socket.on('NEW_ORDER', () => loadOrders(true));
+
+    return () => {
+      socket.off('order:assigned', handleOrderAssigned);
+      socket.off('order:updated', handleOrderUpdated);
+      socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
+      socket.off('NEW_ORDER');
+    };
+  }, [socket, loadOrders]);
+
   // Handle status update
   const handleStatusUpdate = async (orderId: string, newStatus: string, paymentConfirmation?: any) => {
+    const currentOrder = orders.find(o => o.id === orderId);
+    if (currentOrder && currentOrder.status === newStatus) {
+      toast(`Order is already in status ${newStatus}`, { icon: 'ℹ️' });
+      return;
+    }
     try {
       // Optimistic update
       setOrders(prev => prev.map(o => {
@@ -257,10 +307,6 @@ export default function OrderManagement() {
   const startOrderIndex = totalDisplayOrders === 0 ? 0 : (page - 1) * limit + 1;
   const endOrderIndex = Math.min(page * limit, totalDisplayOrders);
 
-  if (loading && orders.length === 0) {
-    return <LoadingSpinner fullPage label="Loading order feed..." />;
-  }
-
   return (
     <main className="min-h-screen px-4 py-5 text-[#245361] sm:px-6 lg:px-10 space-y-4">
       {/* Header (Plain text, no card wrapper) */}
@@ -336,7 +382,19 @@ export default function OrderManagement() {
 
         {/* Order Rows (Collapsed by default, Expandable on Manage) */}
         <div className="divide-y divide-[#E2E8F0]">
-          {orders.length === 0 ? (
+          {loading && orders.length === 0 ? (
+            <div className="py-20 text-center flex flex-col items-center justify-center">
+              <LoadingSpinner size="md" label="Loading order feed..." />
+            </div>
+          ) : error && orders.length === 0 ? (
+            <div className="p-6">
+              <DataErrorState
+                title="Unable to load orders"
+                message={error}
+                onRetry={() => loadOrders()}
+              />
+            </div>
+          ) : orders.length === 0 ? (
             <div className="py-16 px-4 text-center">
               <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#1E88E5] flex items-center justify-center mx-auto mb-3">
                 <ShoppingCart className="w-6 h-6" />

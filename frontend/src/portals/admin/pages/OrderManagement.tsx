@@ -4,6 +4,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { Truck, CheckSquare, Square, Edit3 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
+import { DataErrorState } from '../../../components/common/DataErrorState';
 
 export default function OrderManagement() {
   const queryClient = useQueryClient();
@@ -11,7 +12,7 @@ export default function OrderManagement() {
   const [selectedPartner, setSelectedPartner] = useState<string>('');
   
   // Queries
-  const { data: orders = [], isLoading: isLoadingOrders } = useQuery({
+  const { data: orders = [], isLoading: isLoadingOrders, isError: isOrdersError, error: ordersError, refetch: refetchOrders } = useQuery({
     queryKey: ['adminOrdersPending'],
     queryFn: () => fetchWithAuth('/order'),
     // Filtering down to what makes sense for bulk management
@@ -115,6 +116,14 @@ export default function OrderManagement() {
                   <tr>
                     <td colSpan={6} className="py-10 text-center"><LoadingSpinner size="md" /></td>
                   </tr>
+                ) : isOrdersError ? (
+                  <DataErrorState
+                    isTableRow
+                    colSpan={6}
+                    title="Failed to load orders"
+                    message={(ordersError as any)?.message || 'Could not fetch pending orders.'}
+                    onRetry={() => refetchOrders()}
+                  />
                 ) : orders.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-10 text-center text-slate-500 font-bold">No pending orders found.</td>

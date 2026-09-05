@@ -1,10 +1,11 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { EventsGateway } from '../events/events.gateway';
-import { OrderStatus, OrderSource, OrderType, PaymentStatus } from '@prisma/client';
+import { OrderStatus, OrderSource, OrderType, PaymentStatus, UserRole } from '@prisma/client';
 
 import { CreatePartnerOrderDto, CreatePartnerOrderItemDto } from './dto/create-partner-order.dto';
+import { isValidTransition, isPartnerAllowedTransition, VALID_ORDER_TRANSITIONS } from './order-state-machine';
 
 @Injectable()
 export class OrderService {
@@ -262,6 +263,18 @@ export class OrderService {
           },
           orderBy: { createdAt: 'asc' },
         },
+        delivery: {
+          include: {
+            assignment: {
+              include: {
+                deliveryPartner: {
+                  include: { user: { select: { firstName: true, lastName: true, phone: true } } },
+                },
+              },
+            },
+            report: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: 200,
@@ -463,6 +476,34 @@ export class OrderService {
         },
       });
 
+      if (partner) {
+        const totalQty = dto.items.reduce((sum, i) => sum + (i.quantity || 1), 0);
+        const del = await tx.delivery.create({
+          data: {
+            orderId: order.id,
+            customerId: customer.id,
+            addressId: targetAddressId!,
+            requiredQuantity: totalQty,
+            scheduledFor: new Date(),
+            timeSlot: dto.timeSlot || 'Standard Delivery',
+            status: OrderStatus.ASSIGNED,
+          },
+        });
+        await tx.deliveryAssignment.create({
+          data: {
+            deliveryId: del.id,
+            deliveryPartnerId: partner.id,
+            assignedAt: new Date(),
+            rateSnapshot: partner.jarUnitPrice || 35.0,
+          },
+        });
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: OrderStatus.ASSIGNED },
+        });
+        order.status = OrderStatus.ASSIGNED;
+      }
+
       return order;
     });
 
@@ -494,6 +535,7 @@ export class OrderService {
       amountReceived?: number;
     },
     isAdminOverride: boolean = false,
+    userRole?: UserRole,
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -506,65 +548,51 @@ export class OrderService {
 
     if (!order) throw new BadRequestException('Order not found');
 
-    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
-      NEW: [
-        OrderStatus.PENDING_PAYMENT,
-        OrderStatus.PENDING_ASSIGNMENT,
-        OrderStatus.ASSIGNED,
-        OrderStatus.ACCEPTED_BY_PARTNER,
-        OrderStatus.OUT_FOR_DELIVERY,
-        OrderStatus.DELIVERED,
-        OrderStatus.CANCELLED,
-      ],
-      PENDING_PAYMENT: [OrderStatus.PAYMENT_SUCCESS, OrderStatus.FAILED, OrderStatus.CANCELLED],
-      PAYMENT_SUCCESS: [
-        OrderStatus.PENDING_ASSIGNMENT,
-        OrderStatus.ASSIGNED,
-        OrderStatus.ACCEPTED_BY_PARTNER,
-        OrderStatus.OUT_FOR_DELIVERY,
-        OrderStatus.DELIVERED,
-        OrderStatus.CANCELLED,
-      ],
-      PENDING_ASSIGNMENT: [
-        OrderStatus.ASSIGNED,
-        OrderStatus.ACCEPTED_BY_PARTNER,
-        OrderStatus.OUT_FOR_DELIVERY,
-        OrderStatus.DELIVERED,
-        OrderStatus.CANCELLED,
-      ],
-      ASSIGNED: [
-        OrderStatus.ACCEPTED_BY_PARTNER,
-        OrderStatus.OUT_FOR_DELIVERY,
-        OrderStatus.DELIVERED,
-        OrderStatus.CANCELLED,
-      ],
-      ACCEPTED_BY_PARTNER: [
-        OrderStatus.OUT_FOR_DELIVERY,
-        OrderStatus.DELIVERED,
-        OrderStatus.CANCELLED,
-      ],
-      OUT_FOR_DELIVERY: [
-        OrderStatus.DELIVERED,
-        OrderStatus.PARTIALLY_DELIVERED,
-        OrderStatus.CUSTOMER_NOT_AVAILABLE,
-        OrderStatus.FAILED,
-        OrderStatus.RETURNED,
-        OrderStatus.CANCELLED,
-      ],
-      DELIVERED: [OrderStatus.COMPLETED],
-      PARTIALLY_DELIVERED: [OrderStatus.COMPLETED],
-      CUSTOMER_NOT_AVAILABLE: [OrderStatus.RESCHEDULED, OrderStatus.CANCELLED],
-      FAILED: [OrderStatus.RESCHEDULED, OrderStatus.CANCELLED],
-      RESCHEDULED: [OrderStatus.PENDING_ASSIGNMENT, OrderStatus.ASSIGNED],
-      RETURNED: [OrderStatus.COMPLETED],
-      CANCELLED: [],
-      COMPLETED: [],
-    };
+    // 1. Explicit same-state guard
+    if (order.status === newStatus) {
+      throw new BadRequestException(`Order is already in this status: ${newStatus}`);
+    }
 
-    if (
-      !isAdminOverride &&
-      !validTransitions[order.status]?.includes(newStatus)
-    ) {
+    // 2. Fetch acting user details for authorization check
+    const actingUser = await this.prisma.user.findUnique({
+      where: { id: staffUserId },
+      include: { deliveryPartner: true },
+    });
+
+    const effectiveRole = userRole || actingUser?.role;
+
+    // 3. Delivery partner role-scoping: must be assigned to this order and only allowed partner transitions
+    if (effectiveRole === UserRole.DELIVERY_PARTNER) {
+      const partner = actingUser?.deliveryPartner || await this.prisma.deliveryPartner.findUnique({
+        where: { userId: staffUserId },
+      });
+
+      if (!partner) {
+        throw new ForbiddenException('User is not registered as a delivery partner');
+      }
+
+      const assignedPartnerId = order.delivery?.assignment?.deliveryPartnerId || (order as any).deliveryPartnerId;
+      if (!assignedPartnerId || assignedPartnerId !== partner.id) {
+        throw new ForbiddenException('You are not authorized to update this order: this order is not assigned to you');
+      }
+
+      if (newStatus === OrderStatus.CANCELLED) {
+        throw new ForbiddenException('Delivery partners are not permitted to cancel orders. Please contact staff or admin.');
+      }
+
+      if (newStatus === OrderStatus.COMPLETED) {
+        throw new ForbiddenException('Delivery partners cannot mark orders as completed directly. Please mark as delivered.');
+      }
+
+      if (!isPartnerAllowedTransition(order.status, newStatus)) {
+        throw new ForbiddenException(
+          `Delivery partners are not permitted to transition order from ${order.status} to ${newStatus}`,
+        );
+      }
+    }
+
+    // 4. Central state machine validation
+    if (!isAdminOverride && !isValidTransition(order.status, newStatus)) {
       throw new BadRequestException(
         'Invalid status transition from ' + order.status + ' to ' + newStatus,
       );

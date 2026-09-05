@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ChevronRight,
   ShoppingBag,
@@ -14,13 +14,14 @@ import { fetchWithAuth } from '../../../api/client';
 import { useSocket } from '../../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import LoadingSpinner from '../../../components/LoadingSpinner';
 import {
   formatOrderId,
   formatDeliverySlot,
   formatPaymentDetails
 } from '../../../utils/orderFormatters';
 import { generateOrderInvoice } from '../../../utils/InvoiceGenerator';
+import { useDataFetch } from '../../../hooks/useDataFetch';
+import { DataErrorState } from '../../../components/common/DataErrorState';
 
 type StatusFilterType = 'ALL' | 'ON_THE_WAY' | 'DELIVERED' | 'CONFIRMED' | 'CANCELLED';
 type TimeFilterType = 'ALL' | 'LAST_30_DAYS' | 'YEAR_2026' | 'OLDER';
@@ -28,9 +29,6 @@ type TimeFilterType = 'ALL' | 'LAST_30_DAYS' | 'YEAR_2026' | 'OLDER';
 export default function Orders() {
   const navigate = useNavigate();
   const { socket } = useSocket();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,22 +41,21 @@ export default function Orders() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  const loadOrders = async (silent = false) => {
-    if (!silent) setRefreshing(true);
-    try {
-      const orderData = await fetchWithAuth('/order');
-      setOrders(Array.isArray(orderData) ? orderData : []);
-    } catch (err) {
-      console.error('Failed to load orders:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    loadOrders();
+  const fetchCustomerOrders = useCallback(async (): Promise<any[]> => {
+    const orderData = await fetchWithAuth('/order');
+    return Array.isArray(orderData) ? orderData : [];
   }, []);
+
+  const {
+    data: ordersData,
+    error,
+    isLoading,
+    isError,
+    reload: loadOrders,
+    setData: setOrders,
+  } = useDataFetch<any[]>(fetchCustomerOrders);
+
+  const orders = useMemo(() => ordersData || [], [ordersData]);
 
   // Real-time WebSocket updates
   useEffect(() => {
@@ -66,7 +63,7 @@ export default function Orders() {
 
     const handleStatusChanged = (data: { orderId: string; status: string }) => {
       setOrders((prev) =>
-        prev.map((o) => (o.id === data.orderId ? { ...o, status: data.status } : o))
+        (prev || []).map((o: any) => (o.id === data.orderId ? { ...o, status: data.status } : o))
       );
       toast.success(`Order ${formatOrderId(data.orderId)} updated`, { icon: '📦' });
     };
@@ -78,7 +75,7 @@ export default function Orders() {
       socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
       socket.off('NEW_ORDER');
     };
-  }, [socket]);
+  }, [socket, loadOrders, setOrders]);
 
   // Counts for status filters
   const counts = useMemo(() => {
@@ -166,10 +163,6 @@ export default function Orders() {
     setCurrentPage(1);
   };
 
-  if (loading) {
-    return <LoadingSpinner fullPage label="Loading your orders..." />;
-  }
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] font-sans antialiased pb-20 sm:pb-12">
       <div className="w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6">
@@ -187,10 +180,10 @@ export default function Orders() {
             <button
               type="button"
               onClick={() => loadOrders()}
-              disabled={refreshing}
+              disabled={isLoading}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-[#E2E8F0] rounded-lg shadow-2xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
             >
-              <RotateCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </button>
             <Link
@@ -215,10 +208,10 @@ export default function Orders() {
             <button
               type="button"
               onClick={() => loadOrders()}
-              disabled={refreshing}
-              className="p-1.5 text-slate-500 hover:text-slate-800 bg-white border border-[#E2E8F0] rounded-lg shadow-2xs transition cursor-pointer"
+              disabled={isLoading}
+              className="p-1.5 text-slate-500 hover:text-slate-800 bg-white border border-[#E2E8F0] rounded-lg shadow-2xs transition cursor-pointer disabled:opacity-50"
             >
-              <RotateCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
 
@@ -430,7 +423,26 @@ export default function Orders() {
             </div>
 
             {/* Order Items Listing Container */}
-            {filteredOrders.length === 0 ? (
+            {isLoading ? (
+              <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 space-y-4 shadow-2xs">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="animate-pulse space-y-3 p-4 border border-slate-100 rounded-xl">
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 bg-slate-200 rounded w-28" />
+                      <div className="h-5 bg-slate-200 rounded-full w-20" />
+                    </div>
+                    <div className="h-3 bg-slate-100 rounded w-1/2" />
+                    <div className="h-10 bg-slate-50 rounded-lg" />
+                  </div>
+                ))}
+              </div>
+            ) : isError ? (
+              <DataErrorState
+                title="Unable to load your orders"
+                message={error?.message || 'Failed to fetch your order history. Please check your connection and try again.'}
+                onRetry={() => loadOrders()}
+              />
+            ) : filteredOrders.length === 0 ? (
               <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 sm:p-12 text-center space-y-3 shadow-2xs">
                 <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
                   <Package className="w-7 h-7" />

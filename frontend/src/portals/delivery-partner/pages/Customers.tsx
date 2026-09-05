@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { 
   Users, 
   Search, 
@@ -11,7 +11,6 @@ import {
   Building2, 
   User, 
   RotateCw, 
-  Loader2,
   Pencil
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
@@ -20,6 +19,8 @@ import CustomerFormModal, { type CustomerRecord } from '../components/CustomerFo
 import CustomerDetailModal from '../components/CustomerDetailModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import QuickJarEditModal from '../components/QuickJarEditModal';
+import { useDataFetch } from '../../../hooks/useDataFetch';
+import { DataErrorState } from '../../../components/common/DataErrorState';
 import type { DeliveryTask } from './Overview';
 
 interface CustomersProps {
@@ -28,8 +29,6 @@ interface CustomersProps {
 }
 
 export default function Customers({ tasks = [] }: CustomersProps) {
-  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals state
@@ -43,58 +42,56 @@ export default function Customers({ tasks = [] }: CustomersProps) {
   const [quickJarCustomer, setQuickJarCustomer] = useState<CustomerRecord | null>(null);
   const [quickJarModalOpen, setQuickJarModalOpen] = useState(false);
 
-  const loadCustomers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await fetchWithAuth('/customer');
-      if (Array.isArray(data)) {
-        setCustomers(data);
-      } else {
-        // Fallback: build customer records from assigned tasks if direct endpoint returns empty/different structure
-        const taskCustomerMap = new Map<string, CustomerRecord>();
-        tasks.forEach((t) => {
-          if (t.customer) {
-            const custId = t.customer.id || t.id;
-            if (!taskCustomerMap.has(custId)) {
-              taskCustomerMap.set(custId, {
-                id: custId,
-                customerType: t.customer.customerType || 'RESIDENTIAL',
-                companyName: t.customer.companyName,
-                user: {
-                  firstName: t.customer.user?.firstName || 'Valued',
-                  lastName: t.customer.user?.lastName || 'Customer',
-                  phone: t.customer.user?.phone || '',
-                  email: t.customer.user?.email,
-                },
-                addresses: t.address
-                  ? [
-                      {
-                        ...t.address,
-                        street: t.address.street || '',
-                        city: t.address.city || '',
-                        state: t.address.state || '',
-                        zipCode: t.address.zipCode || '',
-                        isDefault: true,
-                      },
-                    ]
-                  : [],
-              });
-            }
-          }
-        });
-        setCustomers(Array.from(taskCustomerMap.values()));
-      }
-    } catch (err: any) {
-      console.error('Error fetching customers:', err);
-      toast.error('Failed to load customers list');
-    } finally {
-      setLoading(false);
+  const fetchCustomers = useCallback(async (): Promise<CustomerRecord[]> => {
+    const data = await fetchWithAuth('/customer');
+    if (Array.isArray(data)) {
+      return data;
     }
+    // Fallback: build customer records from assigned tasks if direct endpoint returns empty/different structure
+    const taskCustomerMap = new Map<string, CustomerRecord>();
+    tasks.forEach((t) => {
+      if (t.customer) {
+        const custId = t.customer.id || t.id;
+        if (!taskCustomerMap.has(custId)) {
+          taskCustomerMap.set(custId, {
+            id: custId,
+            customerType: t.customer.customerType || 'RESIDENTIAL',
+            companyName: t.customer.companyName,
+            user: {
+              firstName: t.customer.user?.firstName || 'Valued',
+              lastName: t.customer.user?.lastName || 'Customer',
+              phone: t.customer.user?.phone || '',
+              email: t.customer.user?.email,
+            },
+            addresses: t.address
+              ? [
+                  {
+                    ...t.address,
+                    street: t.address.street || '',
+                    city: t.address.city || '',
+                    state: t.address.state || '',
+                    zipCode: t.address.zipCode || '',
+                    isDefault: true,
+                  },
+                ]
+              : [],
+          });
+        }
+      }
+    });
+    return Array.from(taskCustomerMap.values());
   }, [tasks]);
 
-  useEffect(() => {
-    loadCustomers();
-  }, [loadCustomers]);
+  const {
+    data: customersData,
+    error,
+    isLoading,
+    isError,
+    reload: loadCustomers,
+    setData: setCustomers,
+  } = useDataFetch<CustomerRecord[]>(fetchCustomers, [fetchCustomers]);
+
+  const customers = useMemo(() => customersData || [], [customersData]);
 
   // Search filter
   const filteredCustomers = useMemo(() => {
@@ -167,7 +164,7 @@ export default function Customers({ tasks = [] }: CustomersProps) {
 
   const handleQuickJarSuccess = (updatedCustomer: CustomerRecord) => {
     setCustomers((prev) =>
-      prev.map((c) =>
+      (prev || []).map((c) =>
         c.id === updatedCustomer.id
           ? {
               ...c,
@@ -193,12 +190,12 @@ export default function Customers({ tasks = [] }: CustomersProps) {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={loadCustomers}
-            disabled={loading}
+            onClick={() => loadCustomers()}
+            disabled={isLoading}
             title="Refresh customers"
             className="p-2.5 text-[#64748B] hover:text-[#1677C8] hover:bg-blue-50/70 border border-[#E2E8F0] rounded-xl transition cursor-pointer disabled:opacity-50"
           >
-            <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
           <button
@@ -230,11 +227,46 @@ export default function Customers({ tasks = [] }: CustomersProps) {
       </div>
 
       {/* Customer Directory Table / Cards (Natural Height - No Internal Scrollbar) */}
-      {loading ? (
-        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-12 text-center text-[#64748B]">
-          <Loader2 className="w-6 h-6 animate-spin text-[#1677C8] mx-auto mb-2" />
-          <p className="text-xs font-medium">Loading customers directory...</p>
+      {isLoading ? (
+        <div className="space-y-3">
+          {/* Desktop Table Skeleton */}
+          <div className="hidden md:block bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-2xs">
+            <div className="p-4 bg-slate-50/80 border-b border-gray-200">
+              <div className="h-4 bg-slate-200 rounded w-1/4 animate-pulse" />
+            </div>
+            <div className="divide-y divide-gray-100 p-4 space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between gap-4 animate-pulse py-2">
+                  <div className="h-4 bg-slate-200 rounded w-32" />
+                  <div className="h-4 bg-slate-100 rounded w-24" />
+                  <div className="h-4 bg-slate-100 rounded w-36" />
+                  <div className="h-4 bg-slate-100 rounded w-28" />
+                  <div className="h-4 bg-slate-200 rounded w-16" />
+                  <div className="h-4 bg-slate-100 rounded w-20" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Mobile Cards Skeleton */}
+          <div className="md:hidden space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3 animate-pulse">
+                <div className="flex justify-between items-start">
+                  <div className="h-4 bg-slate-200 rounded w-28" />
+                  <div className="h-5 bg-slate-200 rounded w-16" />
+                </div>
+                <div className="h-3 bg-slate-100 rounded w-1/2" />
+                <div className="h-8 bg-slate-50 rounded-lg" />
+              </div>
+            ))}
+          </div>
         </div>
+      ) : isError ? (
+        <DataErrorState
+          title="Unable to load customers"
+          message={error?.message || 'Failed to fetch customer directory. Please check your connection and try again.'}
+          onRetry={() => loadCustomers()}
+        />
       ) : filteredCustomers.length > 0 ? (
         <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs">
           

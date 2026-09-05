@@ -16,8 +16,18 @@ import {
   Info,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
+import { useSocket } from '../../../contexts/SocketContext';
+import { toast } from 'react-hot-toast';
 import CompleteDeliveryModal from './CompleteDeliveryModal';
 import { formatOrderId, formatPaymentDetails, getPaymentStatusLabel } from '../../../utils/orderFormatters';
+import {
+  getOrderStatusConfig,
+  getNextPartnerAction,
+  isSameStatus,
+  type StatusConfig,
+} from '../../../utils/orderStateMachine';
+
+export { getOrderStatusConfig, type StatusConfig };
 
 export interface OrderDetail {
   id: string;
@@ -125,68 +135,6 @@ interface OrderDetailModalProps {
   onStatusUpdated?: () => void;
 }
 
-// 4 Standard Display Statuses
-export interface StatusConfig {
-  label: string;
-  badgeClass: string;
-  dotColor: string;
-  stepIndex: number;
-}
-
-export function getOrderStatusConfig(status?: string): StatusConfig {
-  switch (status) {
-    case 'NEW':
-    case 'PLACED':
-    case 'PENDING_ASSIGNMENT':
-      return {
-        label: 'Placed',
-        badgeClass: 'bg-amber-50 text-amber-800 border border-amber-200',
-        dotColor: 'bg-amber-500',
-        stepIndex: 0,
-      };
-    case 'CONFIRMED':
-    case 'PROCESSING':
-    case 'ASSIGNED':
-    case 'ACCEPTED_BY_PARTNER':
-    case 'SHIPPED':
-      return {
-        label: 'Confirmed',
-        badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
-        dotColor: 'bg-[#1677C8]',
-        stepIndex: 1,
-      };
-    case 'OUT_FOR_DELIVERY':
-      return {
-        label: 'Out for Delivery',
-        badgeClass: 'bg-orange-50 text-orange-700 border border-orange-200',
-        dotColor: 'bg-orange-500',
-        stepIndex: 2,
-      };
-    case 'DELIVERED':
-    case 'COMPLETED':
-      return {
-        label: 'Delivered',
-        badgeClass: 'bg-emerald-50 text-emerald-800 border border-emerald-200',
-        dotColor: 'bg-emerald-600',
-        stepIndex: 3,
-      };
-    case 'CANCELLED':
-      return {
-        label: 'Cancelled',
-        badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200',
-        dotColor: 'bg-rose-500',
-        stepIndex: -1,
-      };
-    default:
-      return {
-        label: status || 'Placed',
-        badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200',
-        dotColor: 'bg-slate-400',
-        stepIndex: 0,
-      };
-  }
-}
-
 const STATUS_PROGRESSION_STEPS = [
   { key: 'PLACED', label: 'Placed', icon: Clock },
   { key: 'CONFIRMED', label: 'Confirmed', icon: Package },
@@ -200,6 +148,7 @@ export default function OrderDetailModal({
   onClose,
   onStatusUpdated,
 }: OrderDetailModalProps) {
+  const { socket } = useSocket();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -207,8 +156,8 @@ export default function OrderDetailModal({
   const [completeDeliveryModalOpen, setCompleteDeliveryModalOpen] = useState(false);
 
   // Always fetch latest order by ID from backend when opening
-  const fetchOrderDetails = useCallback(async (id: string) => {
-    setLoading(true);
+  const fetchOrderDetails = useCallback(async (id: string, isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setErrorMessage(null);
     try {
       console.log(`[Orders] GET /order/${id}`);
@@ -218,22 +167,60 @@ export default function OrderDetailModal({
       console.error('Failed to load order details:', err);
       setErrorMessage(err.message || 'Unable to load order details. Please try again.');
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (isOpen && orderId) {
-      fetchOrderDetails(orderId);
-    } else {
+    if (!isOpen || !orderId) {
       // Clear state when modal closed
       setOrder(null);
       setErrorMessage(null);
       setLoading(false);
       setUpdatingStatus(false);
       setCompleteDeliveryModalOpen(false);
+      return;
     }
-  }, [isOpen, orderId, fetchOrderDetails]);
+
+    fetchOrderDetails(orderId);
+
+    if (socket) {
+      socket.emit('join-order', orderId);
+
+      const handleStatusChanged = (payload: any) => {
+        const payloadOrderId = payload?.orderId || payload?.order?.id;
+        if (payloadOrderId === orderId) {
+          console.log('[OrderDetailModal] Live ORDER_STATUS_CHANGED event received:', payload);
+          if (payload?.order) {
+            setOrder(payload.order);
+          } else {
+            fetchOrderDetails(orderId, true);
+          }
+        }
+      };
+
+      const handleOrderUpdated = (payload: any) => {
+        const payloadOrderId = payload?.id || payload?.orderId;
+        if (payloadOrderId === orderId) {
+          console.log('[OrderDetailModal] Live order:updated event received:', payload);
+          if (payload?.id && payload?.status) {
+            setOrder((prev) => (prev ? { ...prev, ...payload } : payload));
+          } else {
+            fetchOrderDetails(orderId, true);
+          }
+        }
+      };
+
+      socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
+      socket.on('order:updated', handleOrderUpdated);
+
+      return () => {
+        socket.emit('leave-order', orderId);
+        socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
+        socket.off('order:updated', handleOrderUpdated);
+      };
+    }
+  }, [isOpen, orderId, fetchOrderDetails, socket]);
 
   // Extract Real Timestamps for Timeline Stages from History & DB records
   const timelineTimestamps = useMemo(() => {
@@ -341,44 +328,33 @@ export default function OrderDetailModal({
   // Next status action progression
   const getNextAction = () => {
     if (!order) return null;
-    switch (order.status) {
-      case 'NEW':
-      case 'PLACED':
-      case 'PENDING_ASSIGNMENT':
-        return {
-          label: 'Confirm Order',
-          nextStatus: 'ACCEPTED_BY_PARTNER',
-          icon: Package,
-          btnClass: 'bg-[#1677C8] hover:bg-[#1362a4]',
-        };
-      case 'CONFIRMED':
-      case 'PROCESSING':
-      case 'ASSIGNED':
-      case 'ACCEPTED_BY_PARTNER':
-      case 'SHIPPED':
-        return {
-          label: 'Start Delivery (Out for Delivery)',
-          nextStatus: 'OUT_FOR_DELIVERY',
-          icon: Truck,
-          btnClass: 'bg-orange-600 hover:bg-orange-700',
-        };
-      case 'OUT_FOR_DELIVERY':
-        return {
-          label: 'Complete Delivery',
-          nextStatus: 'DELIVERED',
-          icon: CheckCircle,
-          btnClass: 'bg-emerald-600 hover:bg-emerald-700',
-        };
-      default:
-        return null;
-    }
+    const partnerAction = getNextPartnerAction(order.status);
+    if (!partnerAction) return null;
+    const icon =
+      partnerAction.actionType === 'CONFIRM'
+        ? Package
+        : partnerAction.actionType === 'START_DELIVERY'
+        ? Truck
+        : CheckCircle;
+    return {
+      ...partnerAction,
+      icon,
+    };
   };
 
   const nextAction = getNextAction();
 
   // Trigger Status Progression or Open Delivery Confirmation
-  const handleActionClick = () => {
-    if (!nextAction) return;
+  const handleActionClick = async () => {
+    if (!nextAction || !order) return;
+
+    // Check same-status to prevent redundant action
+    if (isSameStatus(order.status, nextAction.nextStatus)) {
+      toast('Order is already in this status', { icon: 'ℹ️' });
+      await fetchOrderDetails(order.id, true);
+      return;
+    }
+
     if (nextAction.nextStatus === 'DELIVERED') {
       setCompleteDeliveryModalOpen(true);
     } else {
@@ -396,6 +372,14 @@ export default function OrderDetailModal({
     }
   ) => {
     if (!order) return;
+
+    // Check same-status before calling API
+    if (isSameStatus(order.status, newStatus)) {
+      toast('Order is already in this status', { icon: 'ℹ️' });
+      await fetchOrderDetails(order.id, true);
+      return;
+    }
+
     setUpdatingStatus(true);
     setErrorMessage(null);
 
@@ -410,12 +394,17 @@ export default function OrderDetailModal({
         }),
       });
 
+      toast.success(`Status updated to ${getOrderStatusConfig(newStatus).label}`);
       // Refetch latest order from database to ensure fresh state
-      await fetchOrderDetails(order.id);
+      await fetchOrderDetails(order.id, true);
       if (onStatusUpdated) onStatusUpdated();
     } catch (err: any) {
       console.error('Status update error:', err);
-      setErrorMessage(err.message || 'Status could not be updated. Please try again.');
+      const msg = err.message || 'Status could not be updated. Please try again.';
+      setErrorMessage(msg);
+      toast.error(msg);
+      // Refresh order to ensure UI state syncs with DB
+      await fetchOrderDetails(order.id, true);
     } finally {
       setUpdatingStatus(false);
     }

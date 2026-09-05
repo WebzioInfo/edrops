@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import CatalogItemModal from '../components/CatalogItemModal';
 import { useDialog } from '../../../hooks/useDialog';
+import { DataErrorState } from '../../../components/common/DataErrorState';
 
 type TabType = 'products' | 'categories' | 'brands';
 
@@ -36,17 +37,35 @@ export default function CatalogManager() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  const { data: products, isLoading: prodLoading } = useQuery({
+  const {
+    data: products,
+    isLoading: prodLoading,
+    isError: prodError,
+    error: prodErr,
+    refetch: refetchProducts,
+  } = useQuery({
     queryKey: ['admin_products'],
     queryFn: () => fetchWithAuth('/catalog/products'),
   });
 
-  const { data: categories, isLoading: catLoading } = useQuery({
+  const {
+    data: categories,
+    isLoading: catLoading,
+    isError: catError,
+    error: catErr,
+    refetch: refetchCategories,
+  } = useQuery({
     queryKey: ['admin_categories'],
     queryFn: () => fetchWithAuth('/catalog/categories'),
   });
 
-  const { data: brands, isLoading: brandLoading } = useQuery({
+  const {
+    data: brands,
+    isLoading: brandLoading,
+    isError: brandError,
+    error: brandErr,
+    refetch: refetchBrands,
+  } = useQuery({
     queryKey: ['admin_brands'],
     queryFn: () => fetchWithAuth('/catalog/brands'),
   });
@@ -426,6 +445,14 @@ export default function CatalogManager() {
                         </td>
                       </tr>
                     ))
+                  ) : prodError ? (
+                    <DataErrorState
+                      isTableRow
+                      colSpan={5}
+                      title="Failed to load products"
+                      message={(prodErr as any)?.message || 'Could not fetch products. Please try again.'}
+                      onRetry={() => refetchProducts()}
+                    />
                   ) : paginatedProducts.length > 0 ? (
                     paginatedProducts.map((p: any) => {
                       const imageUrl = p.images?.[0]?.url || p.imageUrl || null;
@@ -578,6 +605,12 @@ export default function CatalogManager() {
                   <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-xl" />
                 ))}
               </div>
+            ) : catError ? (
+              <DataErrorState
+                title="Failed to load categories"
+                message={(catErr as any)?.message || 'Could not fetch categories. Please try again.'}
+                onRetry={() => refetchCategories()}
+              />
             ) : filteredCategories.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
                 {filteredCategories.map((cat: any) => (
@@ -637,6 +670,12 @@ export default function CatalogManager() {
                   <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-xl" />
                 ))}
               </div>
+            ) : brandError ? (
+              <DataErrorState
+                title="Failed to load brands"
+                message={(brandErr as any)?.message || 'Could not fetch brands. Please try again.'}
+                onRetry={() => refetchBrands()}
+              />
             ) : filteredBrands.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
                 {filteredBrands.map((brand: any) => (

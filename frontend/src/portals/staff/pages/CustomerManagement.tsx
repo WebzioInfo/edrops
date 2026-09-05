@@ -4,20 +4,14 @@ import { Users, Trash2, Plus, Eye } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-
-const StaffLoader = () => (
-  <div className="flex min-h-[60vh] items-center justify-center">
-    <div className="relative h-16 w-16 rounded-full water-gradient shadow-2xl shadow-edrops-aqua/30">
-      <div className="absolute inset-2 animate-ping rounded-full bg-white/40" />
-    </div>
-  </div>
-);
+import { DataErrorState } from '../../../components/common/DataErrorState';
 
 export default function CustomerManagement() {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCust, setSelectedCust] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Edit Schedule Modal state
   const [editingSchedule, setEditingSchedule] = useState(false);
@@ -26,10 +20,12 @@ export default function CustomerManagement() {
 
   const loadCustomers = async () => {
     try {
+      setError(null);
       setLoading(true);
       const data = await fetchWithAuth('/customer');
       setCustomers(data || []);
     } catch (err: any) {
+      setError(err?.message || 'Failed to load customers');
       toast.error('Failed to load customers');
     } finally {
       setLoading(false);
@@ -89,8 +85,6 @@ export default function CustomerManagement() {
     setRules(updated);
   };
 
-  if (loading) return <StaffLoader />;
-
   return (
     <main className="min-h-screen px-4 py-5 text-foreground sm:px-6 lg:px-10 space-y-6">
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -130,7 +124,28 @@ export default function CustomerManagement() {
                 </tr>
               </thead>
               <tbody>
-                {customers.map((cust) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-slate-500 font-semibold">
+                      Loading customer directory...
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <DataErrorState
+                    isTableRow
+                    colSpan={4}
+                    title="Unable to load customers"
+                    message={error}
+                    onRetry={() => loadCustomers()}
+                  />
+                ) : customers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-slate-500 font-semibold">
+                      No customers found in directory. Click "Add Customer" to create one.
+                    </td>
+                  </tr>
+                ) : (
+                  customers.map((cust) => (
                   <tr key={cust.id} className="border-b border-border/30 hover:bg-secondary/5 transition">
                     <td className="py-4 px-4 font-bold text-slate-800">
                       {cust.user?.firstName} {cust.user?.lastName}
@@ -155,7 +170,8 @@ export default function CustomerManagement() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                )))
+              }
               </tbody>
             </table>
           </div>

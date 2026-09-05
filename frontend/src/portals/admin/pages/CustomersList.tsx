@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { DataErrorState } from '../../../components/common/DataErrorState';
 
 export default function CustomersList() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function CustomersList() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'RESIDENTIAL' | 'COMMERCIAL'>('ALL');
 
-  const { data: customers = [], isLoading, isFetching, refetch } = useQuery({
+  const { data: customers = [], isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['adminCustomers'],
     queryFn: () => fetchWithAuth('/customer'),
   });
@@ -180,6 +181,14 @@ export default function CustomersList() {
         {isLoading ? (
           <div className="text-center py-20 flex flex-col items-center justify-center">
             <LoadingSpinner size="md" label="Loading customer directory..." />
+          </div>
+        ) : isError ? (
+          <div className="p-6">
+            <DataErrorState
+              title="Unable to load customers"
+              message={(error as any)?.message || 'Failed to fetch customer directory. Please check your connection.'}
+              onRetry={() => refetch()}
+            />
           </div>
         ) : filteredCustomers.length === 0 ? (
           /* Empty State */

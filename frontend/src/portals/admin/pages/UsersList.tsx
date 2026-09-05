@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { DataErrorState } from '../../../components/common/DataErrorState';
 import UserFormModal, { type UserRecord } from '../components/UserFormModal';
 import UserDetailModal from '../components/UserDetailModal';
 import QuickJarPriceEditModal from '../components/QuickJarPriceEditModal';
@@ -35,7 +36,7 @@ export default function UsersList() {
   const [detailUser, setDetailUser] = useState<any | null>(null);
   const [priceEditUser, setPriceEditUser] = useState<any | null>(null);
 
-  const { data: users = [], isLoading, isFetching, refetch } = useQuery({
+  const { data: users = [], isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['adminUsers'],
     queryFn: () => fetchWithAuth('/admin/users'),
   });
@@ -270,6 +271,14 @@ export default function UsersList() {
         {isLoading ? (
           <div className="text-center py-20 flex flex-col items-center justify-center">
             <LoadingSpinner size="md" label="Loading application users..." />
+          </div>
+        ) : isError ? (
+          <div className="p-6">
+            <DataErrorState
+              title="Unable to load application users"
+              message={(error as any)?.message || 'Failed to fetch application users. Please check your connection.'}
+              onRetry={() => refetch()}
+            />
           </div>
         ) : filteredUsers.length === 0 ? (
           /* Empty State */

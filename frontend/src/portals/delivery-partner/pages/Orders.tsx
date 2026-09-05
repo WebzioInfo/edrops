@@ -18,16 +18,14 @@ import OrderDetailModal, {
   getOrderStatusConfig,
 } from '../components/OrderDetailModal';
 import { formatOrderId, getPaymentStatusLabel } from '../../../utils/orderFormatters';
-import { usePageLoader } from '../../../components/common/CenteredPageLoader';
+import { useDataFetch } from '../../../hooks/useDataFetch';
+import { DataErrorState } from '../../../components/common/DataErrorState';
 import { useRegisterRefreshHandler } from '../../../components/pwa/PullToRefresh';
 
 type TabFilter = 'ALL' | 'PENDING' | 'DELIVERED';
 
 export default function Orders() {
   const { socket } = useSocket();
-  const [orders, setOrders] = useState<OrderDetail[]>([]);
-  const [loading, setLoading] = useState(true);
-  usePageLoader(loading);
   const [activeTab, setActiveTab] = useState<TabFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -38,38 +36,35 @@ export default function Orders() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   // Load Orders from Backend
-  const loadOrders = useCallback(async (isSilent = false) => {
+  const fetchOrders = useCallback(async (): Promise<OrderDetail[]> => {
+    console.log('[Orders] GET /order/partner/all');
+    let data: any;
     try {
-      if (!isSilent) setLoading(true);
-      console.log('[Orders] GET /order/partner/all');
-      let data: any;
-      try {
-        data = await fetchWithAuth('/order/partner/all');
-      } catch {
-        console.log('[Orders] Fallback GET /order/staff/all');
-        data = await fetchWithAuth('/order/staff/all');
-      }
-
-      if (Array.isArray(data)) {
-        setOrders(data);
-      } else if (data && Array.isArray(data.data)) {
-        setOrders(data.data);
-      } else {
-        setOrders([]);
-      }
-    } catch (err) {
-      console.error('Failed to load orders:', err);
-      setOrders([]);
-    } finally {
-      if (!isSilent) setLoading(false);
+      data = await fetchWithAuth('/order/partner/all');
+    } catch {
+      console.log('[Orders] Fallback GET /order/staff/all');
+      data = await fetchWithAuth('/order/staff/all');
     }
+
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data && Array.isArray(data.data)) {
+      return data.data;
+    }
+    return [];
   }, []);
 
-  useRegisterRefreshHandler(loadOrders);
+  const {
+    data: ordersData,
+    error,
+    isLoading,
+    isError,
+    reload: loadOrders,
+  } = useDataFetch<OrderDetail[]>(fetchOrders);
 
-  useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+  const orders = useMemo(() => ordersData || [], [ordersData]);
+
+  useRegisterRefreshHandler(loadOrders);
 
   // Real-time WebSocket subscriptions
   useEffect(() => {
@@ -183,11 +178,11 @@ export default function Orders() {
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => loadOrders()}
-            disabled={loading}
+            disabled={isLoading}
             title="Refresh Orders"
             className="p-2.5 text-[#64748B] hover:text-[#1677C8] hover:bg-blue-50 bg-white border border-[#E2E8F0] rounded-xl transition-colors cursor-pointer disabled:opacity-50"
           >
-            <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
           <button
@@ -335,7 +330,49 @@ export default function Orders() {
       )}
 
       {/* Orders List / Table */}
-      {filteredOrders.length > 0 ? (
+      {isLoading ? (
+        <div className="space-y-3">
+          {/* Desktop Table Skeleton */}
+          <div className="hidden md:block bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-2xs">
+            <div className="p-4 bg-slate-50/80 border-b border-gray-200 flex items-center justify-between">
+              <div className="h-4 bg-slate-200 rounded w-1/4 animate-pulse" />
+              <div className="h-4 bg-slate-200 rounded w-20 animate-pulse" />
+            </div>
+            <div className="divide-y divide-gray-100 p-4 space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between gap-4 animate-pulse py-2">
+                  <div className="h-4 bg-slate-200 rounded w-20" />
+                  <div className="h-4 bg-slate-200 rounded w-32" />
+                  <div className="h-4 bg-slate-100 rounded w-40" />
+                  <div className="h-4 bg-slate-100 rounded w-28" />
+                  <div className="h-4 bg-slate-200 rounded w-16" />
+                  <div className="h-6 bg-slate-200 rounded-full w-20" />
+                  <div className="h-4 bg-slate-100 rounded w-24" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Mobile Cards Skeleton */}
+          <div className="md:hidden space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3 animate-pulse">
+                <div className="flex justify-between items-start">
+                  <div className="h-4 bg-slate-200 rounded w-24" />
+                  <div className="h-5 bg-slate-200 rounded-full w-16" />
+                </div>
+                <div className="h-3 bg-slate-100 rounded w-3/4" />
+                <div className="h-10 bg-slate-50 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : isError ? (
+        <DataErrorState
+          title="Unable to load orders"
+          message={error?.message || 'Failed to fetch delivery orders. Please check your connection and try again.'}
+          onRetry={() => loadOrders()}
+        />
+      ) : filteredOrders.length > 0 ? (
         <div className="space-y-3">
           {/* Desktop Table */}
           <div className="hidden md:block bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-2xs">
