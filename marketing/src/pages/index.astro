@@ -9,11 +9,36 @@ const metrics = [
   ['100%', 'Prepaid cashflow'],
   ['100+', 'Outstanding invoices'],
 ];
+
+const faqItems = [
+  {
+    question: "What is Edrops and how does 20L water jar subscription software work?",
+    answer: "Edrops is an all-in-one software platform built specifically for 20L water jar delivery businesses, water plants, and distributors. It automates recurring delivery schedules, prepaid digital balances, driver route dispatch, and customer accounts in one unified interface."
+  },
+  {
+    question: "How does the prepaid wallet and jar recharge system work?",
+    answer: "Customers top up their digital jar wallet upfront. When a delivery partner completes a doorstep delivery, jar counts automatically deduct from the customer's prepaid balance in real time. Customers receive instant verification receipts without paper invoices."
+  },
+  {
+    question: "Can offices and businesses order water jars in bulk?",
+    answer: "Yes, Edrops offers dedicated bulk ordering for offices, cafes, clinics, and commercial facilities with volume-scaled rates, customized delivery calendars, monthly consumption reports, and single-point-of-contact support."
+  },
+  {
+    question: "Can customers pause, skip, or modify delivery days?",
+    answer: "Yes. Customers have 24/7 access to their self-service portal to pause deliveries during vacations, skip a drop, adjust jar quantities, or place one-time ad-hoc orders anytime without phone calls."
+  },
+  {
+    question: "How do delivery partners track routes and verify jar swaps?",
+    answer: "Delivery partners use mobile-first route sheets with customer address details, jar counts, and doorstep swap confirmations, ensuring zero missed deliveries and full jar inventory reconciliation."
+  }
+];
 ---
 
 <BaseLayout
-  title="Edrops — The Operating System for Modern Water Businesses"
-  description="Edrops is the premium platform for 20L water subscription businesses. Prepaid wallets, automated deliveries, route intelligence, and customer trust — beautifully unified."
+  title="Edrops — 20L Water Jar Delivery & Subscription Software"
+  description="Edrops is the dedicated water jar delivery & subscription software. Automate prepaid wallets, recurring deliveries, route dispatch, and customer accounts."
+  keywords="Edrops, water jar delivery app, 20L water jar subscription software, water delivery business software, bulk water delivery platform, mineral water delivery app, packaged drinking water distribution"
+  faqItems={faqItems}
 >
 
   <Navigation />
@@ -29,9 +54,13 @@ const metrics = [
       <div class="hero-photo-container">
         <img
           src="/hero-delivery.jpg"
-          alt="Edrops 20L water delivery driver with branded truck"
+          alt="Edrops delivery partner handing a 20L water jar to a customer at their doorstep"
           class="hero-photo"
           loading="eager"
+          fetchpriority="high"
+          width="1920"
+          height="1080"
+          decoding="async"
         />
         {/* Desktop Horizontal Fade (Solid white on left fading to transparent by ~60%) */}
         <div class="hero-photo-fade-desktop hidden lg:block absolute inset-0"></div>
@@ -484,6 +513,62 @@ const metrics = [
           >
             Enquire for Your Business
           </a>
+        </div>
+
+      </div>
+    </section>
+
+
+    {/* ═══════════════════════════════════════
+        FAQ — ANSWERS & RICH SNIPPET ENGINE
+        ═══════════════════════════════════════ */}
+    <section class="py-24 sm:py-32 px-6 border-t border-edrops-border/40 bg-gradient-to-b from-white via-[#f8fbfe] to-[#f0f7fc] scroll-mt-24 sm:scroll-mt-28" id="faq">
+      <div class="mx-auto max-w-4xl space-y-12">
+        
+        {/* Header */}
+        <div class="text-center space-y-4">
+          <div class="capabilities-eyebrow justify-center">
+            <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
+              Got Questions?
+            </span>
+          </div>
+          <h2 class="text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.12]">
+            Frequently Asked Questions
+          </h2>
+          <p class="text-base sm:text-lg text-edrops-slate font-normal leading-relaxed max-w-2xl mx-auto">
+            Everything you need to know about 20L water jar subscriptions, prepaid recharge balances, and delivery logistics.
+          </p>
+        </div>
+
+        {/* FAQ Accordion List */}
+        <div class="space-y-4">
+          {faqItems.map((item, idx) => (
+            <details class="group rounded-2xl bg-white/90 border border-edrops-border/70 p-6 sm:p-7 shadow-xs hover:border-edrops-primary/40 hover:shadow-md transition-all duration-200" open={idx === 0}>
+              <summary class="flex justify-between items-center cursor-pointer list-none select-none gap-4">
+                <h3 class="text-lg sm:text-xl font-bold text-edrops-ocean tracking-tight">
+                  {item.question}
+                </h3>
+                <span class="w-8 h-8 rounded-full bg-edrops-aqua/10 text-edrops-primary flex items-center justify-center shrink-0 transition-transform duration-300 group-open:rotate-180">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </summary>
+              <p class="mt-4 text-sm sm:text-base text-edrops-slate leading-relaxed font-normal pt-2 border-t border-edrops-border/30">
+                {item.answer}
+              </p>
+            </details>
+          ))}
+        </div>
+
+        {/* Plain Language Topical Summary Block for Search Crawlers & Users */}
+        <div class="pt-8 border-t border-edrops-border/50 text-center max-w-2xl mx-auto space-y-2">
+          <p class="text-xs font-bold uppercase tracking-wider text-edrops-primary">
+            About Edrops Water Platform
+          </p>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Edrops is the modern operating system for 20L water jar deliveries, recurring subscription management, prepaid digital balances, and plant distribution routes. Built to replace paper notebooks with an automated, customer-first experience.
+          </p>
         </div>
 
       </div>
