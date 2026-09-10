@@ -2,17 +2,19 @@
 import '../styles/footer.css';
 
 const navLinks = [
-  { href: '/features', label: 'Features' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/how-it-works', label: 'How it works' },
-  { href: '/about', label: 'About' },
-  { href: '/contact', label: 'Contact' },
+  { href: '#how-it-works', label: 'How it Works' },
+  { href: '#purpose-built', label: 'Purpose Built' },
+  { href: '#why-it-works', label: 'Why it Works' },
+  { href: '#for-business', label: 'For Business' },
+];
+
+const legalLinks = [
   { href: '/privacy', label: 'Privacy' },
   { href: '/terms', label: 'Terms' },
 ];
 ---
 
-<footer class="footer-section px-6 py-20 sm:py-28 lg:py-32 mt-20" id="footer-section">
+<footer class="footer-section px-6 py-20 sm:py-28 lg:py-32" id="footer-section">
   {/* Ambient Background Artwork */}
   <div class="footer-caustic"></div>
   <div class="footer-noise"></div>
@@ -22,7 +24,6 @@ const navLinks = [
   <div class="mx-auto max-w-6xl">
     {/* 1. Powerful Closing Statement & CTAs */}
     <div class="footer-hero">
-      
       <h2 class="footer-headline">
         The future of 20L water subscriptions<br class="hidden sm:inline" /> starts right here.
       </h2>
@@ -31,14 +32,8 @@ const navLinks = [
       </p>
       
       <div class="footer-cta-group">
-        <a href="http://localhost:5173/login" class="footer-btn-primary">
-          Start Free
-        </a>
-        <a href="/features" class="footer-btn-secondary">
+        <a href="https://app.edrops.in" class="footer-btn-secondary">
           Explore Platform
-        </a>
-        <a href="/contact" class="footer-btn-tertiary">
-          Book a Demo →
         </a>
       </div>
     </div>
@@ -46,40 +41,33 @@ const navLinks = [
     {/* Glass Divider Line */}
     <div class="footer-divider"></div>
 
-    {/* 2. Brand Signature & Minimal Navigation */}
+    {/* 2. Brand Signature & Navigation */}
     <div class="footer-body">
       <div class="footer-brand">
-        <a href="/" class="footer-brand-logo">
-          <span class="footer-brand-logo-icon">E</span>
-          <span class="footer-brand-logo-text">Edrops</span>
+        <a href="/" class="footer-brand-logo" aria-label="Edrops home">
+          <img src="/edrops-logo-full.png" alt="Edrops" class="footer-brand-logo-img" />
         </a>
         <p class="footer-brand-desc">
           Edrops is the calm, intelligent platform where prepaid wallets, automated deliveries, and customer trust come together.
         </p>
       </div>
 
-      <nav class="footer-nav" aria-label="Footer navigation">
-        {navLinks.map(({ href, label }) => (
-          <a href={href} class="footer-nav-link">
-            {label}
-          </a>
-        ))}
-      </nav>
-    </div>
+      <div class="footer-nav-container">
+        <nav class="footer-nav" aria-label="Footer navigation">
+          {navLinks.map(({ href, label }) => (
+            <a href={href} class="footer-nav-link">
+              {label}
+            </a>
+          ))}
+        </nav>
 
-    {/* 3. Bottom Fine-print Strip */}
-    <div class="footer-bottom">
-      <div class="footer-bottom-left">
-        <span>&copy; {new Date().getFullYear()} Edrops Technologies Inc. All rights reserved.</span>
-        <span class="footer-status">
-          <span class="footer-status-dot"></span>
-          Systems Operational
-        </span>
-      </div>
-      <div class="footer-bottom-right">
-        <span>Crafted with care for water operators</span>
-        <span class="opacity-40">•</span>
-        <span>v2.4.0</span>
+        <div class="footer-legal-links" aria-label="Legal navigation">
+          {legalLinks.map(({ href, label }) => (
+            <a href={href} class="footer-legal-link">
+              {label}
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   </div>
@@ -102,5 +90,20 @@ const navLinks = [
       });
       observer.observe(footer);
     }
+
+    // Smooth scroll for in-page footer anchor links
+    const footerLinks = document.querySelectorAll<HTMLAnchorElement>('.footer-nav-link');
+    footerLinks.forEach((link) => {
+      link.addEventListener('click', (e) => {
+        const href = link.getAttribute('href');
+        if (href && href.startsWith('#')) {
+          const target = document.querySelector(href);
+          if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      });
+    });
   }
 </script>

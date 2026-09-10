@@ -2,13 +2,12 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Navigation from '../components/Navigation.astro';
 import '../styles/capabilities.css';
-import '../styles/journey.css';
 
 const metrics = [
   ['99.4%', 'On-time delivery rate'],
   ['3×', 'Faster route planning'],
   ['100%', 'Prepaid cashflow'],
-  ['0', 'Outstanding invoices'],
+  ['100+', 'Outstanding invoices'],
 ];
 ---
 
@@ -24,65 +23,74 @@ const metrics = [
     {/* ═══════════════════════════════════════
         HERO — THE BRAND STATEMENT
         ═══════════════════════════════════════ */}
-    <section class="hero-atmosphere relative min-h-screen flex flex-col items-center justify-center text-center px-6">
+    <section class="hero-atmosphere relative min-h-screen flex items-center px-6 sm:px-10 lg:px-16 overflow-hidden">
       
-      {/* Ambient volumetric light glows */}
-      <div class="hero-glow-1"></div>
-      <div class="hero-glow-2"></div>
-      <div class="hero-glow-3"></div>
+      {/* Background Delivery Photo & Directional Fades */}
+      <div class="hero-photo-container">
+        <img
+          src="/hero-delivery.jpg"
+          alt="Edrops 20L water delivery driver with branded truck"
+          class="hero-photo"
+          loading="eager"
+        />
+        {/* Desktop Horizontal Fade (Solid white on left fading to transparent by ~60%) */}
+        <div class="hero-photo-fade-desktop hidden lg:block absolute inset-0"></div>
+        {/* Mobile & Tablet Wash (High legibility white gradient overlay) */}
+        <div class="hero-photo-fade-mobile block lg:hidden absolute inset-0"></div>
+      </div>
 
-      <div class="relative z-10 mx-auto max-w-4xl pt-24 pb-20 sm:pb-28 space-y-10">
-        
-        {/* Eyebrow */}
-        <div class="animate-fade-up">
-          <span class="inline-flex items-center gap-2.5 rounded-full border border-edrops-border/60 bg-white/60 backdrop-blur-md px-4 py-2 text-xs font-semibold text-edrops-primary tracking-wide">
-            <span class="w-1.5 h-1.5 rounded-full bg-edrops-aqua animate-pulse"></span>
-            The water subscription engine
-          </span>
+      {/* Ambient subtle lighting */}
+      <div class="hero-glow-1 opacity-60"></div>
+      <div class="hero-glow-2 opacity-50"></div>
+
+      <div class="relative z-10 w-full max-w-6xl mx-auto pt-28 pb-20 sm:pt-36 sm:pb-28">
+        <div class="max-w-xl lg:max-w-2xl text-left space-y-8 sm:space-y-9">
+          
+          {/* Eyebrow */}
+          <div class="animate-fade-up">
+            <span class="inline-flex items-center gap-2.5 rounded-full border border-edrops-border/60 bg-white/80 backdrop-blur-md px-4 py-2 text-xs font-semibold text-edrops-primary tracking-wide shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-edrops-aqua animate-pulse"></span>
+              The water subscription engine
+            </span>
+          </div>
+          
+          {/* Headline — The Hero */}
+          <div class="animate-fade-up-delay-1 space-y-4">
+            <h1 class="text-[clamp(2.5rem,5.5vw,4.75rem)] font-extrabold leading-[1.06] tracking-[-0.035em] text-edrops-ocean">
+              20L water jars,<br>
+              <span class="text-[clamp(2.1rem,4.5vw,3.9rem)] text-gradient-water">delivered to your door.</span>
+            </h1>
+          </div>
+
+          {/* Subline */}
+          <p class="animate-fade-up-delay-2 text-base sm:text-lg lg:text-xl text-edrops-slate font-normal leading-relaxed max-w-xl">
+            Edrops is the calm, intelligent platform where prepaid wallets, recurring deliveries, and customer trust come together — built specifically for 20L water jar businesses.
+          </p>
+
+          {/* CTA */}
+          <div class="animate-fade-up-delay-3 flex items-center justify-start pt-2">
+            <a
+              href="https://app.edrops.in"
+              class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-[15px] font-bold px-9 py-4 btn-glow"
+            >
+              Start Free
+            </a>
+          </div>
+
+          {/* Trust Indicators */}
+          <div class="animate-fade-up-delay-4 flex flex-wrap items-center justify-start gap-x-6 gap-y-2.5 text-xs font-medium text-edrops-muted pt-2">
+            <span class="flex items-center gap-1.5"><span class="text-edrops-aqua">✓</span> Subscription Ready</span>
+            <span class="flex items-center gap-1.5"><span class="text-edrops-aqua">✓</span> Prepaid Wallets</span>
+            <span class="flex items-center gap-1.5"><span class="text-edrops-aqua">✓</span> Real-time Dispatch</span>
+            <span class="flex items-center gap-1.5"><span class="text-edrops-aqua">✓</span> Customer Portal</span>
+          </div>
+
         </div>
-        
-        {/* Headline — The Hero */}
-        <div class="animate-fade-up-delay-1 space-y-6">
-          <h1 class="text-[clamp(2.5rem,7vw,5.5rem)] font-extrabold leading-[1.04] tracking-[-0.035em] text-edrops-ocean">
-            Water subscriptions,<br>
-            <span class="text-gradient-water">beautifully managed.</span>
-          </h1>
-        </div>
-
-        {/* Subline */}
-        <p class="animate-fade-up-delay-2 text-lg sm:text-xl text-edrops-slate font-normal leading-relaxed max-w-2xl mx-auto">
-          Edrops is the calm, intelligent platform where prepaid wallets, recurring deliveries, and customer trust come together — built specifically for 20L water jar businesses.
-        </p>
-
-        {/* CTAs */}
-        <div class="animate-fade-up-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-          <a
-            href="http://localhost:5173/login"
-            class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-[15px] font-bold px-9 py-4 btn-glow"
-          >
-            Start Free
-          </a>
-          <a
-            href="/features"
-            class="inline-flex items-center justify-center rounded-full bg-white border border-edrops-border text-edrops-ocean text-[15px] font-bold px-9 py-4 btn-glass"
-          >
-            Explore Platform
-          </a>
-        </div>
-
-        {/* Trust Indicators */}
-        <div class="animate-fade-up-delay-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-edrops-muted pt-4">
-          <span class="flex items-center gap-1.5"><span class="text-edrops-aqua">✓</span> Subscription Ready</span>
-          <span class="flex items-center gap-1.5"><span class="text-edrops-aqua">✓</span> Prepaid Wallets</span>
-          <span class="flex items-center gap-1.5"><span class="text-edrops-aqua">✓</span> Real-time Dispatch</span>
-          <span class="flex items-center gap-1.5"><span class="text-edrops-aqua">✓</span> Customer Portal</span>
-        </div>
-
       </div>
 
       {/* Scroll indicator */}
-      <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-fade-up-delay-5">
-        <div class="w-6 h-10 rounded-full border-2 border-edrops-muted/40 flex items-start justify-center pt-2">
+      <div class="hidden lg:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-fade-up-delay-5">
+        <div class="w-6 h-10 rounded-full border-2 border-edrops-muted/40 flex items-start justify-center pt-2 bg-white/40 backdrop-blur-xs">
           <div class="w-1 h-2.5 rounded-full bg-edrops-muted/50 animate-bounce"></div>
         </div>
       </div>
@@ -107,9 +115,114 @@ const metrics = [
 
 
     {/* ═══════════════════════════════════════
-        CAPABILITIES — WHY EDROPS
+        HOW IT WORKS — EDITORIAL NUMBERED STEPS
         ═══════════════════════════════════════ */}
-    <section class="capabilities-section py-28 sm:py-36 px-6" id="capabilities-section">
+    <section class="py-24 sm:py-32 px-6 border-t border-edrops-border/40 scroll-mt-24 sm:scroll-mt-28" id="how-it-works">
+      <div class="mx-auto max-w-6xl space-y-16 sm:space-y-20">
+        
+        {/* Editorial Header */}
+        <div class="max-w-3xl">
+          <div class="capabilities-eyebrow">
+            <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
+              How it works
+            </span>
+          </div>
+          <h2 class="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.08]">
+            Subscribe, or just order once.<br>
+            <span class="text-gradient-water">Either way, it arrives on time.</span>
+          </h2>
+        </div>
+
+        {/* Numbered Steps: Responsive cards with soft tinted panels & flow progression */}
+        <div class="relative">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 relative z-10">
+            
+            {/* Step 01 */}
+            <div class="group relative rounded-[20px] bg-edrops-aqua/[0.045] border border-edrops-aqua/20 p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:shadow-edrops-primary/[0.05] hover:border-edrops-aqua/35 flex flex-col justify-between">
+              <div class="relative z-10">
+                <span class="text-5xl sm:text-6xl font-extrabold text-edrops-primary/[0.12] select-none tracking-tight block mb-5 leading-none">
+                  01
+                </span>
+                <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
+                  Choose how you buy
+                </h3>
+                <p class="text-base text-edrops-slate leading-relaxed font-normal">
+                  Set up a recurring plan, or place a one-time order. No commitment required either way.
+                </p>
+              </div>
+
+              {/* Desktop flow connector chevron to Step 02 */}
+              <div class="hidden md:flex absolute -right-3.5 lg:-right-4.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-white border border-edrops-border/80 text-edrops-primary/60 items-center justify-center shadow-xs pointer-events-none">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Mobile vertical flow connector 1 -> 2 */}
+            <div class="md:hidden flex flex-col items-center justify-center -my-2 z-10 text-edrops-primary/40">
+              <div class="w-px h-5 bg-gradient-to-b from-edrops-aqua/30 to-edrops-primary/40"></div>
+              <svg class="w-3.5 h-3.5 text-edrops-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            {/* Step 02 */}
+            <div class="group relative rounded-[20px] bg-edrops-aqua/[0.045] border border-edrops-aqua/20 p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:shadow-edrops-primary/[0.05] hover:border-edrops-aqua/35 flex flex-col justify-between">
+              <div class="relative z-10">
+                <span class="text-5xl sm:text-6xl font-extrabold text-edrops-primary/[0.12] select-none tracking-tight block mb-5 leading-none">
+                  02
+                </span>
+                <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
+                  We deliver on schedule
+                </h3>
+                <p class="text-base text-edrops-slate leading-relaxed font-normal">
+                  Subscribers get automatic recurring drops. One-time orders arrive on your chosen date. Both tracked live.
+                </p>
+              </div>
+
+              {/* Desktop flow connector chevron to Step 03 */}
+              <div class="hidden md:flex absolute -right-3.5 lg:-right-4.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-white border border-edrops-border/80 text-edrops-primary/60 items-center justify-center shadow-xs pointer-events-none">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Mobile vertical flow connector 2 -> 3 */}
+            <div class="md:hidden flex flex-col items-center justify-center -my-2 z-10 text-edrops-primary/40">
+              <div class="w-px h-5 bg-gradient-to-b from-edrops-aqua/30 to-edrops-primary/40"></div>
+              <svg class="w-3.5 h-3.5 text-edrops-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            {/* Step 03 */}
+            <div class="group relative rounded-[20px] bg-edrops-aqua/[0.045] border border-edrops-aqua/20 p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:shadow-edrops-primary/[0.05] hover:border-edrops-aqua/35 flex flex-col justify-between">
+              <div class="relative z-10">
+                <span class="text-5xl sm:text-6xl font-extrabold text-edrops-primary/[0.12] select-none tracking-tight block mb-5 leading-none">
+                  03
+                </span>
+                <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
+                  Stay in control
+                </h3>
+                <p class="text-base text-edrops-slate leading-relaxed font-normal">
+                  Pause, skip, or switch between subscription and one-time anytime from your dashboard.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    {/* ═══════════════════════════════════════
+        CAPABILITIES — WHY EDROPS / PURPOSE BUILT
+        ═══════════════════════════════════════ */}
+    <section class="capabilities-section py-28 sm:py-36 px-6 scroll-mt-24 sm:scroll-mt-28" id="purpose-built">
       
       {/* Ambient background elements */}
       <div class="capabilities-caustic"></div>
@@ -132,28 +245,25 @@ const metrics = [
           </h2>
         </div>
 
-        {/* Asymmetric Feature Grid */}
+        {/* 3-Column Equal Feature Grid */}
         <div class="capabilities-grid">
           
-          {/* Feature 1 — Hero Card (largest, introduces the idea) */}
-          <article class="capability-card capability-card--hero" data-capability="0">
-            <div class="capability-card__light"></div>
+          {/* Feature 1 */}
+          <article class="capability-card" data-capability="0">
             <span class="capability-card__number" aria-hidden="true">01</span>
             <h3 class="capability-card__title">Subscription Intelligence</h3>
             <p class="capability-card__text">Recurring delivery schedules that adapt to customer rhythms. Pause, skip, reschedule — without losing a single subscription.</p>
           </article>
 
-          {/* Feature 2 — Secondary Card (expands the idea) */}
-          <article class="capability-card capability-card--secondary capability-card--delay-1" data-capability="1">
-            <div class="capability-card__light"></div>
+          {/* Feature 2 */}
+          <article class="capability-card capability-card--delay-1" data-capability="1">
             <span class="capability-card__number" aria-hidden="true">02</span>
             <h3 class="capability-card__title">Prepaid Wallet Engine</h3>
             <p class="capability-card__text">Customers recharge their jar balance upfront. Every delivery consumes balance automatically. Zero chasing. Zero invoices.</p>
           </article>
 
-          {/* Feature 3 — Tertiary Card (completes the story) */}
-          <article class="capability-card capability-card--tertiary capability-card--delay-2" data-capability="2">
-            <div class="capability-card__light"></div>
+          {/* Feature 3 */}
+          <article class="capability-card capability-card--delay-2" data-capability="2">
             <span class="capability-card__number" aria-hidden="true">03</span>
             <h3 class="capability-card__title">Operational Clarity</h3>
             <p class="capability-card__text">Routes optimized. Drivers dispatched. Exceptions flagged. Low-balance customers notified — before they run out.</p>
@@ -164,16 +274,14 @@ const metrics = [
     </section>
 
     <script>
-      // ─── Capabilities: Scroll Reveal + Cursor Light ───
+      // ─── Capabilities: Scroll Reveal ───
       {
-        const section = document.getElementById('capabilities-section');
+        const section = document.getElementById('purpose-built') || document.getElementById('capabilities-section');
         if (section) {
-          // Intersection Observer for scroll-triggered reveals
           const observer = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
               if (entry.isIntersecting) {
                 section.classList.add('capabilities--visible');
-                // Reveal each card with stagger
                 const cards = section.querySelectorAll('.capability-card');
                 cards.forEach((card) => {
                   card.classList.add('capability-card--visible');
@@ -187,178 +295,209 @@ const metrics = [
           });
 
           observer.observe(section);
-
-          // Cursor-tracking light effect on cards
-          const cards = section.querySelectorAll('.capability-card');
-          cards.forEach((card) => {
-            card.addEventListener('mousemove', (e) => {
-              const rect = card.getBoundingClientRect();
-              const x = ((e.clientX - rect.left) / rect.width) * 100;
-              const y = ((e.clientY - rect.top) / rect.height) * 100;
-              const light = card.querySelector('.capability-card__light');
-              if (light) {
-                light.style.setProperty('--mouse-x', x + '%');
-                light.style.setProperty('--mouse-y', y + '%');
-              }
-            });
-          });
         }
       }
     </script>
 
 
-
     {/* ═══════════════════════════════════════
-        HOW IT WORKS — TIMELINE STORYTELLING
+        WHY IT WORKS — CUSTOMER TRUST & VISIBILITY
         ═══════════════════════════════════════ */}
-    {/* ═══════════════════════════════════════
-        HOW IT WORKS — EDITORIAL STORY EXPERIENCE
-        Bright, Airy, Luxury Storytelling
-        ═══════════════════════════════════════ */}
-    {/* ═══════════════════════════════════════
-        HOW IT WORKS — THE LIQUID MONOLITH EXPERIENCE
-        A Signature Kinetic Fluid Product Launch
-        ═══════════════════════════════════════ */}
-    {/* ═══════════════════════════════════════
-        HOW IT WORKS — THE UNBOXED HYDRO-CINEMATIC GALLERY
-        Museum Installation Experience. Zero Cards. Zero Containers. Zero Boxes.
-        ═══════════════════════════════════════ */}
-    <section class="hydro-canvas" id="hydro-canvas">
+    <section class="relative overflow-hidden py-24 sm:py-32 px-6 border-t border-edrops-border/40 bg-gradient-to-b from-[#eef7fc] via-[#f3f9fd] to-[#edf6fc] scroll-mt-24 sm:scroll-mt-28" id="why-it-works">
       
-      {/* Hydro-optic atmosphere & light pools */}
-      <div class="hydro-caustic-layer"></div>
-      <div class="hydro-light-pool hydro-light-pool--1"></div>
-      <div class="hydro-light-pool hydro-light-pool--2"></div>
-      <div class="hydro-light-pool hydro-light-pool--3"></div>
-
-      {/* Main Gallery Title Header */}
-      <div class="hydro-header">
-        <div class="hydro-status-pill">
-          <span class="hydro-status-dot"></span>
-          How it works
-        </div>
-        <h2 class="hydro-main-title">
-          Three steps to recurring water revenue.
-        </h2>
+      {/* Abstract organic flowing wave shapes (subtle tone-on-tone brand texture) */}
+      <div class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        {/* Top-right flowing wave glow */}
+        <div class="absolute -top-24 -right-24 w-[480px] h-[480px] rounded-full bg-gradient-to-bl from-edrops-aqua/12 via-edrops-primary/8 to-transparent blur-3xl"></div>
+        {/* Bottom-left soft wave glow */}
+        <div class="absolute -bottom-28 -left-20 w-[520px] h-[520px] rounded-full bg-gradient-to-tr from-edrops-primary/10 via-edrops-aqua/8 to-transparent blur-3xl"></div>
+        {/* Wavy curve vector overlay */}
+        <svg class="absolute top-0 right-0 w-full h-full opacity-[0.06] text-edrops-primary" viewBox="0 0 1440 600" fill="none" preserveAspectRatio="none">
+          <path d="M0,160 C320,300 480,40 800,180 C1120,320 1280,100 1440,200 L1440,600 L0,600 Z" fill="currentColor" />
+          <path d="M0,280 C360,120 600,340 960,190 C1200,80 1360,260 1440,220" stroke="currentColor" stroke-width="2" fill="none" />
+        </svg>
       </div>
 
-      <div class="mx-auto max-w-6xl space-y-32 sm:space-y-44 lg:space-y-56">
+      <div class="relative z-10 mx-auto max-w-6xl space-y-16 sm:space-y-20">
         
-        {/* SCENE I: RECHARGE */}
-        <div class="hydro-scene" data-scene="1">
-          <div class="hydro-scene-composition">
-            {/* Unboxed Floating Artwork (Left) */}
-            <div class="hydro-art-space">
-              <div class="art-recharge">
-                <div class="art-recharge__ring-1"></div>
-                <div class="art-recharge__ring-2"></div>
-                <div class="art-recharge__drop-orb">
-                  <div class="art-recharge__drop"></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Unboxed Editorial Typography (Right) */}
-            <div class="hydro-typography">
-              <div class="hydro-ghost-num">01</div>
-              <h3 class="hydro-scene-title">Recharge</h3>
-              <p class="hydro-scene-text">Customers purchase jar passes upfront via UPI, card, or wallet top-up.</p>
-            </div>
+        {/* Editorial Header */}
+        <div class="max-w-3xl space-y-4">
+          <div class="capabilities-eyebrow">
+            <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
+              Why it works
+            </span>
           </div>
+          <h2 class="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.08]">
+            Water delivery your customers actually trust.
+          </h2>
+          <p class="text-lg sm:text-xl text-edrops-slate font-normal leading-relaxed">
+            Every order tracked. Every jar accounted for. Every customer kept in the loop.
+          </p>
         </div>
 
-        {/* SCENE II: DELIVER */}
-        <div class="hydro-scene hydro-scene--reverse" data-scene="2">
-          <div class="hydro-scene-composition">
-            {/* Unboxed Floating Artwork (Right on Desktop) */}
-            <div class="hydro-art-space">
-              <div class="art-deliver">
-                <svg class="art-deliver__svg" viewBox="0 0 340 220">
-                  <defs>
-                    <linearGradient id="hydro-stream-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stop-color="#2D79A8" />
-                      <stop offset="100%" stop-color="#33BFD0" />
-                    </linearGradient>
-                  </defs>
-                  <path class="art-deliver__path-bg" d="M 30,60 Q 170,210 310,60" />
-                  <path class="art-deliver__path-glow" d="M 30,60 Q 170,210 310,60" />
+        {/* 3 Trust Cards */}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+          
+          {/* Card 1 */}
+          <div class="rounded-[20px] bg-white/95 border border-white/80 shadow-[0_4px_24px_-4px_rgba(24,60,72,0.06)] p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_32px_-4px_rgba(24,60,72,0.12)] hover:border-edrops-primary/20 flex flex-col justify-between">
+            <div>
+              {/* Icon Badge */}
+              <div class="w-12 h-12 rounded-xl bg-edrops-aqua/10 text-edrops-primary flex items-center justify-center mb-6">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                <div class="art-deliver__particle"></div>
               </div>
+
+              <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
+                Verified deliveries, every time
+              </h3>
+              <p class="text-base text-edrops-slate leading-relaxed font-normal mb-6">
+                Every jar is logged the moment it leaves the depot and confirmed the moment it arrives. Nothing gets missed.
+              </p>
             </div>
 
-            {/* Unboxed Editorial Typography (Left on Desktop) */}
-            <div class="hydro-typography">
-              <div class="hydro-ghost-num">02</div>
-              <h3 class="hydro-scene-title">Deliver</h3>
-              <p class="hydro-scene-text">Drivers receive optimized routes. Each delivery auto-deducts from balance.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* SCENE III: PREDICT */}
-        <div class="hydro-scene" data-scene="3">
-          <div class="hydro-scene-composition">
-            {/* Unboxed Floating Artwork (Left) */}
-            <div class="hydro-art-space">
-              <div class="art-predict">
-                <div class="art-predict__wave art-predict__wave--1"></div>
-                <div class="art-predict__wave art-predict__wave--2"></div>
-                <div class="art-predict__wave art-predict__wave--3"></div>
-                <div class="art-predict__infinity-core">
-                  <span>&infin;</span>
+            {/* Checklist */}
+            <div class="pt-6 border-t border-edrops-border/60">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-semibold text-edrops-ocean">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-edrops-aqua shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Delivery time</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-edrops-aqua shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Jar count</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-edrops-aqua shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Payment status</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-edrops-aqua shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Driver details</span>
                 </div>
               </div>
             </div>
-
-            {/* Unboxed Editorial Typography (Right) */}
-            <div class="hydro-typography">
-              <div class="hydro-ghost-num">03</div>
-              <h3 class="hydro-scene-title">Predict</h3>
-              <p class="hydro-scene-text">Edrops forecasts recharge timing and notifies customers before supply runs low.</p>
-            </div>
           </div>
+
+          {/* Card 2 */}
+          <div class="rounded-[20px] bg-white/95 border border-white/80 shadow-[0_4px_24px_-4px_rgba(24,60,72,0.06)] p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_32px_-4px_rgba(24,60,72,0.12)] hover:border-edrops-secondary/30 flex flex-col justify-start">
+            {/* Icon Badge */}
+            <div class="w-12 h-12 rounded-xl bg-edrops-secondary/10 text-edrops-secondary flex items-center justify-center mb-6">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+
+            <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
+              Reorder in one tap
+            </h3>
+            <p class="text-base text-edrops-slate leading-relaxed font-normal">
+              No phone calls, no waiting on hold. Customers top up their wallet or place an order straight from the app, any time.
+            </p>
+          </div>
+
+          {/* Card 3 */}
+          <div class="rounded-[20px] bg-white/95 border border-white/80 shadow-[0_4px_24px_-4px_rgba(24,60,72,0.06)] p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_32px_-4px_rgba(24,60,72,0.12)] hover:border-edrops-primary/20 flex flex-col justify-start">
+            {/* Icon Badge */}
+            <div class="w-12 h-12 rounded-xl bg-edrops-aqua/10 text-edrops-primary flex items-center justify-center mb-6">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+            </div>
+
+            <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
+              Doorstep swap, zero hassle
+            </h3>
+            <p class="text-base text-edrops-slate leading-relaxed font-normal">
+              Your delivery partner brings the full jar in and takes the empty one out. Customers never have to lift a thing.
+            </p>
+          </div>
+
         </div>
 
       </div>
     </section>
 
-    <script>
-      // ─── Hydro-Cinematic Gallery Controller ───
-      {
-        const canvas = document.getElementById('hydro-canvas');
-        if (canvas) {
-          // 1. Entrance Observer
-          const canvasObserver = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-              if (entry.isIntersecting) {
-                canvas.classList.add('hydro-canvas--visible');
-                canvasObserver.unobserve(entry.target);
-              }
-            });
-          }, { threshold: 0.08 });
+    {/* ═══════════════════════════════════════
+        FOR BUSINESSES — BULK WORKPLACE WATER
+        ═══════════════════════════════════════ */}
+    <section class="py-24 sm:py-32 lg:py-36 px-6 border-t border-edrops-border/50 bg-[#f9fcfe] scroll-mt-24 sm:scroll-mt-28" id="for-business">
+      <div class="mx-auto max-w-6xl space-y-16 sm:space-y-20 text-center">
+        
+        {/* Centered Header & Subheading */}
+        <div class="max-w-3xl mx-auto space-y-4">
+          <div class="capabilities-eyebrow justify-center">
+            <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
+              For Businesses
+            </span>
+          </div>
           
-          canvasObserver.observe(canvas);
+          <h2 class="text-3xl sm:text-4xl lg:text-[3rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.12]">
+            Your office shouldn't run dry. We make sure it doesn't.
+          </h2>
+          
+          <p class="text-base sm:text-lg text-edrops-slate font-normal leading-relaxed max-w-2xl mx-auto">
+            Bulk water jar delivery for offices, cafes, clinics, and stores — better rates the more you order, and one dashboard to manage it all.
+          </p>
+        </div>
 
-          // 2. Scene Reveal Observer
-          const scenes = canvas.querySelectorAll('.hydro-scene');
-          const sceneObserver = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-              if (entry.isIntersecting) {
-                entry.target.classList.add('hydro-scene--active');
-                sceneObserver.unobserve(entry.target);
-              }
-            });
-          }, {
-            threshold: 0.25,
-            rootMargin: '0px 0px -50px 0px'
-          });
+        {/* 4-Item Content Grid (1 row of 4 desktop, 2x2 tablet, 1 col mobile) - plain text */}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10 text-center pt-2">
+          
+          {/* Item 1 */}
+          <div class="space-y-2.5 flex flex-col items-center">
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Bulk Pricing</h3>
+            <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
+              Order more, pay less per jar. Rates scale automatically with your volume.
+            </p>
+          </div>
 
-          scenes.forEach(scene => sceneObserver.observe(scene));
-        }
-      }
-    </script>
+          {/* Item 2 */}
+          <div class="space-y-2.5 flex flex-col items-center">
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Flexible Scheduling</h3>
+            <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
+              Set your own delivery days. Change, pause, or adjust anytime — no lock-in.
+            </p>
+          </div>
 
+          {/* Item 3 */}
+          <div class="space-y-2.5 flex flex-col items-center">
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Single Point of Contact</h3>
+            <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
+              One person who knows your account. Not a call centre queue.
+            </p>
+          </div>
+
+          {/* Item 4 */}
+          <div class="space-y-2.5 flex flex-col items-center">
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Usage Reports</h3>
+            <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
+              See exactly how much water your office is using, whenever you need to check.
+            </p>
+          </div>
+
+        </div>
+
+        {/* Centered CTA Button */}
+        <div class="pt-4 flex justify-center">
+          <a
+            href="tel:+917907805620"
+            class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-[15px] font-bold px-9 py-4 btn-glow"
+          >
+            Enquire for Your Business
+          </a>
+        </div>
+
+      </div>
+    </section>
 
   </main>
 </BaseLayout>
