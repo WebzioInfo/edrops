@@ -1,22 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import { Truck, CheckSquare, Square, Edit3 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus, getOrderStatusBadgeClass } from '../../../utils/orderFormatters';
 import { DataErrorState } from '../../../components/common/DataErrorState';
+import { useSocket } from '../../../contexts/SocketContext';
 
 export default function OrderManagement() {
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<string>('');
   
+  // Real-time WebSocket sync
+  useEffect(() => {
+    if (!socket) return;
+    const handleOrderEvent = () => {
+      queryClient.invalidateQueries({ queryKey: ['adminOrdersPending'] });
+    };
+
+    socket.on('ORDER_STATUS_CHANGED', handleOrderEvent);
+    socket.on('order:updated', handleOrderEvent);
+    socket.on('order:assigned', handleOrderEvent);
+    socket.on('order:claimed', handleOrderEvent);
+
+    return () => {
+      socket.off('ORDER_STATUS_CHANGED', handleOrderEvent);
+      socket.off('order:updated', handleOrderEvent);
+      socket.off('order:assigned', handleOrderEvent);
+      socket.off('order:claimed', handleOrderEvent);
+    };
+  }, [socket, queryClient]);
+
   // Queries
   const { data: orders = [], isLoading: isLoadingOrders, isError: isOrdersError, error: ordersError, refetch: refetchOrders } = useQuery({
     queryKey: ['adminOrdersPending'],
     queryFn: () => fetchWithAuth('/order'),
-    // Filtering down to what makes sense for bulk management
-    select: (data) => data.filter((o: any) => o.status === 'PENDING_ASSIGNMENT' || o.status === 'ASSIGNED')
+    // Canonical active orders for management
+    select: (data) => data.filter((o: any) => ['ORDER_PLACED', 'CONFIRMED', 'PENDING_ASSIGNMENT', 'ASSIGNED'].includes(o.status))
   });
 
   const { data: partners = [] } = useQuery({
@@ -148,7 +170,7 @@ export default function OrderManagement() {
                         <p className="text-xs text-slate-600 line-clamp-2 max-w-[150px]">{order.deliveryAddress?.street}, {order.deliveryAddress?.city}</p>
                       </td>
                       <td className="py-4 px-4">
-                        <span className="bg-orange-100 text-orange-700 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider">
+                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${getOrderStatusBadgeClass(order.status)}`}>
                           {formatOrderStatus(order.status)}
                         </span>
                       </td>

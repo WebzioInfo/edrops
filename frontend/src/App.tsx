@@ -82,51 +82,47 @@ export default function App() {
             }}
           />
           {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
-          <BrowserRouter>
-            <GlobalCenteredPageLoader />
-            <PullToRefresh isRoot={true}>
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Login />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
+          <SocketProvider>
+            <BrowserRouter>
+              <GlobalCenteredPageLoader />
+              <PullToRefresh isRoot={true}>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Login />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
 
-                  <Route path="/customer/*" element={<CustomerPortal />} />
+                    <Route path="/customer/*" element={<CustomerPortal />} />
 
-                  <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
-                    <Route path="/staff/*" element={
-                      <SocketProvider>
+                    <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
+                      <Route path="/staff/*" element={
                         <NotificationProvider>
                           <StaffPortal />
                         </NotificationProvider>
-                      </SocketProvider>
-                    } />
-                  </Route>
+                      } />
+                    </Route>
 
-                  <Route element={<ProtectedRoute allowedRoles={['DELIVERY_PARTNER']} />}>
-                    <Route path="/delivery-partner/*" element={<DeliveryPartnerPortal />} />
-                  </Route>
+                    <Route element={<ProtectedRoute allowedRoles={['DELIVERY_PARTNER']} />}>
+                      <Route path="/delivery-partner/*" element={<DeliveryPartnerPortal />} />
+                    </Route>
 
-                  <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                    <Route path="/admin/*" element={<AdminPortal />} />
-                  </Route>
+                    <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                      <Route path="/admin/*" element={<AdminPortal />} />
+                    </Route>
 
-                  <Route element={<ProtectedRoute allowedRoles={['DISTRIBUTOR']} />}>
-                    <Route path="/distributor/*" element={
-                      <SocketProvider>
-                        <DistributorPortal />
-                      </SocketProvider>
-                    } />
-                  </Route>
+                    <Route element={<ProtectedRoute allowedRoles={['DISTRIBUTOR']} />}>
+                      <Route path="/distributor/*" element={<DistributorPortal />} />
+                    </Route>
 
-                  <Route path="/" element={<RootRedirect />} />
-                  <Route path="*" element={<RootRedirect />} />
-                </Routes>
-              </Suspense>
-            </PullToRefresh>
-            <PWAInstallPrompt />
-          </BrowserRouter>
+                    <Route path="/" element={<RootRedirect />} />
+                    <Route path="*" element={<RootRedirect />} />
+                  </Routes>
+                </Suspense>
+              </PullToRefresh>
+              <PWAInstallPrompt />
+            </BrowserRouter>
+          </SocketProvider>
         </DialogProvider>
       </AuthProvider>
     </QueryClientProvider>

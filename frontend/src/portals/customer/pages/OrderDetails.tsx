@@ -59,13 +59,6 @@ export default function OrderDetails() {
 
   useEffect(() => {
     fetchOrder();
-    // Poll every 12 seconds if active order
-    const interval = setInterval(() => {
-      if (order && !['DELIVERED', 'CANCELLED'].includes(order.status)) {
-        fetchOrder();
-      }
-    }, 12000);
-    return () => clearInterval(interval);
   }, [orderId]);
 
   // Real-time WebSocket updates
@@ -114,6 +107,7 @@ export default function OrderDetails() {
 
   const getTimelineStepIndex = (status: string) => {
     switch (status) {
+      case 'ORDER_PLACED':
       case 'NEW':
       case 'PENDING':
       case 'PENDING_PAYMENT':
@@ -129,8 +123,6 @@ export default function OrderDetails() {
       case 'DELIVERED':
       case 'COMPLETED':
         return 3; // Delivered
-      case 'CANCELLED':
-        return -1;
       default:
         return 0;
     }
@@ -171,10 +163,10 @@ export default function OrderDetails() {
   const partnerVehicle = order.delivery?.assignment?.deliveryPartner?.vehicleNumber;
 
   const timelineSteps = [
-    { title: 'Order Placed', desc: 'Received & logged' },
-    { title: 'Confirmed', desc: 'Assigned to delivery hub' },
-    { title: 'Out for Delivery', desc: 'Partner on the way' },
-    { title: 'Delivered', desc: 'Fulfilled successfully' },
+    { title: 'Order Placed', desc: 'Order logged & placed' },
+    { title: 'Confirmed', desc: 'Order confirmed & accepted' },
+    { title: 'Out for Delivery', desc: 'Delivery partner on the way' },
+    { title: 'Delivered', desc: 'Order delivered successfully' },
   ];
 
   const itemsTotal = order.items?.reduce(

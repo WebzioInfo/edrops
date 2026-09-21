@@ -165,11 +165,23 @@ export class EventsGateway
     if (customerId) {
       this.server.to(`customer-${customerId}`).emit('ORDER_STATUS_CHANGED', payload);
       this.server.to(`customer:${customerId}`).emit('order:updated', orderData || payload);
+      this.server.to(`user:${customerId}`).emit('ORDER_STATUS_CHANGED', payload);
+      this.server.to(`user-${customerId}`).emit('order:updated', orderData || payload);
     }
 
     // Order specific rooms
     this.server.to(`order:${orderId}`).emit('order:updated', orderData || payload);
     this.server.to(`order-${orderId}`).emit('ORDER_STATUS_CHANGED', payload);
+
+    // Distributor rooms
+    this.server.to('distributors:orders').emit('ORDER_STATUS_CHANGED', payload);
+    this.server.to('distributors:orders').emit('order:updated', orderData || payload);
+    this.server.to('distributor-notifications').emit('ORDER_STATUS_CHANGED', payload);
+    const distributorId = orderData?.distributorId;
+    if (distributorId) {
+      this.server.to(`distributor:${distributorId}`).emit('ORDER_STATUS_CHANGED', payload);
+      this.server.to(`distributor:${distributorId}`).emit('order:updated', orderData || payload);
+    }
 
     // Partner rooms if assigned
     const partnerId = orderData?.delivery?.assignment?.deliveryPartnerId || orderData?.deliveryPartnerId;

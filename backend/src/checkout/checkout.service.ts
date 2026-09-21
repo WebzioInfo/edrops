@@ -380,10 +380,7 @@ export class CheckoutService {
         data: {
           id: orderId,
           customerId,
-          status:
-            dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET'
-              ? OrderStatus.PENDING_ASSIGNMENT
-              : OrderStatus.PENDING_PAYMENT,
+          status: OrderStatus.ORDER_PLACED,
           orderType: 'ONETIME_ORDER',
           subTotal,
           depositTotal,
@@ -457,7 +454,7 @@ export class CheckoutService {
               addressId: dto.addressId,
               scheduledFor: today,
               requiredQuantity,
-              status: OrderStatus.PENDING_ASSIGNMENT,
+              status: OrderStatus.ORDER_PLACED,
             },
           });
         }
@@ -526,7 +523,7 @@ export class CheckoutService {
         const updatedOrder = await tx.order.update({
           where: { id: dto.orderId },
           data: {
-            status: OrderStatus.PENDING_ASSIGNMENT,
+            status: OrderStatus.ORDER_PLACED,
             paymentStatus: PaymentStatus.SUCCESS,
           },
           include: { items: true },
@@ -558,7 +555,7 @@ export class CheckoutService {
               addressId: updatedOrder.deliveryAddressId,
               scheduledFor: today,
               requiredQuantity,
-              status: OrderStatus.PENDING_ASSIGNMENT,
+              status: OrderStatus.ORDER_PLACED,
             },
           });
         }

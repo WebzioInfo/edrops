@@ -79,7 +79,7 @@ export default function Shop() {
             </button>
             <div className="relative z-10 max-w-xl pr-6">
               <h1 className="text-xl sm:text-2xl lg:text-[28px] font-bold text-[#0F172A] leading-snug">
-                Fresh water, <span className="text-[#1E88E5]">delivered instantly.</span>
+                Purified water, <span className="text-[#1E88E5]">delivered instantly.</span>
               </h1>
               <p className="mt-1.5 text-xs sm:text-[14px] font-medium text-[#64748B]">
                 Welcome{user?.firstName ? `, ${user.firstName}` : ' to Edrops'}. Browse our premium brands and request a delivery in seconds.

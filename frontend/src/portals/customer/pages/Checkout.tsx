@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Plus, Trash2, ShieldCheck, CheckCircle2, Minus, ChevronDown, ChevronUp, MapPin, Clock, CreditCard, Wallet, Banknote, ArrowLeft, X } from 'lucide-react';
+import { Package, Plus, Trash2, ShieldCheck, CheckCircle2, Minus, ChevronDown, ChevronUp, MapPin, Clock, CreditCard, Wallet, Banknote, ArrowLeft, X, AlertCircle } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { injectMockRazorpay } from '../../../utils/MockRazorpay';
@@ -29,6 +29,8 @@ export default function Checkout() {
   const navigate = useNavigate();
 
   const productId = searchParams.get('productId');
+  const rawDeposit = Number(searchParams.get('depositAmount'));
+  const isJarParam = searchParams.get('isJar') === 'true' || Boolean(searchParams.get('name')?.toLowerCase().includes('jar'));
   const initialItems = productId ? [{
     id: productId,
     name: searchParams.get('name') || '',
@@ -36,9 +38,9 @@ export default function Checkout() {
     quantity: Number(searchParams.get('quantity')) || 1,
     imageUrl: searchParams.get('imageUrl') || undefined,
     brandName: searchParams.get('brandName') || undefined,
-    brandId: searchParams.get('brandId') || undefined,
-    isJar: searchParams.get('isJar') === 'true',
-    depositAmount: Number(searchParams.get('depositAmount')) || 0
+    brandId: searchParams.get('brandId') || 'default-brand',
+    isJar: isJarParam,
+    depositAmount: rawDeposit > 0 ? rawDeposit : (isJarParam ? 200 : 0)
   }] : [];
 
   const [checkoutItems, setCheckoutItems] = useState<any[]>(initialItems);
@@ -85,23 +87,24 @@ export default function Checkout() {
     const returnedJarsByBrand: Record<string, number> = {};
 
     checkoutItems.forEach(item => {
-      if (item.isJar && item.brandId) {
-        if (!purchasedJarsByBrand[item.brandId]) {
-          purchasedJarsByBrand[item.brandId] = { quantity: 0, depositAmount: item.depositAmount || 0 };
+      if (item.isJar || (item.depositAmount && item.depositAmount > 0)) {
+        const brandKey = item.brandId || 'default-brand';
+        const deposit = item.depositAmount > 0 ? item.depositAmount : 200;
+        if (!purchasedJarsByBrand[brandKey]) {
+          purchasedJarsByBrand[brandKey] = { quantity: 0, depositAmount: deposit };
         }
-        purchasedJarsByBrand[item.brandId].quantity += item.quantity;
+        purchasedJarsByBrand[brandKey].quantity += item.quantity;
 
         const returnInfo = itemReturns[item.id];
         if (returnInfo?.willReturn && returnInfo.quantity > 0) {
-          returnedJarsByBrand[item.brandId] = (returnedJarsByBrand[item.brandId] || 0) + returnInfo.quantity;
+          returnedJarsByBrand[brandKey] = (returnedJarsByBrand[brandKey] || 0) + returnInfo.quantity;
         }
       }
     });
 
     additionalReturns.forEach(ar => {
-      if (ar.brandId) {
-        returnedJarsByBrand[ar.brandId] = (returnedJarsByBrand[ar.brandId] || 0) + ar.quantity;
-      }
+      const brandKey = ar.brandId || 'default-brand';
+      returnedJarsByBrand[brandKey] = (returnedJarsByBrand[brandKey] || 0) + ar.quantity;
     });
 
     for (const [brandId, purchased] of Object.entries(purchasedJarsByBrand)) {
@@ -211,13 +214,56 @@ export default function Checkout() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [showNoReturnModal, setShowNoReturnModal] = useState(false);
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState('');
 
+  const deduplicateAddresses = (rawList: Address[]): Address[] => {
+    if (!Array.isArray(rawList)) return [];
+
+    // Sort so default address comes first to preserve default selection
+    const sorted = [...rawList].sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
+    const seenIds = new Set<string>();
+    const seenContent = new Set<string>();
+    const deduplicated: Address[] = [];
+
+    for (const addr of sorted) {
+      if (!addr || !addr.id) continue;
+      // Deduplicate by unique address ID
+      if (seenIds.has(addr.id)) continue;
+      seenIds.add(addr.id);
+
+      // Deduplicate identical address content (same street + city + zipCode)
+      const contentKey = `${(addr.street || '').trim().toLowerCase()}_${(addr.city || '').trim().toLowerCase()}_${(addr.zipCode || '').trim()}`;
+      if (contentKey && contentKey !== '__' && seenContent.has(contentKey)) {
+        continue;
+      }
+      if (contentKey && contentKey !== '__') {
+        seenContent.add(contentKey);
+      }
+
+      deduplicated.push(addr);
+    }
+
+    return deduplicated;
+  };
+
   const loadAddresses = () => {
     fetchWithAuth('/address').then((data) => {
-      setAddresses(data);
-      if (data.length > 0 && !selectedAddressId) setSelectedAddressId(data[0].id);
+      const unique = deduplicateAddresses(data);
+      setAddresses(unique);
+
+      if (unique.length > 0) {
+        setSelectedAddressId((prevId) => {
+          if (prevId && unique.some((a) => a.id === prevId)) {
+            return prevId;
+          }
+          const defaultAddr = unique.find((a) => a.isDefault) || unique[0];
+          return defaultAddr.id;
+        });
+      } else {
+        setSelectedAddressId('');
+      }
     }).catch(() => {});
   };
 
@@ -338,6 +384,20 @@ export default function Checkout() {
     if (currentStep === 1 && checkoutItems.length === 0) return toast.error('Your order is empty');
     if (currentStep === 2 && !selectedAddressId) return toast.error('Please select a delivery address');
     if (currentStep === 2 && !selectedSlot) return toast.error('Please select a delivery slot');
+
+    if (currentStep === 2) {
+      const hasJars = checkoutItems.some((i) => i.isJar);
+      const hasReturnedEmptyJars =
+        Object.values(itemReturns).some((r) => r?.willReturn && r.quantity > 0) ||
+        additionalReturns.some((ar) => ar.brandId && ar.quantity > 0);
+
+      // IF the user selected 'No' for returning empty jars: show confirmation dialog before continuing
+      if (hasJars && !hasReturnedEmptyJars) {
+        setShowNoReturnModal(true);
+        return;
+      }
+    }
+
     setCurrentStep(prev => prev + 1);
   };
 
@@ -1084,6 +1144,57 @@ export default function Checkout() {
                   className="w-full py-2.5 bg-[#F8FAFC] text-[#0F172A] font-bold text-xs rounded-xl border border-[#E2E8F0]"
                 >
                   Close Summary
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Empty Jar Return Confirmation Dialog */}
+      <AnimatePresence>
+        {showNoReturnModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowNoReturnModal(false)}
+              className="absolute inset-0"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="relative z-10 bg-white rounded-2xl border border-[#E2E8F0] shadow-2xl p-6 max-w-md w-full mx-auto text-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 mb-4 mx-auto">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-[#0F172A] mb-2">
+                No Empty Jars to Return?
+              </h3>
+              <p className="text-xs sm:text-sm text-[#64748B] leading-relaxed mb-6">
+                You have selected not to return any empty jars with this order. Please confirm that you currently have no empty jars available for return.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNoReturnModal(false)}
+                  className="flex-1 py-2.5 px-4 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F8FAFC] text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Go Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNoReturnModal(false);
+                    setCurrentStep(3);
+                  }}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#1E88E5] text-white hover:bg-[#1565C0] text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                >
+                  Confirm & Continue
                 </button>
               </div>
             </motion.div>

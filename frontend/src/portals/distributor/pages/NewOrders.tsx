@@ -20,7 +20,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
-import { formatOrderId } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
 import { useSocket } from '../../../contexts/SocketContext';
 
 export interface NewOrderItemRecord {
@@ -587,9 +587,12 @@ export default function NewOrders() {
                       >
                         {/* Order ID & Age */}
                         <td className="py-3 px-4">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-mono font-bold text-[#16324F]">
                               #{formatOrderId(order.id)}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                              {formatOrderStatus(order.status)}
                             </span>
                             {order.isRecentlyAdded && (
                               <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase bg-amber-500 text-white animate-bounce">
@@ -723,7 +726,12 @@ export default function NewOrders() {
                   <h2 className="text-sm font-bold text-[#16324F]">
                     Order #{formatOrderId(selectedOrder.id)}
                   </h2>
-                  <p className="text-[11px] text-[#64748B]">Unassigned Order Review</p>
+                  <p className="text-[11px] text-[#64748B] flex items-center gap-1 mt-0.5">
+                    <span>Status:</span>
+                    <span className="font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                      {formatOrderStatus(selectedOrder.status)}
+                    </span>
+                  </p>
                 </div>
               </div>
               <button

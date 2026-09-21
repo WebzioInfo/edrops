@@ -452,27 +452,7 @@ export class OrderService {
           customer.addresses[0];
 
         if (sourceAddr) {
-          const snapshot = await tx.address.create({
-            data: {
-              customerId: customer.id,
-              street: sourceAddr.street || 'Main Road',
-              houseName: sourceAddr.houseName,
-              buildingName: sourceAddr.buildingName,
-              area: sourceAddr.area,
-              landmark: sourceAddr.landmark,
-              city: sourceAddr.city || 'Kondotty',
-              district: sourceAddr.district || 'Malappuram',
-              state: sourceAddr.state || 'Kerala',
-              zipCode: sourceAddr.zipCode || '673638',
-              country: sourceAddr.country || 'India',
-              latitude: sourceAddr.latitude,
-              longitude: sourceAddr.longitude,
-              googleMapsUrl: sourceAddr.googleMapsUrl,
-              isDefault: false,
-              label: 'Order Delivery Location (Saved Snapshot)',
-            },
-          });
-          targetAddressId = snapshot.id;
+          targetAddressId = sourceAddr.id;
         } else {
           // Default initial address
           const initialAddr = await tx.address.create({
@@ -1437,27 +1417,7 @@ export class OrderService {
         customer.addresses[0];
 
       if (sourceAddr) {
-        const snapshot = await tx.address.create({
-          data: {
-            customerId: customer.id,
-            street: sourceAddr.street || 'Main Street',
-            houseName: sourceAddr.houseName,
-            buildingName: sourceAddr.buildingName,
-            area: sourceAddr.area,
-            landmark: sourceAddr.landmark,
-            city: sourceAddr.city || 'Kondotty',
-            district: sourceAddr.district || 'Malappuram',
-            state: sourceAddr.state || 'Kerala',
-            zipCode: sourceAddr.zipCode || '673638',
-            country: sourceAddr.country || 'India',
-            latitude: sourceAddr.latitude,
-            longitude: sourceAddr.longitude,
-            googleMapsUrl: sourceAddr.googleMapsUrl,
-            isDefault: false,
-            label: 'Order Delivery Location (Snapshot)',
-          },
-        });
-        targetAddressId = snapshot.id;
+        targetAddressId = sourceAddr.id;
       } else {
         const initialAddr = await tx.address.create({
           data: {
@@ -1973,10 +1933,7 @@ export class OrderService {
           "assignmentStatus" = 'ASSIGNED',
           "acceptedAt" = NOW(),
           "acceptedById" = ${distributorUserId},
-          "status" = CASE 
-            WHEN "status" = 'PENDING_ASSIGNMENT' OR "status" = 'NEW' THEN 'CONFIRMED'::"OrderStatus" 
-            ELSE "status" 
-          END,
+          "status" = 'CONFIRMED'::"OrderStatus",
           "updatedAt" = NOW()
       WHERE "id" = ${orderId}
         AND "assignmentStatus" = 'UNASSIGNED'
@@ -2018,18 +1975,26 @@ export class OrderService {
     await this.prisma.orderStatusHistory.create({
       data: {
         orderId,
-        previousStatus: OrderStatus.NEW,
-        newStatus: fullOrder?.status || OrderStatus.CONFIRMED,
+        previousStatus: OrderStatus.ORDER_PLACED,
+        newStatus: OrderStatus.CONFIRMED,
         changedByUserId: distributorUserId,
         reason: 'Order claimed and accepted by Distributor from New Order Queue',
       },
     });
 
-    // 5. Broadcast real-time event to all distributors via WebSocket
+    // 5. Broadcast real-time events via WebSocket to Customer, Distributor, and Admin
     try {
       this.eventsGateway.emitOrderClaimed(orderId, distributorUserId, fullOrder);
+      if (fullOrder) {
+        this.eventsGateway.emitOrderStatusUpdate(
+          orderId,
+          OrderStatus.CONFIRMED,
+          fullOrder.customerId,
+          fullOrder,
+        );
+      }
     } catch (err) {
-      console.warn('[OrderService] emitOrderClaimed error:', err);
+      console.warn('[OrderService] emitOrderClaimed / emitOrderStatusUpdate error:', err);
     }
 
     return fullOrder;

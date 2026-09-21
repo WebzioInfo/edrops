@@ -19,11 +19,12 @@ import {
   formatDeliverySlot,
   formatPaymentDetails
 } from '../../../utils/orderFormatters';
+import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
 import { generateOrderInvoice } from '../../../utils/InvoiceGenerator';
 import { useDataFetch } from '../../../hooks/useDataFetch';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 
-type StatusFilterType = 'ALL' | 'ON_THE_WAY' | 'DELIVERED' | 'CONFIRMED' | 'CANCELLED';
+type StatusFilterType = 'ALL' | 'ORDER_PLACED' | 'CONFIRMED' | 'OUT_FOR_DELIVERY' | 'DELIVERED';
 type TimeFilterType = 'ALL' | 'LAST_30_DAYS' | 'YEAR_2026' | 'OLDER';
 
 export default function Orders() {
@@ -68,31 +69,41 @@ export default function Orders() {
       toast.success(`Order ${formatOrderId(data.orderId)} updated`, { icon: '📦' });
     };
 
+    const handleOrderUpdated = (data: any) => {
+      if (data?.id) {
+        setOrders((prev) =>
+          (prev || []).map((o: any) => (o.id === data.id ? { ...o, ...data } : o))
+        );
+      }
+    };
+
     socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
+    socket.on('order:updated', handleOrderUpdated);
     socket.on('NEW_ORDER', () => loadOrders(true));
 
     return () => {
       socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
+      socket.off('order:updated', handleOrderUpdated);
       socket.off('NEW_ORDER');
     };
   }, [socket, loadOrders, setOrders]);
 
-  // Counts for status filters
+  // Counts for status filters (canonical 4 statuses)
   const counts = useMemo(() => {
     const res = {
       ALL: orders.length,
-      ON_THE_WAY: 0,
-      DELIVERED: 0,
+      ORDER_PLACED: 0,
       CONFIRMED: 0,
-      CANCELLED: 0,
+      OUT_FOR_DELIVERY: 0,
+      DELIVERED: 0,
     };
 
     for (const o of orders) {
       const s = (o.status || '').toUpperCase();
-      if (s === 'OUT_FOR_DELIVERY') res.ON_THE_WAY += 1;
-      else if (['DELIVERED', 'COMPLETED'].includes(s)) res.DELIVERED += 1;
-      else if (['CONFIRMED', 'ASSIGNED', 'ACCEPTED_BY_PARTNER', 'PROCESSING', 'NEW', 'PENDING', 'PENDING_ASSIGNMENT'].includes(s)) res.CONFIRMED += 1;
-      else if (s === 'CANCELLED') res.CANCELLED += 1;
+      if (s === 'OUT_FOR_DELIVERY') res.OUT_FOR_DELIVERY += 1;
+      else if (s === 'DELIVERED' || s === 'COMPLETED') res.DELIVERED += 1;
+      else if (s === 'CONFIRMED' || s === 'ASSIGNED' || s === 'ACCEPTED_BY_PARTNER') res.CONFIRMED += 1;
+      else res.ORDER_PLACED += 1;
     }
     return res;
   }, [orders]);
@@ -108,10 +119,10 @@ export default function Orders() {
       const orderDate = new Date(order.createdAt);
 
       // 1. Status Filter
-      if (statusFilter === 'ON_THE_WAY' && s !== 'OUT_FOR_DELIVERY') return false;
+      if (statusFilter === 'OUT_FOR_DELIVERY' && s !== 'OUT_FOR_DELIVERY') return false;
       if (statusFilter === 'DELIVERED' && !['DELIVERED', 'COMPLETED'].includes(s)) return false;
-      if (statusFilter === 'CONFIRMED' && !['CONFIRMED', 'ASSIGNED', 'ACCEPTED_BY_PARTNER', 'PROCESSING', 'NEW', 'PENDING', 'PENDING_ASSIGNMENT'].includes(s)) return false;
-      if (statusFilter === 'CANCELLED' && s !== 'CANCELLED') return false;
+      if (statusFilter === 'CONFIRMED' && !['CONFIRMED', 'ASSIGNED', 'ACCEPTED_BY_PARTNER'].includes(s)) return false;
+      if (statusFilter === 'ORDER_PLACED' && !['ORDER_PLACED', 'PLACED', 'NEW', 'PENDING', 'PENDING_ASSIGNMENT', 'PENDING_PAYMENT'].includes(s)) return false;
 
       // 2. Time Filter
       if (timeFilter === 'LAST_30_DAYS' && orderDate < thirtyDaysAgo) return false;
@@ -323,10 +334,10 @@ export default function Orders() {
               <div className="space-y-1.5 text-xs font-medium text-slate-700">
                 {[
                   { key: 'ALL', label: 'All Orders', count: counts.ALL },
-                  { key: 'ON_THE_WAY', label: 'On the way', count: counts.ON_THE_WAY },
+                  { key: 'ORDER_PLACED', label: 'Order Placed', count: counts.ORDER_PLACED },
+                  { key: 'CONFIRMED', label: 'Confirmed', count: counts.CONFIRMED },
+                  { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', count: counts.OUT_FOR_DELIVERY },
                   { key: 'DELIVERED', label: 'Delivered', count: counts.DELIVERED },
-                  { key: 'CONFIRMED', label: 'Confirmed & Placed', count: counts.CONFIRMED },
-                  { key: 'CANCELLED', label: 'Cancelled', count: counts.CANCELLED },
                 ].map((item) => (
                   <label
                     key={item.key}
@@ -503,37 +514,24 @@ export default function Orders() {
                     null;
 
                   const pmt = formatPaymentDetails(order);
-                  const statusKey = (order.status || '').toUpperCase();
-                  const isDelivered = statusKey === 'DELIVERED' || statusKey === 'COMPLETED';
-                  const isOutForDelivery = statusKey === 'OUT_FOR_DELIVERY';
-                  const isCancelled = statusKey === 'CANCELLED';
-
-                  // Status line rendering
-                  let statusTitle = `Placed on ${formattedDate}`;
-                  let statusColorClass = 'text-[#1E88E5]';
-                  let statusDotClass = 'bg-[#1E88E5]';
+                  const cfg = getOrderStatusConfig(order.status);
+                  const statusTitle = `${cfg.label}${formattedDate ? ` · ${formattedDate}` : ''}`;
+                  const statusColorClass = cfg.label === 'Delivered'
+                    ? 'text-emerald-700'
+                    : cfg.label === 'Out for Delivery'
+                    ? 'text-purple-700'
+                    : cfg.label === 'Confirmed'
+                    ? 'text-blue-700'
+                    : 'text-amber-800';
+                  const statusDotClass = cfg.dotColor;
                   let subtext = `Slot: ${formatDeliverySlot(order.timeSlot)}`;
 
-                  if (isDelivered) {
-                    statusTitle = `Delivered on ${formattedDate}`;
-                    statusColorClass = 'text-emerald-700';
-                    statusDotClass = 'bg-emerald-600';
+                  if (cfg.label === 'Delivered') {
                     subtext = 'Your water has been delivered';
-                  } else if (isOutForDelivery) {
-                    statusTitle = 'Out for Delivery';
-                    statusColorClass = 'text-purple-700';
-                    statusDotClass = 'bg-purple-600 animate-pulse';
+                  } else if (cfg.label === 'Out for Delivery') {
                     subtext = 'Driver is on the way to your address';
-                  } else if (statusKey === 'CONFIRMED' || statusKey === 'ASSIGNED' || statusKey === 'ACCEPTED_BY_PARTNER') {
-                    statusTitle = `Confirmed on ${formattedDate}`;
-                    statusColorClass = 'text-blue-700';
-                    statusDotClass = 'bg-blue-600';
+                  } else if (cfg.label === 'Confirmed') {
                     subtext = 'Order verified and scheduled for delivery';
-                  } else if (isCancelled) {
-                    statusTitle = 'Cancelled';
-                    statusColorClass = 'text-rose-600';
-                    statusDotClass = 'bg-rose-500';
-                    subtext = 'Order was cancelled';
                   }
 
                   return (
@@ -602,7 +600,7 @@ export default function Orders() {
                           </div>
 
                           {/* Payment state note (only when relevant) */}
-                          {(pmt.status === 'Pending' || pmt.method.includes('COD')) && !isDelivered && !isCancelled && (
+                          {(pmt.status === 'Pending' || pmt.method.includes('COD')) && cfg.stepIndex < 3 && (
                             <div className="pt-0.5">
                               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200/70 px-1.5 py-0.2 rounded">
                                 <span>{pmt.fullLabel}</span>
@@ -732,10 +730,10 @@ export default function Orders() {
               <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
                 {[
                   { key: 'ALL', label: 'All Orders', count: counts.ALL },
-                  { key: 'ON_THE_WAY', label: 'On the way', count: counts.ON_THE_WAY },
-                  { key: 'DELIVERED', label: 'Delivered', count: counts.DELIVERED },
+                  { key: 'ORDER_PLACED', label: 'Order Placed', count: counts.ORDER_PLACED },
                   { key: 'CONFIRMED', label: 'Confirmed', count: counts.CONFIRMED },
-                  { key: 'CANCELLED', label: 'Cancelled', count: counts.CANCELLED },
+                  { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', count: counts.OUT_FOR_DELIVERY },
+                  { key: 'DELIVERED', label: 'Delivered', count: counts.DELIVERED },
                 ].map((item) => (
                   <button
                     key={item.key}

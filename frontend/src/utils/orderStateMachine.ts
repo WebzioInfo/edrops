@@ -1,5 +1,10 @@
 /**
- * Centralized Order State Machine and Action Helpers for Frontend
+ * Centralized Canonical 4-Stage Order State Machine and Action Helpers
+ * 
+ * 1. ORDER PLACED (ORDER_PLACED)
+ * 2. CONFIRMED (CONFIRMED)
+ * 3. OUT FOR DELIVERY (OUT_FOR_DELIVERY)
+ * 4. DELIVERED (DELIVERED)
  */
 
 export interface StatusConfig {
@@ -17,10 +22,10 @@ export interface PartnerActionConfig {
 }
 
 /**
- * Standard 4-step delivery progression timeline configuration
+ * Standard 4-step progression timeline configuration
  */
 export const STATUS_PROGRESSION_STEPS = [
-  { key: 'PLACED', label: 'Placed' },
+  { key: 'ORDER_PLACED', label: 'Order Placed' },
   { key: 'CONFIRMED', label: 'Confirmed' },
   { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery' },
   { key: 'DELIVERED', label: 'Delivered' },
@@ -33,38 +38,23 @@ export function getOrderStatusConfig(status?: string | null): StatusConfig {
   const norm = (status || '').toUpperCase().trim();
 
   switch (norm) {
-    case 'NEW':
+    case 'ORDER_PLACED':
     case 'PLACED':
+    case 'NEW':
     case 'PENDING':
     case 'PENDING_ASSIGNMENT':
     case 'PENDING_PAYMENT':
       return {
-        label: 'Placed',
+        label: 'Order Placed',
         badgeClass: 'bg-amber-50 text-amber-800 border border-amber-200',
         dotColor: 'bg-amber-500',
         stepIndex: 0,
       };
 
-    case 'ASSIGNED':
-      return {
-        label: 'Assigned',
-        badgeClass: 'bg-sky-50 text-sky-700 border border-sky-200',
-        dotColor: 'bg-sky-500',
-        stepIndex: 1,
-      };
-
-    case 'ACCEPTED_BY_PARTNER':
-      return {
-        label: 'Accepted',
-        badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
-        dotColor: 'bg-[#1677C8]',
-        stepIndex: 1,
-      };
-
     case 'CONFIRMED':
-    case 'PROCESSING':
+    case 'ASSIGNED':
+    case 'ACCEPTED_BY_PARTNER':
     case 'PAYMENT_SUCCESS':
-    case 'SHIPPED':
       return {
         label: 'Confirmed',
         badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
@@ -75,8 +65,8 @@ export function getOrderStatusConfig(status?: string | null): StatusConfig {
     case 'OUT_FOR_DELIVERY':
       return {
         label: 'Out for Delivery',
-        badgeClass: 'bg-orange-50 text-orange-700 border border-orange-200',
-        dotColor: 'bg-orange-500',
+        badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200',
+        dotColor: 'bg-purple-600',
         stepIndex: 2,
       };
 
@@ -89,52 +79,26 @@ export function getOrderStatusConfig(status?: string | null): StatusConfig {
         stepIndex: 3,
       };
 
-    case 'PARTIALLY_DELIVERED':
-      return {
-        label: 'Partial Drop',
-        badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
-        dotColor: 'bg-amber-500',
-        stepIndex: 3,
-      };
-
-    case 'CANCELLED':
-      return {
-        label: 'Cancelled',
-        badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200',
-        dotColor: 'bg-rose-500',
-        stepIndex: -1,
-      };
-
-    case 'CUSTOMER_NOT_AVAILABLE':
-    case 'FAILED':
-    case 'RESCHEDULED':
-    case 'RETURNED':
-      return {
-        label: norm.replace(/_/g, ' '),
-        badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200',
-        dotColor: 'bg-slate-400',
-        stepIndex: -1,
-      };
-
     default:
       return {
-        label: status || 'Placed',
-        badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200',
-        dotColor: 'bg-slate-400',
+        label: 'Order Placed',
+        badgeClass: 'bg-amber-50 text-amber-800 border border-amber-200',
+        dotColor: 'bg-amber-500',
         stepIndex: 0,
       };
   }
 }
 
 /**
- * Determines the next action available for a delivery partner based on current order status.
+ * Determines the next action available for an operator/partner based on current order status.
  * Returns null if no action is available.
  */
 export function getNextPartnerAction(currentStatus?: string | null): PartnerActionConfig | null {
   const norm = (currentStatus || '').toUpperCase().trim();
 
   switch (norm) {
-    // 1. Initial/Placed states -> Delivery partner confirms / accepts order
+    // 1. Order Placed -> Confirm
+    case 'ORDER_PLACED':
     case 'NEW':
     case 'PLACED':
     case 'PENDING':
@@ -142,47 +106,35 @@ export function getNextPartnerAction(currentStatus?: string | null): PartnerActi
     case 'PENDING_PAYMENT':
       return {
         label: 'Confirm Order',
-        nextStatus: 'ACCEPTED_BY_PARTNER',
+        nextStatus: 'CONFIRMED',
         btnClass: 'bg-[#1677C8] hover:bg-[#1362a4]',
         actionType: 'CONFIRM',
       };
 
-    // 2. Assigned by staff -> Delivery partner accepts
-    case 'ASSIGNED':
-      return {
-        label: 'Accept Order',
-        nextStatus: 'ACCEPTED_BY_PARTNER',
-        btnClass: 'bg-[#1677C8] hover:bg-[#1362a4]',
-        actionType: 'CONFIRM',
-      };
-
-    // 3. Accepted or Confirmed -> Delivery partner starts delivery
-    case 'ACCEPTED_BY_PARTNER':
+    // 2. Confirmed -> Out for Delivery
     case 'CONFIRMED':
-    case 'PROCESSING':
+    case 'ASSIGNED':
+    case 'ACCEPTED_BY_PARTNER':
     case 'PAYMENT_SUCCESS':
-    case 'SHIPPED':
       return {
-        label: 'Start Delivery (Out for Delivery)',
+        label: 'Out for Delivery',
         nextStatus: 'OUT_FOR_DELIVERY',
-        btnClass: 'bg-orange-600 hover:bg-orange-700',
+        btnClass: 'bg-purple-600 hover:bg-purple-700',
         actionType: 'START_DELIVERY',
       };
 
-    // 4. Out for delivery -> Delivery partner completes delivery dropoff
+    // 3. Out for delivery -> Delivered
     case 'OUT_FOR_DELIVERY':
       return {
-        label: 'Complete Delivery',
+        label: 'Mark Delivered',
         nextStatus: 'DELIVERED',
         btnClass: 'bg-emerald-600 hover:bg-emerald-700',
         actionType: 'COMPLETE_DELIVERY',
       };
 
-    // 5. Final states -> No actions permitted
+    // 4. Delivered / Final -> No action
     case 'DELIVERED':
     case 'COMPLETED':
-    case 'CANCELLED':
-    case 'FAILED':
     default:
       return null;
   }

@@ -7,7 +7,6 @@ import {
   Trash2,
   X,
   CheckCircle2,
-  Clock,
   AlertCircle,
   Package,
   CreditCard,
@@ -18,12 +17,11 @@ import {
   User,
   Phone,
   MapPin,
-  Truck,
-  Check,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
-import { formatOrderId } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
+import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
 import { useSocket } from '../../../contexts/SocketContext';
 
 // Types
@@ -487,29 +485,26 @@ export default function Orders() {
     }
   };
 
-  // Status transitions mapping for modal
+  // Status transitions mapping for modal (strictly linear 4-stage lifecycle)
   const getAllowedStatusTransitions = (currentStatus: string): string[] => {
-    switch (currentStatus) {
+    switch (currentStatus?.toUpperCase()) {
+      case 'ORDER_PLACED':
+      case 'PLACED':
       case 'NEW':
       case 'PENDING':
       case 'PENDING_ASSIGNMENT':
       case 'PENDING_PAYMENT':
-        return ['CONFIRMED', 'PROCESSING', 'CANCELLED'];
+        return ['CONFIRMED'];
       case 'CONFIRMED':
-        return ['PROCESSING', 'READY', 'OUT_FOR_DELIVERY', 'CANCELLED'];
-      case 'PROCESSING':
-        return ['READY', 'OUT_FOR_DELIVERY', 'CANCELLED'];
-      case 'READY':
-        return ['OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+      case 'ASSIGNED':
+      case 'ACCEPTED_BY_PARTNER':
+        return ['OUT_FOR_DELIVERY'];
       case 'OUT_FOR_DELIVERY':
-        return ['DELIVERED', 'CANCELLED'];
+        return ['DELIVERED'];
       case 'DELIVERED':
       case 'COMPLETED':
-        return []; // Finalized
-      case 'CANCELLED':
-        return []; // Finalized
       default:
-        return ['CONFIRMED', 'CANCELLED'];
+        return []; // Finalized - no further status update
     }
   };
 
@@ -647,64 +642,15 @@ export default function Orders() {
     }
   };
 
-  // Status Badge styling helper
+  // Status Badge styling helper using canonical 4-status configuration
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'DELIVERED':
-      case 'COMPLETED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            Delivered
-          </span>
-        );
-      case 'CONFIRMED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            <Check className="w-3 h-3 text-blue-600" />
-            Confirmed
-          </span>
-        );
-      case 'PROCESSING':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="w-3 h-3 text-amber-600" />
-            Processing
-          </span>
-        );
-      case 'READY':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-            <Package className="w-3 h-3 text-indigo-600" />
-            Ready
-          </span>
-        );
-      case 'OUT_FOR_DELIVERY':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-            <Truck className="w-3 h-3 text-purple-600" />
-            Out for Delivery
-          </span>
-        );
-      case 'CANCELLED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-            <Ban className="w-3 h-3 text-rose-600" />
-            Cancelled
-          </span>
-        );
-      case 'PENDING':
-      case 'NEW':
-      case 'PENDING_ASSIGNMENT':
-      case 'PENDING_PAYMENT':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
-            <Clock className="w-3 h-3 text-sky-600" />
-            Pending
-          </span>
-        );
-    }
+    const config = getOrderStatusConfig(status);
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${config.badgeClass}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${config.dotColor}`} />
+        {config.label}
+      </span>
+    );
   };
 
   // Payment Status badge helper
@@ -857,13 +803,10 @@ export default function Orders() {
             className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8]"
           >
             <option value="ALL">All Statuses</option>
-            <option value="PENDING">Pending</option>
+            <option value="ORDER_PLACED">Order Placed</option>
             <option value="CONFIRMED">Confirmed</option>
-            <option value="PROCESSING">Processing</option>
-            <option value="READY">Ready</option>
             <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
             <option value="DELIVERED">Delivered</option>
-            <option value="CANCELLED">Cancelled</option>
           </select>
         </div>
 
@@ -1892,7 +1835,7 @@ export default function Orders() {
                 >
                   {getAllowedStatusTransitions(statusModalOrder.status).map((st) => (
                     <option key={st} value={st}>
-                      {st.replace(/_/g, ' ')}
+                      {formatOrderStatus(st)}
                     </option>
                   ))}
                 </select>
