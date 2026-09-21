@@ -13,6 +13,7 @@ const CustomerPortal = React.lazy(() => import('./portals/customer/CustomerPorta
 const StaffPortal = React.lazy(() => import('./portals/staff/StaffPortal'));
 const AdminPortal = React.lazy(() => import('./portals/admin/AdminPortal'));
 const DeliveryPartnerPortal = React.lazy(() => import('./portals/delivery-partner/DeliveryPartnerPortal'));
+const DistributorPortal = React.lazy(() => import('./portals/distributor/DistributorPortal'));
 const Login = React.lazy(() => import('./pages/auth/Auth'));
 const ForgotPassword = React.lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = React.lazy(() => import('./pages/auth/ResetPassword'));
@@ -29,7 +30,6 @@ const PageLoader = () => (
 
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { CartProvider } from './contexts/CartContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -45,6 +45,7 @@ function RootRedirect() {
     if (user.role === 'DELIVERY_PARTNER') return <Navigate to="/delivery-partner" replace />;
     if (user.role === 'ADMIN') return <Navigate to="/admin" replace />;
     if (user.role === 'STAFF') return <Navigate to="/staff" replace />;
+    if (user.role === 'DISTRIBUTOR') return <Navigate to="/distributor" replace />;
   }
 
   return <Navigate to="/customer/shop" replace />;
@@ -91,11 +92,7 @@ export default function App() {
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
 
-                  <Route path="/customer/*" element={
-                    <CartProvider>
-                      <CustomerPortal />
-                    </CartProvider>
-                  } />
+                  <Route path="/customer/*" element={<CustomerPortal />} />
 
                   <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
                     <Route path="/staff/*" element={
@@ -113,6 +110,14 @@ export default function App() {
 
                   <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                     <Route path="/admin/*" element={<AdminPortal />} />
+                  </Route>
+
+                  <Route element={<ProtectedRoute allowedRoles={['DISTRIBUTOR']} />}>
+                    <Route path="/distributor/*" element={
+                      <SocketProvider>
+                        <DistributorPortal />
+                      </SocketProvider>
+                    } />
                   </Route>
 
                   <Route path="/" element={<RootRedirect />} />

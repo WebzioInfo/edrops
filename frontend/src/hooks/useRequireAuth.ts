@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export interface RequireAuthOptions {
   redirect?: string;
-  reason?: 'purchase' | 'cart' | 'checkout' | 'account' | string;
+  reason?: 'purchase' | 'checkout' | 'account' | string;
 }
 
 export function useRequireAuth() {

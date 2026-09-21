@@ -13,7 +13,7 @@ interface ProfileData {
   phone: string;
   firstName: string;
   lastName: string;
-  role: 'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER';
+  role: 'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER' | 'DISTRIBUTOR';
   customer?: {
     id: string;
     referralCode: string | null;

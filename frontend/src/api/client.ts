@@ -17,7 +17,16 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     headers.set('Content-Type', 'application/json');
   }
 
+  // Prevent stale conditional caching (304) on API requests
+  if (!headers.has('Cache-Control')) {
+    headers.set('Cache-Control', 'no-cache');
+  }
+  if (!headers.has('Pragma')) {
+    headers.set('Pragma', 'no-cache');
+  }
+
   const response = await fetch(`${BASE_URL}${endpoint}`, {
+    cache: options.cache ?? 'no-store',
     ...options,
     headers,
   });
@@ -35,16 +44,20 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
       message = errorData.message.join(', ');
     } else if (typeof errorData?.message === 'string') {
       message = errorData.message;
+    } else if (typeof errorData?.error === 'string') {
+      message = errorData.error;
     } else if (response.status === 401) {
       message = 'Your session has expired. Please sign in again.';
     } else if (response.status === 403) {
       message = 'You do not have permission to perform this action.';
     } else if (response.status === 404) {
       message = 'The requested resource was not found. Please try again.';
+    } else if (response.status === 409) {
+      message = errorData?.message || 'This order has already been accepted by another distributor.';
     } else if (response.status >= 500) {
       message = 'Something went wrong on the server. Please try again.';
     } else {
-      message = `Request failed with status ${response.status}`;
+      message = `Request failed with status ${response.status}${response.statusText ? ` (${response.statusText})` : ''}`;
     }
 
     // Standardized Error Interception
@@ -65,9 +78,25 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
 
     const error: any = new Error(message);
     error.status = response.status;
+    error.statusText = response.statusText;
+    error.data = errorData;
     error.handledToast = response.status >= 500 || response.status === 403;
     throw error;
   }
 
-  return response.json();
+  // Handle empty bodies safely (e.g. 204 No Content or zero content-length)
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return null;
+  }
+
+  const text = await response.text();
+  if (!text || !text.trim()) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }

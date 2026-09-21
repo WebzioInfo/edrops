@@ -1,15 +1,13 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { Bell, CalendarDays, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, ShoppingBag, Gift, LifeBuoy, LogIn } from 'lucide-react';
+import { Bell, CalendarDays, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, Gift, LifeBuoy, LogIn } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
-import { useCart } from '../../contexts/CartContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { EdropsLogo } from '../../components/Logo';
 import ProtectedRoute from '../../components/ProtectedRoute';
 
 const Shop = React.lazy(() => import('./pages/Shop'));
-const Cart = React.lazy(() => import('./pages/Cart'));
 const Checkout = React.lazy(() => import('./pages/Checkout'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const WalletPage = React.lazy(() => import('./pages/Wallet'));
@@ -64,7 +62,6 @@ function CustomerLoader() {
 
 export default function CustomerPortal() {
   const { user, token, logout } = useAuth();
-  const { totalItems } = useCart();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -152,31 +149,15 @@ export default function CustomerPortal() {
               })}
             </div>
 
-            {/* Cart & Notifications */}
-            <div className="flex items-center gap-1.5">
-              <NavLink
-                to="/customer/cart"
-                className={({ isActive }) =>
-                  `relative flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                    isActive ? 'bg-[#EBF5FB] text-[#2D79A8]' : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#2D79A8]'
-                  }`
-                }
-              >
-                <ShoppingBag className="h-5 w-5" />
-                {totalItems > 0 && (
-                  <span className="absolute 0 top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#EF4444] text-[10px] font-bold text-white shadow-sm border border-white">
-                    {totalItems}
-                  </span>
-                )}
-              </NavLink>
-              
-              {isAuthenticated && (
+            {/* Notifications */}
+            {isAuthenticated && (
+              <div className="flex items-center gap-1.5">
                 <button className="relative flex h-10 w-10 items-center justify-center rounded-full transition-colors text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#2D79A8] hidden lg:flex">
                   <Bell className="h-5 w-5" />
                   <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-[#EF4444] border border-white"></span>
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Profile Dropdown or Sign In Button */}
             {isAuthenticated && user ? (
@@ -232,7 +213,6 @@ export default function CustomerPortal() {
         <Suspense fallback={<CustomerLoader />}>
           <Routes>
             <Route path="shop" element={<Shop />} />
-            <Route path="cart" element={<Cart />} />
             <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
               <Route path="checkout" element={<Checkout />} />
               <Route path="dashboard" element={<Dashboard />} />

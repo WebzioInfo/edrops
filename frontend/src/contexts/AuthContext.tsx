@@ -10,7 +10,7 @@ type User = {
   firstName: string;
   lastName: string;
   phone?: string;
-  role: 'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER' | string;
+  role: 'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER' | 'DISTRIBUTOR' | string;
   isActive?: boolean;
   createdAt?: string;
   deliveryPartner?: {

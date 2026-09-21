@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 type ProtectedRouteProps = {
-  allowedRoles?: Array<'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER'>;
+  allowedRoles?: Array<'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER' | 'DISTRIBUTOR'>;
 };
 
 const ROLE_PATHS: Record<string, string> = {
@@ -11,6 +11,7 @@ const ROLE_PATHS: Record<string, string> = {
   STAFF: '/staff',
   ADMIN: '/admin',
   DELIVERY_PARTNER: '/delivery-partner',
+  DISTRIBUTOR: '/distributor',
 };
 
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {

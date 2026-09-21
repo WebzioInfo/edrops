@@ -36,7 +36,7 @@ export interface UserRecord {
 interface UserFormModalProps {
   isOpen: boolean;
   userToEdit: UserRecord | null;
-  defaultRole?: 'DELIVERY_PARTNER' | 'STAFF' | 'ADMIN' | 'MANAGER';
+  defaultRole?: 'DELIVERY_PARTNER' | 'STAFF' | 'ADMIN' | 'MANAGER' | 'DISTRIBUTOR';
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -323,6 +323,7 @@ export default function UserFormModal({
               {[
                 { value: 'DELIVERY_PARTNER', label: 'Delivery Partner', desc: 'Driver portal & order fulfillment' },
                 { value: 'STAFF', label: 'Staff Member', desc: 'Operations & warehouse management' },
+                { value: 'DISTRIBUTOR', label: 'Distributor', desc: 'Bulk supply & distributor portal' },
                 { value: 'ADMIN', label: 'Administrator', desc: 'Full application & settings access' },
                 { value: 'MANAGER', label: 'Operations Manager', desc: 'Delivery routing & fleet oversight' },
               ].map((r) => (

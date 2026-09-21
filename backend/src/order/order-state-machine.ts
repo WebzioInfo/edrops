@@ -5,6 +5,8 @@ import { OrderStatus } from '@prisma/client';
  */
 export const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: [
+    OrderStatus.CONFIRMED,
+    OrderStatus.PROCESSING,
     OrderStatus.PENDING_PAYMENT,
     OrderStatus.PENDING_ASSIGNMENT,
     OrderStatus.ASSIGNED,
@@ -13,12 +15,35 @@ export const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
     OrderStatus.DELIVERED,
     OrderStatus.CANCELLED,
   ],
+  CONFIRMED: [
+    OrderStatus.PROCESSING,
+    OrderStatus.READY,
+    OrderStatus.ASSIGNED,
+    OrderStatus.ACCEPTED_BY_PARTNER,
+    OrderStatus.OUT_FOR_DELIVERY,
+    OrderStatus.DELIVERED,
+    OrderStatus.CANCELLED,
+  ],
+  PROCESSING: [
+    OrderStatus.READY,
+    OrderStatus.OUT_FOR_DELIVERY,
+    OrderStatus.DELIVERED,
+    OrderStatus.CANCELLED,
+  ],
+  READY: [
+    OrderStatus.OUT_FOR_DELIVERY,
+    OrderStatus.DELIVERED,
+    OrderStatus.CANCELLED,
+  ],
   PENDING_PAYMENT: [
     OrderStatus.PAYMENT_SUCCESS,
+    OrderStatus.CONFIRMED,
     OrderStatus.FAILED,
     OrderStatus.CANCELLED,
   ],
   PAYMENT_SUCCESS: [
+    OrderStatus.CONFIRMED,
+    OrderStatus.PROCESSING,
     OrderStatus.PENDING_ASSIGNMENT,
     OrderStatus.ASSIGNED,
     OrderStatus.ACCEPTED_BY_PARTNER,
@@ -27,6 +52,8 @@ export const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
     OrderStatus.CANCELLED,
   ],
   PENDING_ASSIGNMENT: [
+    OrderStatus.CONFIRMED,
+    OrderStatus.PROCESSING,
     OrderStatus.ASSIGNED,
     OrderStatus.ACCEPTED_BY_PARTNER,
     OrderStatus.OUT_FOR_DELIVERY,
@@ -34,12 +61,16 @@ export const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
     OrderStatus.CANCELLED,
   ],
   ASSIGNED: [
+    OrderStatus.PROCESSING,
+    OrderStatus.READY,
     OrderStatus.ACCEPTED_BY_PARTNER,
     OrderStatus.OUT_FOR_DELIVERY,
     OrderStatus.DELIVERED,
     OrderStatus.CANCELLED,
   ],
   ACCEPTED_BY_PARTNER: [
+    OrderStatus.PROCESSING,
+    OrderStatus.READY,
     OrderStatus.OUT_FOR_DELIVERY,
     OrderStatus.DELIVERED,
     OrderStatus.CANCELLED,

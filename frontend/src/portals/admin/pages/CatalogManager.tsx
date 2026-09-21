@@ -1,16 +1,16 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
-import { 
-  Plus, 
-  Package, 
-  Tag, 
-  ShieldCheck, 
-  Pencil, 
-  Trash2, 
-  Search, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Plus,
+  Package,
+  Tag,
+  ShieldCheck,
+  Pencil,
+  Trash2,
+  Search,
+  ChevronLeft,
+  ChevronRight,
   X,
   Boxes
 } from 'lucide-react';
@@ -142,7 +142,7 @@ export default function CatalogManager() {
       cancelText: 'Cancel',
       variant: 'danger'
     });
-    
+
     if (isConfirmed) {
       deleteMutation.mutate(id);
     }
@@ -155,7 +155,7 @@ export default function CatalogManager() {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter((p: any) => 
+      list = list.filter((p: any) =>
         (p.name && p.name.toLowerCase().includes(q)) ||
         (p.description && p.description.toLowerCase().includes(q)) ||
         (p.brand?.name && p.brand.name.toLowerCase().includes(q)) ||
@@ -204,10 +204,10 @@ export default function CatalogManager() {
   }, [brands, searchQuery]);
 
   // Active list based on tab
-  const totalItems = activeTab === 'products' 
-    ? filteredProducts.length 
-    : activeTab === 'categories' 
-      ? filteredCategories.length 
+  const totalItems = activeTab === 'products'
+    ? filteredProducts.length
+    : activeTab === 'categories'
+      ? filteredCategories.length
       : filteredBrands.length;
 
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -225,7 +225,7 @@ export default function CatalogManager() {
 
   return (
     <div className="space-y-3.5 sm:space-y-4">
-      
+
       {/* ─── 1. COMPACT PAGE HEADER ROW (48–56px) ────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 shadow-2xs">
         {/* Left: Title + Breadcrumb + Subtitle */}
@@ -247,7 +247,7 @@ export default function CatalogManager() {
 
         {/* Right: Add Item Action Button */}
         <div className="flex items-center gap-2 shrink-0">
-          <button 
+          <button
             type="button"
             onClick={() => {
               setEditingItem(null);
@@ -263,25 +263,23 @@ export default function CatalogManager() {
 
       {/* ─── 2. MAIN CARD: TABS + TOOLBAR + DATA TABLE ───────────── */}
       <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden flex flex-col">
-        
+
         {/* Compact Tab Bar (~40px) */}
         <div className="flex items-center justify-between px-3.5 sm:px-4 border-b border-[#E2E8F0] bg-white overflow-x-auto">
           <div className="flex items-center gap-1 sm:gap-2">
             <button
               type="button"
               onClick={() => handleTabChange('products')}
-              className={`flex items-center gap-2 py-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'products' 
-                  ? 'border-[#1677C8] text-[#1677C8]' 
+              className={`flex items-center gap-2 py-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${activeTab === 'products'
+                  ? 'border-[#1677C8] text-[#1677C8]'
                   : 'border-transparent text-[#64748B] hover:text-[#16324F] hover:border-slate-300'
-              }`}
+                }`}
             >
               <Package className="w-3.5 h-3.5" />
               <span>Products</span>
               {products && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                  activeTab === 'products' ? 'bg-[#1677C8]/10 text-[#1677C8]' : 'bg-slate-100 text-[#64748B]'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === 'products' ? 'bg-[#1677C8]/10 text-[#1677C8]' : 'bg-slate-100 text-[#64748B]'
+                  }`}>
                   {products.length}
                 </span>
               )}
@@ -290,18 +288,16 @@ export default function CatalogManager() {
             <button
               type="button"
               onClick={() => handleTabChange('categories')}
-              className={`flex items-center gap-2 py-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'categories' 
-                  ? 'border-[#1677C8] text-[#1677C8]' 
+              className={`flex items-center gap-2 py-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${activeTab === 'categories'
+                  ? 'border-[#1677C8] text-[#1677C8]'
                   : 'border-transparent text-[#64748B] hover:text-[#16324F] hover:border-slate-300'
-              }`}
+                }`}
             >
               <Tag className="w-3.5 h-3.5" />
               <span>Categories</span>
               {categories && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                  activeTab === 'categories' ? 'bg-[#1677C8]/10 text-[#1677C8]' : 'bg-slate-100 text-[#64748B]'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === 'categories' ? 'bg-[#1677C8]/10 text-[#1677C8]' : 'bg-slate-100 text-[#64748B]'
+                  }`}>
                   {categories.length}
                 </span>
               )}
@@ -310,18 +306,16 @@ export default function CatalogManager() {
             <button
               type="button"
               onClick={() => handleTabChange('brands')}
-              className={`flex items-center gap-2 py-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'brands' 
-                  ? 'border-[#1677C8] text-[#1677C8]' 
+              className={`flex items-center gap-2 py-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${activeTab === 'brands'
+                  ? 'border-[#1677C8] text-[#1677C8]'
                   : 'border-transparent text-[#64748B] hover:text-[#16324F] hover:border-slate-300'
-              }`}
+                }`}
             >
               <Boxes className="w-3.5 h-3.5" />
               <span>Brands</span>
               {brands && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                  activeTab === 'brands' ? 'bg-[#1677C8]/10 text-[#1677C8]' : 'bg-slate-100 text-[#64748B]'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === 'brands' ? 'bg-[#1677C8]/10 text-[#1677C8]' : 'bg-slate-100 text-[#64748B]'
+                  }`}>
                   {brands.length}
                 </span>
               )}
@@ -426,6 +420,8 @@ export default function CatalogManager() {
         {activeTab === 'products' && (
           <div className="flex-1 flex flex-col justify-between">
             <div className="overflow-x-auto">
+
+
               <table className="w-full text-left border-collapse text-xs">
                 <thead className="sticky top-0 bg-[#F8FAFC] z-10 border-b border-[#E2E8F0]">
                   <tr className="text-[#64748B] uppercase tracking-wider text-[10px] font-bold">
@@ -459,8 +455,8 @@ export default function CatalogManager() {
                       const isDepositRequired = Boolean(p.isJar && p.depositAmount > 0);
 
                       return (
-                        <tr 
-                          key={p.id} 
+                        <tr
+                          key={p.id}
                           className="h-12 hover:bg-slate-50/80 transition-colors group"
                         >
                           {/* Product Info & Thumbnail */}
@@ -468,10 +464,10 @@ export default function CatalogManager() {
                             <div className="flex items-center gap-2.5 min-w-0">
                               <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] overflow-hidden flex items-center justify-center shrink-0">
                                 {imageUrl ? (
-                                  <img 
-                                    src={imageUrl} 
+                                  <img
+                                    src={imageUrl}
                                     alt={p.name}
-                                    className="w-full h-full object-cover" 
+                                    className="w-full h-full object-cover"
                                     loading="lazy"
                                     onError={(e) => {
                                       e.currentTarget.style.display = 'none';
@@ -529,17 +525,17 @@ export default function CatalogManager() {
                           {/* Actions Column (Tight 28x28px buttons) */}
                           <td className="py-2 px-3.5 text-center">
                             <div className="flex items-center justify-center gap-1">
-                              <button 
+                              <button
                                 type="button"
-                                onClick={() => handleEdit(p)} 
+                                onClick={() => handleEdit(p)}
                                 title="Edit Product"
                                 className="w-7 h-7 flex items-center justify-center text-[#64748B] hover:text-[#1677C8] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
-                              <button 
+                              <button
                                 type="button"
-                                onClick={() => handleDelete(p.id)} 
+                                onClick={() => handleDelete(p.id)}
                                 title="Delete Product"
                                 className="w-7 h-7 flex items-center justify-center text-[#64748B] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               >
@@ -553,8 +549,8 @@ export default function CatalogManager() {
                   ) : (
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-xs text-[#94A3B8] italic">
-                        {hasActiveFilters 
-                          ? 'No products found matching the selected filters.' 
+                        {hasActiveFilters
+                          ? 'No products found matching the selected filters.'
                           : 'No products in catalog yet. Click "Add New Product" to create one.'}
                       </td>
                     </tr>
@@ -614,8 +610,8 @@ export default function CatalogManager() {
             ) : filteredCategories.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
                 {filteredCategories.map((cat: any) => (
-                  <div 
-                    key={cat.id} 
+                  <div
+                    key={cat.id}
                     className="bg-white border border-[#E2E8F0] rounded-xl p-3 flex items-center justify-between gap-2.5 shadow-2xs hover:border-[#CBD5E1] transition-all group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -633,17 +629,17 @@ export default function CatalogManager() {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => handleEdit(cat)} 
+                        onClick={() => handleEdit(cat)}
                         title="Edit Category"
                         className="w-7 h-7 flex items-center justify-center text-[#64748B] hover:text-[#1677C8] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => handleDelete(cat.id)} 
+                        onClick={() => handleDelete(cat.id)}
                         title="Delete Category"
                         className="w-7 h-7 flex items-center justify-center text-[#64748B] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                       >
@@ -679,8 +675,8 @@ export default function CatalogManager() {
             ) : filteredBrands.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
                 {filteredBrands.map((brand: any) => (
-                  <div 
-                    key={brand.id} 
+                  <div
+                    key={brand.id}
                     className="bg-white border border-[#E2E8F0] rounded-xl p-3 flex items-center justify-between gap-2.5 shadow-2xs hover:border-[#CBD5E1] transition-all group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -704,17 +700,17 @@ export default function CatalogManager() {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => handleEdit(brand)} 
+                        onClick={() => handleEdit(brand)}
                         title="Edit Brand"
                         className="w-7 h-7 flex items-center justify-center text-[#64748B] hover:text-[#1677C8] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => handleDelete(brand.id)} 
+                        onClick={() => handleDelete(brand.id)}
                         title="Delete Brand"
                         className="w-7 h-7 flex items-center justify-center text-[#64748B] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                       >
@@ -734,7 +730,7 @@ export default function CatalogManager() {
 
       </div>
 
-      <CatalogItemModal 
+      <CatalogItemModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);

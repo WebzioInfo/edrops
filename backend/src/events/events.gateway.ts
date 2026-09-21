@@ -74,8 +74,22 @@ export class EventsGateway
       if (['STAFF', 'MANAGER', 'ADMIN'].includes(user.role)) {
         client.join('staff-notifications');
         client.join('staff:orders');
+        if (user.role === 'ADMIN') {
+          client.join('distributors:orders');
+          client.join('distributor-notifications');
+          client.join(`distributor:${user.id}`);
+          client.join(`distributor-${user.id}`);
+        }
         this.logger.log(
           `Staff client connected: ${client.id} (User: ${user.id}, Role: ${user.role})`,
+        );
+      } else if (user.role === 'DISTRIBUTOR') {
+        client.join('distributors:orders');
+        client.join('distributor-notifications');
+        client.join(`distributor:${user.id}`);
+        client.join(`distributor-${user.id}`);
+        this.logger.log(
+          `Distributor client connected: ${client.id} (User: ${user.id})`,
         );
       } else if (user.role === 'CUSTOMER') {
         const customerId = user.customer?.id || user.id;
@@ -199,6 +213,34 @@ export class EventsGateway
     this.server.to('staff-notifications').emit('order:assigned', payload);
     this.server.to('staff-notifications').emit('order:updated', orderData);
     this.server.to('staff:orders').emit('order:updated', orderData);
+  }
+
+  // Real-time broadcast to all eligible distributors when a new order enters the queue
+  emitNewOrderAvailable(orderData: any, notification?: any) {
+    this.server.to('distributors:orders').emit('NEW_ORDER_AVAILABLE', {
+      order: orderData,
+      notification,
+    });
+    this.server.to('distributor-notifications').emit('NEW_ORDER_AVAILABLE', {
+      order: orderData,
+      notification,
+    });
+  }
+
+  // Broadcast when an order is claimed by a distributor
+  emitOrderClaimed(orderId: string, assignedDistributorId: string, orderData?: any) {
+    const payload = {
+      orderId,
+      assignedDistributorId,
+      order: orderData,
+    };
+    // Inform all distributors to immediately remove from their queue
+    this.server.to('distributors:orders').emit('ORDER_CLAIMED', payload);
+    this.server.to('distributor-notifications').emit('ORDER_CLAIMED', payload);
+
+    // Specifically notify the winner distributor to update their "My Orders"
+    this.server.to(`distributor:${assignedDistributorId}`).emit('ORDER_ASSIGNED_TO_YOU', payload);
+    this.server.to(`distributor-${assignedDistributorId}`).emit('ORDER_ASSIGNED_TO_YOU', payload);
   }
 
   emitEvent(room: string, event: string, payload: any) {

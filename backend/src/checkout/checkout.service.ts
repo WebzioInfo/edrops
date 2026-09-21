@@ -16,6 +16,7 @@ import * as crypto from 'crypto';
 import { NotificationService } from '../notification/notification.service';
 import { PromoService } from '../promo/promo.service';
 import { AuditService } from '../audit/audit.service';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class CheckoutService {
@@ -27,6 +28,7 @@ export class CheckoutService {
     private notificationService: NotificationService,
     private promoService: PromoService,
     private auditService: AuditService,
+    private eventsGateway: EventsGateway,
   ) {}
 
   private async notifyNewOrder(
@@ -51,6 +53,31 @@ export class CheckoutService {
       totalAmount,
       paymentMethod,
     });
+
+    try {
+      const fullOrder = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+            },
+          },
+          address: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      if (fullOrder && fullOrder.assignmentStatus === 'UNASSIGNED') {
+        this.eventsGateway.emitNewOrderAvailable(fullOrder);
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to broadcast new order to distributors: ${err.message}`);
+    }
   }
 
   formatDeliverySlot(slot?: string): string {
@@ -105,29 +132,7 @@ export class CheckoutService {
         };
       });
     } else {
-      const cart = await this.prisma.cart.findUnique({
-        where: { customerId },
-        include: { items: { include: { product: true } } },
-      });
-
-      if (!cart || cart.items.length === 0) {
-        throw new BadRequestException('Cart is empty');
-      }
-      items = cart.items.map((item) => {
-        const itemReturn = dto.itemReturns?.find(
-          (r) => r.productId === item.productId,
-        );
-        if (itemReturn && itemReturn.quantity > item.quantity) {
-          throw new BadRequestException(
-            `Cannot return more jars than purchased for ${item.product.name}`,
-          );
-        }
-        return {
-          ...item,
-          deposit: 0,
-          declaredReturnQuantity: itemReturn?.quantity || 0,
-        };
-      });
+      throw new BadRequestException('Product items are required for checkout');
     }
 
     let subTotal = 0;
@@ -425,11 +430,6 @@ export class CheckoutService {
           null,
           dto.adminOverride,
         );
-      }
-
-      // 4. Clear cart if not Buy Now
-      if (!dto.buyNowItems || dto.buyNowItems.length === 0) {
-        await tx.cartItem.deleteMany({ where: { cart: { customerId } } });
       }
 
       // 4. Schedule delivery if payment is instantly confirmed

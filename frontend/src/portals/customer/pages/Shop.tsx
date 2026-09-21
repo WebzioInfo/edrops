@@ -1,12 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Search, X } from 'lucide-react';
+import { Droplets, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useCart } from '../../../contexts/CartContext';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PullToRefresh from '../../../components/pwa/PullToRefresh';
@@ -14,7 +12,6 @@ import ProductCard from '../components/ProductCard';
 
 export default function Shop() {
   const { user } = useAuth();
-  const { addItem } = useCart();
   const { requireAuth } = useRequireAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -50,26 +47,8 @@ export default function Shop() {
     ]);
   };
 
-  const handleAddToCart = (product: any) => {
-    requireAuth(
-      () => {
-        addItem({
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          isJar: product.isJar,
-          depositAmount: product.depositAmount,
-          imageUrl: product.images?.[0]?.url,
-          brandName: product.brand?.name,
-        });
-        toast.success(`Added ${product.name} to cart!`);
-      },
-      { redirect: '/customer/shop', reason: 'cart' }
-    );
-  };
-
   const handleBuyNow = (product: any) => {
-    const buyNowUrl = `/customer/checkout?buyNow=true&productId=${product.id}&quantity=1&name=${encodeURIComponent(product.name)}&price=${product.price}&imageUrl=${encodeURIComponent(product.images?.[0]?.url || '')}&brandName=${encodeURIComponent(product.brand?.name || '')}`;
+    const buyNowUrl = `/customer/checkout?buyNow=true&productId=${product.id}&quantity=1&name=${encodeURIComponent(product.name)}&price=${product.price}&imageUrl=${encodeURIComponent(product.images?.[0]?.url || '')}&brandName=${encodeURIComponent(product.brand?.name || '')}&isJar=${Boolean(product.isJar)}&depositAmount=${product.depositAmount || 0}&brandId=${encodeURIComponent(product.brandId || product.brand?.id || '')}`;
     requireAuth(
       () => {
         navigate(buyNowUrl);
@@ -107,7 +86,7 @@ export default function Shop() {
               </p>
             </div>
             <div className="absolute -right-8 -bottom-8 opacity-10 hidden md:block z-0 pointer-events-none">
-              <ShoppingCart className="w-48 h-48 text-[#1E88E5]" />
+              <Droplets className="w-48 h-48 text-[#1E88E5]" />
             </div>
           </motion.section>
         )}
@@ -191,7 +170,6 @@ export default function Shop() {
               >
                 <ProductCard
                   product={product}
-                  onAddToCart={handleAddToCart}
                   onBuyNow={handleBuyNow}
                 />
               </motion.div>

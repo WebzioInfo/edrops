@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Plus, Trash2, ShieldCheck, CheckCircle2, Minus, ChevronDown, ChevronUp, MapPin, Clock, CreditCard, Wallet, Banknote, ArrowLeft, X } from 'lucide-react';
-import { useCart } from '../../../contexts/CartContext';
+import { Package, Plus, Trash2, ShieldCheck, CheckCircle2, Minus, ChevronDown, ChevronUp, MapPin, Clock, CreditCard, Wallet, Banknote, ArrowLeft, X } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { injectMockRazorpay } from '../../../utils/MockRazorpay';
@@ -25,35 +24,26 @@ interface TimeSlot {
 }
 
 export default function Checkout() {
-  const { items, clearCart } = useCart();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const isBuyNow = searchParams.get('buyNow') === 'true';
-  const buyNowProduct = isBuyNow ? [{
-    id: searchParams.get('productId') || '',
+  const productId = searchParams.get('productId');
+  const initialItems = productId ? [{
+    id: productId,
     name: searchParams.get('name') || '',
     price: Number(searchParams.get('price')) || 0,
     quantity: Number(searchParams.get('quantity')) || 1,
     imageUrl: searchParams.get('imageUrl') || undefined,
     brandName: searchParams.get('brandName') || undefined,
-    brandId: undefined,
-    isJar: false,
-    depositAmount: 0
+    brandId: searchParams.get('brandId') || undefined,
+    isJar: searchParams.get('isJar') === 'true',
+    depositAmount: Number(searchParams.get('depositAmount')) || 0
   }] : [];
 
-  const [checkoutItems, setCheckoutItems] = useState<any[]>(isBuyNow ? buyNowProduct : items);
+  const [checkoutItems, setCheckoutItems] = useState<any[]>(initialItems);
   const [currentStep, setCurrentStep] = useState(1);
   const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isBuyNow) {
-      if (items.length > 0 && checkoutItems.length === 0) {
-        setCheckoutItems(items);
-      }
-    }
-  }, [items, isBuyNow]);
 
   const updateCheckoutQuantity = (id: string, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -277,25 +267,15 @@ export default function Checkout() {
     setIsProcessing(true);
 
     try {
-      if (!isBuyNow) {
-        await fetchWithAuth('/cart/sync', {
-          method: 'POST',
-          body: JSON.stringify({ items: checkoutItems.map(i => ({ productId: i.id, quantity: i.quantity })) })
-        });
-      }
-
       const initiatePayload: any = {
         addressId: selectedAddressId,
         paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : paymentMethod,
         timeSlot: selectedSlot,
         itemReturns: Object.entries(itemReturns).filter(([_, info]) => info.willReturn && info.quantity > 0).map(([id, info]) => ({productId: id, quantity: info.quantity})),
         additionalReturns: additionalReturns.filter(ar => ar.brandId && ar.quantity > 0),
-        promoCode: appliedPromo?.code || undefined
+        promoCode: appliedPromo?.code || undefined,
+        buyNowItems: checkoutItems.map(i => ({ productId: i.id, quantity: i.quantity }))
       };
-
-      if (isBuyNow) {
-        initiatePayload.buyNowItems = checkoutItems.map(i => ({ productId: i.id, quantity: i.quantity }));
-      }
 
       const initiateRes = await fetchWithAuth('/checkout/initiate', {
         method: 'POST',
@@ -304,7 +284,6 @@ export default function Checkout() {
 
       if (initiateRes.status === 'SUCCESS') {
         toast.success('Order placed successfully!');
-        if (!isBuyNow) clearCart();
         localStorage.removeItem('edrops_promo');
         window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
         return;
@@ -338,7 +317,6 @@ export default function Checkout() {
               }),
             });
             toast.success('Payment successful! Your order is confirmed.');
-            if (!isBuyNow) clearCart();
             localStorage.removeItem('edrops_promo');
             window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
           },
@@ -357,22 +335,22 @@ export default function Checkout() {
   };
 
   const handleNextStep = () => {
-    if (currentStep === 1 && checkoutItems.length === 0) return toast.error('Your cart is empty');
+    if (currentStep === 1 && checkoutItems.length === 0) return toast.error('Your order is empty');
     if (currentStep === 2 && !selectedAddressId) return toast.error('Please select a delivery address');
     if (currentStep === 2 && !selectedSlot) return toast.error('Please select a delivery slot');
     setCurrentStep(prev => prev + 1);
   };
 
-  const hasJarsInCart = checkoutItems.some(i => i.isJar);
+  const hasJarsInOrder = checkoutItems.some(i => i.isJar);
 
   if (checkoutItems.length === 0 && currentStep === 1) {
     return (
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 text-center flex flex-col items-center justify-center min-h-[70vh]">
         <div className="h-20 w-20 rounded-full bg-white border border-[#E2E8F0] shadow-xs flex items-center justify-center mb-4 text-[#64748B]">
-          <ShoppingBag className="h-9 w-9" />
+          <Package className="h-9 w-9" />
         </div>
-        <h2 className="text-[22px] font-bold text-[#0F172A]">Your cart is empty</h2>
-        <p className="mt-1.5 text-[#64748B] text-sm max-w-sm">Looks like you haven't added any fresh water jars or products yet.</p>
+        <h2 className="text-[22px] font-bold text-[#0F172A]">No product selected</h2>
+        <p className="mt-1.5 text-[#64748B] text-sm max-w-sm">Looks like you haven't selected a product to checkout yet.</p>
         <Link
           to="/customer/shop"
           className="mt-6 inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-[#1E88E5] text-white text-sm font-semibold shadow-xs hover:bg-[#1565C0] transition-colors"
@@ -481,7 +459,7 @@ export default function Checkout() {
                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-[#E2E8F0] shadow-xs">
                     <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F1F5F9]">
                       <h2 className="text-base sm:text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                        <ShoppingBag className="w-5 h-5 text-[#1E88E5]" />
+                        <Package className="w-5 h-5 text-[#1E88E5]" />
                         Review Items ({checkoutItems.length})
                       </h2>
                       <span className="text-xs font-semibold text-[#64748B]">
@@ -497,7 +475,7 @@ export default function Checkout() {
                             {item.imageUrl ? (
                               <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                             ) : (
-                              <ShoppingBag className="w-6 h-6 text-[#94A3B8]" />
+                              <Package className="w-6 h-6 text-[#94A3B8]" />
                             )}
                           </div>
 
@@ -703,7 +681,7 @@ export default function Checkout() {
                       </h3>
                     </div>
 
-                    {hasJarsInCart ? (
+                    {hasJarsInOrder ? (
                       <div className="space-y-3 pt-1">
                         {checkoutItems.filter(i => i.isJar).map(item => (
                           <div key={item.id} className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
@@ -773,7 +751,7 @@ export default function Checkout() {
                       </div>
                     ) : (
                       <p className="text-xs text-[#64748B] py-1">
-                        No 20L jars in today's cart. You can still return other empty jars below if needed.
+                        No 20L jars in today's order. You can still return other empty jars below if needed.
                       </p>
                     )}
 

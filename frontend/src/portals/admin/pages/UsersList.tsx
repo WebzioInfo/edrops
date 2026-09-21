@@ -119,6 +119,13 @@ export default function UsersList() {
             <span>Manager</span>
           </span>
         );
+      case 'DISTRIBUTOR':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <Shield className="w-3 h-3" />
+            <span>Distributor</span>
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-[#64748B] border border-slate-200">
@@ -203,6 +210,7 @@ export default function UsersList() {
                 { key: 'ADMIN', label: 'Admin' },
                 { key: 'STAFF', label: 'Staff' },
                 { key: 'DELIVERY_PARTNER', label: 'Delivery' },
+                { key: 'DISTRIBUTOR', label: 'Distributor' },
                 { key: 'MANAGER', label: 'Manager' },
               ].map((rf) => (
                 <button

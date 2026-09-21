@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, ShieldCheck, Tag, ChevronDown, ChevronUp, Check, Truck, Lock } from 'lucide-react';
+import { Package, ShieldCheck, Tag, ChevronDown, ChevronUp, Check, Truck, Lock } from 'lucide-react';
 
 export interface CheckoutOrderSummaryProps {
   items: Array<{
@@ -57,7 +57,7 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-[#F1F5F9] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ShoppingBag className="w-4 h-4 text-[#1E88E5]" />
+          <Package className="w-4 h-4 text-[#1E88E5]" />
           <h3 className="font-bold text-[16px] text-[#0F172A]">Order Summary</h3>
         </div>
         <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#EBF5FB] text-[#1E88E5]">
@@ -73,7 +73,7 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
             onClick={() => setItemsExpanded(!itemsExpanded)}
             className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#64748B] hover:text-[#0F172A] transition-colors pb-2 cursor-pointer"
           >
-            <span>Products in Cart ({items.length})</span>
+            <span>Order Items ({items.length})</span>
             {itemsExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
 
@@ -85,7 +85,7 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
-                      <ShoppingBag className="w-4 h-4 text-[#94A3B8]" />
+                      <Package className="w-4 h-4 text-[#94A3B8]" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">

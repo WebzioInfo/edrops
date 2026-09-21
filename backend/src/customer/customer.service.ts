@@ -224,7 +224,7 @@ export class CustomerService {
     const customers = await this.prisma.customer.findMany({
       include: {
         user: true,
-        addresses: { where: { isDefault: true }, take: 1 },
+        addresses: true,
         wallet: true,
         jarBalances: true,
       },

@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, History, ArrowUpRight, ArrowDownLeft, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
+import { Wallet, History, ArrowUpRight, ArrowDownLeft, AlertCircle, Sparkles, Loader2, Receipt } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { injectMockRazorpay } from '../../../utils/MockRazorpay';
-
 
 interface Transaction {
   id: string;
@@ -16,7 +15,6 @@ interface Transaction {
 }
 
 export default function WalletPage() {
-
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +31,7 @@ export default function WalletPage() {
 
       const txData = await fetchWithAuth('/wallet/transactions');
       setTransactions(txData || []);
-    } catch (err: any) {
+    } catch {
       toast.error('Failed to load wallet information');
     } finally {
       setLoading(false);
@@ -59,10 +57,12 @@ export default function WalletPage() {
     loadWalletData();
   }, []);
 
+  const activeAmount = customAmount ? parseInt(customAmount, 10) || 0 : selectedAmount;
+  const isValidAmount = activeAmount >= 100 && activeAmount <= 100000;
+
   const handleRecharge = async () => {
-    const amount = customAmount ? parseInt(customAmount) : selectedAmount;
-    if (!amount || amount < 100 || amount > 100000) {
-      toast.error('Please enter a valid amount (Min: ₹100, Max: ₹100,000)');
+    if (!isValidAmount) {
+      toast.error('Please select or enter an amount between ₹100 and ₹1,00,000');
       return;
     }
 
@@ -71,7 +71,7 @@ export default function WalletPage() {
       // 1. Initiate Recharge
       const initiateRes = await fetchWithAuth('/wallet/recharge/initiate', {
         method: 'POST',
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount: activeAmount }),
       });
 
       // 2. Load Razorpay script
@@ -99,14 +99,14 @@ export default function WalletPage() {
                 razorpaySignature: response.razorpay_signature,
               }),
             });
-            toast.success(`Successfully added ₹${amount} to your wallet!`);
+            toast.success(`Successfully added ₹${activeAmount} to your wallet!`);
             setCustomAmount('');
             loadWalletData();
           } catch (confirmErr: any) {
             toast.error(confirmErr.message || 'Payment verification failed');
           }
         },
-        theme: { color: '#1E88E5' }
+        theme: { color: '#0284C7' }
       };
 
       const rzp = new (window as any).Razorpay(options);
@@ -122,148 +122,298 @@ export default function WalletPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="relative h-16 w-16 rounded-full water-gradient shadow-2xl shadow-edrops-aqua/30">
-          <div className="absolute inset-2 animate-ping rounded-full bg-white/40" />
+      <div className="min-h-screen bg-[#F7FAFC] pb-24">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-6">
+          <div className="h-8 w-48 bg-slate-200/80 rounded-lg animate-pulse" />
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="h-64 rounded-[24px] bg-slate-200/70 animate-pulse" />
+            <div className="h-64 rounded-[24px] bg-slate-200/70 animate-pulse" />
+          </div>
+          <div className="h-72 rounded-[24px] bg-slate-200/70 animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8 space-y-6">
-      
-      {/* 1. Header with Title */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-black text-[#245361]">Wallet & Payments</h1>
-          <p className="text-sm font-semibold text-[#245361]/95 mt-1">Manage your funds, rewards, and transaction history</p>
-        </div>
-      </div>
-
-      {/* 2. Balance & Top-Up Section */}
-      <div className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
+    <div className="min-h-screen bg-[#F7FAFC] pb-20">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-6">
         
-        {/* Large Balance Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="clay-card bg-primary text-white rounded-[2.5rem] p-6 sm:p-10 relative overflow-hidden flex flex-col justify-between min-h-[220px]"
-        >
-          <div className="absolute inset-x-0 bottom-0 h-28 wave-mask opacity-30" />
-          
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-white">
-                <Wallet className="h-6 w-6" />
-              </span>
-              <span className="text-sm font-black uppercase tracking-[0.2em] text-white">Available Balance</span>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.1em] text-[#2D79A8]">
-              <Sparkles className="h-3 w-3" /> Secure
-            </span>
-          </div>
-
-          <div className="relative mt-6">
-            <p className="text-5xl sm:text-6xl font-black text-white">₹{balance.toFixed(2)}</p>
-            <p className="text-xs font-black text-white uppercase tracking-widest mt-2">INR AVAILABLE TO USE</p>
-          </div>
-        </motion.div>
-
-        {/* Quick Actions (Add Money) */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="clay-card p-6 flex flex-col justify-between"
-        >
-          <div>
-            <h3 className="text-lg font-black text-[#245361]">Quick Top-Up</h3>
-            <p className="text-sm text-slate-700 mt-1">Refill wallet for uninterrupted water delivery.</p>
-            
-            <div className="grid grid-cols-3 gap-2 mt-4">
-              {[200, 500, 1000].map((amt) => (
-                <button
-                  key={amt}
-                  onClick={() => { setSelectedAmount(amt); setCustomAmount(''); }}
-                  className={`rounded-2xl py-3 text-center text-sm font-black transition ${selectedAmount === amt && !customAmount ? 'bg-[#2D79A8] text-white shadow-lg shadow-[#2D79A8]/30' : 'bg-secondary/15 text-[#2D79A8] border border-transparent hover:border-[#2D79A8]'}`}
-                >
-                  +₹{amt}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4 relative">
-              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">₹</span>
-              <input
-                type="number"
-                placeholder="Or enter custom amount..."
-                value={customAmount}
-                onChange={(e) => { setCustomAmount(e.target.value); setSelectedAmount(0); }}
-                className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2D79A8] focus:ring-2 focus:ring-[#2D79A8]/20 transition-all font-semibold text-sm outline-none"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={handleRecharge}
-            disabled={rechargeLoading}
-            className="w-full mt-6 py-4 rounded-full sun-gradient text-sm font-black text-white shadow-lg hover:shadow-orange-300/20 active:scale-98 transition flex items-center justify-center gap-2 disabled:opacity-70"
-          >
-            {rechargeLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Add Money Securely'}
-          </button>
-        </motion.div>
-      </div>
-
-      {/* 3. Transaction History / Ledger */}
-      <motion.section
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="clay-card p-6"
-      >
-        <div className="flex items-center gap-3 border-b border-border pb-4 mb-4">
-          <History className="h-6 w-6 text-[#2D79A8]" />
-          <h2 className="text-xl font-black text-[#245361]">Recent Transactions</h2>
-        </div>
-
-        <div className="divide-y divide-border/60">
-          {transactions.map((tx) => (
-            <div key={tx.id} className="flex items-center justify-between py-4">
-              <div className="flex items-center gap-3.5">
-                <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tx.type === 'DEDUCTION' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                  {tx.type === 'DEDUCTION' ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
-                </span>
-                <div>
-                  <p className="text-base font-black text-[#245361]">{tx.description}</p>
-                  <p className="text-xs font-semibold text-slate-700 mt-0.5">{new Date(tx.createdAt).toLocaleDateString()} at {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className={`text-base font-black ${tx.type === 'DEDUCTION' ? 'text-[#245361]' : 'text-emerald-600'}`}>
-                  {tx.type === 'DEDUCTION' ? '-' : '+'}Rs {tx.amount.toFixed(2)}
-                </p>
-                <p className="text-[10px] font-bold text-slate-700 mt-0.5">Bal: Rs {tx.balanceAfter.toFixed(2)}</p>
-              </div>
-            </div>
-          ))}
-          {transactions.length === 0 && (
-            <p className="text-center text-sm font-semibold text-slate-600 py-6">No transaction records found.</p>
-          )}
-        </div>
-      </motion.section>
-
-      {/* 4. Tips & Alerts */}
-      <section className="bg-[#BBDFF2]/30 rounded-3xl p-5 border border-[#BBDFF2] flex gap-4 items-start">
-        <ShieldAlert className="h-6 w-6 text-[#2D79A8] shrink-0 mt-0.5" />
+        {/* 1. Header with Title */}
         <div>
-          <h4 className="text-sm font-black text-[#245361]">Auto-Debit Warning</h4>
-          <p className="text-sm text-slate-700 mt-1">
-            Wallet balance is automatically debited upon each successful delivery. To avoid skipped deliveries, maintain a balance of at least ₹150.00.
+          <h1 className="text-[24px] md:text-[28px] font-bold text-[#0F172A] tracking-tight">
+            Wallet & Payments
+          </h1>
+          <p className="text-[#64748B] text-sm mt-1 font-medium">
+            Manage your funds, auto-debits, and recharge transactions
           </p>
         </div>
-      </section>
 
+        {/* 2. Balance & Top-Up Section */}
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1.2fr_0.8fr]">
+          
+          {/* Large Balance Card with layered depth and gradient */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#0EA5E9] via-[#0284C7] to-[#0B3B5C] p-6 sm:p-8 text-white shadow-[0_12px_32px_rgba(14,165,233,0.22)] border border-white/15 flex flex-col justify-between min-h-[230px]"
+          >
+            {/* Ambient Lighting & Glows */}
+            <div className="absolute -top-16 -right-16 w-52 h-52 bg-white/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-14 -left-14 w-44 h-44 bg-cyan-400/20 rounded-full blur-2xl pointer-events-none" />
+            
+            {/* Subtle Watermark Icon */}
+            <Wallet className="absolute -bottom-6 -right-6 w-44 h-44 text-white/[0.07] stroke-[1.2] pointer-events-none select-none" />
+
+            {/* Top Bar: Label + Secure Badge */}
+            <div className="relative flex items-center justify-between z-10">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15 backdrop-blur-xs text-white">
+                  <Wallet className="h-4 w-4" />
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/80">
+                  Available Balance
+                </span>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/15 backdrop-blur-xs px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white/90 border border-white/20">
+                <Sparkles className="h-3 w-3 text-cyan-200" /> Secure
+              </span>
+            </div>
+
+            {/* Center: Main Balance Figure with Breathing Room */}
+            <div className="relative my-auto py-5 z-10">
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl sm:text-3xl font-bold text-white/80">₹</span>
+                <span className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white">
+                  {balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <p className="text-[11px] font-semibold text-white/70 tracking-wide mt-2 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Auto-debited on each verified delivery
+              </p>
+            </div>
+
+            {/* Bottom Meta */}
+            <div className="relative z-10 pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-white/60">
+              <span>Instant Wallet Top-Up</span>
+              <span>100% Encrypted & Protected</span>
+            </div>
+          </motion.div>
+
+          {/* Quick Actions (Add Money) */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            className="bg-white rounded-[24px] p-6 sm:p-7 border border-[#E2E8F0]/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-base font-bold text-[#0F172A]">Quick Top-Up</h3>
+                <span className="text-[11px] font-medium text-[#64748B]">Min ₹100 • Max ₹1,00,000</span>
+              </div>
+              <p className="text-xs text-[#64748B]">Refill wallet for uninterrupted water delivery.</p>
+              
+              {/* Preset Buttons */}
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                {[200, 500, 1000].map((amt) => {
+                  const isSelected = selectedAmount === amt && !customAmount;
+                  return (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => {
+                        setSelectedAmount(amt);
+                        setCustomAmount('');
+                      }}
+                      className={`h-11 rounded-xl text-center text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center ${
+                        isSelected
+                          ? 'bg-[#0284C7] text-white shadow-md shadow-[#0284C7]/20 border border-[#0284C7]'
+                          : 'bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#0F172A] border border-[#E2E8F0] hover:border-[#CBD5E1]'
+                      }`}
+                    >
+                      +₹{amt}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Input */}
+              <div className="mt-3 relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[#64748B] font-bold text-sm select-none">
+                  ₹
+                </span>
+                <input
+                  type="number"
+                  min={100}
+                  max={100000}
+                  placeholder="Or enter custom amount..."
+                  value={customAmount}
+                  onChange={(e) => {
+                    setCustomAmount(e.target.value);
+                    setSelectedAmount(0);
+                  }}
+                  className="w-full h-11 pl-8 pr-4 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] placeholder:text-[#94A3B8] font-semibold text-xs sm:text-sm outline-none transition-all focus:border-[#0284C7] focus:ring-3 focus:ring-[#0284C7]/15"
+                />
+              </div>
+            </div>
+
+            {/* Top-up Action Button with explicit active & disabled states */}
+            <button
+              type="button"
+              onClick={handleRecharge}
+              disabled={!isValidAmount || rechargeLoading}
+              className={`w-full mt-5 h-12 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                isValidAmount && !rechargeLoading
+                  ? 'bg-[#0284C7] hover:bg-[#0369A1] text-white shadow-md shadow-[#0284C7]/25 cursor-pointer active:scale-[0.98]'
+                  : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed shadow-none'
+              }`}
+            >
+              {rechargeLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Processing Recharge...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className={`w-4 h-4 ${isValidAmount ? 'text-white/80' : 'text-[#94A3B8]'}`} />
+                  <span>
+                    {isValidAmount ? `Add ₹${activeAmount} Securely` : 'Enter Amount to Top Up'}
+                  </span>
+                </>
+              )}
+            </button>
+          </motion.div>
+        </div>
+
+        {/* 3. Transaction History / Ledger */}
+        <motion.section
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-white rounded-[24px] p-6 sm:p-7 border border-[#E2E8F0]/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)]"
+        >
+          <div className="flex items-center justify-between pb-4 border-b border-[#F1F5F9]">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0284C7]/10 text-[#0284C7]">
+                <History className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[#0F172A]">Recent Transactions</h2>
+                <p className="text-[11px] text-[#64748B] font-medium">Automatic billing and recharge log</p>
+              </div>
+            </div>
+            {transactions.length > 0 && (
+              <span className="text-xs font-semibold text-[#64748B] bg-[#F1F5F9] px-2.5 py-1 rounded-full">
+                {transactions.length} record{transactions.length === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
+
+          <div className="mt-2">
+            {/* Non-empty State */}
+            {transactions.length > 0 && (
+              <div className="divide-y divide-[#F1F5F9]">
+                {transactions.map((tx) => {
+                  const isDeduction = tx.type === 'DEDUCTION';
+                  return (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between py-3.5 px-1 hover:bg-[#F8FAFC] rounded-xl transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span
+                          className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${
+                            isDeduction
+                              ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                              : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                          }`}
+                        >
+                          {isDeduction ? (
+                            <ArrowDownLeft className="h-5 w-5" />
+                          ) : (
+                            <ArrowUpRight className="h-5 w-5" />
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs sm:text-sm font-bold text-[#0F172A] truncate">
+                            {tx.description || (isDeduction ? 'Delivery Deduction' : 'Wallet Top-Up')}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[#64748B] flex-wrap">
+                            <span className="font-medium">
+                              {new Date(tx.createdAt).toLocaleDateString([], {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}{' '}
+                              at{' '}
+                              {new Date(tx.createdAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <span className="text-[#CBD5E1]">•</span>
+                            <span className="font-semibold text-[#0284C7]">
+                              {isDeduction ? 'Order Debit' : 'Online Recharge'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 pl-3">
+                        <p
+                          className={`text-xs sm:text-sm font-black ${
+                            isDeduction ? 'text-[#0F172A]' : 'text-emerald-600'
+                          }`}
+                        >
+                          {isDeduction ? '-' : '+'}₹{Number(tx.amount || 0).toFixed(2)}
+                        </p>
+                        {typeof tx.balanceAfter === 'number' && (
+                          <p className="text-[10px] font-medium text-[#64748B] mt-0.5">
+                            Bal: ₹{tx.balanceAfter.toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {transactions.length === 0 && (
+              <div className="py-12 px-4 flex flex-col items-center justify-center text-center">
+                <div className="w-14 h-14 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] mb-3.5 shadow-xs">
+                  <Receipt className="w-6 h-6 text-[#64748B]" />
+                </div>
+                <h3 className="text-sm font-bold text-[#0F172A]">No transactions yet</h3>
+                <p className="text-xs text-[#64748B] max-w-xs mt-1 leading-relaxed">
+                  Your recharge and delivery deductions will appear here.
+                </p>
+              </div>
+            )}
+          </div>
+        </motion.section>
+
+        {/* 4. Tips & Alerts: Warmer Amber Cautionary Styling */}
+        <motion.section
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-amber-50/80 rounded-2xl p-4 border border-amber-200/80 flex gap-3 items-start"
+        >
+          <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 shrink-0 mt-0.5">
+            <AlertCircle className="h-4 w-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider">Auto-Debit Notice</h4>
+            <p className="text-xs text-amber-900/80 mt-0.5 leading-relaxed font-medium">
+              Wallet balance is automatically debited upon each successful delivery. To ensure uninterrupted drops, maintain a balance of at least ₹150.00.
+            </p>
+          </div>
+        </motion.section>
+
+      </div>
     </div>
   );
 }

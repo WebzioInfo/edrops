@@ -59,7 +59,7 @@ export class CustomerController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR)
   create(@Body() createCustomerDto: CreateCustomerDto, @Request() req) {
     return this.customerService.create(
       createCustomerDto,
@@ -68,13 +68,13 @@ export class CustomerController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR)
   findAll() {
     return this.customerService.findAll();
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR)
   findOne(@Param('id') id: string) {
     return this.customerService.findOne(id);
   }

@@ -1,10 +1,16 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { EventsGateway } from '../events/events.gateway';
 import { OrderStatus, OrderSource, OrderType, PaymentStatus, UserRole } from '@prisma/client';
 
 import { CreatePartnerOrderDto, CreatePartnerOrderItemDto } from './dto/create-partner-order.dto';
+import {
+  CreateDistributorOrderDto,
+  UpdateDistributorOrderStatusDto,
+  RecordDistributorPaymentDto,
+  CancelDistributorOrderDto,
+} from './dto/distributor-order.dto';
 import { isValidTransition, isPartnerAllowedTransition, VALID_ORDER_TRANSITIONS } from './order-state-machine';
 
 @Injectable()
@@ -994,4 +1000,1039 @@ export class OrderService {
 
     return updatedOrder;
   }
+
+  // =========================================================================
+  // DISTRIBUTOR COMPLETE ORDER MANAGEMENT (ERP)
+  // =========================================================================
+
+  async findDistributorOrders(
+    distributorUserId: string,
+    query?: {
+      page?: number | string;
+      limit?: number | string;
+      search?: string;
+      status?: string;
+      paymentStatus?: string;
+      datePreset?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      customerId?: string;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+    },
+  ) {
+    const page = Math.max(1, parseInt(String(query?.page || 1), 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(String(query?.limit || 25), 10) || 25));
+    const skip = (page - 1) * limit;
+
+    // Strict Distributor assignment filter: Only orders assigned to this distributor
+    const baseDistributorCondition: any = {
+      distributorId: distributorUserId,
+      assignmentStatus: 'ASSIGNED',
+    };
+
+    const where: any = { ...baseDistributorCondition };
+
+    // Order Status filter
+    if (query?.status && query.status !== 'ALL') {
+      if (query.status === 'PENDING') {
+        where.status = {
+          in: [OrderStatus.NEW, OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ASSIGNMENT],
+        };
+      } else if (query.status === 'CONFIRMED') {
+        where.status = OrderStatus.CONFIRMED;
+      } else if (query.status === 'PROCESSING') {
+        where.status = OrderStatus.PROCESSING;
+      } else if (query.status === 'READY') {
+        where.status = OrderStatus.READY;
+      } else if (query.status === 'OUT_FOR_DELIVERY') {
+        where.status = OrderStatus.OUT_FOR_DELIVERY;
+      } else if (query.status === 'DELIVERED') {
+        where.status = { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] };
+      } else if (query.status === 'CANCELLED') {
+        where.status = OrderStatus.CANCELLED;
+      } else {
+        where.status = query.status as OrderStatus;
+      }
+    }
+
+    // Payment Status filter
+    if (query?.paymentStatus && query.paymentStatus !== 'ALL') {
+      if (query.paymentStatus === 'PAID') {
+        where.paymentStatus = { in: [PaymentStatus.PAID, PaymentStatus.SUCCESS] };
+      } else if (query.paymentStatus === 'PARTIALLY_PAID') {
+        where.paymentStatus = { in: [PaymentStatus.PARTIALLY_PAID, PaymentStatus.PARTIAL_REFUND] };
+      } else if (query.paymentStatus === 'UNPAID') {
+        where.paymentStatus = { in: [PaymentStatus.UNPAID, PaymentStatus.PENDING, PaymentStatus.CREATED] };
+      } else if (query.paymentStatus === 'REFUNDED') {
+        where.paymentStatus = PaymentStatus.REFUNDED;
+      } else {
+        where.paymentStatus = query.paymentStatus as PaymentStatus;
+      }
+    }
+
+    // Customer filter
+    if (query?.customerId && query.customerId !== 'ALL') {
+      where.customerId = query.customerId;
+    }
+
+    // Date Presets & Custom Ranges
+    if (query?.datePreset && query.datePreset !== 'ALL') {
+      const now = new Date();
+      if (query.datePreset === 'TODAY') {
+        const start = new Date(now.setHours(0, 0, 0, 0));
+        const end = new Date(now.setHours(23, 59, 59, 999));
+        where.createdAt = { gte: start, lte: end };
+      } else if (query.datePreset === 'YESTERDAY') {
+        const yStart = new Date(now);
+        yStart.setDate(yStart.getDate() - 1);
+        yStart.setHours(0, 0, 0, 0);
+        const yEnd = new Date(yStart);
+        yEnd.setHours(23, 59, 59, 999);
+        where.createdAt = { gte: yStart, lte: yEnd };
+      } else if (query.datePreset === 'THIS_WEEK') {
+        const weekStart = new Date(now);
+        weekStart.setDate(weekStart.getDate() - 7);
+        weekStart.setHours(0, 0, 0, 0);
+        where.createdAt = { gte: weekStart };
+      } else if (query.datePreset === 'THIS_MONTH') {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        where.createdAt = { gte: monthStart };
+      }
+    } else if (query?.dateFrom || query?.dateTo) {
+      where.createdAt = {};
+      if (query.dateFrom) where.createdAt.gte = new Date(query.dateFrom);
+      if (query.dateTo) {
+        const to = new Date(query.dateTo);
+        to.setHours(23, 59, 59, 999);
+        where.createdAt.lte = to;
+      }
+    }
+
+    // Search query
+    if (query?.search?.trim()) {
+      const q = query.search.trim();
+      where.AND = [
+        {
+          OR: [
+            { id: { contains: q, mode: 'insensitive' } },
+            { customer: { user: { firstName: { contains: q, mode: 'insensitive' } } } },
+            { customer: { user: { lastName: { contains: q, mode: 'insensitive' } } } },
+            { customer: { user: { phone: { contains: q, mode: 'insensitive' } } } },
+            { customer: { companyName: { contains: q, mode: 'insensitive' } } },
+            { customer: { referralCode: { contains: q, mode: 'insensitive' } } },
+            { address: { city: { contains: q, mode: 'insensitive' } } },
+            { address: { street: { contains: q, mode: 'insensitive' } } },
+          ],
+        },
+      ];
+    }
+
+    // Sorting
+    let orderBy: any = { createdAt: 'desc' };
+    const sortDir = query?.sortOrder === 'asc' ? 'asc' : 'desc';
+    if (query?.sortBy === 'total') {
+      orderBy = { totalAmount: sortDir };
+    } else if (query?.sortBy === 'orderDate') {
+      orderBy = { createdAt: sortDir };
+    } else if (query?.sortBy === 'status') {
+      orderBy = { status: sortDir };
+    } else if (query?.sortBy === 'customer') {
+      orderBy = { customer: { user: { firstName: sortDir } } };
+    }
+
+    // Run parallel queries: Paginated list + Real DB summary statistics
+    const [totalMatching, orders, allStats] = await Promise.all([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        include: {
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+            },
+          },
+          address: true,
+          items: {
+            include: {
+              product: {
+                select: { id: true, name: true, price: true, isJar: true },
+              },
+            },
+          },
+          payments: {
+            select: { id: true, amount: true, status: true, provider: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      // Real DB aggregates for summary header (scoped to this distributor)
+      Promise.all([
+        this.prisma.order.count({ where: baseDistributorCondition }),
+        this.prisma.order.count({
+          where: {
+            ...baseDistributorCondition,
+            status: { in: [OrderStatus.NEW, OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ASSIGNMENT] },
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            ...baseDistributorCondition,
+            status: {
+              in: [
+                OrderStatus.CONFIRMED,
+                OrderStatus.PROCESSING,
+                OrderStatus.READY,
+                OrderStatus.ASSIGNED,
+                OrderStatus.ACCEPTED_BY_PARTNER,
+              ],
+            },
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            ...baseDistributorCondition,
+            status: OrderStatus.OUT_FOR_DELIVERY,
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            ...baseDistributorCondition,
+            status: { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] },
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            ...baseDistributorCondition,
+            status: OrderStatus.CANCELLED,
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            ...baseDistributorCondition,
+            paymentStatus: { in: [PaymentStatus.UNPAID, PaymentStatus.PENDING, PaymentStatus.PARTIALLY_PAID] },
+            status: { not: OrderStatus.CANCELLED },
+          },
+        }),
+        this.prisma.order.aggregate({
+          _sum: { totalAmount: true },
+          where: {
+            ...baseDistributorCondition,
+            status: { not: OrderStatus.CANCELLED },
+          },
+        }),
+        this.prisma.payment.aggregate({
+          _sum: { amount: true },
+          where: {
+            order: baseDistributorCondition,
+            status: { in: [PaymentStatus.PAID, PaymentStatus.SUCCESS] },
+          },
+        }),
+      ]),
+    ]);
+
+    const [
+      totalOrders,
+      pendingCount,
+      confirmedCount,
+      outForDeliveryCount,
+      deliveredCount,
+      cancelledCount,
+      pendingPaymentCount,
+      revenueAgg,
+      paymentsAgg,
+    ] = allStats;
+
+    const totalRevenue = Number(revenueAgg._sum.totalAmount || 0);
+    const totalCollected = Number(paymentsAgg._sum.amount || 0);
+    const totalDue = Math.max(0, Number((totalRevenue - totalCollected).toFixed(2)));
+
+    // Transform orders to add computed total quantity and amount paid/due
+    const transformedOrders = orders.map((o) => {
+      const totalQty = o.items.reduce((sum, item) => sum + item.quantity, 0);
+      const paidAmount = o.payments
+        .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const dueAmount = Math.max(0, Number((o.totalAmount - paidAmount).toFixed(2)));
+
+      return {
+        ...o,
+        totalQuantity: totalQty,
+        amountPaid: paidAmount,
+        amountDue: dueAmount,
+      };
+    });
+
+    return {
+      data: transformedOrders,
+      pagination: {
+        total: totalMatching,
+        page,
+        limit,
+        totalPages: Math.ceil(totalMatching / limit) || 1,
+      },
+      stats: {
+        totalOrders,
+        pendingCount,
+        confirmedCount,
+        outForDeliveryCount,
+        deliveredCount,
+        cancelledCount,
+        pendingPaymentCount,
+        totalRevenue,
+        totalCollected,
+        totalDue,
+      },
+    };
+  }
+
+  async findDistributorOrder(orderId: string, distributorUserId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: {
+          include: {
+            user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+            addresses: true,
+          },
+        },
+        address: true,
+        items: {
+          include: {
+            product: {
+              include: {
+                images: true,
+                brand: true,
+              },
+            },
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
+        history: {
+          include: {
+            user: { select: { firstName: true, lastName: true, phone: true, role: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order not found: ${orderId}`);
+    }
+
+    // Tenant & Distributor authorization check
+    if (order.distributorId && order.distributorId !== distributorUserId) {
+      throw new ForbiddenException('You are not authorized to view this order.');
+    }
+
+    const paidAmount = order.payments
+      .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const dueAmount = Math.max(0, Number((order.totalAmount - paidAmount).toFixed(2)));
+
+    return {
+      ...order,
+      amountPaid: paidAmount,
+      amountDue: dueAmount,
+    };
+  }
+
+  async createDistributorOrder(distributorUserId: string, dto: CreateDistributorOrderDto) {
+    // 1. Validate Customer
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: dto.customerId },
+      include: {
+        user: true,
+        addresses: true,
+      },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Selected customer does not exist');
+    }
+
+    // 2. Validate Items
+    if (!dto.items || !Array.isArray(dto.items) || dto.items.length === 0) {
+      throw new BadRequestException('Order must contain at least one line item');
+    }
+
+    const productIds = dto.items.map((i) => i.productId);
+    const dbProducts = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      include: { brand: true },
+    });
+
+    if (dbProducts.length !== productIds.length) {
+      throw new BadRequestException('One or more selected products are invalid');
+    }
+
+    // 3. Authoritative Recalculation on Backend
+    let calculatedSubTotal = 0;
+    let calculatedItemDiscount = 0;
+    let calculatedTaxTotal = 0;
+
+    const orderItemsData = dto.items.map((item) => {
+      const product = dbProducts.find((p) => p.id === item.productId);
+      if (!product) {
+        throw new BadRequestException(`Product not found: ${item.productId}`);
+      }
+
+      const qty = Math.max(1, Math.floor(Number(item.quantity) || 1));
+      const unitPrice = Number(item.unitPrice);
+      if (isNaN(unitPrice) || unitPrice < 0) {
+        throw new BadRequestException(`Invalid unit price for product: ${product.name}`);
+      }
+
+      const lineDiscount = Math.max(0, Number(item.discount || 0));
+      const taxRate = Math.max(0, Number(item.taxRate || 0));
+
+      const rawLineTotal = qty * unitPrice;
+      const discountedLine = Math.max(0, rawLineTotal - lineDiscount);
+      const taxAmount = discountedLine * (taxRate / 100);
+      const lineTotal = Number((discountedLine + taxAmount).toFixed(2));
+
+      calculatedSubTotal += rawLineTotal;
+      calculatedItemDiscount += lineDiscount;
+      calculatedTaxTotal += taxAmount;
+
+      return {
+        productId: product.id,
+        quantity: qty,
+        unitPrice,
+        deposit: product.depositAmount ? product.depositAmount * qty : 0,
+        total: lineTotal,
+      };
+    });
+
+    const deliveryCharge = Math.max(0, Number(dto.deliveryCharge || 0));
+    const extraDiscount = Math.max(0, Number(dto.discountTotal || 0));
+    const totalDiscount = Number((calculatedItemDiscount + extraDiscount).toFixed(2));
+    const finalSubTotal = Number(calculatedSubTotal.toFixed(2));
+    const finalTax = Number(calculatedTaxTotal.toFixed(2));
+    const finalTotalAmount = Number(
+      Math.max(0, finalSubTotal - totalDiscount + finalTax + deliveryCharge).toFixed(2),
+    );
+
+    // Initial payment resolution
+    const initialPaid = Math.max(0, Number(dto.amountPaid || 0));
+    let initialPaymentStatus: PaymentStatus = PaymentStatus.UNPAID;
+    if (initialPaid >= finalTotalAmount && finalTotalAmount > 0) {
+      initialPaymentStatus = PaymentStatus.PAID;
+    } else if (initialPaid > 0) {
+      initialPaymentStatus = PaymentStatus.PARTIALLY_PAID;
+    }
+
+    // 4. Resolve delivery address inside transaction
+    return this.prisma.$transaction(async (tx) => {
+      let targetAddressId: string | null = null;
+      const sourceAddr =
+        (dto.deliveryAddressId && customer.addresses.find((a) => a.id === dto.deliveryAddressId)) ||
+        customer.addresses.find((a) => a.isDefault) ||
+        customer.addresses[0];
+
+      if (sourceAddr) {
+        const snapshot = await tx.address.create({
+          data: {
+            customerId: customer.id,
+            street: sourceAddr.street || 'Main Street',
+            houseName: sourceAddr.houseName,
+            buildingName: sourceAddr.buildingName,
+            area: sourceAddr.area,
+            landmark: sourceAddr.landmark,
+            city: sourceAddr.city || 'Kondotty',
+            district: sourceAddr.district || 'Malappuram',
+            state: sourceAddr.state || 'Kerala',
+            zipCode: sourceAddr.zipCode || '673638',
+            country: sourceAddr.country || 'India',
+            latitude: sourceAddr.latitude,
+            longitude: sourceAddr.longitude,
+            googleMapsUrl: sourceAddr.googleMapsUrl,
+            isDefault: false,
+            label: 'Order Delivery Location (Snapshot)',
+          },
+        });
+        targetAddressId = snapshot.id;
+      } else {
+        const initialAddr = await tx.address.create({
+          data: {
+            customerId: customer.id,
+            street: 'Main Road',
+            city: 'Kondotty',
+            district: 'Malappuram',
+            state: 'Kerala',
+            zipCode: '673638',
+            country: 'India',
+            isDefault: false,
+            label: 'Order Delivery Location',
+          },
+        });
+        targetAddressId = initialAddr.id;
+      }
+
+      // Create Order
+      const newOrder = await tx.order.create({
+        data: {
+          distributorId: distributorUserId,
+          assignmentStatus: 'ASSIGNED',
+          acceptedAt: new Date(),
+          acceptedById: distributorUserId,
+          customerId: customer.id,
+          orderType: OrderType.ONETIME_ORDER,
+          orderSource: OrderSource.STAFF_CREATED,
+          status: OrderStatus.CONFIRMED,
+          subTotal: finalSubTotal,
+          depositTotal: 0,
+          deliveryCharge,
+          discountTotal: totalDiscount,
+          totalAmount: finalTotalAmount,
+          deliveryAddressId: targetAddressId!,
+          scheduledDate: dto.scheduledDate ? new Date(dto.scheduledDate) : new Date(),
+          paymentStatus: initialPaymentStatus,
+          paymentMethod: dto.paymentMethod || (initialPaid > 0 ? 'CASH' : null),
+          adminNotes: dto.notes || 'Created via Distributor Order Management',
+          items: {
+            create: orderItemsData,
+          },
+          history: {
+            create: {
+              previousStatus: OrderStatus.NEW,
+              newStatus: OrderStatus.CONFIRMED,
+              changedByUserId: distributorUserId,
+              reason: 'Order created by Distributor',
+            },
+          },
+        },
+        include: {
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+            },
+          },
+          address: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          history: true,
+          payments: true,
+        },
+      });
+
+      // Record initial payment if provided
+      if (initialPaid > 0) {
+        const paymentRecord = await tx.payment.create({
+          data: {
+            orderId: newOrder.id,
+            customerId: customer.id,
+            amount: initialPaid,
+            currency: 'INR',
+            status: initialPaymentStatus === PaymentStatus.PAID ? PaymentStatus.PAID : PaymentStatus.PARTIALLY_PAID,
+            provider: dto.paymentMethod || 'CASH',
+            receiptId: `RCP-DIST-${Date.now()}`,
+            description: `Initial payment recorded on order creation: ₹${initialPaid}`,
+          },
+        });
+        newOrder.payments.push(paymentRecord);
+      }
+
+      return newOrder;
+    });
+  }
+
+  async updateDistributorOrderStatus(
+    orderId: string,
+    distributorUserId: string,
+    dto: UpdateDistributorOrderStatusDto,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { history: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order not found: ${orderId}`);
+    }
+
+    if (order.distributorId && order.distributorId !== distributorUserId) {
+      throw new ForbiddenException('You are not authorized to update this order');
+    }
+
+    if (order.status === dto.status) {
+      throw new BadRequestException(`Order is already in status: ${dto.status}`);
+    }
+
+    // Finalized orders guard
+    if (order.status === OrderStatus.DELIVERED || order.status === OrderStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Delivered and completed orders cannot be changed back to an earlier status.',
+      );
+    }
+
+    // Central state machine validation
+    if (!isValidTransition(order.status, dto.status)) {
+      throw new BadRequestException(
+        `Invalid status transition from ${order.status} to ${dto.status}`,
+      );
+    }
+
+    const deliveredAt =
+      dto.status === OrderStatus.DELIVERED || dto.status === OrderStatus.COMPLETED
+        ? new Date()
+        : order.deliveredAt;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const res = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: dto.status,
+          deliveredAt,
+        },
+        include: {
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true } },
+            },
+          },
+          address: true,
+          items: { include: { product: true } },
+          payments: true,
+          history: {
+            include: { user: { select: { firstName: true, lastName: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId,
+          previousStatus: order.status,
+          newStatus: dto.status,
+          changedByUserId: distributorUserId,
+          reason: dto.reason || `Status updated to ${dto.status} by Distributor`,
+        },
+      });
+
+      return res;
+    });
+
+    try {
+      this.eventsGateway.emitOrderStatusUpdate(orderId, dto.status, order.customerId, updated);
+    } catch (e) {
+      console.warn('[OrderService] notification/socket broadcast warning:', e);
+    }
+
+    return updated;
+  }
+
+  async recordDistributorPayment(
+    orderId: string,
+    distributorUserId: string,
+    dto: RecordDistributorPaymentDto,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payments: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order not found: ${orderId}`);
+    }
+
+    if (order.distributorId && order.distributorId !== distributorUserId) {
+      throw new ForbiddenException('You are not authorized to record payment for this order');
+    }
+
+    const currentPaid = order.payments
+      .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const remainingDue = Math.max(0, Number((order.totalAmount - currentPaid).toFixed(2)));
+
+    if (remainingDue <= 0) {
+      throw new BadRequestException('This order is already fully paid.');
+    }
+
+    const paymentAmount = Number(dto.amount);
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      throw new BadRequestException('Payment amount must be greater than 0.');
+    }
+
+    if (paymentAmount > remainingDue + 0.01) {
+      throw new BadRequestException(
+        `Payment amount (₹${paymentAmount}) exceeds remaining balance due (₹${remainingDue}).`,
+      );
+    }
+
+    const newTotalPaid = Number((currentPaid + paymentAmount).toFixed(2));
+    const targetPaymentStatus =
+      newTotalPaid >= order.totalAmount ? PaymentStatus.PAID : PaymentStatus.PARTIALLY_PAID;
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Create Payment record
+      const payment = await tx.payment.create({
+        data: {
+          orderId: order.id,
+          customerId: order.customerId,
+          amount: paymentAmount,
+          currency: 'INR',
+          status: PaymentStatus.PAID,
+          provider: dto.paymentMethod || 'CASH',
+          receiptId: dto.referenceNumber || `RCP-DIST-${Date.now()}`,
+          description: dto.notes || `Payment recorded by distributor: ₹${paymentAmount}`,
+          createdAt: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
+        },
+      });
+
+      // 2. Update Order payment status and method
+      const updatedOrder = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: targetPaymentStatus,
+          paymentMethod: dto.paymentMethod,
+        },
+        include: {
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true } },
+            },
+          },
+          address: true,
+          items: { include: { product: true } },
+          payments: { orderBy: { createdAt: 'desc' } },
+          history: { orderBy: { createdAt: 'asc' } },
+        },
+      });
+
+      // 3. Log Status History
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          previousStatus: order.status,
+          newStatus: order.status,
+          changedByUserId: distributorUserId,
+          reason: `Payment recorded: ₹${paymentAmount} via ${dto.paymentMethod} (New Status: ${targetPaymentStatus})`,
+        },
+      });
+
+      return {
+        ...updatedOrder,
+        amountPaid: newTotalPaid,
+        amountDue: Math.max(0, Number((updatedOrder.totalAmount - newTotalPaid).toFixed(2))),
+        newPayment: payment,
+      };
+    });
+  }
+
+  async cancelDistributorOrder(
+    orderId: string,
+    distributorUserId: string,
+    dto: CancelDistributorOrderDto,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order not found: ${orderId}`);
+    }
+
+    if (order.distributorId && order.distributorId !== distributorUserId) {
+      throw new ForbiddenException('You are not authorized to cancel this order');
+    }
+
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new BadRequestException('Order is already cancelled.');
+    }
+
+    if (order.status === OrderStatus.DELIVERED || order.status === OrderStatus.COMPLETED) {
+      throw new BadRequestException('Delivered orders cannot be cancelled.');
+    }
+
+    if (!dto.reason?.trim()) {
+      throw new BadRequestException('Cancellation reason is required.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: OrderStatus.CANCELLED,
+        },
+        include: {
+          customer: {
+            include: { user: { select: { firstName: true, lastName: true, phone: true } } },
+          },
+          address: true,
+          items: { include: { product: true } },
+          payments: true,
+          history: { orderBy: { createdAt: 'asc' } },
+        },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          previousStatus: order.status,
+          newStatus: OrderStatus.CANCELLED,
+          changedByUserId: distributorUserId,
+          reason: `Cancelled by distributor: ${dto.reason.trim()}`,
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  async deleteDistributorOrder(orderId: string, distributorUserId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order not found: ${orderId}`);
+    }
+
+    if (order.distributorId && order.distributorId !== distributorUserId) {
+      throw new ForbiddenException('You are not authorized to delete this order');
+    }
+
+    if (
+      order.status === OrderStatus.OUT_FOR_DELIVERY ||
+      order.status === OrderStatus.DELIVERED ||
+      order.status === OrderStatus.COMPLETED
+    ) {
+      throw new BadRequestException(
+        'Finalized or dispatched orders cannot be deleted. Please use cancellation instead.',
+      );
+    }
+
+    await this.prisma.order.delete({
+      where: { id: order.id },
+    });
+
+    return { message: 'Order successfully deleted', orderId };
+  }
+
+  // =========================================================================
+  // DISTRIBUTOR NEW ORDER QUEUE & ATOMIC ACCEPTANCE
+  // =========================================================================
+
+  async findDistributorNewOrders(query?: {
+    page?: number | string;
+    limit?: number | string;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }) {
+    const page = Math.max(1, parseInt(String(query?.page || 1), 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(String(query?.limit || 20), 10) || 20));
+    const skip = (page - 1) * limit;
+
+    const baseCondition: any = {
+      assignmentStatus: 'UNASSIGNED',
+      distributorId: null,
+      status: {
+        notIn: [OrderStatus.DELIVERED, OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+      },
+    };
+
+    const where: any = { ...baseCondition };
+
+    if (query?.search?.trim()) {
+      const q = query.search.trim();
+      where.OR = [
+        { id: { contains: q, mode: 'insensitive' } },
+        { customer: { user: { firstName: { contains: q, mode: 'insensitive' } } } },
+        { customer: { user: { lastName: { contains: q, mode: 'insensitive' } } } },
+        { customer: { user: { phone: { contains: q, mode: 'insensitive' } } } },
+        { customer: { companyName: { contains: q, mode: 'insensitive' } } },
+        { address: { city: { contains: q, mode: 'insensitive' } } },
+        { address: { street: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
+
+    let orderBy: any = { createdAt: 'desc' };
+    const sortDir = query?.sortOrder === 'asc' ? 'asc' : 'desc';
+    if (query?.sortBy === 'total') {
+      orderBy = { totalAmount: sortDir };
+    } else if (query?.sortBy === 'orderDate') {
+      orderBy = { createdAt: sortDir };
+    } else if (query?.sortBy === 'customer') {
+      orderBy = { customer: { user: { firstName: sortDir } } };
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [totalMatching, orders, allStats] = await Promise.all([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        include: {
+          customer: {
+            include: {
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  phone: true,
+                  email: true,
+                  id: true,
+                },
+              },
+            },
+          },
+          address: true,
+          items: {
+            include: {
+              product: {
+                select: { id: true, name: true, price: true, isJar: true },
+              },
+            },
+          },
+          payments: {
+            select: { id: true, amount: true, status: true, provider: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      Promise.all([
+        this.prisma.order.count({ where: baseCondition }),
+        this.prisma.order.count({
+          where: {
+            ...baseCondition,
+            createdAt: { gte: todayStart },
+          },
+        }),
+        this.prisma.order.aggregate({
+          _sum: { totalAmount: true },
+          where: baseCondition,
+        }),
+      ]),
+    ]);
+
+    const [queueCount, todayCount, valueAgg] = allStats;
+    const totalQueueValue = Number(valueAgg._sum.totalAmount || 0);
+
+    const transformedOrders = orders.map((o) => {
+      const totalQty = o.items.reduce((sum, item) => sum + item.quantity, 0);
+      const paidAmount = o.payments
+        .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const dueAmount = Math.max(0, Number((o.totalAmount - paidAmount).toFixed(2)));
+
+      return {
+        ...o,
+        totalQuantity: totalQty,
+        amountPaid: paidAmount,
+        amountDue: dueAmount,
+      };
+    });
+
+    return {
+      data: transformedOrders,
+      pagination: {
+        total: totalMatching,
+        page,
+        limit,
+        totalPages: Math.ceil(totalMatching / limit) || 1,
+      },
+      stats: {
+        queueCount,
+        todayCount,
+        totalQueueValue,
+      },
+    };
+  }
+
+  async acceptDistributorOrder(orderId: string, distributorUserId: string) {
+    // 1. Verify distributor user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: distributorUserId },
+    });
+    if (!user) {
+      throw new NotFoundException('Distributor user not found');
+    }
+
+    // 2. Atomic conditional SQL update to claim the order
+    // Concurrency guarantee: exactly one execution can match assignmentStatus='UNASSIGNED' and distributorId IS NULL
+    const rowsAffected = await this.prisma.$executeRaw`
+      UPDATE "Order"
+      SET "distributorId" = ${distributorUserId},
+          "assignmentStatus" = 'ASSIGNED',
+          "acceptedAt" = NOW(),
+          "acceptedById" = ${distributorUserId},
+          "status" = CASE 
+            WHEN "status" = 'PENDING_ASSIGNMENT' OR "status" = 'NEW' THEN 'CONFIRMED'::"OrderStatus" 
+            ELSE "status" 
+          END,
+          "updatedAt" = NOW()
+      WHERE "id" = ${orderId}
+        AND "assignmentStatus" = 'UNASSIGNED'
+        AND "distributorId" IS NULL
+    `;
+
+    if (rowsAffected === 0) {
+      throw new ConflictException(
+        'This order has already been accepted by another distributor.',
+      );
+    }
+
+    // 3. Fetch the fully updated order details
+    const fullOrder = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: {
+          include: {
+            user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+          },
+        },
+        address: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
+        history: {
+          include: { user: { select: { firstName: true, lastName: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    // 4. Create audit status history record
+    await this.prisma.orderStatusHistory.create({
+      data: {
+        orderId,
+        previousStatus: OrderStatus.NEW,
+        newStatus: fullOrder?.status || OrderStatus.CONFIRMED,
+        changedByUserId: distributorUserId,
+        reason: 'Order claimed and accepted by Distributor from New Order Queue',
+      },
+    });
+
+    // 5. Broadcast real-time event to all distributors via WebSocket
+    try {
+      this.eventsGateway.emitOrderClaimed(orderId, distributorUserId, fullOrder);
+    } catch (err) {
+      console.warn('[OrderService] emitOrderClaimed error:', err);
+    }
+
+    return fullOrder;
+  }
 }
+

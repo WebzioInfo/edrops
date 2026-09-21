@@ -30,10 +30,10 @@ import { WarehouseModule } from './warehouse/warehouse.module';
 import { OrderModule } from './order/order.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { CheckoutModule } from './checkout/checkout.module';
-import { CartModule } from './cart/cart.module';
 import { SupportModule } from './support/support.module';
 import { AddressModule } from './address/address.module';
 import { EventsModule } from './events/events.module';
+import { PurchaseModule } from './purchase/purchase.module';
 import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
@@ -67,9 +67,9 @@ import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
     OrderModule,
     WebhookModule,
     CheckoutModule,
-    CartModule,
     SupportModule,
     AddressModule,
+    PurchaseModule,
     EventsModule,
   ],
   controllers: [AppController],

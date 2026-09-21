@@ -46,6 +46,7 @@ const ROLE_PATHS: Record<string, string> = {
   STAFF: '/staff',
   ADMIN: '/admin',
   DELIVERY_PARTNER: '/delivery-partner',
+  DISTRIBUTOR: '/distributor',
 };
 
 // --- GOOGLE BRAND ICON ---
@@ -208,6 +209,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
     if (role === 'ADMIN') return path.startsWith('/admin');
     if (role === 'DELIVERY_PARTNER') return path.startsWith('/delivery-partner');
     if (role === 'STAFF') return path.startsWith('/staff');
+    if (role === 'DISTRIBUTOR') return path.startsWith('/distributor');
     if (role === 'CUSTOMER') return path.startsWith('/customer');
     return false;
   };
@@ -251,8 +253,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
         let msg = 'Please log in to continue';
         if (reason === 'purchase' || reason === 'buy_now') {
           msg = 'Please log in to proceed with your purchase';
-        } else if (reason === 'cart') {
-          msg = 'Please log in to add items to your cart';
         } else if (reason === 'checkout') {
           msg = 'Please log in to proceed to checkout';
         } else if (reason === 'account') {

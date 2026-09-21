@@ -36,6 +36,9 @@ model User {
   ticketReplies        TicketReply[]
   statusUpdates        OrderStatusHistory[]
   verifiedOrderItems   OrderItem[]          @relation("VerifiedOrderItems")
+  purchases            Purchase[]           @relation("DistributorPurchases")
+  distributorOrders    Order[]              @relation("DistributorOrders")
+  acceptedOrders       Order[]              @relation("AcceptedOrders")
 
   @@index([email])
   @@index([phone])
@@ -805,6 +808,16 @@ model Order {
   history           OrderStatusHistory[]
   delivery          Delivery?
   expectedReturns   OrderExpectedReturn[]
+  distributorId     String?
+  distributor       User?                @relation("DistributorOrders", fields: [distributorId], references: [id])
+  assignmentStatus  String               @default("UNASSIGNED")
+  acceptedAt        DateTime?
+  acceptedById      String?
+  acceptedBy        User?                @relation("AcceptedOrders", fields: [acceptedById], references: [id])
+
+  @@index([distributorId])
+  @@index([assignmentStatus])
+  @@index([distributorId, assignmentStatus])
 }
 
 model OrderStatusHistory {
@@ -916,6 +929,7 @@ enum UserRole {
   DELIVERY_PARTNER
   CUSTOMER
   MANAGER
+  DISTRIBUTOR
 }
 
 enum PermissionAction {
@@ -944,6 +958,9 @@ enum PaymentStatus {
   CANCELLED
   PARTIAL_REFUND
   EXPIRED
+  UNPAID
+  PARTIALLY_PAID
+  PAID
 }
 
 enum NotificationType {
@@ -1013,6 +1030,9 @@ enum OrderStatus {
   PENDING_ASSIGNMENT
   ASSIGNED
   ACCEPTED_BY_PARTNER
+  CONFIRMED
+  PROCESSING
+  READY
   OUT_FOR_DELIVERY
   DELIVERED
   PARTIALLY_DELIVERED
@@ -1066,4 +1086,25 @@ model DeliveryCollectedJar {
   brand     Brand    @relation(fields: [brandId], references: [id])
 
   @@unique([reportId, brandId])
+}
+
+model Purchase {
+  id              String   @id @default(uuid())
+  purchaseNumber  String   @unique
+  purchaseDate    DateTime @default(now())
+  supplierName    String
+  referenceNumber String?
+  items           Json
+  subtotal        Float
+  tax             Float    @default(0.0)
+  total           Float
+  paymentStatus   String   @default("PAID")
+  distributorId   String
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  distributor     User     @relation("DistributorPurchases", fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([distributorId])
+  @@index([purchaseDate])
 }

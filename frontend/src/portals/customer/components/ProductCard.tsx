@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart, Zap, ShieldCheck } from 'lucide-react';
+import { Package, Zap, ShieldCheck } from 'lucide-react';
 
 export interface ProductCardProps {
   product: {
@@ -12,13 +12,11 @@ export interface ProductCardProps {
     images?: Array<{ url: string }>;
     brand?: { name: string };
   };
-  onAddToCart: (product: any) => void;
   onBuyNow: (product: any) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
-  onAddToCart,
   onBuyNow,
 }) => {
   const brandName = product.brand?.name || 'Edrops Pure';
@@ -37,7 +35,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           />
         ) : (
           <div className="flex flex-col items-center justify-center gap-1 text-[#94A3B8]">
-            <ShoppingCart className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 stroke-[1.5]" />
+            <Package className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 stroke-[1.5]" />
           </div>
         )}
 
@@ -77,31 +75,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           ) : null}
         </div>
 
-        {/* Compact Action Buttons with Responsive Scaling */}
-        <div className="pt-2 sm:pt-2.5 border-t border-[#F1F5F9] flex items-center gap-1.5 sm:gap-2">
+        {/* Full-width Buy Now Action Button */}
+        <div className="pt-2 sm:pt-2.5 border-t border-[#F1F5F9]">
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onBuyNow(product);
             }}
-            className="px-2.5 sm:px-3 lg:px-4 h-[32px] sm:h-[36px] lg:h-[40px] rounded-xl text-[11px] sm:text-xs lg:text-[13px] font-bold border border-[#1E88E5] text-[#1E88E5] hover:bg-[#EBF5FB] flex items-center justify-center gap-1 transition-colors cursor-pointer shrink-0"
+            className="w-full h-[36px] sm:h-[40px] rounded-xl text-xs sm:text-sm font-bold bg-[#1E88E5] text-white hover:bg-[#1565C0] flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
             title="Buy Now"
           >
-            <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
-            <span>Buy</span>
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToCart(product);
-            }}
-            className="flex-1 h-[32px] sm:h-[36px] lg:h-[40px] rounded-xl text-[11px] sm:text-xs lg:text-[13px] font-bold bg-[#1E88E5] text-white hover:bg-[#1565C0] flex items-center justify-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer truncate px-2"
-            title="Add to Cart"
-          >
-            <ShoppingCart className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-            <span className="truncate">Add to Cart</span>
+            <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+            <span>Buy Now</span>
           </button>
         </div>
       </div>

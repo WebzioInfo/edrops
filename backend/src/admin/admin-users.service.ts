@@ -24,7 +24,7 @@ export class AdminUsersService {
       where.role = query.role as UserRole;
     } else {
       // By default for application users & staff, exclude customers unless explicitly requested
-      where.role = { in: [UserRole.ADMIN, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.MANAGER] };
+      where.role = { in: [UserRole.ADMIN, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.MANAGER, UserRole.DISTRIBUTOR] };
     }
 
     // Status filtering
