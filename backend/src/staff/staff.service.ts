@@ -18,10 +18,27 @@ export class StaffService {
     });
   }
 
-  async getDeliveryPartners() {
-    return this.prisma.deliveryPartner.findMany({
-      include: { user: true },
+  async getDistributors() {
+    return this.prisma.user.findMany({
+      where: {
+        role: 'DISTRIBUTOR',
+        isActive: true,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        email: true,
+        role: true,
+      },
+      orderBy: { firstName: 'asc' },
     });
+  }
+
+  async getDeliveryPartners() {
+    // Only users with role DISTRIBUTOR can be assigned by Staff
+    return this.getDistributors();
   }
 
   findOne(id: string | number) {

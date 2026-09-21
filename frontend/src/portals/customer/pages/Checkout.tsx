@@ -1,5 +1,21 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Plus, Trash2, ShieldCheck, CheckCircle2, Minus, ChevronDown, ChevronUp, MapPin, Clock, CreditCard, Wallet, Banknote, ArrowLeft, X, AlertCircle } from 'lucide-react';
+import {
+  Package,
+  Plus,
+  Trash2,
+  ShieldCheck,
+  CheckCircle2,
+  Minus,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  Clock,
+  CreditCard,
+  Wallet,
+  Banknote,
+  ArrowLeft,
+  X,
+} from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { injectMockRazorpay } from '../../../utils/MockRazorpay';
@@ -44,41 +60,62 @@ export default function Checkout() {
   }] : [];
 
   const [checkoutItems, setCheckoutItems] = useState<any[]>(initialItems);
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(1); // 1 = Delivery, 2 = Payment
   const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
 
   const updateCheckoutQuantity = (id: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      setCheckoutItems(prev => prev.filter(i => i.id !== id));
+      setCheckoutItems((prev) => prev.filter((i) => i.id !== id));
       return;
     }
-    setCheckoutItems(prev => prev.map(i => i.id === id ? { ...i, quantity: newQuantity } : i));
+    setCheckoutItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, quantity: newQuantity } : i))
+    );
+
+    // Sync return quantity if exceeds new quantity
+    setItemReturns((prev) => {
+      if (!prev[id]) return prev;
+      return {
+        ...prev,
+        [id]: {
+          ...prev[id],
+          quantity: Math.min(newQuantity, prev[id].quantity),
+        },
+      };
+    });
   };
 
   const removeCheckoutItem = (id: string) => {
-    setCheckoutItems(prev => prev.filter(i => i.id !== id));
+    setCheckoutItems((prev) => prev.filter((i) => i.id !== id));
   };
 
   const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [jarOwnerships, setJarOwnerships] = useState<Array<{ brandId: string; companyJarsHeld: number; ownedJars: number }>>([]);
 
   // Jar Return Wizard State
-  const [itemReturns, setItemReturns] = useState<Record<string, {willReturn: boolean, quantity: number}>>({});
-  const [additionalReturns, setAdditionalReturns] = useState<{brandId: string, quantity: number}[]>([]);
-  const [brands, setBrands] = useState<{id:string, name:string}[]>([]);
+  const [itemReturns, setItemReturns] = useState<Record<string, { willReturn: boolean; quantity: number }>>({});
+  const [additionalReturns, setAdditionalReturns] = useState<{ brandId: string; quantity: number }[]>([]);
+  const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
-    fetchWithAuth('/auth/me').then(data => {
+    fetchWithAuth('/auth/me').then((data) => {
       if (data?.customer?.wallet) {
         setWalletBalance(data.customer.wallet.balance);
       }
+      if (data?.customer?.jarOwnerships) {
+        setJarOwnerships(data.customer.jarOwnerships);
+      }
     }).catch(() => {});
 
-    fetchWithAuth('/catalog/brands').then(data => {
+    fetchWithAuth('/catalog/brands').then((data) => {
       setBrands(data || []);
     }).catch(() => {});
   }, []);
 
-  const subTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0), [checkoutItems]);
+  const subTotal = useMemo(
+    () => checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [checkoutItems]
+  );
 
   // Calculate dynamic deposit based on net new jars per brand
   const depositTotal = useMemo(() => {
@@ -86,7 +123,7 @@ export default function Checkout() {
     const purchasedJarsByBrand: Record<string, { quantity: number; depositAmount: number }> = {};
     const returnedJarsByBrand: Record<string, number> = {};
 
-    checkoutItems.forEach(item => {
+    checkoutItems.forEach((item) => {
       if (item.isJar || (item.depositAmount && item.depositAmount > 0)) {
         const brandKey = item.brandId || 'default-brand';
         const deposit = item.depositAmount > 0 ? item.depositAmount : 200;
@@ -102,7 +139,7 @@ export default function Checkout() {
       }
     });
 
-    additionalReturns.forEach(ar => {
+    additionalReturns.forEach((ar) => {
       const brandKey = ar.brandId || 'default-brand';
       returnedJarsByBrand[brandKey] = (returnedJarsByBrand[brandKey] || 0) + ar.quantity;
     });
@@ -117,7 +154,10 @@ export default function Checkout() {
     return total;
   }, [checkoutItems, itemReturns, additionalReturns]);
 
-  const deliveryCharge = useMemo(() => checkoutItems.length > 0 ? (subTotal > 500 ? 0 : 50) : 0, [checkoutItems, subTotal]);
+  const deliveryCharge = useMemo(
+    () => (checkoutItems.length > 0 ? (subTotal > 500 ? 0 : 50) : 0),
+    [checkoutItems, subTotal]
+  );
 
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -144,22 +184,22 @@ export default function Checkout() {
         body: JSON.stringify({
           code: appliedPromo.code,
           orderAmount: subTotal,
-          deliveryCharge
+          deliveryCharge,
+        }),
+      })
+        .then((res) => {
+          setPromoDiscount(res.calculatedDiscount);
+          setPromoError('');
         })
-      })
-      .then((res) => {
-        setPromoDiscount(res.calculatedDiscount);
-        setPromoError('');
-      })
-      .catch((err) => {
-        setAppliedPromo(null);
-        setPromoDiscount(0);
-        localStorage.removeItem('edrops_promo');
-        setPromoError(err.message || 'Promo code is no longer valid');
-      })
-      .finally(() => {
-        setIsValidatingPromo(false);
-      });
+        .catch((err) => {
+          setAppliedPromo(null);
+          setPromoDiscount(0);
+          localStorage.removeItem('edrops_promo');
+          setPromoError(err.message || 'Promo code is no longer valid');
+        })
+        .finally(() => {
+          setIsValidatingPromo(false);
+        });
     } else {
       setPromoDiscount(0);
     }
@@ -186,8 +226,8 @@ export default function Checkout() {
         body: JSON.stringify({
           code: promoInput,
           orderAmount: subTotal,
-          deliveryCharge
-        })
+          deliveryCharge,
+        }),
       });
       setAppliedPromo(res);
       setPromoDiscount(res.calculatedDiscount);
@@ -221,7 +261,6 @@ export default function Checkout() {
   const deduplicateAddresses = (rawList: Address[]): Address[] => {
     if (!Array.isArray(rawList)) return [];
 
-    // Sort so default address comes first to preserve default selection
     const sorted = [...rawList].sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
     const seenIds = new Set<string>();
     const seenContent = new Set<string>();
@@ -229,11 +268,9 @@ export default function Checkout() {
 
     for (const addr of sorted) {
       if (!addr || !addr.id) continue;
-      // Deduplicate by unique address ID
       if (seenIds.has(addr.id)) continue;
       seenIds.add(addr.id);
 
-      // Deduplicate identical address content (same street + city + zipCode)
       const contentKey = `${(addr.street || '').trim().toLowerCase()}_${(addr.city || '').trim().toLowerCase()}_${(addr.zipCode || '').trim()}`;
       if (contentKey && contentKey !== '__' && seenContent.has(contentKey)) {
         continue;
@@ -307,7 +344,7 @@ export default function Checkout() {
     if (checkoutItems.length === 0) return;
     if (!selectedAddressId) {
       toast.error('Please add a delivery address first');
-      setCurrentStep(2);
+      setCurrentStep(1);
       return;
     }
     setIsProcessing(true);
@@ -317,15 +354,17 @@ export default function Checkout() {
         addressId: selectedAddressId,
         paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : paymentMethod,
         timeSlot: selectedSlot,
-        itemReturns: Object.entries(itemReturns).filter(([_, info]) => info.willReturn && info.quantity > 0).map(([id, info]) => ({productId: id, quantity: info.quantity})),
-        additionalReturns: additionalReturns.filter(ar => ar.brandId && ar.quantity > 0),
+        itemReturns: Object.entries(itemReturns)
+          .filter(([_, info]) => info.willReturn && info.quantity > 0)
+          .map(([id, info]) => ({ productId: id, quantity: info.quantity })),
+        additionalReturns: additionalReturns.filter((ar) => ar.brandId && ar.quantity > 0),
         promoCode: appliedPromo?.code || undefined,
-        buyNowItems: checkoutItems.map(i => ({ productId: i.id, quantity: i.quantity }))
+        buyNowItems: checkoutItems.map((i) => ({ productId: i.id, quantity: i.quantity })),
       };
 
       const initiateRes = await fetchWithAuth('/checkout/initiate', {
         method: 'POST',
-        body: JSON.stringify(initiatePayload)
+        body: JSON.stringify(initiatePayload),
       });
 
       if (initiateRes.status === 'SUCCESS') {
@@ -366,7 +405,7 @@ export default function Checkout() {
             localStorage.removeItem('edrops_promo');
             window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
           },
-          theme: { color: '#1E88E5' }
+          theme: { color: '#1E88E5' },
         };
 
         const rzp = new (window as any).Razorpay(options);
@@ -380,30 +419,84 @@ export default function Checkout() {
     }
   };
 
+  // Validation on Delivery stage before proceeding to Payment
   const handleNextStep = () => {
-    if (currentStep === 1 && checkoutItems.length === 0) return toast.error('Your order is empty');
-    if (currentStep === 2 && !selectedAddressId) return toast.error('Please select a delivery address');
-    if (currentStep === 2 && !selectedSlot) return toast.error('Please select a delivery slot');
+    if (checkoutItems.length === 0) return toast.error('Your order is empty');
+    if (!selectedAddressId) return toast.error('Please select a delivery address');
+    if (!selectedSlot) return toast.error('Please select a delivery slot');
 
-    if (currentStep === 2) {
-      const hasJars = checkoutItems.some((i) => i.isJar);
-      const hasReturnedEmptyJars =
-        Object.values(itemReturns).some((r) => r?.willReturn && r.quantity > 0) ||
-        additionalReturns.some((ar) => ar.brandId && ar.quantity > 0);
+    const jarItems = checkoutItems.filter((i) => i.isJar || (i.depositAmount && i.depositAmount > 0));
+    if (jarItems.length > 0) {
+      const availableEmptyJars = (jarOwnerships.length > 0 ? jarOwnerships : (user?.customer?.jarOwnerships || [])).reduce(
+        (sum, jo) => sum + (jo.companyJarsHeld || 0) + (jo.ownedJars || 0),
+        0
+      );
+      const totalOrderedJars = jarItems.reduce((sum, i) => sum + i.quantity, 0);
 
-      // IF the user selected 'No' for returning empty jars: show confirmation dialog before continuing
-      if (hasJars && !hasReturnedEmptyJars) {
-        setShowNoReturnModal(true);
-        return;
+      const hasSelectedYes = Object.values(itemReturns).some((r) => r?.willReturn && r.quantity > 0);
+      const totalDeclaredReturnCount =
+        Object.values(itemReturns).reduce((sum, r) => sum + (r?.willReturn ? r.quantity || 0 : 0), 0) +
+        additionalReturns.reduce((sum, ar) => sum + (ar.quantity || 0), 0);
+
+      // Condition 1: Customer selected "No" for returning empty jars
+      if (!hasSelectedYes) {
+        // If customer has insufficient empty jars (e.g. 0 empty jars, or less than ordered count)
+        if (availableEmptyJars < totalOrderedJars || availableEmptyJars === 0) {
+          setShowNoReturnModal(true);
+          return;
+        }
+        // If customer has sufficient empty jars available, continue normally without confirmation
+      } else {
+        // Condition 2: Customer selected "Yes", but declared return count exceeds available empty jars
+        if (totalDeclaredReturnCount > availableEmptyJars) {
+          // Do NOT show error as toast/alert; show confirmation dialog instead
+          setShowNoReturnModal(true);
+          return;
+        }
       }
     }
 
-    setCurrentStep(prev => prev + 1);
+    setCurrentStep(2);
   };
 
-  const hasJarsInOrder = checkoutItems.some(i => i.isJar);
+  const handleYesContinue = () => {
+    // Continue to Payment with return quantity = 0
+    setItemReturns((prev) => {
+      const updated: Record<string, { willReturn: boolean; quantity: number }> = {};
+      Object.keys(prev).forEach((k) => {
+        updated[k] = { willReturn: false, quantity: 0 };
+      });
+      return updated;
+    });
+    setAdditionalReturns([]);
+    setShowNoReturnModal(false);
+    setCurrentStep(2);
+  };
 
-  if (checkoutItems.length === 0 && currentStep === 1) {
+  const handleNoReturnItem = () => {
+    // Set/keep return quantity appropriately and remain on Delivery stage
+    const availableEmptyJars = (jarOwnerships.length > 0 ? jarOwnerships : (user?.customer?.jarOwnerships || [])).reduce(
+      (sum, jo) => sum + (jo.companyJarsHeld || 0) + (jo.ownedJars || 0),
+      0
+    );
+    setItemReturns((prev) => {
+      const updated: Record<string, { willReturn: boolean; quantity: number }> = {};
+      checkoutItems.forEach((item) => {
+        if (item.isJar || (item.depositAmount && item.depositAmount > 0)) {
+          const maxAllowed = availableEmptyJars > 0 ? Math.min(item.quantity, availableEmptyJars) : item.quantity;
+          updated[item.id] = { willReturn: true, quantity: maxAllowed };
+        }
+      });
+      return { ...prev, ...updated };
+    });
+    setShowNoReturnModal(false);
+  };
+
+  const hasJarsInOrder = checkoutItems.some((i) => i.isJar || (i.depositAmount && i.depositAmount > 0));
+  const biodropsProduct = checkoutItems.find((i) => i.isJar || i.name?.toLowerCase().includes('jar')) || checkoutItems[0];
+  const biodropsImage = biodropsProduct?.imageUrl || 'https://res.cloudinary.com/dhydmxcq2/image/upload/v1788954302/edrops/products/bavftfeflutqng6dokqw.png';
+
+  if (checkoutItems.length === 0) {
     return (
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 text-center flex flex-col items-center justify-center min-h-[70vh]">
         <div className="h-20 w-20 rounded-full bg-white border border-[#E2E8F0] shadow-xs flex items-center justify-center mb-4 text-[#64748B]">
@@ -438,63 +531,48 @@ export default function Checkout() {
     walletDeduction,
     paymentMethod,
     grandTotal,
+    allowQuantityEdit: currentStep === 1,
+    onUpdateQuantity: updateCheckoutQuantity,
+    onRemoveItem: removeCheckoutItem,
   };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-28 lg:pb-12 text-[#0F172A]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         
-        {/* Compact Refined 3-Step Header */}
+        {/* 2-Step Header: Delivery → Payment */}
         <div className="mb-4 sm:mb-6">
-          <div className="flex items-center justify-between max-w-2xl mx-auto bg-white rounded-2xl border border-[#E2E8F0] p-2 sm:p-3 shadow-xs">
+          <div className="flex items-center justify-between max-w-xl mx-auto bg-white rounded-2xl border border-[#E2E8F0] p-2 sm:p-3 shadow-xs">
             <button
               onClick={() => setCurrentStep(1)}
               className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 currentStep === 1
                   ? 'bg-[#1E88E5] text-white shadow-xs'
-                  : currentStep > 1
-                  ? 'text-[#1E88E5] hover:bg-[#EBF5FB]'
-                  : 'text-[#64748B]'
+                  : 'text-[#1E88E5] hover:bg-[#EBF5FB]'
               }`}
             >
               {currentStep > 1 ? (
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
               ) : (
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep === 1 ? 'bg-white text-[#1E88E5]' : 'bg-[#E2E8F0] text-[#64748B]'}`}>1</span>
-              )}
-              <span className="truncate">Order Review</span>
-            </button>
-
-            <span className="text-[#CBD5E1] px-1 font-bold">›</span>
-
-            <button
-              onClick={() => currentStep > 2 ? setCurrentStep(2) : undefined}
-              className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                currentStep === 2
-                  ? 'bg-[#1E88E5] text-white shadow-xs'
-                  : currentStep > 2
-                  ? 'text-[#1E88E5] hover:bg-[#EBF5FB] cursor-pointer'
-                  : 'text-[#64748B]'
-              }`}
-            >
-              {currentStep > 2 ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-              ) : (
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep === 2 ? 'bg-white text-[#1E88E5]' : 'bg-[#E2E8F0] text-[#64748B]'}`}>2</span>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep === 1 ? 'bg-white text-[#1E88E5]' : 'bg-[#E2E8F0] text-[#64748B]'}`}>
+                  1
+                </span>
               )}
               <span className="truncate">Delivery</span>
             </button>
 
-            <span className="text-[#CBD5E1] px-1 font-bold">›</span>
+            <span className="text-[#CBD5E1] px-2 font-bold">›</span>
 
             <div
               className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                currentStep === 3
+                currentStep === 2
                   ? 'bg-[#1E88E5] text-white shadow-xs'
                   : 'text-[#64748B]'
               }`}
             >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep === 3 ? 'bg-white text-[#1E88E5]' : 'bg-[#E2E8F0] text-[#64748B]'}`}>3</span>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep === 2 ? 'bg-white text-[#1E88E5]' : 'bg-[#E2E8F0] text-[#64748B]'}`}>
+                2
+              </span>
               <span className="truncate">Payment</span>
             </div>
           </div>
@@ -505,124 +583,19 @@ export default function Checkout() {
           
           {/* LEFT COLUMN: Active Step Content (~60-65% width on desktop) */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-4">
+            
+            {/* Mobile Order Summary Card with Quantity Controls (Visible on mobile on Delivery stage) */}
+            {currentStep === 1 && (
+              <div className="lg:hidden mb-4">
+                <CheckoutOrderSummary {...orderSummaryProps} />
+              </div>
+            )}
+
             <AnimatePresence mode="wait">
-              {/* STAGE 1: ORDER REVIEW */}
+              {/* STAGE 1: DELIVERY */}
               {currentStep === 1 && (
                 <motion.div
-                  key="step1"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.18 }}
-                  className="space-y-4"
-                >
-                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-[#E2E8F0] shadow-xs">
-                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F1F5F9]">
-                      <h2 className="text-base sm:text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                        <Package className="w-5 h-5 text-[#1E88E5]" />
-                        Review Items ({checkoutItems.length})
-                      </h2>
-                      <span className="text-xs font-semibold text-[#64748B]">
-                        Free delivery over ₹500
-                      </span>
-                    </div>
-
-                    <div className="divide-y divide-[#F1F5F9]">
-                      {checkoutItems.map((item) => (
-                        <div key={item.id} className="py-3 sm:py-3.5 flex items-center gap-3 sm:gap-4 first:pt-0 last:pb-0">
-                          {/* Compact Thumbnail */}
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] overflow-hidden flex-shrink-0 flex items-center justify-center">
-                            {item.imageUrl ? (
-                              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <Package className="w-6 h-6 text-[#94A3B8]" />
-                            )}
-                          </div>
-
-                          {/* Info & Quantity Stepper */}
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-xs sm:text-sm text-[#0F172A] truncate">
-                              {item.name}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-0.5 mb-1 text-[11px] text-[#64748B]">
-                              <span>₹{item.price} / unit</span>
-                              {item.isJar && item.depositAmount ? (
-                                <span className="inline-flex items-center gap-0.5 text-[#1E88E5] font-semibold bg-[#EBF5FB] px-1.5 py-0.2 rounded-md text-[10px]">
-                                  <ShieldCheck className="w-2.5 h-2.5" /> Deposit ₹{item.depositAmount}
-                                </span>
-                              ) : null}
-                            </div>
-
-                            {/* Stepper */}
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className="flex items-center bg-white border border-[#E2E8F0] rounded-lg overflow-hidden shadow-2xs h-7">
-                                <button
-                                  type="button"
-                                  onClick={() => updateCheckoutQuantity(item.id, item.quantity - 1)}
-                                  className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
-                                  aria-label="Decrease quantity"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                                <span className="w-7 text-center text-xs font-bold text-[#0F172A]">
-                                  {item.quantity}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => updateCheckoutQuantity(item.id, item.quantity + 1)}
-                                  className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
-                                  aria-label="Increase quantity"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </button>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => removeCheckoutItem(item.id)}
-                                className="text-[#94A3B8] hover:text-rose-500 p-1 rounded-md hover:bg-rose-50 transition-colors cursor-pointer"
-                                title="Remove item"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Line Total */}
-                          <div className="text-right shrink-0">
-                            <span className="font-extrabold text-sm sm:text-base text-[#0F172A]">
-                              ₹{item.price * item.quantity}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Desktop Column Navigation */}
-                  <div className="hidden lg:flex items-center justify-between pt-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate('/customer/shop')}
-                      className="px-4 py-2.5 rounded-xl bg-white border border-[#E2E8F0] text-[#64748B] font-semibold text-xs hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer"
-                    >
-                      ← Back to Shopping
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNextStep}
-                      className="px-8 py-2.5 rounded-xl bg-[#1E88E5] text-white font-bold text-sm shadow-xs hover:bg-[#1565C0] transition-colors cursor-pointer"
-                    >
-                      Proceed to Delivery →
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* STAGE 2: DELIVERY DETAILS */}
-              {currentStep === 2 && (
-                <motion.div
-                  key="step2"
+                  key="step1-delivery"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
@@ -732,7 +705,7 @@ export default function Checkout() {
                     </div>
                   </div>
 
-                  {/* Return Empty Jars Section (Compact & Contextual) */}
+                  {/* Return Empty Jars Section */}
                   <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-xs">
                     <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#F1F5F9]">
                       <h3 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
@@ -743,7 +716,7 @@ export default function Checkout() {
 
                     {hasJarsInOrder ? (
                       <div className="space-y-3 pt-1">
-                        {checkoutItems.filter(i => i.isJar).map(item => (
+                        {checkoutItems.filter((i) => i.isJar || (i.depositAmount && i.depositAmount > 0)).map((item) => (
                           <div key={item.id} className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
                             <div className="flex justify-between items-center mb-1.5">
                               <span className="text-xs font-bold text-[#0F172A]">{item.name}</span>
@@ -756,10 +729,15 @@ export default function Checkout() {
                                   type="radio"
                                   name={`return_${item.id}`}
                                   checked={Boolean(itemReturns[item.id]?.willReturn)}
-                                  onChange={() => setItemReturns(prev => ({
-                                    ...prev,
-                                    [item.id]: { willReturn: true, quantity: Math.min(item.quantity, prev[item.id]?.quantity || item.quantity) }
-                                  }))}
+                                  onChange={() =>
+                                    setItemReturns((prev) => ({
+                                      ...prev,
+                                      [item.id]: {
+                                        willReturn: true,
+                                        quantity: Math.min(item.quantity, prev[item.id]?.quantity || item.quantity),
+                                      },
+                                    }))
+                                  }
                                   className="w-3.5 h-3.5 text-[#1E88E5]"
                                 />
                                 <span>Yes</span>
@@ -769,10 +747,12 @@ export default function Checkout() {
                                   type="radio"
                                   name={`return_${item.id}`}
                                   checked={!itemReturns[item.id]?.willReturn}
-                                  onChange={() => setItemReturns(prev => ({
-                                    ...prev,
-                                    [item.id]: { willReturn: false, quantity: 0 }
-                                  }))}
+                                  onChange={() =>
+                                    setItemReturns((prev) => ({
+                                      ...prev,
+                                      [item.id]: { willReturn: false, quantity: 0 },
+                                    }))
+                                  }
                                   className="w-3.5 h-3.5 text-[#1E88E5]"
                                 />
                                 <span>No</span>
@@ -782,10 +762,12 @@ export default function Checkout() {
                                 <div className="ml-auto flex items-center bg-white border border-[#E2E8F0] rounded-lg overflow-hidden h-7 w-24 shadow-2xs">
                                   <button
                                     type="button"
-                                    onClick={() => setItemReturns(prev => ({
-                                      ...prev,
-                                      [item.id]: { ...prev[item.id], quantity: Math.max(0, prev[item.id].quantity - 1) }
-                                    }))}
+                                    onClick={() =>
+                                      setItemReturns((prev) => ({
+                                        ...prev,
+                                        [item.id]: { ...prev[item.id], quantity: Math.max(0, prev[item.id].quantity - 1) },
+                                      }))
+                                    }
                                     className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
                                   >
                                     <Minus className="w-3 h-3" />
@@ -795,10 +777,12 @@ export default function Checkout() {
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={() => setItemReturns(prev => ({
-                                      ...prev,
-                                      [item.id]: { ...prev[item.id], quantity: Math.min(item.quantity, prev[item.id].quantity + 1) }
-                                    }))}
+                                    onClick={() =>
+                                      setItemReturns((prev) => ({
+                                        ...prev,
+                                        [item.id]: { ...prev[item.id], quantity: Math.min(item.quantity, prev[item.id].quantity + 1) },
+                                      }))
+                                    }
                                     className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
                                   >
                                     <Plus className="w-3 h-3" />
@@ -881,14 +865,14 @@ export default function Checkout() {
                     </div>
                   </div>
 
-                  {/* Desktop Column Navigation */}
+                  {/* Desktop Navigation Row (hidden on mobile to prevent duplicate buttons) */}
                   <div className="hidden lg:flex items-center justify-between pt-2">
                     <button
                       type="button"
-                      onClick={() => setCurrentStep(1)}
+                      onClick={() => navigate('/customer/shop')}
                       className="px-4 py-2.5 rounded-xl bg-white border border-[#E2E8F0] text-[#64748B] font-semibold text-xs hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer"
                     >
-                      ← Back to Order Review
+                      ← Back to Shopping
                     </button>
                     <button
                       type="button"
@@ -901,16 +885,21 @@ export default function Checkout() {
                 </motion.div>
               )}
 
-              {/* STAGE 3: PAYMENT */}
-              {currentStep === 3 && (
+              {/* STAGE 2: PAYMENT */}
+              {currentStep === 2 && (
                 <motion.div
-                  key="step3"
+                  key="step2-payment"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.18 }}
                   className="space-y-4"
                 >
+                  {/* Mobile Preview of Final Order Summary (Read-only on Payment) */}
+                  <div className="lg:hidden mb-4">
+                    <CheckoutOrderSummary {...orderSummaryProps} allowQuantityEdit={false} />
+                  </div>
+
                   <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-xs">
                     <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F1F5F9]">
                       <h2 className="text-base font-bold text-[#0F172A] flex items-center gap-2">
@@ -1016,11 +1005,11 @@ export default function Checkout() {
                     </div>
                   </div>
 
-                  {/* Desktop Column Navigation */}
+                  {/* Desktop Navigation Row (hidden on mobile to prevent duplicate buttons) */}
                   <div className="hidden lg:flex items-center justify-between pt-2">
                     <button
                       type="button"
-                      onClick={() => setCurrentStep(2)}
+                      onClick={() => setCurrentStep(1)}
                       className="px-4 py-2.5 rounded-xl bg-white border border-[#E2E8F0] text-[#64748B] font-semibold text-xs hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer"
                     >
                       ← Back to Delivery
@@ -1029,7 +1018,7 @@ export default function Checkout() {
                       type="button"
                       onClick={handleCheckout}
                       disabled={isProcessing}
-                      className="px-8 py-2.5 rounded-xl bg-[#1E88E5] text-white font-bold text-sm shadow-xs hover:bg-[#1565C0] transition-colors cursor-pointer disabled:opacity-70 flex items-center justify-center min-w-[150px]"
+                      className="px-8 py-2.5 rounded-xl bg-[#1E88E5] text-white font-bold text-sm shadow-xs hover:bg-[#1565C0] transition-colors cursor-pointer disabled:opacity-70 flex items-center justify-center min-w-[170px]"
                     >
                       {isProcessing ? (
                         <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1050,14 +1039,14 @@ export default function Checkout() {
         </div>
       </div>
 
-      {/* MOBILE STICKY BOTTOM BAR (<1024px) */}
+      {/* MOBILE STICKY BOTTOM BAR (<1024px) - Clean single primary action */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-[0_-4px_20px_rgba(15,23,42,0.08)]">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
           {/* Collapsed Total with View Details Trigger */}
           <button
             type="button"
             onClick={() => setMobileSummaryOpen(!mobileSummaryOpen)}
-            className="flex flex-col text-left cursor-pointer group"
+            className="flex flex-col text-left cursor-pointer group shrink-0"
           >
             <span className="text-[11px] font-semibold text-[#64748B] flex items-center gap-1 group-hover:text-[#1E88E5]">
               Total Payable {mobileSummaryOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
@@ -1067,37 +1056,38 @@ export default function Checkout() {
             </span>
           </button>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            {currentStep > 1 && (
+          {/* Stage Single Primary Action */}
+          <div className="flex items-center gap-2 flex-1 justify-end">
+            {currentStep === 2 && (
               <button
                 type="button"
-                onClick={() => setCurrentStep(prev => prev - 1)}
-                className="h-10 px-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] font-bold text-xs active:bg-[#E2E8F0] transition-colors cursor-pointer"
+                onClick={() => setCurrentStep(1)}
+                className="h-10 px-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] font-bold text-xs active:bg-[#E2E8F0] transition-colors cursor-pointer shrink-0"
+                aria-label="Back to Delivery"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
             )}
 
-            {currentStep < 3 ? (
+            {currentStep === 1 ? (
               <button
                 type="button"
                 onClick={handleNextStep}
-                className="h-10 px-5 rounded-xl bg-[#1E88E5] text-white font-bold text-xs sm:text-sm shadow-xs active:bg-[#1565C0] transition-colors cursor-pointer"
+                className="h-10 px-5 rounded-xl bg-[#1E88E5] text-white font-bold text-xs sm:text-sm shadow-xs active:bg-[#1565C0] transition-colors cursor-pointer w-full max-w-[200px]"
               >
-                Continue
+                Continue to Payment
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handleCheckout}
                 disabled={isProcessing}
-                className="h-10 px-6 rounded-xl bg-[#1E88E5] text-white font-bold text-xs sm:text-sm shadow-xs active:bg-[#1565C0] transition-colors cursor-pointer disabled:opacity-70 flex items-center justify-center min-w-[130px]"
+                className="h-10 px-5 rounded-xl bg-[#1E88E5] text-white font-bold text-xs sm:text-sm shadow-xs active:bg-[#1565C0] transition-colors cursor-pointer disabled:opacity-70 flex items-center justify-center w-full max-w-[200px]"
               >
                 {isProcessing ? (
                   <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  'Place Order'
+                  `Pay ₹${grandTotal}`
                 )}
               </button>
             )}
@@ -1151,7 +1141,7 @@ export default function Checkout() {
         )}
       </AnimatePresence>
 
-      {/* Empty Jar Return Confirmation Dialog */}
+      {/* Empty Jar Return Confirmation Dialog with Biodrops Image */}
       <AnimatePresence>
         {showNoReturnModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
@@ -1167,34 +1157,38 @@ export default function Checkout() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ duration: 0.2 }}
-              className="relative z-10 bg-white rounded-2xl border border-[#E2E8F0] shadow-2xl p-6 max-w-md w-full mx-auto text-center"
+              className="relative z-10 bg-white rounded-2xl border border-[#E2E8F0] shadow-2xl p-6 max-w-sm w-full mx-auto text-center"
             >
-              <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 mb-4 mx-auto">
-                <AlertCircle className="w-6 h-6" />
+              {/* Biodrops Product Image */}
+              <div className="w-24 h-24 sm:w-28 sm:h-28 mx-auto rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] p-2 flex items-center justify-center mb-4 shadow-xs overflow-hidden">
+                <img
+                  src={biodropsImage}
+                  alt={biodropsProduct?.name || 'Biodrops 20L Jar'}
+                  className="w-full h-full object-contain"
+                />
               </div>
-              <h3 className="text-lg font-bold text-[#0F172A] mb-2">
-                No Empty Jars to Return?
+
+              <h3 className="text-base sm:text-lg font-bold text-[#0F172A] mb-2">
+                Empty Jar Return
               </h3>
-              <p className="text-xs sm:text-sm text-[#64748B] leading-relaxed mb-6">
-                You have selected not to return any empty jars with this order. Please confirm that you currently have no empty jars available for return.
+              <p className="text-xs sm:text-sm text-[#64748B] leading-relaxed mb-6 font-medium">
+                Are you sure you want to continue without returning this item?
               </p>
-              <div className="flex items-center justify-center gap-3">
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full">
                 <button
                   type="button"
-                  onClick={() => setShowNoReturnModal(false)}
-                  className="flex-1 py-2.5 px-4 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F8FAFC] text-xs font-bold transition-colors cursor-pointer"
+                  onClick={handleNoReturnItem}
+                  className="w-full sm:flex-1 py-2.5 px-4 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] hover:bg-[#F8FAFC] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
                 >
-                  Go Back
+                  No, Return Item
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowNoReturnModal(false);
-                    setCurrentStep(3);
-                  }}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#1E88E5] text-white hover:bg-[#1565C0] text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                  onClick={handleYesContinue}
+                  className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-[#1E88E5] text-white hover:bg-[#1565C0] text-xs sm:text-sm font-bold transition-colors cursor-pointer shadow-xs"
                 >
-                  Confirm & Continue
+                  Yes, Continue
                 </button>
               </div>
             </motion.div>

@@ -31,6 +31,12 @@ export class StaffController {
     return this.staffService.create(createStaffDto);
   }
 
+  @Get('distributors')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  getDistributors() {
+    return this.staffService.getDistributors();
+  }
+
   @Get('delivery-partners')
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   getDeliveryPartners() {
@@ -55,11 +61,13 @@ export class StaffController {
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   assignDeliveryPartner(
     @Param('orderId') orderId: string,
+    @Body('distributorId') distributorId: string,
     @Body('deliveryPartnerId') deliveryPartnerId: string,
     @Req() req: any,
   ) {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;
-    return this.orderService.assignDeliveryPartner(orderId, deliveryPartnerId, userId);
+    const targetDistributorId = distributorId || deliveryPartnerId;
+    return this.orderService.assignStaffDistributor(orderId, targetDistributorId, userId);
   }
 
   @Get()

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, ShieldCheck, Tag, ChevronDown, ChevronUp, Check, Truck, Lock } from 'lucide-react';
+import { Package, ShieldCheck, Tag, ChevronDown, ChevronUp, Check, Truck, Lock, Minus, Plus, Trash2 } from 'lucide-react';
 
 export interface CheckoutOrderSummaryProps {
   items: Array<{
@@ -28,6 +28,9 @@ export interface CheckoutOrderSummaryProps {
   paymentMethod: string;
   grandTotal: number;
   isMobileDrawer?: boolean;
+  allowQuantityEdit?: boolean;
+  onUpdateQuantity?: (id: string, newQuantity: number) => void;
+  onRemoveItem?: (id: string) => void;
 }
 
 export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
@@ -48,8 +51,11 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
   paymentMethod,
   grandTotal,
   isMobileDrawer = false,
+  allowQuantityEdit = false,
+  onUpdateQuantity,
+  onRemoveItem,
 }) => {
-  const [itemsExpanded, setItemsExpanded] = useState(!isMobileDrawer);
+  const [itemsExpanded, setItemsExpanded] = useState(true);
   const [promoOpen, setPromoOpen] = useState(Boolean(appliedPromo));
 
   return (
@@ -66,7 +72,7 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
       </div>
 
       <div className="p-4 sm:p-5 space-y-4">
-        {/* Compact Items List / Accordion */}
+        {/* Items List with Quantity Stepper */}
         <div>
           <button
             type="button"
@@ -78,26 +84,79 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
           </button>
 
           {itemsExpanded && (
-            <div className="space-y-2.5 max-h-48 overflow-y-auto no-scrollbar pt-1">
+            <div className="divide-y divide-[#F1F5F9] max-h-72 overflow-y-auto no-scrollbar pt-1">
               {items.map((item) => (
-                <div key={item.id} className="flex items-center gap-2.5 text-xs">
-                  <div className="w-10 h-10 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] overflow-hidden flex-shrink-0 flex items-center justify-center">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <Package className="w-4 h-4 text-[#94A3B8]" />
-                    )}
+                <div key={item.id} className="py-2.5 first:pt-0 last:pb-0">
+                  <div className="flex items-center gap-3">
+                    {/* Thumbnail Image */}
+                    <div className="w-12 h-12 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package className="w-5 h-5 text-[#94A3B8]" />
+                      )}
+                    </div>
+
+                    {/* Info & Controls */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-1">
+                        <p className="font-bold text-[#0F172A] truncate text-xs sm:text-[13px]">{item.name}</p>
+                        <span className="font-black text-[#0F172A] text-xs shrink-0">
+                          ₹{item.price * item.quantity}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-[#64748B] mt-0.5">
+                        <span>₹{item.price} / unit</span>
+                        {item.isJar && item.depositAmount ? (
+                          <span className="text-[#1E88E5] font-semibold bg-[#EBF5FB] px-1.5 py-0.2 rounded text-[10px]">
+                            Deposit ₹{item.depositAmount}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {/* Quantity Stepper when editable */}
+                      {allowQuantityEdit && onUpdateQuantity ? (
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center bg-white border border-[#CBD5E1] rounded-lg overflow-hidden shadow-2xs h-6.5">
+                            <button
+                              type="button"
+                              onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                              className="w-6.5 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer"
+                              aria-label="Decrease quantity"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-7 text-center text-xs font-black text-[#0F172A]">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                              className="w-6.5 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer"
+                              aria-label="Increase quantity"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {onRemoveItem && (
+                            <button
+                              type="button"
+                              onClick={() => onRemoveItem(item.id)}
+                              className="text-[#94A3B8] hover:text-rose-500 p-1 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                              title="Remove item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] font-semibold text-[#64748B] mt-1">
+                          Qty: {item.quantity}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[#0F172A] truncate text-[13px]">{item.name}</p>
-                    <p className="text-[11px] text-[#64748B]">
-                      Qty: {item.quantity} × ₹{item.price}
-                      {item.isJar && item.depositAmount ? ` · Deposit ₹${item.depositAmount}` : ''}
-                    </p>
-                  </div>
-                  <span className="font-bold text-[#0F172A] text-[13px] shrink-0">
-                    ₹{item.price * item.quantity}
-                  </span>
                 </div>
               ))}
             </div>

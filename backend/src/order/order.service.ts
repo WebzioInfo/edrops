@@ -89,6 +89,9 @@ export class OrderService {
             },
           },
           address: true,
+          distributor: {
+            select: { id: true, firstName: true, lastName: true, phone: true, email: true },
+          },
           items: {
             include: {
               product: {
@@ -976,6 +979,146 @@ export class OrderService {
       this.eventsGateway.emitOrderAssigned(updatedOrder, deliveryPartnerId);
     } catch (e) {
       console.warn('[OrderService] Socket emit error:', e);
+    }
+
+    return updatedOrder;
+  }
+
+  async assignStaffDistributor(orderId: string, distributorId: string, staffUserId: string) {
+    if (!distributorId) {
+      throw new BadRequestException('Distributor ID is required');
+    }
+
+    // 1. Verify that target user is an active user with role DISTRIBUTOR
+    const distributorUser = await this.prisma.user.findUnique({
+      where: { id: distributorId },
+      select: { id: true, role: true, firstName: true, lastName: true, phone: true, email: true },
+    });
+
+    if (!distributorUser || distributorUser.role !== 'DISTRIBUTOR') {
+      throw new BadRequestException('The selected user is not a valid distributor.');
+    }
+
+    // 2. Fetch current order to validate assignment rules
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: { include: { user: true } },
+        distributor: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order not found: ${orderId}`);
+    }
+
+    // Rule: Staff may assign ONLY when order status = ORDER PLACED (or unassigned initial state)
+    const isOrderPlaced =
+      order.status === OrderStatus.ORDER_PLACED ||
+      order.status === OrderStatus.NEW ||
+      order.status === OrderStatus.PENDING_ASSIGNMENT;
+
+    if (!isOrderPlaced) {
+      throw new ConflictException(
+        `Cannot assign distributor: order is already in status ${order.status}. Only ORDER PLACED orders can be assigned.`,
+      );
+    }
+
+    // Rule: Cannot assign/reassign if order is already assigned
+    if (order.distributorId || order.assignmentStatus === 'ASSIGNED') {
+      throw new ConflictException(
+        'This order has already been accepted or assigned to a distributor and cannot be reassigned.',
+      );
+    }
+
+    // 3. Atomic row-level conditional SQL update to prevent race conditions with simultaneous Distributor Accept
+    const rowsAffected = await this.prisma.$executeRaw`
+      UPDATE "Order"
+      SET "distributorId" = ${distributorId},
+          "assignmentStatus" = 'ASSIGNED',
+          "acceptedAt" = NOW(),
+          "acceptedById" = ${staffUserId},
+          "status" = 'CONFIRMED'::"OrderStatus",
+          "updatedAt" = NOW()
+      WHERE "id" = ${orderId}
+        AND ("status" = 'ORDER_PLACED'::"OrderStatus" OR "status" = 'NEW'::"OrderStatus" OR "status" = 'PENDING_ASSIGNMENT'::"OrderStatus")
+        AND "distributorId" IS NULL
+        AND "assignmentStatus" = 'UNASSIGNED';
+    `;
+
+    if (rowsAffected === 0) {
+      throw new ConflictException(
+        'This order has already been accepted or assigned to another distributor.',
+      );
+    }
+
+    // 4. Fetch updated order
+    const updatedOrder = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: {
+          include: {
+            user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
+          },
+        },
+        distributor: {
+          select: { id: true, firstName: true, lastName: true, phone: true, email: true },
+        },
+        address: true,
+        items: {
+          include: {
+            product: { include: { images: true, brand: true } },
+          },
+        },
+        delivery: {
+          include: {
+            assignment: {
+              include: {
+                deliveryPartner: {
+                  include: { user: { select: { firstName: true, lastName: true, phone: true, id: true } } },
+                },
+              },
+            },
+            report: true,
+          },
+        },
+        history: {
+          include: { user: { select: { firstName: true, lastName: true, role: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    // 5. Create audit history
+    await this.prisma.orderStatusHistory.create({
+      data: {
+        orderId,
+        previousStatus: order.status,
+        newStatus: OrderStatus.CONFIRMED,
+        changedByUserId: staffUserId,
+        reason: `Assigned to Distributor ${distributorUser.firstName} ${distributorUser.lastName} by Staff`,
+      },
+    });
+
+    // 6. Emit real-time updates across portals
+    try {
+      // Notify assigned distributor and remove from other distributors' new order queues
+      this.eventsGateway.emitOrderClaimed(orderId, distributorId, updatedOrder);
+      // Notify customer and staff channels of status transition to CONFIRMED
+      this.eventsGateway.emitOrderStatusUpdate(
+        orderId,
+        OrderStatus.CONFIRMED,
+        order.customerId,
+        updatedOrder,
+      );
+      this.eventsGateway.server?.to(`distributor:${distributorId}`).emit('ORDER_ASSIGNED_TO_YOU', {
+        orderId,
+        order: updatedOrder,
+      });
+      this.eventsGateway.server?.to('staff-notifications').emit('order:assigned', updatedOrder);
+      this.eventsGateway.server?.to('staff-notifications').emit('order:updated', updatedOrder);
+    } catch (e) {
+      console.warn('[OrderService] Staff assign realtime broadcast warning:', e);
     }
 
     return updatedOrder;

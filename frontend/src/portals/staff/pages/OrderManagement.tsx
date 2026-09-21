@@ -10,7 +10,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import OrderRow, { type DeliveryPartner } from '../components/OrderRow';
+import OrderRow, { type Distributor } from '../components/OrderRow';
 import { formatOrderId } from '../../../utils/orderFormatters';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 
@@ -33,7 +33,7 @@ interface OrderStats {
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState<any[]>([]);
-  const [partners, setPartners] = useState<DeliveryPartner[]>([]);
+  const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -113,64 +113,119 @@ export default function OrderManagement() {
     }
   }, [page, limit, activeFilter, searchQuery, orders.length]);
 
-  // Load active delivery partners
-  const loadPartners = useCallback(async () => {
+  // Load active distributors only (role = DISTRIBUTOR)
+  const loadDistributors = useCallback(async () => {
     try {
-      const res = await fetchWithAuth('/staff/delivery-partners');
-      setPartners(Array.isArray(res) ? res : []);
+      const res = await fetchWithAuth('/staff/distributors');
+      setDistributors(Array.isArray(res) ? res : []);
     } catch (err) {
-      console.warn('Failed to load delivery partners:', err);
+      console.warn('Failed to load distributors:', err);
     }
   }, []);
 
   useEffect(() => {
-    loadPartners();
-  }, [loadPartners]);
+    loadDistributors();
+  }, [loadDistributors]);
 
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
 
-  // Real-time WebSocket subscriptions
+  // Consolidated Real-time WebSocket subscriptions
   useEffect(() => {
     if (!socket) return;
 
     const handleOrderAssigned = (data: any) => {
-      const orderShortId = data?.id ? formatOrderId(data.id) : '';
-      toast.success(`Order assigned${orderShortId ? ` (${orderShortId})` : ''}`, { icon: '🛵' });
-      loadOrders(true);
-    };
-
-    const handleOrderUpdated = (data: any) => {
-      if (data?.id && data?.status) {
-        setOrders(prev => prev.map(o => o.id === data.id ? { ...o, ...data } : o));
-      } else {
+      const orderId = data?.orderId || data?.id || data?.order?.id;
+      if (!orderId) {
         loadOrders(true);
+        return;
       }
+
+      const targetDistId = data?.distributorId || data?.order?.distributorId;
+      const distObj =
+        data?.distributor ||
+        data?.order?.distributor ||
+        (targetDistId ? distributors.find(d => d.id === targetDistId || d.userId === targetDistId)?.user : undefined);
+
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o.id === orderId) {
+            return {
+              ...o,
+              ...(data.order || {}),
+              status: data?.status || data?.order?.status || 'CONFIRMED',
+              distributorId: targetDistId || o.distributorId,
+              assignmentStatus: 'ASSIGNED',
+              distributor: distObj || o.distributor,
+            };
+          }
+          return o;
+        })
+      );
+
+      const orderShortId = formatOrderId(orderId);
+      const distName = distObj ? `${distObj.firstName} ${distObj.lastName}` : 'Distributor';
+      toast.success(`Order ${orderShortId} confirmed & assigned to ${distName}`, { icon: '🤝', id: `assign-${orderId}` });
     };
 
     const handleStatusChanged = (data: any) => {
-      const orderId = data?.orderId || data?.order?.id;
+      const orderId = data?.orderId || data?.order?.id || data?.id;
       const status = data?.status || data?.order?.status;
-      if (orderId && status) {
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, ...(data.order || {}) } : o));
+      if (orderId) {
+        const targetDistId = data.distributorId || data?.order?.distributorId;
+        const distObj =
+          data.distributor ||
+          data?.order?.distributor ||
+          (targetDistId ? distributors.find(d => d.id === targetDistId || d.userId === targetDistId)?.user : undefined);
+
+        setOrders((prev) =>
+          prev.map((o) => {
+            if (o.id === orderId) {
+              return {
+                ...o,
+                ...(data.order || {}),
+                status: status || o.status,
+                distributorId: targetDistId || o.distributorId,
+                assignmentStatus: data.assignmentStatus || data?.order?.assignmentStatus || o.assignmentStatus,
+                distributor: distObj || o.distributor,
+              };
+            }
+            return o;
+          })
+        );
       } else {
         loadOrders(true);
       }
     };
 
+    const handleOrderUpdated = (data: any) => {
+      if (data?.id) {
+        setOrders((prev) => prev.map((o) => (o.id === data.id ? { ...o, ...data } : o)));
+      } else {
+        loadOrders(true);
+      }
+    };
+
+    const handleNewOrderEvent = () => {
+      loadOrders(true);
+      toast.success('New order received!', { icon: '📦', id: 'new-order-toast' });
+    };
+
     socket.on('order:assigned', handleOrderAssigned);
+    socket.on('order:claimed', handleOrderAssigned);
     socket.on('order:updated', handleOrderUpdated);
     socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
-    socket.on('NEW_ORDER', () => loadOrders(true));
+    socket.on('NEW_ORDER', handleNewOrderEvent);
 
     return () => {
       socket.off('order:assigned', handleOrderAssigned);
+      socket.off('order:claimed', handleOrderAssigned);
       socket.off('order:updated', handleOrderUpdated);
       socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
-      socket.off('NEW_ORDER');
+      socket.off('NEW_ORDER', handleNewOrderEvent);
     };
-  }, [socket, loadOrders]);
+  }, [socket, loadOrders, distributors]);
 
   // Handle status update
   const handleStatusUpdate = async (orderId: string, newStatus: string, paymentConfirmation?: any) => {
@@ -210,43 +265,41 @@ export default function OrderManagement() {
     }
   };
 
-  // Handle delivery partner assignment
-  const handleAssignPartner = async (orderId: string, deliveryPartnerId: string) => {
-    if (!deliveryPartnerId) return;
+  // Handle distributor assignment
+  const handleAssignDistributor = async (orderId: string, distributorId: string) => {
+    if (!distributorId) return;
     setAssigningOrderId(orderId);
     try {
-      const assignedPartner = partners.find(p => p.id === deliveryPartnerId);
+      const assignedDistributor = distributors.find(d => d.id === distributorId || d.userId === distributorId);
 
-      await fetchWithAuth(`/staff/orders/${orderId}/assign`, {
+      const res = await fetchWithAuth(`/staff/orders/${orderId}/assign`, {
         method: 'PATCH',
-        body: JSON.stringify({ deliveryPartnerId }),
+        body: JSON.stringify({ distributorId }),
       });
+
+      const updatedOrder = res?.order || res;
 
       // Update state only after server successfully persists assignment
       setOrders(prev => prev.map(o => {
         if (o.id === orderId) {
           return {
             ...o,
-            status: ['NEW', 'PENDING', 'PENDING_ASSIGNMENT'].includes(o.status) ? 'ASSIGNED' : o.status,
-            delivery: {
-              ...o.delivery,
-              assignment: {
-                ...o.delivery?.assignment,
-                deliveryPartnerId,
-                deliveryPartner: assignedPartner,
-              },
-            },
+            status: 'CONFIRMED',
+            distributorId,
+            assignmentStatus: 'ASSIGNED',
+            distributor: assignedDistributor?.user || o.distributor,
+            ...(updatedOrder?.id ? updatedOrder : {}),
           };
         }
         return o;
       }));
 
-      const partnerName = assignedPartner ? `${assignedPartner.user.firstName} ${assignedPartner.user.lastName}` : 'Partner';
-      toast.success(`Assigned to ${partnerName}`, { id: 'order-action-toast' });
+      const distName = assignedDistributor ? `${assignedDistributor.user.firstName} ${assignedDistributor.user.lastName}` : 'Distributor';
+      toast.success(`Assigned to ${distName}`, { id: 'order-action-toast' });
       loadOrders(true);
     } catch (err: any) {
       if (!err?.handledToast && err?.status !== 500) {
-        toast.error(err.message || 'Failed to assign delivery partner', { id: 'order-action-toast' });
+        toast.error(err.message || 'Failed to assign distributor', { id: 'order-action-toast' });
       }
       loadOrders(true); // Revert
       throw err; // Re-throw so caller in OrderRow can prevent chaining
@@ -254,54 +307,6 @@ export default function OrderManagement() {
       setAssigningOrderId(null);
     }
   };
-
-  // Real-time socket sync
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleNewOrderEvent = () => {
-      loadOrders(true);
-      toast.success('New order received!', { icon: '📦' });
-    };
-
-    const handleStatusChanged = (data: { orderId: string; status: string; order?: any }) => {
-      setOrders(prev => prev.map(o => {
-        if (o.id === data.orderId) {
-          return data.order ? { ...o, ...data.order } : { ...o, status: data.status };
-        }
-        return o;
-      }));
-    };
-
-    const handleOrderUpdated = (data: any) => {
-      if (!data?.id) return;
-      setOrders(prev => {
-        const exists = prev.some(o => o.id === data.id);
-        if (exists) {
-          return prev.map(o => o.id === data.id ? { ...o, ...data } : o);
-        }
-        return [data, ...prev];
-      });
-    };
-
-    const handleOrderAssigned = (data: any) => {
-      const order = data.order || data;
-      if (!order?.id) return;
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...order } : o));
-    };
-
-    socket.on('NEW_ORDER', handleNewOrderEvent);
-    socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
-    socket.on('order:updated', handleOrderUpdated);
-    socket.on('order:assigned', handleOrderAssigned);
-
-    return () => {
-      socket.off('NEW_ORDER', handleNewOrderEvent);
-      socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
-      socket.off('order:updated', handleOrderUpdated);
-      socket.off('order:assigned', handleOrderAssigned);
-    };
-  }, [socket, loadOrders]);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(prev => prev === orderId ? null : orderId);
@@ -416,11 +421,11 @@ export default function OrderManagement() {
               <OrderRow
                 key={order.id}
                 order={order}
-                partners={partners}
+                distributors={distributors}
                 isExpanded={expandedOrderId === order.id}
                 onToggleExpand={() => toggleExpand(order.id)}
                 onStatusUpdate={handleStatusUpdate}
-                onAssignPartner={handleAssignPartner}
+                onAssignDistributor={handleAssignDistributor}
                 isAssigning={assigningOrderId === order.id}
               />
             ))

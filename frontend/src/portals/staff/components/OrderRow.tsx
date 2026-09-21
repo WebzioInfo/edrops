@@ -16,37 +16,47 @@ import {
 } from 'lucide-react';
 import { formatOrderId, formatOrderStatus, formatPaymentDetails, formatDeliverySlot } from '../../../utils/orderFormatters';
 
-export interface DeliveryPartner {
+export interface Distributor {
   id: string;
-  vehicleType?: string;
-  vehicleNumber?: string;
+  userId?: string;
+  role?: string;
   user: {
     id: string;
     firstName: string;
     lastName: string;
     phone: string;
+    email?: string;
   };
 }
 
+export type DeliveryPartner = Distributor;
+
 interface OrderRowProps {
   order: any;
-  partners: DeliveryPartner[];
+  partners?: Distributor[];
+  distributors?: Distributor[];
   isExpanded: boolean;
   onToggleExpand: () => void;
   onStatusUpdate: (orderId: string, newStatus: string, paymentConfirmation?: any) => Promise<void>;
-  onAssignPartner: (orderId: string, deliveryPartnerId: string) => Promise<void>;
+  onAssignPartner?: (orderId: string, deliveryPartnerId: string) => Promise<void>;
+  onAssignDistributor?: (orderId: string, distributorId: string) => Promise<void>;
   isAssigning: boolean;
 }
 
 export default function OrderRow({
   order,
-  partners,
+  partners = [],
+  distributors = [],
   isExpanded,
   onToggleExpand,
   onStatusUpdate,
   onAssignPartner,
+  onAssignDistributor,
   isAssigning,
 }: OrderRowProps) {
+  const distributorList = distributors.length > 0 ? distributors : partners;
+  const handleAssign = onAssignDistributor || onAssignPartner;
+
   const [partnerPromptError, setPartnerPromptError] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [paymentCollected, setPaymentCollected] = useState(false);
@@ -57,10 +67,26 @@ export default function OrderRow({
   const isCOD = rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY' || rawMethod.includes('COD') || rawMethod.includes('CASH');
   const isOnline = rawMethod === 'RAZORPAY' || rawMethod === 'ONLINE' || rawMethod === 'PREPAID' || rawMethod === 'WALLET';
 
-  const assignedPartner = order.delivery?.assignment?.deliveryPartner;
-  const assignedPartnerId = order.delivery?.assignment?.deliveryPartnerId || assignedPartner?.id;
+  const assignedDistributor =
+    order.distributor ||
+    (order.distributorId && distributorList.find((d) => d.id === order.distributorId || d.userId === order.distributorId)?.user) ||
+    order.delivery?.assignment?.deliveryPartner?.user;
+
+  const assignedDistributorId = order.distributorId || order.delivery?.assignment?.deliveryPartnerId;
+  const isAssigned = !!(order.distributorId || order.distributor || (order.assignmentStatus && order.assignmentStatus !== 'UNASSIGNED'));
+
   const isDelivered = order.status === 'DELIVERED' || order.status === 'COMPLETED';
   const isCancelled = order.status === 'CANCELLED';
+
+  // STAFF ASSIGNMENT RULE:
+  // Staff may assign a distributor ONLY when:
+  // - order status = ORDER PLACED (or NEW/PENDING)
+  // - distributorId is NULL and assignmentStatus === 'UNASSIGNED'
+  // If a distributor has already accepted or been assigned:
+  // - status = CONFIRMED or later
+  // - distributorId exists
+  // Then Staff MUST NOT be able to assign/reassign the order. Hide or disable assignment control completely.
+  const canAssignDistributor = !isAssigned && ['ORDER_PLACED', 'NEW', 'PENDING', 'PENDING_ASSIGNMENT'].includes(order.status);
 
   // Condensed Item summary string (e.g. "1x Edrops 20L Jar, 2x 10L Dispenser")
   const itemsSummary = order.items && order.items.length > 0
@@ -71,7 +97,7 @@ export default function OrderRow({
   const getStatusIcon = () => {
     if (isDelivered) return <CheckCircle className="h-4 w-4 text-emerald-600" />;
     if (isCancelled) return <Ban className="h-4 w-4 text-rose-600" />;
-    if (['ASSIGNED', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY'].includes(order.status)) {
+    if (['CONFIRMED', 'ASSIGNED', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY'].includes(order.status)) {
       return <Truck className="h-4 w-4 text-blue-600" />;
     }
     return <Clock className="h-4 w-4 text-amber-600" />;
@@ -80,7 +106,7 @@ export default function OrderRow({
   const getStatusIconBg = () => {
     if (isDelivered) return 'bg-emerald-50 border-emerald-200';
     if (isCancelled) return 'bg-rose-50 border-rose-200';
-    if (['ASSIGNED', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY'].includes(order.status)) {
+    if (['CONFIRMED', 'ASSIGNED', 'ACCEPTED_BY_PARTNER', 'OUT_FOR_DELIVERY'].includes(order.status)) {
       return 'bg-blue-50 border-blue-200';
     }
     return 'bg-amber-50 border-amber-200';
@@ -95,9 +121,11 @@ export default function OrderRow({
         return 'bg-rose-50 text-rose-700 border-rose-200';
       case 'OUT_FOR_DELIVERY':
         return 'bg-orange-50 text-orange-700 border-orange-200';
+      case 'CONFIRMED':
       case 'ASSIGNED':
       case 'ACCEPTED_BY_PARTNER':
         return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'ORDER_PLACED':
       case 'NEW':
       case 'PENDING':
       case 'PENDING_ASSIGNMENT':
@@ -107,12 +135,12 @@ export default function OrderRow({
     }
   };
 
-  const handlePartnerSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleDistributorSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
-    if (!val) return;
+    if (!val || !handleAssign) return;
     setPartnerPromptError(null);
     try {
-      await onAssignPartner(order.id, val);
+      await handleAssign(order.id, val);
     } catch {
       // Assignment failed; do not attempt subsequent status transitions
     }
@@ -120,12 +148,8 @@ export default function OrderRow({
 
   const handleMoveToOutForDelivery = async () => {
     if (isAssigning || updatingStatus) return;
-    if (!assignedPartnerId) {
-      setPartnerPromptError('Please assign a delivery partner before marking this order out for delivery.');
-      if (partnerSelectRef.current) {
-        partnerSelectRef.current.focus();
-        partnerSelectRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+    if (!assignedDistributorId && !assignedDistributor) {
+      setPartnerPromptError('Please ensure a distributor is assigned before marking this order out for delivery.');
       return;
     }
 
@@ -163,7 +187,7 @@ export default function OrderRow({
           </div>
 
           <div className="min-w-0 flex-1 space-y-0.5">
-            {/* Top line: Order ID + Customer Name + Phone */}
+            {/* Top line: Order ID + Customer Name + Phone + Assigned Distributor Badge */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-xs font-bold text-[#1E88E5] bg-[#EBF5FB] px-1.5 py-0.5 rounded">
                 {formatOrderId(order.id)}
@@ -174,6 +198,12 @@ export default function OrderRow({
               {order.customer?.user?.phone && (
                 <span className="text-[11px] text-[#64748B] hidden sm:inline">
                   • {order.customer.user.phone}
+                </span>
+              )}
+              {assignedDistributor && (
+                <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                  <span>{assignedDistributor.firstName} {assignedDistributor.lastName}</span>
                 </span>
               )}
             </div>
@@ -244,7 +274,7 @@ export default function OrderRow({
             className="overflow-hidden border-t border-[#E2E8F0] bg-[#F8FAFC]"
           >
             <div className="p-4 sm:p-6 space-y-4">
-              {/* Inline Validation Alert if Partner is Required */}
+              {/* Inline Validation Alert */}
               {partnerPromptError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2.5 text-rose-700 text-xs font-medium animate-pulse">
                   <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -331,15 +361,15 @@ export default function OrderRow({
                   </div>
                 </div>
 
-                {/* Column 3: Partner Assignment & Actions */}
+                {/* Column 3: Distributor Assignment & Lifecycle Actions */}
                 <div className="p-4 bg-white rounded-2xl border border-[#E2E8F0] space-y-3 flex flex-col justify-between">
-                  {/* Delivery Partner Assignment */}
+                  {/* Distributor Assignment Section */}
                   <div>
                     <div className="flex items-center justify-between text-xs pb-1 mb-2 border-b border-[#F1F5F9]">
                       <span className="font-bold text-[#0F172A] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                        <UserCheck className="w-3.5 h-3.5 text-[#1E88E5]" /> Delivery Partner
+                        <UserCheck className="w-3.5 h-3.5 text-[#1E88E5]" /> Distributor
                       </span>
-                      {assignedPartner ? (
+                      {isAssigned || assignedDistributor ? (
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                           Assigned
                         </span>
@@ -350,34 +380,55 @@ export default function OrderRow({
                       )}
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold text-[#64748B] block">
-                        Assign / Reassign Partner
-                      </label>
-                      <select
-                        ref={partnerSelectRef}
-                        disabled={isAssigning || isDelivered || isCancelled}
-                        value={assignedPartnerId || ''}
-                        onChange={handlePartnerSelect}
-                        className={`w-full text-xs font-medium bg-[#F8FAFC] border rounded-xl px-3 py-2 text-[#0F172A] outline-none transition-all cursor-pointer disabled:opacity-50 ${
-                          partnerPromptError
-                            ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/50'
-                            : 'border-[#CBD5E1] focus:border-[#1E88E5] focus:bg-white'
-                        }`}
-                      >
-                        <option value="">-- Select Delivery Partner --</option>
-                        {partners.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.user.firstName} {p.user.lastName} ({p.user.phone}) {p.vehicleNumber ? `• ${p.vehicleNumber}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      {assignedPartner && (
-                        <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-1">
-                          <ShieldCheck className="w-3.5 h-3.5" /> Assigned to {assignedPartner.user.firstName} {assignedPartner.user.lastName}
-                        </p>
-                      )}
-                    </div>
+                    {/* Strict Assignment Rule: Only show select control if order is unassigned AND status is ORDER_PLACED */}
+                    {canAssignDistributor ? (
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold text-[#64748B] block">
+                          Assign Distributor
+                        </label>
+                        <select
+                          ref={partnerSelectRef}
+                          disabled={isAssigning}
+                          defaultValue=""
+                          onChange={handleDistributorSelect}
+                          className={`w-full text-xs font-medium bg-[#F8FAFC] border rounded-xl px-3 py-2 text-[#0F172A] outline-none transition-all cursor-pointer disabled:opacity-50 ${
+                            partnerPromptError
+                              ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/50'
+                              : 'border-[#CBD5E1] focus:border-[#1E88E5] focus:bg-white'
+                          }`}
+                        >
+                          <option value="">-- Select Distributor --</option>
+                          {distributorList.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.user.firstName} {d.user.lastName} ({d.user.phone})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : assignedDistributor ? (
+                      <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Distributor Assigned
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            Locked
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold text-[#0F172A] mt-1">
+                          {assignedDistributor.firstName} {assignedDistributor.lastName}
+                        </div>
+                        {assignedDistributor.phone && (
+                          <div className="text-[11px] text-[#64748B]">
+                            📞 {assignedDistributor.phone}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-[#64748B]">
+                        Assignment locked ({formatOrderStatus(order.status)})
+                      </div>
+                    )}
                   </div>
 
                   {/* Status Action Buttons */}
@@ -387,12 +438,12 @@ export default function OrderRow({
                     </div>
 
                     <div className="space-y-2">
-                      {/* NEW / PENDING STATES */}
-                      {['NEW', 'PENDING', 'PENDING_ASSIGNMENT', 'PENDING_PAYMENT'].includes(order.status) && (
+                      {/* ORDER_PLACED / NEW / PENDING STATES */}
+                      {['ORDER_PLACED', 'NEW', 'PENDING', 'PENDING_ASSIGNMENT', 'PENDING_PAYMENT'].includes(order.status) && (
                         <button
                           type="button"
                           disabled={updatingStatus || isAssigning}
-                          onClick={() => handleStatusChange('ASSIGNED')}
+                          onClick={() => handleStatusChange('CONFIRMED')}
                           className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                         >
                           <Truck className="w-3.5 h-3.5" />
@@ -400,8 +451,8 @@ export default function OrderRow({
                         </button>
                       )}
 
-                      {/* ASSIGNED / ACCEPTED STATES */}
-                      {['ASSIGNED', 'ACCEPTED_BY_PARTNER'].includes(order.status) && (
+                      {/* CONFIRMED / ASSIGNED STATES */}
+                      {['CONFIRMED', 'ASSIGNED', 'ACCEPTED_BY_PARTNER'].includes(order.status) && (
                         <button
                           type="button"
                           disabled={updatingStatus || isAssigning}
@@ -504,3 +555,4 @@ export default function OrderRow({
     </div>
   );
 }
+
