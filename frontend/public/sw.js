@@ -1,4 +1,4 @@
-const CACHE_NAME = 'edrops-cache-v7';
+const CACHE_NAME = 'edrops-cache-v8';
 const OFFLINE_URL = '/offline.html';
 
 const ASSETS_TO_CACHE = [

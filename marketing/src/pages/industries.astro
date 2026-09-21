@@ -4,15 +4,36 @@ import Navigation from '../components/Navigation.astro';
 ---
 
 <BaseLayout
-  title="Industries | Edrops"
-  description="Learn more about industries with Edrops."
+  title="Industry Solutions | Edrops — Water Distribution & Delivery Software"
+  description="Discover how Edrops powers water packaging plants, distribution agencies, bulk suppliers, and subscription water delivery companies."
+  keywords="Water distribution software, water plant management, water agency delivery software"
 >
   <Navigation />
 
   <main id="main-content" class="pt-32 pb-20 px-5 max-w-7xl mx-auto min-h-screen">
-    <h1 class="text-5xl font-black text-edrops-ocean capitalize">industries</h1>
-    <p class="mt-6 text-lg text-edrops-ocean/68 max-w-2xl">
-      This is the highly optimized SEO landing page for industries. Edrops provides the ultimate water jar subscription management platform.
-    </p>
+    <div class="max-w-4xl space-y-8">
+      <h1 class="text-4xl sm:text-5xl font-extrabold text-edrops-ocean tracking-tight">Industries We Serve</h1>
+      <p class="text-lg text-edrops-slate leading-relaxed">
+        Purpose-built software configurations tailored for every level of the drinking water supply chain:
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+        <a href="/industries/water-plants" class="p-6 rounded-2xl bg-white border border-edrops-border hover:border-edrops-primary transition-all shadow-xs block space-y-2">
+          <h3 class="text-xl font-bold text-edrops-ocean">Water Plants & RO Bottlers</h3>
+          <p class="text-sm text-edrops-slate leading-relaxed">Manage daily bottling batches, distributor allocations, route dispatches, and empty jar tracking.</p>
+        </a>
+        <a href="/industries/water-distributors" class="p-6 rounded-2xl bg-white border border-edrops-border hover:border-edrops-primary transition-all shadow-xs block space-y-2">
+          <h3 class="text-xl font-bold text-edrops-ocean">Water Distributors & Agencies</h3>
+          <p class="text-sm text-edrops-slate leading-relaxed">Organize driver routes, customer subscriptions, prepaid wallet recharge, and live delivery proof.</p>
+        </a>
+        <a href="/industries/water-subscription-companies" class="p-6 rounded-2xl bg-white border border-edrops-border hover:border-edrops-primary transition-all shadow-xs block space-y-2">
+          <h3 class="text-xl font-bold text-edrops-ocean">Subscription Water Brands</h3>
+          <p class="text-sm text-edrops-slate leading-relaxed">Deliver modern customer experiences with scheduled deliveries, wallet recharges, and zero invoice hassle.</p>
+        </a>
+        <a href="/for-business" class="p-6 rounded-2xl bg-white border border-edrops-border hover:border-edrops-primary transition-all shadow-xs block space-y-2">
+          <h3 class="text-xl font-bold text-edrops-ocean">Corporate & Office Bulk Delivery</h3>
+          <p class="text-sm text-edrops-slate leading-relaxed">Manage high-volume office water jar supplies with consolidated invoicing and account management.</p>
+        </a>
+      </div>
+    </div>
   </main>
 </BaseLayout>

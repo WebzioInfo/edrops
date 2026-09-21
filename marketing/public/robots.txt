@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /app/
 
 Sitemap: https://edrops.in/sitemap.xml
