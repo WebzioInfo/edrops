@@ -1,10 +1,12 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { Bell, CalendarDays, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, Gift, LifeBuoy, LogIn } from 'lucide-react';
+import { Bell, CalendarDays, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, LifeBuoy, LogIn } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { EdropsLogo } from '../../components/Logo';
+import { SharedMobileDrawer } from '../../components/common/SharedSidebar';
+import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 import ProtectedRoute from '../../components/ProtectedRoute';
 
 const Shop = React.lazy(() => import('./pages/Shop'));
@@ -44,13 +46,6 @@ const mobileBottomNavItems = [
   { to: '/customer/profile', label: 'Profile', icon: User },
 ];
 
-const mobileMoreNavItems = [
-  { to: '/customer/dashboard', label: 'Dashboard', icon: Home },
-  { to: '/customer/recharge', label: 'Recharge', icon: Plus },
-  { to: '/customer/wallet', label: 'Wallet', icon: History },
-  { to: '/customer/referrals', label: 'Refer', icon: Gift },
-  { to: '/customer/support', label: 'Support', icon: LifeBuoy },
-];
 
 function CustomerLoader() {
   return (
@@ -233,59 +228,20 @@ export default function CustomerPortal() {
         </Suspense>
       </main>
 
-      {/* Mobile Bottom Sheet for More Menu */}
-      {moreMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden" onClick={() => setMoreMenuOpen(false)}>
-          <div 
-            className="absolute bottom-20 inset-x-3 bg-white border border-[#E2E8F0] rounded-[24px] p-5 shadow-2xl space-y-4 animate-slide-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Additional Options</h4>
-              <button onClick={() => setMoreMenuOpen(false)} className="text-[#64748B] hover:bg-[#F1F5F9] p-1 rounded-full cursor-pointer"><ChevronDown className="h-5 w-5" /></button>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-3">
-              {mobileMoreNavItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setMoreMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-colors ${
-                        isActive ? 'bg-[#EBF5FB] border-[#2D79A8] text-[#2D79A8]' : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#64748B]'
-                      }`
-                    }
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="text-[11px] font-medium">{item.label}</span>
-                  </NavLink>
-                );
-              })}
-            </div>
-            <div className="border-t border-[#E2E8F0] pt-4">
-              {isAuthenticated ? (
-                <button
-                  onClick={() => { setMoreMenuOpen(false); logout(); }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#FEF2F2] hover:text-[#EF4444] text-[#475569] text-sm font-semibold transition-colors cursor-pointer"
-                >
-                  <LogOut className="h-4 w-4" /> Logout
-                </button>
-              ) : (
-                <NavLink
-                  to="/login"
-                  onClick={() => setMoreMenuOpen(false)}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#2D79A8] text-white text-sm font-semibold shadow-sm transition-colors cursor-pointer"
-                >
-                  <LogIn className="h-4 w-4" /> Sign In / Sign Up
-                </NavLink>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Standardized Mobile Navigation Drawer */}
+      {(() => {
+        const portalConfig = getPortalSidebarConfig('CUSTOMER', { activeOrdersCount });
+        return (
+          <SharedMobileDrawer
+            isOpen={moreMenuOpen}
+            onClose={() => setMoreMenuOpen(false)}
+            portalLabel={portalConfig.portalLabel}
+            sections={portalConfig.sections}
+            homePath={portalConfig.homePath}
+            profilePath={portalConfig.profilePath}
+          />
+        );
+      })()}
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E2E8F0] bg-white pb-safe lg:hidden">

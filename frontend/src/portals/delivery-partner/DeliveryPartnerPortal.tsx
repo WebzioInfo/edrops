@@ -2,14 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard,
-  Users,
-  ClipboardList,
-  Wallet,
   Menu,
   X,
-  LogOut,
-  User,
   Save,
   Plus,
   Minus,
@@ -19,8 +13,8 @@ import { fetchWithAuth } from '../../api/client';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { EdropsLogo } from '../../components/Logo';
-import MobileSidebarDrawer from '../../components/common/MobileSidebarDrawer';
+import { SharedSidebar, SharedMobileDrawer } from '../../components/common/SharedSidebar';
+import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 import { useRegisterRefreshHandler } from '../../components/pwa/PullToRefresh';
 import { formatOrderId } from '../../utils/orderFormatters';
 
@@ -31,40 +25,7 @@ import Profits from './pages/Profits';
 import Profile from './pages/Profile';
 import type { DeliveryTask } from './pages/Overview';
 
-interface NavItem {
-  to: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  end?: boolean;
-}
 
-const navSections: { title: string; items: NavItem[] }[] = [
-  {
-    title: 'OVERVIEW',
-    items: [
-      { to: '/delivery-partner', label: 'Overview', icon: LayoutDashboard, end: true },
-    ],
-  },
-  {
-    title: 'OPERATIONS',
-    items: [
-      { to: '/delivery-partner/customers', label: 'Customers', icon: Users },
-      { to: '/delivery-partner/orders', label: 'Orders', icon: ClipboardList },
-    ],
-  },
-  {
-    title: 'FINANCE',
-    items: [
-      { to: '/delivery-partner/profits', label: 'Profits', icon: Wallet },
-    ],
-  },
-  {
-    title: 'ACCOUNT',
-    items: [
-      { to: '/delivery-partner/profile', label: 'Profile', icon: User },
-    ],
-  },
-];
 
 export default function DeliveryPartnerPortal() {
   const { user, logout } = useAuth();
@@ -240,192 +201,32 @@ export default function DeliveryPartnerPortal() {
     return 'Delivery Workspace';
   };
 
-  const driverName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Delivery Partner';
+
+
+  const portalConfig = getPortalSidebarConfig('DELIVERY_PARTNER', {
+    tasksCount: tasks.length,
+  });
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] text-[#16324F] font-sans antialiased overflow-hidden">
 
-      {/* ─── DESKTOP SIDEBAR ────────────────────────────────────── */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-[#E2E8F0] shrink-0 select-none z-30">
+      {/* ─── STANDARDIZED SHARED DESKTOP SIDEBAR ────────────────── */}
+      <SharedSidebar
+        portalLabel={portalConfig.portalLabel}
+        sections={portalConfig.sections}
+        homePath={portalConfig.homePath}
+        profilePath={portalConfig.profilePath}
+      />
 
-        {/* Brand Header */}
-        <div className="flex items-center justify-between px-6 h-16 border-b border-[#E2E8F0]">
-          <div className="flex flex-col justify-center">
-            <EdropsLogo variant="blue" className="h-6 w-auto" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
-              Delivery Partner
-            </span>
-          </div>
-        </div>
-
-        {/* Navigation Section List */}
-        <nav className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
-          {navSections.map((section) => (
-            <div key={section.title} className="space-y-1">
-              <div className="px-3 text-[11px] font-semibold tracking-wider text-[#94A3B8] uppercase mb-2">
-                {section.title}
-              </div>
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) => `
-                      group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
-                      ${isActive
-                        ? 'bg-[#1677C8]/10 text-[#1677C8] font-semibold shadow-2xs'
-                        : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
-                      }
-                    `}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <Icon
-                          className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-[#1677C8]' : 'text-[#64748B] group-hover:text-[#16324F]'
-                            }`}
-                        />
-                        <span className="flex-1">{item.label}</span>
-                        {item.to === '/delivery-partner' && tasks.length > 0 && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-[#1677C8] text-white' : 'bg-slate-100 text-[#64748B]'
-                            }`}>
-                            {tasks.length}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </NavLink>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-
-        {/* Driver Profile Footer */}
-        <div className="p-4 border-t border-[#E2E8F0] bg-slate-50/50">
-          <div className="flex items-center justify-between">
-            <NavLink
-              to="/delivery-partner/profile"
-              className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-85 transition group cursor-pointer"
-              title="View & Manage Profile"
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors">
-                {user?.firstName?.[0] || 'D'}{user?.lastName?.[0] || 'P'}
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-[#16324F] truncate group-hover:text-[#1677C8] transition-colors">{driverName}</p>
-                <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>Online</span>
-                </div>
-              </div>
-            </NavLink>
-            <button
-              onClick={logout}
-              title="Logout"
-              className="p-2 text-[#64748B] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* ─── MOBILE DRAWER (SLIDE-OVER) ─────────────────────────── */}
-      <MobileSidebarDrawer
+      {/* ─── STANDARDIZED SHARED MOBILE DRAWER ──────────────────── */}
+      <SharedMobileDrawer
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
-        className="w-72 max-w-[80vw] bg-white"
-        ariaLabel="Delivery partner navigation drawer"
-      >
-        {/* Drawer Header */}
-        <div className="flex items-center justify-between px-5 h-16 border-b border-[#E2E8F0]">
-          <div className="flex flex-col justify-center">
-            <EdropsLogo variant="blue" className="h-6 w-auto" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#00AEEF] mt-0.5">
-              Delivery Partner
-            </span>
-          </div>
-          <button
-            onClick={() => setMobileMenuOpen(false)}
-            className="p-2 text-gray-500 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition cursor-pointer"
-            aria-label="Close navigation"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Navigation Items */}
-        <nav className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
-          {navSections.map((section) => (
-            <div key={section.title} className="space-y-1">
-              <div className="px-3 text-[10px] font-bold tracking-wider text-[#94A3B8] uppercase mb-2">
-                {section.title}
-              </div>
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={({ isActive }) => `
-                      flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition-colors
-                      ${isActive
-                        ? 'bg-[#1677C8]/10 text-[#1677C8] font-semibold'
-                        : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
-                      }
-                    `}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <Icon className={`w-5 h-5 ${isActive ? 'text-[#1677C8]' : 'text-[#64748B]'}`} />
-                        <span className="flex-1">{item.label}</span>
-                        {item.to === '/delivery-partner' && tasks.length > 0 && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-[#1677C8] text-white' : 'bg-slate-100 text-[#64748B]'
-                            }`}>
-                            {tasks.length}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </NavLink>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-
-        {/* Drawer Driver Info */}
-        <div className="p-4 border-t border-[#E2E8F0] bg-slate-50">
-          <div className="flex items-center justify-between">
-            <NavLink
-              to="/delivery-partner/profile"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-85 transition group"
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors">
-                {user?.firstName?.[0] || 'D'}{user?.lastName?.[0] || 'P'}
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-[#16324F] truncate group-hover:text-[#1677C8] transition-colors">{driverName}</p>
-                <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                  <span>Online</span>
-                </div>
-              </div>
-            </NavLink>
-            <button
-              onClick={logout}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-lg transition cursor-pointer shrink-0"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </MobileSidebarDrawer>
+        portalLabel={portalConfig.portalLabel}
+        sections={portalConfig.sections}
+        homePath={portalConfig.homePath}
+        profilePath={portalConfig.profilePath}
+      />
 
       {/* ─── MAIN CONTENT WRAPPER ───────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
