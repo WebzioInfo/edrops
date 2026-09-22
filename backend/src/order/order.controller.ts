@@ -17,6 +17,7 @@ import {
   CreateDistributorOrderDto,
   UpdateDistributorOrderStatusDto,
   RecordDistributorPaymentDto,
+  RecordOrderPaymentDto,
   CancelDistributorOrderDto,
 } from './dto/distributor-order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -245,5 +246,24 @@ export class OrderController {
   ) {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;
     return this.orderService.assignDeliveryPartner(id, deliveryPartnerId, userId);
+  }
+
+  @Post(':id/payments')
+  @UseGuards(RolesGuard)
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.STAFF,
+    UserRole.DISTRIBUTOR,
+    UserRole.CUSTOMER,
+    UserRole.DELIVERY_PARTNER,
+  )
+  recordOrderPayment(
+    @Param('id') id: string,
+    @Body() dto: RecordOrderPaymentDto,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    return this.orderService.recordOrderPayment(id, userId, dto);
   }
 }

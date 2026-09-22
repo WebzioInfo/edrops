@@ -19,7 +19,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { useSocket } from '../../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
 import CompleteDeliveryModal from './CompleteDeliveryModal';
-import { formatOrderId, formatPaymentDetails, getPaymentStatusLabel } from '../../../utils/orderFormatters';
+import { formatOrderId, formatPaymentDetails, getPaymentStatusLabel, getOrderPaymentState } from '../../../utils/orderFormatters';
 import {
   getOrderStatusConfig,
   getNextPartnerAction,
@@ -305,8 +305,8 @@ export default function OrderDetailModal({
     const partnerProfit = Number((customerRevenue - edropsCost).toFixed(2));
 
     const isDelivered = order.status === 'DELIVERED' || order.status === 'COMPLETED';
-    const paymentDetails = formatPaymentDetails(order);
-    const isPaid = paymentDetails.status === 'Paid' || paymentDetails.status === 'Collected';
+    const pst = getOrderPaymentState(order);
+    const isPaid = pst.canonicalStatus === 'PAID';
     const isEligible = isDelivered && isPaid;
 
     return {
@@ -695,9 +695,9 @@ export default function OrderDetailModal({
                     </div>
 
                     <div className="text-right">
-                      <span className="text-[#64748B] block">Amount Received:</span>
+                      <span className="text-[#64748B] block">Paid / Outstanding Due:</span>
                       <span className="font-bold text-[#16324F]">
-                        {profitEconomics?.isPaid ? `₹${Number(order.totalAmount || 0).toFixed(2)}` : '₹0.00'}
+                        ₹{getOrderPaymentState(order).paid.toFixed(2)} / <span className={getOrderPaymentState(order).hasDue ? 'text-amber-600' : 'text-emerald-600'}>₹{getOrderPaymentState(order).due.toFixed(2)}</span>
                       </span>
                     </div>
                   </div>

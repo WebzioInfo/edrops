@@ -11,7 +11,7 @@ import {
   VerifySignatureParams,
   WebhookVerifyParams,
 } from './payment-provider.interface';
-import Razorpay from 'razorpay';
+const Razorpay = require('razorpay');
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -25,7 +25,7 @@ export class RazorpayProvider implements PaymentProvider {
     const keyId = process.env.RAZORPAY_KEY_ID || '';
     this.isMock = keyId.startsWith('rzp_test_mock');
 
-    if (!this.isMock) {
+    if (!this.isMock && keyId) {
       this.razorpay = new Razorpay({
         key_id: keyId,
         key_secret: process.env.RAZORPAY_SECRET,

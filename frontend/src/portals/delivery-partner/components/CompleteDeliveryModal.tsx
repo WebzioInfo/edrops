@@ -12,7 +12,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { OrderDetail } from './OrderDetailModal';
-import { formatOrderId } from '../../../utils/orderFormatters';
+import { formatOrderId, getOrderPaymentState } from '../../../utils/orderFormatters';
 
 interface CompleteDeliveryModalProps {
   order: OrderDetail | null;
@@ -31,9 +31,8 @@ export default function CompleteDeliveryModal({
   onClose,
   onConfirm,
 }: CompleteDeliveryModalProps) {
-  const rawMethod = (order?.paymentMethod || '').toUpperCase();
-  const isCOD = rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY' || rawMethod.includes('COD') || rawMethod.includes('CASH');
-  const isAlreadyPaid = !isCOD && (order?.paymentStatus === 'PAID' || order?.paymentStatus === 'SUCCESS');
+  const pst = getOrderPaymentState(order);
+  const isAlreadyPaid = pst.canonicalStatus === 'PAID';
 
   const [paymentReceived, setPaymentReceived] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<string>('CASH');
@@ -43,8 +42,9 @@ export default function CompleteDeliveryModal({
 
   useEffect(() => {
     if (order) {
-      setPaymentReceived(true);
-      setAmountReceived(Number(order.totalAmount || 0));
+      const state = getOrderPaymentState(order);
+      setPaymentReceived(state.hasDue);
+      setAmountReceived(state.due > 0 ? state.due : Number(order.totalAmount || 0));
       setPaymentMethod(order.paymentMethod || 'CASH');
       setError(null);
       setSubmitting(false);
@@ -72,6 +72,11 @@ export default function CompleteDeliveryModal({
         }
         if (Number(amountReceived) <= 0) {
           setError('Amount received must be greater than ₹0.00 when marking as paid.');
+          setSubmitting(false);
+          return;
+        }
+        if (Number(amountReceived) > pst.due + 0.01) {
+          setError(`Amount received cannot exceed the remaining due amount of ₹${pst.due.toFixed(2)}.`);
           setSubmitting(false);
           return;
         }
@@ -146,17 +151,19 @@ export default function CompleteDeliveryModal({
               </div>
             </div>
             <div className="flex justify-between items-center pt-1.5 border-t border-gray-200">
-              <span className="font-bold text-[#16324F]">Order Amount:</span>
-              <span className="text-sm font-black text-[#1677C8]">₹{Number(order.totalAmount || 0).toFixed(2)}</span>
+              <span className="font-bold text-[#16324F]">Order Total:</span>
+              <span className="text-sm font-black text-[#1677C8]">₹{pst.total.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center text-[11px]">
-              <span className="text-[#64748B]">Current Payment Status:</span>
-              <span className={`font-bold px-2 py-0.5 rounded-full ${
-                isAlreadyPaid
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-amber-50 text-amber-700'
-              }`}>
-                {isAlreadyPaid ? 'PAID' : 'PENDING'}
+              <span className="text-[#64748B]">Paid / Outstanding Due:</span>
+              <span className="font-semibold text-[#16324F]">
+                ₹{pst.paid.toFixed(2)} / <span className={pst.hasDue ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold'}>₹{pst.due.toFixed(2)}</span>
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-[#64748B]">Payment Status:</span>
+              <span className={`font-bold px-2 py-0.5 rounded-full ${pst.badgeClass}`}>
+                {pst.label}
               </span>
             </div>
           </div>
@@ -175,15 +182,15 @@ export default function CompleteDeliveryModal({
               <div className="flex items-center gap-2 text-emerald-800">
                 <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider">Payment Verified</h4>
-                  <p className="text-[11px] text-emerald-700">Online payment verified via payment gateway</p>
+                  <h4 className="text-xs font-bold uppercase tracking-wider">Payment Fully Settled</h4>
+                  <p className="text-[11px] text-emerald-700">Order has ₹0.00 outstanding</p>
                 </div>
               </div>
 
               <div className="pt-2 border-t border-emerald-200/80 text-xs space-y-1">
                 <div className="flex justify-between text-emerald-900">
-                  <span>Amount Paid:</span>
-                  <span className="font-bold">₹{Number(order.totalAmount || 0).toFixed(2)}</span>
+                  <span>Total Paid:</span>
+                  <span className="font-bold">₹{pst.paid.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-emerald-900">
                   <span>Payment Method:</span>

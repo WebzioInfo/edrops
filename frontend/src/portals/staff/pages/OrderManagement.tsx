@@ -8,10 +8,12 @@ import {
   RotateCw,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
+  X,
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import OrderRow, { type Distributor } from '../components/OrderRow';
-import { formatOrderId } from '../../../utils/orderFormatters';
+import { formatOrderId, getOrderPaymentState } from '../../../utils/orderFormatters';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'ACTIVE' | 'DELIVERED' | 'CANCELLED';
@@ -39,6 +41,14 @@ export default function OrderManagement() {
   const [refreshing, setRefreshing] = useState(false);
   const [assigningOrderId, setAssigningOrderId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+  // Staff Collection Modal state
+  const [collectingOrder, setCollectingOrder] = useState<any | null>(null);
+  const [collectAmount, setCollectAmount] = useState<string>('');
+  const [collectMethod, setCollectMethod] = useState<string>('CASH');
+  const [collectRefNumber, setCollectRefNumber] = useState<string>('');
+  const [collectNotes, setCollectNotes] = useState<string>('');
+  const [isSubmittingCollection, setIsSubmittingCollection] = useState<boolean>(false);
 
   // Filters & Pagination
   const [activeFilter, setActiveFilter] = useState<StatusFilter>('ALL');
@@ -308,6 +318,54 @@ export default function OrderManagement() {
     }
   };
 
+  // Staff Payment Collection Handlers
+  const handleOpenCollect = (order: any) => {
+    setCollectingOrder(order);
+    const pst = getOrderPaymentState(order);
+    setCollectAmount(String(pst.due));
+    setCollectMethod(order.paymentMethod || 'CASH');
+    setCollectRefNumber('');
+    setCollectNotes('');
+  };
+
+  const handleCollectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!collectingOrder) return;
+    const amt = Number(collectAmount);
+    if (isNaN(amt) || amt <= 0) {
+      toast.error('Please enter a valid positive collection amount');
+      return;
+    }
+    const pst = getOrderPaymentState(collectingOrder);
+    if (amt > pst.due + 0.01) {
+      toast.error(`Amount ₹${amt} exceeds remaining balance due (₹${pst.due})`);
+      return;
+    }
+
+    try {
+      setIsSubmittingCollection(true);
+      const idempotencyKey = `COLLECT-STAFF-${collectingOrder.id}-${Date.now()}`;
+      await fetchWithAuth(`/orders/${collectingOrder.id}/payments`, {
+        method: 'POST',
+        body: JSON.stringify({
+          amount: amt,
+          paymentMethod: collectMethod,
+          referenceNumber: collectRefNumber.trim() || undefined,
+          notes: collectNotes.trim() || undefined,
+          idempotencyKey,
+        }),
+      });
+
+      toast.success(`Payment of ₹${amt} collected successfully!`);
+      setCollectingOrder(null);
+      loadOrders(true);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to record payment');
+    } finally {
+      setIsSubmittingCollection(false);
+    }
+  };
+
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(prev => prev === orderId ? null : orderId);
   };
@@ -426,6 +484,7 @@ export default function OrderManagement() {
                 onToggleExpand={() => toggleExpand(order.id)}
                 onStatusUpdate={handleStatusUpdate}
                 onAssignDistributor={handleAssignDistributor}
+                onCollect={handleOpenCollect}
                 isAssigning={assigningOrderId === order.id}
               />
             ))
@@ -493,6 +552,147 @@ export default function OrderManagement() {
           </div>
         )}
       </section>
+
+      {/* ─── MODAL: STAFF PAYMENT COLLECTION ───────────────────────── */}
+      {collectingOrder && (() => {
+        const pst = getOrderPaymentState(collectingOrder);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-emerald-600" />
+                    Collect Payment
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Order: <span className="font-bold text-slate-800">#ORD-{formatOrderId(collectingOrder.id)}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCollectingOrder(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCollectSubmit} className="space-y-4">
+                {/* Authoritative Financial Breakdown Card */}
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-semibold">Total Order Amount:</span>
+                    <span className="font-bold text-slate-800">₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-semibold">Already Paid:</span>
+                    <span className="font-bold text-emerald-600">₹{pst.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-slate-200/70 font-black text-xs">
+                    <span className="text-orange-700">Outstanding Balance Due:</span>
+                    <span className="text-orange-700">₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-0.5 text-[11px]">
+                    <span className="text-slate-500 font-medium">Current Status:</span>
+                    <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] border ${pst.badgeClass}`}>
+                      {pst.canonicalStatus === 'PAID' ? 'PAID' : pst.canonicalStatus === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : 'UNPAID'}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Amount Collected (₹) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={pst.due}
+                    value={collectAmount}
+                    onChange={(e) => setCollectAmount(e.target.value)}
+                    required
+                    placeholder={`Enter amount up to ₹${pst.due}`}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:border-emerald-600 focus:bg-white transition-all"
+                  />
+                  <div className="flex items-center justify-between mt-1 text-[11px] text-slate-500">
+                    <span>Allows full or partial collection</span>
+                    <button
+                      type="button"
+                      onClick={() => setCollectAmount(String(pst.due))}
+                      className="text-emerald-700 font-bold hover:underline cursor-pointer"
+                    >
+                      Collect Full (₹{pst.due})
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Payment Method
+                  </label>
+                  <select
+                    value={collectMethod}
+                    onChange={(e) => setCollectMethod(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white transition-all cursor-pointer"
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CARD">Card</option>
+                    <option value="CREDIT">Credit</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Reference / Receipt Number (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. UPI Ref / Receipt #..."
+                    value={collectRefNumber}
+                    onChange={(e) => setCollectRefNumber(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-emerald-600 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Notes (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Collection notes..."
+                    value={collectNotes}
+                    onChange={(e) => setCollectNotes(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-emerald-600 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setCollectingOrder(null)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingCollection}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>{isSubmittingCollection ? 'Collecting...' : 'Collect Payment'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
     </main>
   );
 }

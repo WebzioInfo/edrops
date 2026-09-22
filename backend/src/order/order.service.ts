@@ -21,8 +21,8 @@ export class OrderService {
     private eventsGateway: EventsGateway,
   ) {}
 
-  findAll(customerId: string) {
-    return this.prisma.order.findMany({
+  async findAll(customerId: string) {
+    const orders = await this.prisma.order.findMany({
       where: { customerId },
       include: {
         address: true,
@@ -36,10 +36,20 @@ export class OrderService {
             },
           },
         },
+        payments: { orderBy: { createdAt: 'desc' } },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return orders.map((o) => {
+      const paidAmount = (o.payments || [])
+        .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const dueAmount = Math.max(0, Number((o.totalAmount - paidAmount).toFixed(2)));
+      return { ...o, amountPaid: paidAmount, amountDue: dueAmount };
+    });
   }
+
 
   async findStaffAll(query?: { page?: number | string; limit?: number | string; search?: string; status?: string }) {
     const page = Math.max(1, parseInt(String(query?.page || 1), 10) || 1);
@@ -120,6 +130,7 @@ export class OrderService {
             },
             orderBy: { createdAt: 'asc' },
           },
+          payments: { orderBy: { createdAt: 'desc' } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -155,8 +166,16 @@ export class OrderService {
 
     const [totalOrders, pendingCount, activeCount, todayCount, revenueAggregate] = allStats;
 
+    const transformedOrders = (orders as any[]).map((o) => {
+      const paidAmount = (o.payments || [])
+        .filter((p: any) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum: number, p: any) => sum + p.amount, 0);
+      const dueAmount = Math.max(0, Number((o.totalAmount - paidAmount).toFixed(2)));
+      return { ...o, amountPaid: paidAmount, amountDue: dueAmount };
+    });
+
     return {
-      data: orders,
+      data: transformedOrders,
       pagination: {
         total: totalMatching,
         page,
@@ -218,7 +237,20 @@ export class OrderService {
     });
 
     if (!order) throw new NotFoundException(`Order not found: ${orderId}`);
-    return order;
+
+    const paidAmount = (order.payments || [])
+      .filter((p: any) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+      .reduce((sum: number, p: any) => sum + p.amount, 0);
+    const dueAmount = Math.max(0, Number((order.totalAmount - paidAmount).toFixed(2)));
+
+    return {
+      ...order,
+      amountPaid: paidAmount,
+      amountDue: dueAmount,
+      orderTotal: order.totalAmount,
+      totalPaid: paidAmount,
+      dueAmount,
+    };
   }
 
   async findPartnerAll(
@@ -305,7 +337,7 @@ export class OrderService {
 
     const where = andClauses.length > 0 ? { AND: andClauses } : {};
 
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where,
       include: {
         customer: {
@@ -342,9 +374,25 @@ export class OrderService {
             report: true,
           },
         },
+        payments: { orderBy: { createdAt: 'desc' } },
       },
       orderBy: { createdAt: 'desc' },
       take: 200,
+    });
+
+    return orders.map((o: any) => {
+      const paidAmount = (o.payments || [])
+        .filter((p: any) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum: number, p: any) => sum + p.amount, 0);
+      const dueAmount = Math.max(0, Number((o.totalAmount - paidAmount).toFixed(2)));
+      return {
+        ...o,
+        amountPaid: paidAmount,
+        amountDue: dueAmount,
+        orderTotal: o.totalAmount,
+        totalPaid: paidAmount,
+        dueAmount,
+      };
     });
   }
 
@@ -655,6 +703,9 @@ export class OrderService {
 
     // Use a transaction to ensure DB consistency
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      // Acquire exclusive row lock on the Order to prevent concurrent race conditions
+      await tx.$executeRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+
       let targetPaymentStatus = order.paymentStatus;
       let targetPaymentMethod = order.paymentMethod;
       let deliveredAt = order.deliveredAt;
@@ -667,30 +718,56 @@ export class OrderService {
 
         if (paymentConfirmation) {
           if (paymentConfirmation.paymentReceived) {
-            targetPaymentStatus = PaymentStatus.SUCCESS;
-            targetPaymentMethod = paymentConfirmation.paymentMethod || order.paymentMethod || 'COD';
+            const existingPayments = await tx.payment.findMany({
+              where: { orderId, status: PaymentStatus.SUCCESS },
+            });
+            const priorPaid = existingPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+            const remainingDue = Math.max(0, Number(order.totalAmount || 0) - priorPaid);
 
             const paidAmt = paymentConfirmation.amountReceived !== undefined && paymentConfirmation.amountReceived !== null
               ? Number(paymentConfirmation.amountReceived)
-              : order.totalAmount;
+              : remainingDue;
 
-            if (paidAmt <= 0) {
+            if (paidAmt <= 0 && remainingDue > 0) {
               throw new BadRequestException('Amount received must be greater than 0 when payment is received.');
             }
 
-            // Create payment record in DB
-            await tx.payment.create({
-              data: {
-                orderId,
-                customerId: order.customerId,
-                amount: paidAmt,
-                currency: 'INR',
-                status: PaymentStatus.SUCCESS,
-                provider: targetPaymentMethod,
-                receiptId: `RCP-${Date.now()}`,
-                description: `Payment confirmed upon delivery`,
-              },
-            });
+            if (paidAmt > remainingDue + 0.01) {
+              throw new BadRequestException(`Payment amount ₹${paidAmt} exceeds remaining due balance of ₹${remainingDue.toFixed(2)}.`);
+            }
+
+            const newTotalPaid = Math.round((priorPaid + paidAmt) * 100) / 100;
+            const newDue = Math.max(0, Math.round((Number(order.totalAmount || 0) - newTotalPaid) * 100) / 100);
+
+            targetPaymentStatus = newDue <= 0 ? PaymentStatus.SUCCESS : PaymentStatus.PARTIALLY_PAID;
+            targetPaymentMethod = paymentConfirmation.paymentMethod || order.paymentMethod || 'CASH';
+
+            if (paidAmt > 0) {
+              // Create payment record in DB
+              const deliveryPayment = await tx.payment.create({
+                data: {
+                  orderId,
+                  customerId: order.customerId,
+                  amount: paidAmt,
+                  currency: 'INR',
+                  status: PaymentStatus.SUCCESS,
+                  provider: targetPaymentMethod,
+                  receiptId: `RCP-DELIVERY-${Date.now()}`,
+                  description: `Payment collected upon delivery`,
+                },
+              });
+
+              // Create PaymentAuditLog record
+              await tx.paymentAuditLog.create({
+                data: {
+                  paymentId: deliveryPayment.id,
+                  action: 'COLLECT',
+                  previousStatus: order.paymentStatus,
+                  newStatus: targetPaymentStatus,
+                  notes: `Collected ₹${paidAmt} upon delivery. Prior paid: ₹${priorPaid}, new remaining due: ₹${newDue}. (by ${staffUserId || 'DELIVERY_PARTNER'})`,
+                },
+              });
+            }
           } else {
             // Unpaid delivery
             if (!isAlreadyPaid) {
@@ -711,6 +788,7 @@ export class OrderService {
           deliveredAt,
         },
         include: {
+          payments: true,
           customer: {
             include: {
               user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
@@ -797,7 +875,20 @@ export class OrderService {
         }
       }
 
-      return updated;
+      const allPayments = await tx.payment.findMany({
+        where: { orderId, status: PaymentStatus.SUCCESS },
+      });
+      const finalPaid = allPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const finalDue = Math.max(0, Math.round((Number(updated.totalAmount || 0) - finalPaid) * 100) / 100);
+
+      return {
+        ...updated,
+        amountPaid: finalPaid,
+        amountDue: finalDue,
+        orderTotal: Number(updated.totalAmount || 0),
+        totalPaid: finalPaid,
+        dueAmount: finalDue,
+      };
     });
 
     // 4. Fire notifications and socket broadcasts
@@ -1656,7 +1747,7 @@ export class OrderService {
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { history: true },
+      include: { history: true, payments: true },
     });
 
     if (!order) {
@@ -1690,12 +1781,120 @@ export class OrderService {
         ? new Date()
         : order.deliveredAt;
 
+    const isDelivering = dto.status === OrderStatus.DELIVERED || dto.status === OrderStatus.COMPLETED;
+
     const updated = await this.prisma.$transaction(async (tx) => {
+      // 1. Acquire exclusive DB row lock to serialize status and financial mutations
+      await tx.$executeRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+
+      // 2. Read fresh order and payment records inside the locked transaction
+      const freshOrder = await tx.order.findUnique({
+        where: { id: orderId },
+        include: { payments: true },
+      });
+
+      if (!freshOrder) {
+        throw new NotFoundException(`Order not found: ${orderId}`);
+      }
+
+      const currentPaid = (freshOrder.payments || [])
+        .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const remainingDue = Math.max(0, Number((freshOrder.totalAmount - currentPaid).toFixed(2)));
+
+      let newPaymentStatus = freshOrder.paymentStatus;
+      let paymentHistoryNote = '';
+
+      if (isDelivering && dto.paymentInfo) {
+        const { paymentMode, amountPaid: requestedPaid, paymentMethod } = dto.paymentInfo;
+        const method = paymentMethod || freshOrder.paymentMethod || 'CASH';
+
+        if (paymentMode === 'PARTIAL') {
+          // Validate partial amount
+          if (!requestedPaid || requestedPaid <= 0) {
+            throw new BadRequestException('Partial payment amount must be greater than 0.');
+          }
+          if (requestedPaid > remainingDue + 0.01) {
+            throw new BadRequestException(
+              `Payment amount (₹${requestedPaid}) exceeds remaining balance (₹${remainingDue}).`,
+            );
+          }
+
+          const newTotalPaid = Number((currentPaid + requestedPaid).toFixed(2));
+          newPaymentStatus = newTotalPaid >= freshOrder.totalAmount
+            ? PaymentStatus.PAID
+            : PaymentStatus.PARTIALLY_PAID;
+
+          const createdPayment = await tx.payment.create({
+            data: {
+              orderId: freshOrder.id,
+              customerId: freshOrder.customerId,
+              amount: requestedPaid,
+              currency: 'INR',
+              status: PaymentStatus.PAID,
+              provider: method,
+              receiptId: `RCP-DIST-DELV-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              description: `Partial payment on delivery: ₹${requestedPaid}`,
+              createdAt: new Date(),
+            },
+          });
+
+          await tx.paymentAuditLog.create({
+            data: {
+              paymentId: createdPayment.id,
+              action: 'PAYMENT_COLLECTED_ON_DELIVERY',
+              previousStatus: freshOrder.paymentStatus,
+              newStatus: newPaymentStatus,
+              notes: `Partial collected: ₹${requestedPaid} via ${method}. PrevPaid: ₹${currentPaid}, NewPaid: ₹${newTotalPaid}, RemainingDue: ₹${Number((freshOrder.totalAmount - newTotalPaid).toFixed(2))}`,
+            },
+          });
+
+          paymentHistoryNote = `Delivered · Partial payment ₹${requestedPaid} received via ${method}. Due: ₹${Number((freshOrder.totalAmount - newTotalPaid).toFixed(2))}`;
+        } else {
+          // FULL payment (paymentMode === 'FULL' or default)
+          if (remainingDue > 0) {
+            const createdPayment = await tx.payment.create({
+              data: {
+                orderId: freshOrder.id,
+                customerId: freshOrder.customerId,
+                amount: remainingDue,
+                currency: 'INR',
+                status: PaymentStatus.PAID,
+                provider: method,
+                receiptId: `RCP-DIST-DELV-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                description: `Full payment on delivery: ₹${remainingDue}`,
+                createdAt: new Date(),
+              },
+            });
+
+            await tx.paymentAuditLog.create({
+              data: {
+                paymentId: createdPayment.id,
+                action: 'PAYMENT_COLLECTED_ON_DELIVERY',
+                previousStatus: freshOrder.paymentStatus,
+                newStatus: PaymentStatus.PAID,
+                notes: `Full payment collected: ₹${remainingDue} via ${method}. Order fully settled.`,
+              },
+            });
+          }
+          newPaymentStatus = PaymentStatus.PAID;
+          paymentHistoryNote = `Delivered & Fully Paid ₹${freshOrder.totalAmount} via ${method}`;
+        }
+      } else if (isDelivering) {
+        paymentHistoryNote = `Marked as Delivered (payment recorded separately)`;
+      }
+
       const res = await tx.order.update({
         where: { id: orderId },
         data: {
           status: dto.status,
           deliveredAt,
+          ...(isDelivering && dto.paymentInfo
+            ? {
+                paymentStatus: newPaymentStatus,
+                paymentMethod: dto.paymentInfo.paymentMethod || freshOrder.paymentMethod,
+              }
+            : {}),
         },
         include: {
           customer: {
@@ -1705,7 +1904,7 @@ export class OrderService {
           },
           address: true,
           items: { include: { product: true } },
-          payments: true,
+          payments: { orderBy: { createdAt: 'desc' } },
           history: {
             include: { user: { select: { firstName: true, lastName: true } } },
             orderBy: { createdAt: 'asc' },
@@ -1713,17 +1912,34 @@ export class OrderService {
         },
       });
 
+      const historyReason = paymentHistoryNote
+        || dto.reason
+        || `Status updated to ${dto.status} by Distributor`;
+
       await tx.orderStatusHistory.create({
         data: {
           orderId,
-          previousStatus: order.status,
+          previousStatus: freshOrder.status,
           newStatus: dto.status,
           changedByUserId: distributorUserId,
-          reason: dto.reason || `Status updated to ${dto.status} by Distributor`,
+          reason: historyReason,
         },
       });
 
-      return res;
+      // Attach authoritative computed payment fields
+      const totalPaid = res.payments
+        .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const amountDue = Math.max(0, Number((res.totalAmount - totalPaid).toFixed(2)));
+
+      return {
+        ...res,
+        amountPaid: totalPaid,
+        amountDue,
+        orderTotal: res.totalAmount,
+        totalPaid,
+        dueAmount: amountDue,
+      };
     });
 
     try {
@@ -1735,6 +1951,7 @@ export class OrderService {
     return updated;
   }
 
+
   async recordDistributorPayment(
     orderId: string,
     distributorUserId: string,
@@ -1742,7 +1959,7 @@ export class OrderService {
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { payments: true },
+      select: { distributorId: true },
     });
 
     if (!order) {
@@ -1753,84 +1970,12 @@ export class OrderService {
       throw new ForbiddenException('You are not authorized to record payment for this order');
     }
 
-    const currentPaid = order.payments
-      .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
-      .reduce((sum, p) => sum + p.amount, 0);
-
-    const remainingDue = Math.max(0, Number((order.totalAmount - currentPaid).toFixed(2)));
-
-    if (remainingDue <= 0) {
-      throw new BadRequestException('This order is already fully paid.');
-    }
-
-    const paymentAmount = Number(dto.amount);
-    if (isNaN(paymentAmount) || paymentAmount <= 0) {
-      throw new BadRequestException('Payment amount must be greater than 0.');
-    }
-
-    if (paymentAmount > remainingDue + 0.01) {
-      throw new BadRequestException(
-        `Payment amount (₹${paymentAmount}) exceeds remaining balance due (₹${remainingDue}).`,
-      );
-    }
-
-    const newTotalPaid = Number((currentPaid + paymentAmount).toFixed(2));
-    const targetPaymentStatus =
-      newTotalPaid >= order.totalAmount ? PaymentStatus.PAID : PaymentStatus.PARTIALLY_PAID;
-
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Create Payment record
-      const payment = await tx.payment.create({
-        data: {
-          orderId: order.id,
-          customerId: order.customerId,
-          amount: paymentAmount,
-          currency: 'INR',
-          status: PaymentStatus.PAID,
-          provider: dto.paymentMethod || 'CASH',
-          receiptId: dto.referenceNumber || `RCP-DIST-${Date.now()}`,
-          description: dto.notes || `Payment recorded by distributor: ₹${paymentAmount}`,
-          createdAt: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
-        },
-      });
-
-      // 2. Update Order payment status and method
-      const updatedOrder = await tx.order.update({
-        where: { id: order.id },
-        data: {
-          paymentStatus: targetPaymentStatus,
-          paymentMethod: dto.paymentMethod,
-        },
-        include: {
-          customer: {
-            include: {
-              user: { select: { firstName: true, lastName: true, phone: true } },
-            },
-          },
-          address: true,
-          items: { include: { product: true } },
-          payments: { orderBy: { createdAt: 'desc' } },
-          history: { orderBy: { createdAt: 'asc' } },
-        },
-      });
-
-      // 3. Log Status History
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: order.id,
-          previousStatus: order.status,
-          newStatus: order.status,
-          changedByUserId: distributorUserId,
-          reason: `Payment recorded: ₹${paymentAmount} via ${dto.paymentMethod} (New Status: ${targetPaymentStatus})`,
-        },
-      });
-
-      return {
-        ...updatedOrder,
-        amountPaid: newTotalPaid,
-        amountDue: Math.max(0, Number((updatedOrder.totalAmount - newTotalPaid).toFixed(2))),
-        newPayment: payment,
-      };
+    // Delegate to authoritative unified payment recording method with row-level locking & audit logs
+    return this.recordOrderPayment(orderId, distributorUserId, {
+      amount: dto.amount,
+      paymentMethod: dto.paymentMethod || 'CASH',
+      referenceNumber: dto.referenceNumber,
+      notes: dto.notes || 'Payment collected by distributor',
     });
   }
 
@@ -2197,6 +2342,201 @@ export class OrderService {
     }
 
     return fullOrder;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // UNIFIED PAYMENT RECORDING — works for any portal (distributor/staff/customer)
+  // ─────────────────────────────────────────────────────────────────────────
+  async recordOrderPayment(
+    orderId: string,
+    actingUserId: string,
+    dto: {
+      amount: number;
+      paymentMethod: string;
+      referenceNumber?: string;
+      notes?: string;
+      idempotencyKey?: string;
+    },
+  ) {
+    const paymentAmount = Number(dto.amount);
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      throw new BadRequestException('Payment amount must be greater than 0.');
+    }
+
+    const idempotencyKey = dto.idempotencyKey || dto.referenceNumber;
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. Idempotency Check: if key provided, return existing state without duplicate creation
+      if (idempotencyKey) {
+        const existingPayment = await tx.payment.findFirst({
+          where: {
+            orderId,
+            receiptId: idempotencyKey,
+          },
+        });
+
+        if (existingPayment) {
+          const existingOrder = await tx.order.findUnique({
+            where: { id: orderId },
+            include: {
+              customer: {
+                include: {
+                  user: { select: { firstName: true, lastName: true, phone: true } },
+                },
+              },
+              address: true,
+              items: { include: { product: true } },
+              payments: { orderBy: { createdAt: 'desc' } },
+              history: { orderBy: { createdAt: 'asc' } },
+            },
+          });
+
+          if (existingOrder) {
+            const paid = (existingOrder.payments || [])
+              .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+              .reduce((sum, p) => sum + p.amount, 0);
+            const due = Math.max(0, Number((existingOrder.totalAmount - paid).toFixed(2)));
+            return {
+              ...existingOrder,
+              amountPaid: paid,
+              amountDue: due,
+              orderTotal: existingOrder.totalAmount,
+              totalPaid: paid,
+              dueAmount: due,
+            };
+          }
+        }
+      }
+
+      // 2. Concurrency Control: Acquire exclusive PostgreSQL row-level lock on the Order
+      await tx.$executeRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+
+      // 3. Re-read authoritative order state inside transaction AFTER acquiring the lock
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: {
+          payments: { orderBy: { createdAt: 'desc' } },
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true } },
+            },
+          },
+          address: true,
+          items: { include: { product: true } },
+          history: { orderBy: { createdAt: 'asc' } },
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException(`Order not found: ${orderId}`);
+      }
+
+      const currentPaid = (order.payments || [])
+        .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum, p) => sum + p.amount, 0);
+
+      const remainingDue = Math.max(0, Number((order.totalAmount - currentPaid).toFixed(2)));
+
+      if (remainingDue <= 0) {
+        throw new BadRequestException('This order has already been fully paid.');
+      }
+
+      if (paymentAmount > remainingDue + 0.01) {
+        throw new BadRequestException(
+          `Payment amount (₹${paymentAmount}) exceeds remaining balance due (₹${remainingDue}).`,
+        );
+      }
+
+      const newTotalPaid = Number((currentPaid + paymentAmount).toFixed(2));
+      const targetPaymentStatus =
+        newTotalPaid >= order.totalAmount ? PaymentStatus.PAID : PaymentStatus.PARTIALLY_PAID;
+      const newDueAmount = Math.max(0, Number((order.totalAmount - newTotalPaid).toFixed(2)));
+
+      // 4. Create single authoritative Payment record
+      const finalReceiptId =
+        idempotencyKey ||
+        `RCP-PAY-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+      const payment = await tx.payment.create({
+        data: {
+          orderId: order.id,
+          customerId: order.customerId,
+          amount: paymentAmount,
+          currency: 'INR',
+          status: PaymentStatus.PAID,
+          provider: dto.paymentMethod || 'CASH',
+          receiptId: finalReceiptId,
+          description: dto.notes || `Payment recorded: ₹${paymentAmount}`,
+          createdAt: new Date(),
+        },
+      });
+
+      // 5. Create audit record in PaymentAuditLog
+      await tx.paymentAuditLog.create({
+        data: {
+          paymentId: payment.id,
+          action: 'PAYMENT_COLLECTED',
+          previousStatus: order.paymentStatus,
+          newStatus: targetPaymentStatus,
+          notes: `Amount: ₹${paymentAmount}, Method: ${dto.paymentMethod || 'CASH'}, PrevPaid: ₹${currentPaid}, NewPaid: ₹${newTotalPaid}, PrevDue: ₹${remainingDue}, NewDue: ₹${newDueAmount}, Actor: ${actingUserId}`,
+        },
+      });
+
+      // 6. Update Order financial status and method
+      const updatedOrder = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: targetPaymentStatus,
+          paymentMethod: dto.paymentMethod || order.paymentMethod,
+        },
+        include: {
+          customer: {
+            include: {
+              user: { select: { firstName: true, lastName: true, phone: true } },
+            },
+          },
+          address: true,
+          items: { include: { product: true } },
+          payments: { orderBy: { createdAt: 'desc' } },
+          history: { orderBy: { createdAt: 'asc' } },
+        },
+      });
+
+      // 7. Create status history entry
+      let validUserId: string | null = null;
+      if (actingUserId) {
+        const userExists = await tx.user.findUnique({ where: { id: actingUserId }, select: { id: true } });
+        if (userExists) validUserId = userExists.id;
+      }
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          previousStatus: order.status,
+          newStatus: order.status,
+          changedByUserId: validUserId,
+          reason: `Payment collected: ₹${paymentAmount} via ${dto.paymentMethod || 'CASH'} (Status: ${targetPaymentStatus}, Due: ₹${newDueAmount})`,
+        },
+      });
+
+      return {
+        ...updatedOrder,
+        amountPaid: newTotalPaid,
+        amountDue: newDueAmount,
+        orderTotal: updatedOrder.totalAmount,
+        totalPaid: newTotalPaid,
+        dueAmount: newDueAmount,
+        paymentStatus: targetPaymentStatus,
+      };
+    });
+
+    try {
+      this.eventsGateway.emitOrderStatusUpdate(orderId, result.status, result.customerId, result);
+    } catch (e) {
+      console.warn('[OrderService] payment update socket warning:', e);
+    }
+
+    return result;
   }
 }
 

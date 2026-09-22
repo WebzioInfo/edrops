@@ -17,13 +17,21 @@ import {
   XCircle,
   LifeBuoy,
   RefreshCw,
-  Download
+  Download,
+  CreditCard,
+  X,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useSocket } from '../../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { formatOrderId, formatOrderStatus, formatDeliverySlot, formatPaymentDetails } from '../../../utils/orderFormatters';
+import {
+  formatOrderId,
+  formatOrderStatus,
+  formatDeliverySlot,
+  formatPaymentDetails,
+  getOrderPaymentState,
+} from '../../../utils/orderFormatters';
 import { generateOrderInvoice } from '../../../utils/InvoiceGenerator';
 
 export default function OrderDetails() {
@@ -33,6 +41,9 @@ export default function OrderDetails() {
   const [order, setOrder] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [payMethod, setPayMethod] = useState('UPI');
+  const [isPaying, setIsPaying] = useState(false);
 
   const fetchOrder = async (isManual = false) => {
     if (!orderId) return;
@@ -54,6 +65,38 @@ export default function OrderDetails() {
     } finally {
       setLoading(false);
       if (isManual) setRefreshing(false);
+    }
+  };
+
+  const handlePaySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    const pst = getOrderPaymentState(order);
+    if (!pst.hasDue) {
+      toast.error('This order is already fully paid.');
+      return;
+    }
+
+    try {
+      setIsPaying(true);
+      const idempotencyKey = `PAY-CUST-${order.id}-${Date.now()}`;
+      await fetchWithAuth(`/orders/${order.id}/payments`, {
+        method: 'POST',
+        body: JSON.stringify({
+          amount: pst.due,
+          paymentMethod: payMethod,
+          notes: 'Customer online payment',
+          idempotencyKey,
+        }),
+      });
+
+      toast.success(`Payment of ₹${pst.due} processed successfully!`);
+      setPayModalOpen(false);
+      fetchOrder(true);
+    } catch (err: any) {
+      toast.error(err.message || 'Payment processing failed');
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -513,22 +556,79 @@ export default function OrderDetails() {
                   </div>
                 )}
 
-                <div className="pt-3 border-t border-[#F1F5F9] flex justify-between items-center">
-                  <span className="font-bold text-sm text-[#0F172A]">
-                    {order.paymentMethod === 'COD' && !['DELIVERED', 'COMPLETED'].includes(order.status) ? 'Total Due' : 'Total Paid'}
-                  </span>
-                  <span className="text-2xl font-black text-[#1E88E5]">₹{grandTotal}</span>
-                </div>
-              </div>
+                {(() => {
+                  const pst = getOrderPaymentState(order);
+                  return (
+                    <div className="pt-3 border-t border-[#F1F5F9] space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-semibold text-[#64748B]">Total Amount</span>
+                        <span className="font-bold text-[#0F172A]">₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-semibold text-[#64748B]">Paid</span>
+                        <span className="font-bold text-emerald-600">₹{pst.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-semibold text-[#64748B]">Outstanding Due</span>
+                        <span className={`font-bold ${pst.hasDue ? 'text-orange-600' : 'text-emerald-600'}`}>
+                          ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs pt-1.5 border-t border-[#F1F5F9]">
+                        <span className="font-semibold text-[#64748B]">Payment Status</span>
+                        <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] border ${pst.badgeClass}`}>
+                          {pst.canonicalStatus === 'PAID' ? 'PAID' : pst.canonicalStatus === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : 'UNPAID'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-[#64748B] font-medium">Payment Mode</span>
+                        <span className="font-bold text-[#0F172A] bg-[#F8FAFC] px-2.5 py-1 rounded-lg border border-[#E2E8F0]">
+                          {formatPaymentDetails(order).method}
+                        </span>
+                      </div>
 
-              {/* Payment Method Badge */}
-              <div className="mt-4 pt-3 border-t border-[#F1F5F9] flex items-center justify-between text-xs">
-                <span className="text-[#64748B] font-medium">Payment Mode</span>
-                <span className="font-bold text-[#0F172A] bg-[#F8FAFC] px-2.5 py-1 rounded-lg border border-[#E2E8F0]">
-                  {formatPaymentDetails(order).fullLabel}
-                </span>
+                      {pst.hasDue && order.status !== 'CANCELLED' && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setPayModalOpen(true)}
+                            className="w-full py-2.5 px-3 bg-[#1E88E5] hover:bg-[#1565C0] text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            <span>Pay Outstanding Balance (₹{pst.due})</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
+
+            {/* Payment History Card (actual payment events only) */}
+            {order.payments && order.payments.length > 0 && (
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-xs space-y-3">
+                <h3 className="font-bold text-xs text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5 pb-2 border-b border-[#F1F5F9]">
+                  <CreditCard className="w-4 h-4 text-[#1E88E5]" />
+                  Payment History ({order.payments.length})
+                </h3>
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {order.payments.map((pmt: any) => (
+                    <div key={pmt.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
+                      <div>
+                        <div className="font-bold text-[#0F172A]">₹{Number(pmt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          {pmt.provider} · {new Date(pmt.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {pmt.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Quick Actions Card */}
             <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-xs space-y-3">
@@ -559,6 +659,97 @@ export default function OrderDetails() {
         </div>
 
       </div>
+
+      {/* ─── MODAL: CUSTOMER ONLINE PAYMENT ──────────────────────── */}
+      {payModalOpen && (() => {
+        const pst = getOrderPaymentState(order);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-[#1E88E5]" />
+                    Pay Outstanding Balance
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Order: <span className="font-bold text-slate-800">#ORD-{formatOrderId(order.id)}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPayModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handlePaySubmit} className="space-y-4">
+                {/* Breakdown */}
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-semibold">Total Order Amount:</span>
+                    <span className="font-bold text-slate-800">₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-semibold">Already Paid:</span>
+                    <span className="font-bold text-emerald-600">₹{pst.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-slate-200/70 font-black text-sm">
+                    <span className="text-orange-700">Amount Due:</span>
+                    <span className="text-orange-700">₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Select Payment Method
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'UPI', label: 'UPI / QR' },
+                      { id: 'RAZORPAY', label: 'Online' },
+                      { id: 'CARD', label: 'Card' },
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setPayMethod(m.id)}
+                        className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
+                          payMethod === m.id
+                            ? 'border-[#1E88E5] bg-blue-50/70 text-[#1E88E5] shadow-2xs'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setPayModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isPaying}
+                    className="px-4 py-2.5 bg-[#1E88E5] hover:bg-[#1565C0] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>{isPaying ? 'Processing...' : `Pay ₹${pst.due}`}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

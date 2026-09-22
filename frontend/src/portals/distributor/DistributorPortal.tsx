@@ -5,7 +5,6 @@ import {
   LogOut,
   LayoutDashboard,
   Wallet,
-  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -20,6 +19,7 @@ const Suppliers = React.lazy(() => import('./pages/Suppliers'));
 const SupplierDetail = React.lazy(() => import('./pages/SupplierDetail'));
 const Orders = React.lazy(() => import('./pages/Orders'));
 const NewOrders = React.lazy(() => import('./pages/NewOrders'));
+const Reports = React.lazy(() => import('./pages/Reports'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 
 
@@ -195,7 +195,7 @@ export default function DistributorPortal() {
               <Route path="new-orders" element={<NewOrders />} />
               <Route path="orders" element={<Orders />} />
               <Route path="wallet" element={<OperationalPlaceholder title="Wallet" icon={Wallet} />} />
-              <Route path="reports" element={<OperationalPlaceholder title="Reports" icon={BarChart3} />} />
+              <Route path="reports" element={<Reports />} />
               <Route path="profile" element={<Profile />} />
               <Route path="*" element={<Navigate to="/distributor/purchases" replace />} />
             </Routes>

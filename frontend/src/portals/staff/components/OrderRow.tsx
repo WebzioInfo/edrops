@@ -14,7 +14,7 @@ import {
   Package,
   ShieldCheck,
 } from 'lucide-react';
-import { formatOrderId, formatOrderStatus, formatPaymentDetails, formatDeliverySlot } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus, formatPaymentDetails, formatDeliverySlot, getOrderPaymentState } from '../../../utils/orderFormatters';
 
 export interface Distributor {
   id: string;
@@ -40,6 +40,7 @@ interface OrderRowProps {
   onStatusUpdate: (orderId: string, newStatus: string, paymentConfirmation?: any) => Promise<void>;
   onAssignPartner?: (orderId: string, deliveryPartnerId: string) => Promise<void>;
   onAssignDistributor?: (orderId: string, distributorId: string) => Promise<void>;
+  onCollect?: (order: any) => void;
   isAssigning: boolean;
 }
 
@@ -52,6 +53,7 @@ export default function OrderRow({
   onStatusUpdate,
   onAssignPartner,
   onAssignDistributor,
+  onCollect,
   isAssigning,
 }: OrderRowProps) {
   const distributorList = distributors.length > 0 ? distributors : partners;
@@ -65,7 +67,7 @@ export default function OrderRow({
   const payment = formatPaymentDetails(order);
   const rawMethod = (order.paymentMethod || '').toUpperCase();
   const isCOD = rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY' || rawMethod.includes('COD') || rawMethod.includes('CASH');
-  const isOnline = rawMethod === 'RAZORPAY' || rawMethod === 'ONLINE' || rawMethod === 'PREPAID' || rawMethod === 'WALLET';
+
 
   const assignedDistributor =
     order.distributor ||
@@ -218,26 +220,45 @@ export default function OrderRow({
         {/* Right: Price + Payment Status Indicator + Delivery Status Badge + Manage Button */}
         <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
           {/* Price & Payment Status */}
-          <div className="text-right">
-            <div className="text-xs sm:text-sm font-black text-[#0F172A]">
-              ₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}
-            </div>
-            <div className="text-[10px] font-medium text-[#64748B] flex items-center justify-end gap-1.5 mt-0.5">
-              <span>{isCOD ? 'COD' : isOnline ? 'Online' : (order.paymentMethod || 'Payment')}</span>
-              <span className="text-[#CBD5E1]">•</span>
-              {payment.status === 'Paid' || payment.status === 'Collected' ? (
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  {payment.status}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 font-bold text-amber-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                  Pending
-                </span>
-              )}
-            </div>
-          </div>
+          {(() => {
+            const pst = getOrderPaymentState(order);
+            return (
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="text-right">
+                  <div className="text-xs sm:text-sm font-black text-[#0F172A]">
+                    ₹{pst.total.toLocaleString('en-IN')}
+                  </div>
+                  {pst.paid > 0 && (
+                    <div className="text-[10px] font-semibold text-emerald-700">
+                      Paid ₹{pst.paid.toLocaleString('en-IN')}
+                    </div>
+                  )}
+                  {pst.hasDue ? (
+                    <div className="text-[10px] font-bold text-orange-600">
+                      Due ₹{pst.due.toLocaleString('en-IN')}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] font-semibold text-emerald-600">Paid in full</div>
+                  )}
+                </div>
+
+                {pst.hasDue && onCollect && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCollect(order);
+                    }}
+                    className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer shadow-2xs flex items-center gap-1 shrink-0"
+                    title={`Collect outstanding payment ₹${pst.due.toFixed(2)}`}
+                  >
+                    <CreditCard className="w-3 h-3" />
+                    <span>Collect</span>
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Status Badge */}
           <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap hidden sm:inline-flex items-center gap-1 ${getStatusBadgeStyle()}`}>
@@ -316,21 +337,53 @@ export default function OrderRow({
                     <div>
                       <span className="font-semibold text-[#0F172A]">Slot:</span> {formatDeliverySlot(order.timeSlot)}
                     </div>
-                    <div className="flex items-center gap-1.5 pt-0.5">
-                      <CreditCard className="w-3.5 h-3.5 text-[#64748B]" />
-                      <span className="font-semibold text-[#0F172A]">Payment Status:</span>
-                      {payment.status === 'Paid' || payment.status === 'Collected' ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          {isCOD ? 'COD (Collected)' : `${payment.method} (Paid)`}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                          {isCOD ? 'COD (Pending)' : `${payment.method} (Pending)`}
-                        </span>
-                      )}
-                    </div>
+                    {(() => {
+                      const pst = getOrderPaymentState(order);
+                      return (
+                        <div className="pt-2 border-t border-[#F1F5F9] space-y-1.5 text-xs">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-[#64748B]">Total Amount</span>
+                            <span className="font-bold text-[#0F172A]">₹{pst.total.toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-[#64748B]">Paid</span>
+                            <span className="font-bold text-emerald-600">₹{pst.paid.toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-[#64748B]">Due</span>
+                            <span className={`font-bold ${pst.hasDue ? 'text-orange-600' : 'text-emerald-600'}`}>
+                              ₹{pst.due.toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center pt-0.5">
+                            <span className="font-semibold text-[#64748B]">Payment Status</span>
+                            <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] border ${pst.badgeClass}`}>
+                              {pst.canonicalStatus === 'PAID' ? 'PAID' : pst.canonicalStatus === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : 'UNPAID'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center pt-0.5">
+                            <span className="font-semibold text-[#64748B]">Payment Method</span>
+                            <span className="font-semibold text-[#0F172A]">{payment.method}</span>
+                          </div>
+
+                          {pst.hasDue && onCollect && (
+                            <div className="pt-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onCollect(order);
+                                }}
+                                className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                              >
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>Collect ₹{pst.due.toLocaleString('en-IN')}</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 

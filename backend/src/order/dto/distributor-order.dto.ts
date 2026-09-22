@@ -93,6 +93,22 @@ export class CreateDistributorOrderDto {
   notes?: string;
 }
 
+export class DeliveryPaymentInfoDto {
+  @IsOptional()
+  @IsEnum(['FULL', 'PARTIAL'])
+  paymentMode?: 'FULL' | 'PARTIAL';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  amountPaid?: number;
+
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+}
+
 export class UpdateDistributorOrderStatusDto {
   @IsEnum(OrderStatus)
   @IsNotEmpty()
@@ -101,6 +117,11 @@ export class UpdateDistributorOrderStatusDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DeliveryPaymentInfoDto)
+  paymentInfo?: DeliveryPaymentInfoDto;
 }
 
 export class RecordDistributorPaymentDto {
@@ -124,7 +145,13 @@ export class RecordDistributorPaymentDto {
   @IsOptional()
   @IsString()
   paymentDate?: string;
+
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }
+
+export class RecordOrderPaymentDto extends RecordDistributorPaymentDto {}
 
 export class CancelDistributorOrderDto {
   @IsString()

@@ -30,90 +30,120 @@ export function formatDeliverySlot(slot?: string | null): string {
   return slot;
 }
 
-export function formatPaymentDetails(order: any): { method: string; status: 'Collected' | 'Paid' | 'Pending'; fullLabel: string; badgeClass: string } {
+export function formatPaymentDetails(order: any): { method: string; status: 'Paid' | 'Partially Paid' | 'Unpaid'; fullLabel: string; badgeClass: string } {
   if (!order) {
     return {
       method: 'N/A',
-      status: 'Pending',
-      fullLabel: 'N/A (Pending)',
+      status: 'Unpaid',
+      fullLabel: 'Unpaid',
       badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
     };
   }
 
-  const deliveryStatus = (order.deliveryStatus || order.status || '').toUpperCase();
-  const isDelivered = deliveryStatus === 'DELIVERED' || deliveryStatus === 'COMPLETED';
+  const pst = getOrderPaymentState(order);
   const rawMethod = (order.paymentMethod || '').toUpperCase();
-  const rawStatus = (order.paymentStatus || '').toUpperCase();
 
-  // 1. CASH ON DELIVERY (COD)
-  // Payment is collected only if order is delivered AND payment was explicitly confirmed/collected
+  let method = 'Online / Card';
   if (rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY' || rawMethod.includes('COD') || rawMethod.includes('CASH')) {
-    const isCollected = isDelivered && (rawStatus === 'SUCCESS' || rawStatus === 'PAID' || rawStatus === 'COLLECTED' || !!order.paymentCollected);
-    if (isCollected) {
-      return {
-        method: 'Cash on Delivery (COD)',
-        status: 'Collected',
-        fullLabel: 'COD (Collected)',
-        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      };
-    }
-    return {
-      method: 'Cash on Delivery (COD)',
-      status: 'Pending',
-      fullLabel: isDelivered ? 'COD (Pending)' : 'COD (Pending — due on delivery)',
-      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-    };
+    method = 'Cash on Delivery (COD)';
+  } else if (rawMethod === 'WALLET') {
+    method = 'Wallet Balance';
+  } else if (rawMethod === 'UPI') {
+    method = 'UPI';
+  } else if (rawMethod === 'BANK_TRANSFER') {
+    method = 'Bank Transfer';
+  } else if (order.paymentMethod) {
+    method = order.paymentMethod.replace(/_/g, ' ');
   }
 
-  // 2. WALLET
-  if (rawMethod === 'WALLET') {
-    return {
-      method: 'Wallet Balance',
-      status: 'Paid',
-      fullLabel: 'Wallet (Paid)',
-      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    };
-  }
+  const status: 'Paid' | 'Partially Paid' | 'Unpaid' =
+    pst.canonicalStatus === 'PAID'
+      ? 'Paid'
+      : pst.canonicalStatus === 'PARTIALLY_PAID'
+      ? 'Partially Paid'
+      : 'Unpaid';
 
-  // 3. ONLINE / RAZORPAY / GATEWAY
-  // Online payment is confirmed at checkout regardless of delivery progress
-  if (rawMethod === 'RAZORPAY' || rawMethod === 'ONLINE' || rawMethod === 'PREPAID') {
-    const isPaidOnline = rawStatus === 'SUCCESS' || rawStatus === 'PAID' || !order.paymentStatus;
-    if (isPaidOnline) {
-      return {
-        method: 'Razorpay Online',
-        status: 'Paid',
-        fullLabel: 'Online (Paid)',
-        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      };
-    }
-    return {
-      method: 'Razorpay Online',
-      status: 'Pending',
-      fullLabel: 'Online (Pending)',
-      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-    };
-  }
-
-  // 4. FALLBACK
-  const isSuccess = rawStatus === 'SUCCESS' || rawStatus === 'PAID';
-  const displayMethod = order.paymentMethod ? order.paymentMethod.replace(/_/g, ' ') : 'Payment';
   return {
-    method: displayMethod,
-    status: isSuccess ? 'Paid' : 'Pending',
-    fullLabel: `${displayMethod} (${isSuccess ? 'Paid' : 'Pending'})`,
-    badgeClass: isSuccess
-      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-      : 'bg-amber-50 text-amber-700 border-amber-200',
+    method,
+    status,
+    fullLabel: `${method} · ${status}`,
+    badgeClass: pst.badgeClass,
   };
 }
 
 export function getPaymentStatusLabel(order: any): { label: string; badgeClass: string; isPaid: boolean } {
-  const details = formatPaymentDetails(order);
-  const isPaid = details.status === 'Paid' || details.status === 'Collected';
+  const pst = getOrderPaymentState(order);
+  const label =
+    pst.canonicalStatus === 'PAID'
+      ? 'PAID'
+      : pst.canonicalStatus === 'PARTIALLY_PAID'
+      ? 'PARTIALLY PAID'
+      : 'UNPAID';
+
   return {
-    label: details.status.toUpperCase(),
-    badgeClass: details.badgeClass,
-    isPaid,
+    label,
+    badgeClass: pst.badgeClass,
+    isPaid: pst.canonicalStatus === 'PAID',
   };
+}
+
+/**
+ * Canonical order payment state — reads backend-computed amountPaid/amountDue
+ * and returns structured info for rendering in any portal.
+ */
+export function getOrderPaymentState(order: any): {
+  total: number;
+  paid: number;
+  due: number;
+  canonicalStatus: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID';
+  label: string;
+  badgeClass: string;
+  hasDue: boolean;
+} {
+  if (!order) {
+    return {
+      total: 0,
+      paid: 0,
+      due: 0,
+      canonicalStatus: 'UNPAID',
+      label: 'Unpaid',
+      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+      hasDue: false,
+    };
+  }
+
+  const total = Number(order.totalAmount || 0);
+  const paid = Number(order.amountPaid ?? order.totalPaid ?? 0);
+  const due = Number(order.amountDue ?? order.dueAmount ?? Math.max(0, Number((total - paid).toFixed(2))));
+
+  const rawStatus = (order.paymentStatus || '').toUpperCase();
+
+  let canonicalStatus: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID';
+  if (rawStatus === 'PAID' || rawStatus === 'SUCCESS') {
+    canonicalStatus = 'PAID';
+  } else if (rawStatus === 'PARTIALLY_PAID') {
+    canonicalStatus = 'PARTIALLY_PAID';
+  } else if (paid > 0 && due > 0) {
+    canonicalStatus = 'PARTIALLY_PAID';
+  } else if (paid >= total && total > 0) {
+    canonicalStatus = 'PAID';
+  } else {
+    canonicalStatus = 'UNPAID';
+  }
+
+  const label =
+    canonicalStatus === 'PAID'
+      ? 'Paid'
+      : canonicalStatus === 'PARTIALLY_PAID'
+      ? 'Partially Paid'
+      : 'Unpaid';
+
+  const badgeClass =
+    canonicalStatus === 'PAID'
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      : canonicalStatus === 'PARTIALLY_PAID'
+      ? 'bg-orange-50 text-orange-700 border-orange-200'
+      : 'bg-amber-50 text-amber-700 border-amber-200';
+
+  return { total, paid, due, canonicalStatus, label, badgeClass, hasDue: due > 0 };
 }

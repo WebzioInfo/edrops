@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
-import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
+import { formatOrderId, formatOrderStatus, getOrderPaymentState } from '../../../utils/orderFormatters';
 import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
 import { useSocket } from '../../../contexts/SocketContext';
 
@@ -193,6 +193,10 @@ export default function Orders() {
   const [newTargetStatus, setNewTargetStatus] = useState<string>('');
   const [statusReason, setStatusReason] = useState<string>('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
+  // Delivery payment fields (shown when DELIVERED is selected)
+  const [deliveryPaymentMode, setDeliveryPaymentMode] = useState<'FULL' | 'PARTIAL'>('FULL');
+  const [deliveryPaymentAmount, setDeliveryPaymentAmount] = useState<string>('');
+  const [deliveryPaymentMethod, setDeliveryPaymentMethod] = useState<string>('CASH');
 
   const [paymentModalOrder, setPaymentModalOrder] = useState<DistributorOrder | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<string>('');
@@ -513,20 +517,52 @@ export default function Orders() {
     const allowed = getAllowedStatusTransitions(order.status);
     setNewTargetStatus(allowed[0] || '');
     setStatusReason('');
+    setDeliveryPaymentMode('FULL');
+    setDeliveryPaymentAmount('');
+    setDeliveryPaymentMethod('CASH');
   };
 
   const handleStatusUpdateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!statusModalOrder || !newTargetStatus) return;
 
+    const isDelivering = newTargetStatus === 'DELIVERED' || newTargetStatus === 'COMPLETED';
+
+    // Validate partial payment amount if needed
+    if (isDelivering && deliveryPaymentMode === 'PARTIAL') {
+      const amt = Number(deliveryPaymentAmount);
+      if (isNaN(amt) || amt <= 0) {
+        toast.error('Please enter a valid partial payment amount greater than 0.');
+        return;
+      }
+      const pst = getOrderPaymentState(statusModalOrder);
+      if (amt > pst.due + 0.01) {
+        toast.error(`Amount (₹${amt}) cannot exceed remaining due (₹${pst.due.toFixed(2)}).`);
+        return;
+      }
+    }
+
     try {
       setIsUpdatingStatus(true);
+
+      const body: any = {
+        status: newTargetStatus,
+        reason: statusReason.trim() || undefined,
+      };
+
+      if (isDelivering) {
+        body.paymentInfo = {
+          paymentMode: deliveryPaymentMode,
+          paymentMethod: deliveryPaymentMethod,
+          ...(deliveryPaymentMode === 'PARTIAL'
+            ? { amountPaid: Number(deliveryPaymentAmount) }
+            : {}),
+        };
+      }
+
       await fetchWithAuth(`/orders/distributor/${statusModalOrder.id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          status: newTargetStatus,
-          reason: statusReason.trim() || undefined,
-        }),
+        body: JSON.stringify(body),
       });
 
       toast.success(`Order updated to ${newTargetStatus}`);
@@ -541,6 +577,7 @@ export default function Orders() {
       setIsUpdatingStatus(false);
     }
   };
+
 
   // Payment Recording
   const handleOpenPaymentModal = (order: DistributorOrder) => {
@@ -563,6 +600,7 @@ export default function Orders() {
 
     try {
       setIsSubmittingPayment(true);
+      const idempotencyKey = `COLLECT-DIST-${paymentModalOrder.id}-${Date.now()}`;
       await fetchWithAuth(`/orders/distributor/${paymentModalOrder.id}/payments`, {
         method: 'POST',
         body: JSON.stringify({
@@ -570,17 +608,18 @@ export default function Orders() {
           paymentMethod,
           referenceNumber: paymentRefNumber.trim() || undefined,
           notes: paymentNotes.trim() || undefined,
+          idempotencyKey,
         }),
       });
 
-      toast.success(`Payment of ₹${amt} recorded successfully!`);
+      toast.success(`Payment of ₹${amt} collected successfully!`);
       setPaymentModalOrder(null);
       loadOrders();
       if (selectedOrder && selectedOrder.id === paymentModalOrder.id) {
         handleOpenDetails(selectedOrder);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to record payment');
+      toast.error(err.message || 'Failed to collect payment');
     } finally {
       setIsSubmittingPayment(false);
     }
@@ -1069,14 +1108,34 @@ export default function Orders() {
                         {order.totalQuantity || order.items?.reduce((s, i) => s + i.quantity, 0) || 0}
                       </td>
 
-                      {/* Total Amount */}
-                      <td className="py-2.5 px-3 whitespace-nowrap text-right font-black text-slate-800">
-                        ₹{Number(order.totalAmount).toLocaleString()}
+                      {/* Total Amount + Paid/Due breakdown */}
+                      <td className="py-2.5 px-3 whitespace-nowrap text-right">
+                        {(() => {
+                          const pst = getOrderPaymentState(order);
+                          return (
+                            <div>
+                              <div className="font-black text-slate-800">₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</div>
+                              {pst.paid > 0 && (
+                                <div className="text-[10px] text-emerald-700 font-semibold">Paid ₹{pst.paid.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</div>
+                              )}
+                              {pst.hasDue && (
+                                <div className="text-[10px] text-orange-600 font-bold">Due ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Payment Status */}
                       <td className="py-2.5 px-3 whitespace-nowrap">
-                        {getPaymentStatusBadge(order.paymentStatus, order.amountDue)}
+                        {(() => {
+                          const pst = getOrderPaymentState(order);
+                          return (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${pst.badgeClass}`}>
+                              {pst.label}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Order Status */}
@@ -1106,17 +1165,21 @@ export default function Orders() {
                             <Eye className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Record Payment (if not already fully paid) */}
-                          {order.paymentStatus !== 'PAID' && order.paymentStatus !== 'SUCCESS' && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenPaymentModal(order)}
-                              className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                              title="Record Payment"
-                            >
-                              <CreditCard className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          {/* Collect Payment — show as Collect ₹X when there's a due amount */}
+                          {(() => {
+                            const pst = getOrderPaymentState(order);
+                            return pst.hasDue ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPaymentModal(order)}
+                                className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                                title={`Collect payment — ₹${pst.due.toFixed(2)} due`}
+                              >
+                                <CreditCard className="w-3 h-3" />
+                                Collect ₹{pst.due.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </button>
+                            ) : null;
+                          })()}
 
                           {/* Update Status (if not delivered or cancelled) */}
                           {!isDeliveredOrFinalized && !isCancelled && (
@@ -1841,14 +1904,111 @@ export default function Orders() {
                 </select>
               </div>
 
-              {newTargetStatus === 'DELIVERED' && (
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800 font-semibold flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>
-                    Marking order as delivered will finalize fulfillment. This state cannot be reverted back to pending.
-                  </span>
-                </div>
-              )}
+              {(newTargetStatus === 'DELIVERED' || newTargetStatus === 'COMPLETED') && (() => {
+                const pst = getOrderPaymentState(statusModalOrder);
+                const partialAmt = Number(deliveryPaymentAmount) || 0;
+                const previewPaid = deliveryPaymentMode === 'FULL' ? pst.due : partialAmt;
+                const previewDue = deliveryPaymentMode === 'FULL' ? 0 : Math.max(0, pst.due - partialAmt);
+                return (
+                  <div className="space-y-3">
+                    {/* Payment Status toggle */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Payment Status <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setDeliveryPaymentMode('FULL')}
+                          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            deliveryPaymentMode === 'FULL'
+                              ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
+                          }`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Fully Paid
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeliveryPaymentMode('PARTIAL')}
+                          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            deliveryPaymentMode === 'PARTIAL'
+                              ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300'
+                          }`}
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                          Partial
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Partial amount input */}
+                    {deliveryPaymentMode === 'PARTIAL' && (
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Amount Paid <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="flex items-center">
+                          <span className="px-2.5 py-2 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-xs font-bold text-slate-600">₹</span>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            max={pst.due}
+                            placeholder={`Max ₹${pst.due.toFixed(2)}`}
+                            value={deliveryPaymentAmount}
+                            onChange={(e) => setDeliveryPaymentAmount(e.target.value)}
+                            className="flex-1 p-2 bg-white border border-slate-200 rounded-r-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8]"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Payment Method */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
+                      <select
+                        value={deliveryPaymentMethod}
+                        onChange={(e) => setDeliveryPaymentMethod(e.target.value)}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
+                      >
+                        <option value="CASH">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CHEQUE">Cheque</option>
+                        <option value="CARD">Card</option>
+                      </select>
+                    </div>
+
+                    {/* Financial Summary */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                      <div className="flex justify-between text-slate-600">
+                        <span>Order Total</span>
+                        <span className="font-bold text-slate-800">₹{pst.total.toFixed(2)}</span>
+                      </div>
+                      {pst.paid > 0 && (
+                        <div className="flex justify-between text-slate-600">
+                          <span>Previously Paid</span>
+                          <span className="font-semibold text-emerald-700">₹{pst.paid.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-slate-600">
+                        <span>Paying Now</span>
+                        <span className="font-bold text-emerald-700">₹{previewPaid.toFixed(2)}</span>
+                      </div>
+                      <div className="border-t border-slate-200 pt-1.5 flex justify-between">
+                        <span className="font-bold text-slate-700">Remaining Due</span>
+                        <span className={`font-black ${previewDue > 0 ? 'text-orange-600' : 'text-emerald-700'}`}>
+                          ₹{previewDue.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1891,7 +2051,7 @@ export default function Orders() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-emerald-600" />
-                Record Order Payment
+                Collect Payment
               </h3>
               <button
                 type="button"
@@ -1920,7 +2080,7 @@ export default function Orders() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Payment Amount (₹) <span className="text-rose-500">*</span>
+                  Amount Collected (₹) <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -1988,9 +2148,9 @@ export default function Orders() {
                 <button
                   type="submit"
                   disabled={isSubmittingPayment}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
                 >
-                  {isSubmittingPayment ? 'Recording...' : 'Record Payment'}
+                  {isSubmittingPayment ? 'Collecting...' : 'Collect Payment'}
                 </button>
               </div>
             </form>
