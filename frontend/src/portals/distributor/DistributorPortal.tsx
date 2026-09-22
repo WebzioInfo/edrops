@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Inbox,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -21,6 +22,8 @@ import MobileSidebarDrawer from '../../components/common/MobileSidebarDrawer';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const Purchases = React.lazy(() => import('./pages/Purchases'));
+const Suppliers = React.lazy(() => import('./pages/Suppliers'));
+const SupplierDetail = React.lazy(() => import('./pages/SupplierDetail'));
 const Orders = React.lazy(() => import('./pages/Orders'));
 const NewOrders = React.lazy(() => import('./pages/NewOrders'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
@@ -36,6 +39,7 @@ const navItems: NavItem[] = [
   { to: '/distributor/new-orders', label: 'New Orders', icon: Inbox },
   { to: '/distributor/orders', label: 'Orders', icon: Package },
   { to: '/distributor/purchases', label: 'Purchases', icon: ShoppingCart },
+  { to: '/distributor/suppliers', label: 'Suppliers', icon: Building2 },
   { to: '/distributor/wallet', label: 'Wallet', icon: Wallet },
   { to: '/distributor/reports', label: 'Reports', icon: BarChart3 },
 ];
@@ -421,6 +425,8 @@ export default function DistributorPortal() {
             <Routes>
               <Route index element={<Navigate to="/distributor/purchases" replace />} />
               <Route path="purchases" element={<Purchases />} />
+              <Route path="suppliers" element={<Suppliers />} />
+              <Route path="suppliers/:id" element={<SupplierDetail />} />
               <Route path="dashboard" element={<OperationalPlaceholder title="Dashboard" icon={LayoutDashboard} />} />
               <Route path="new-orders" element={<NewOrders />} />
               <Route path="orders" element={<Orders />} />

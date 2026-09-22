@@ -16,6 +16,7 @@ import {
   X,
   ExternalLink,
   Sparkles,
+  Ban,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../../../api/client';
@@ -105,6 +106,7 @@ export default function NewOrders() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [search, setSearch] = useState<string>('');
   const [claimingOrderId, setClaimingOrderId] = useState<string | null>(null);
+  const [skippingOrderId, setSkippingOrderId] = useState<string | null>(null);
 
   // Detail drawer
   const [selectedOrder, setSelectedOrder] = useState<NewOrderRecord | null>(null);
@@ -315,16 +317,23 @@ export default function NewOrders() {
       );
 
       // Remove from queue
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
-      setStats((prev) => {
-        const nextCount = Math.max(0, prev.queueCount - 1);
-        window.dispatchEvent(
-          new CustomEvent('edrops:queueCount', { detail: nextCount }),
-        );
-        return {
-          ...prev,
-          queueCount: nextCount,
-        };
+      setOrders((prev) => {
+        const targetOrder = prev.find((o) => o.id === orderId);
+        setStats((s) => {
+          const nextCount = Math.max(0, s.queueCount - 1);
+          window.dispatchEvent(
+            new CustomEvent('edrops:queueCount', { detail: nextCount }),
+          );
+          return {
+            ...s,
+            queueCount: nextCount,
+            totalQueueValue: Math.max(
+              0,
+              Number((s.totalQueueValue - (targetOrder?.totalAmount || 0)).toFixed(2)),
+            ),
+          };
+        });
+        return prev.filter((o) => o.id !== orderId);
       });
 
       if (selectedOrder && selectedOrder.id === orderId) {
@@ -360,6 +369,51 @@ export default function NewOrders() {
       toast.error(err.message || 'Could not accept order.');
     } finally {
       setClaimingOrderId(null);
+    }
+  };
+
+  // Distributor-specific Skip Order Action
+  const handleSkipOrder = async (orderId: string) => {
+    if (skippingOrderId || claimingOrderId) return;
+    setSkippingOrderId(orderId);
+
+    try {
+      await fetchWithAuth(`/orders/distributor/${orderId}/skip`, {
+        method: 'POST',
+      });
+
+      // Remove from current distributor's queue
+      setOrders((prev) => {
+        const skippedOrder = prev.find((o) => o.id === orderId);
+        setStats((s) => {
+          const nextQueue = Math.max(0, s.queueCount - 1);
+          window.dispatchEvent(
+            new CustomEvent('edrops:queueCount', { detail: nextQueue }),
+          );
+          return {
+            ...s,
+            queueCount: nextQueue,
+            totalQueueValue: Math.max(
+              0,
+              Number((s.totalQueueValue - (skippedOrder?.totalAmount || 0)).toFixed(2)),
+            ),
+          };
+        });
+        return prev.filter((o) => o.id !== orderId);
+      });
+
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(null);
+      }
+
+      toast.success(`Order #${formatOrderId(orderId)} skipped from your queue`, {
+        icon: '⏭️',
+      });
+    } catch (err: any) {
+      console.error('[NewOrders] Skip error:', err);
+      toast.error(err?.message || 'Could not skip order.');
+    } finally {
+      setSkippingOrderId(null);
     }
   };
 
@@ -683,8 +737,22 @@ export default function NewOrders() {
                             </button>
 
                             <button
+                              onClick={() => handleSkipOrder(order.id)}
+                              disabled={skippingOrderId === order.id || isClaiming}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 active:scale-95 font-bold rounded-lg text-xs transition border border-slate-300 disabled:opacity-50 cursor-pointer"
+                              title="Skip this order (removes from your queue only)"
+                            >
+                              {skippingOrderId === order.id ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                              ) : (
+                                <Ban className="w-3.5 h-3.5 text-slate-500" />
+                              )}
+                              <span>Skip</span>
+                            </button>
+
+                            <button
                               onClick={() => handleAcceptOrder(order.id)}
-                              disabled={isClaiming}
+                              disabled={isClaiming || skippingOrderId === order.id}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-2xs disabled:opacity-50 cursor-pointer"
                               title="Accept and claim this order"
                             >
@@ -864,32 +932,53 @@ export default function NewOrders() {
               </div>
             </div>
 
-            {/* Drawer Footer with Accept Button */}
-            <div className="p-4 border-t border-[#E2E8F0] bg-white flex items-center justify-between gap-3">
+            {/* Drawer Footer with Close, Skip, and Accept Buttons */}
+            <div className="p-4 border-t border-[#E2E8F0] bg-white flex items-center justify-between gap-2.5">
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-[#16324F] font-bold text-xs hover:bg-slate-50 transition"
+                className="px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] text-[#16324F] font-bold text-xs hover:bg-slate-50 transition cursor-pointer"
               >
                 Close
               </button>
 
-              <button
-                onClick={() => handleAcceptOrder(selectedOrder.id)}
-                disabled={claimingOrderId === selectedOrder.id}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs transition shadow-md disabled:opacity-50 cursor-pointer"
-              >
-                {claimingOrderId === selectedOrder.id ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Claiming Order...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Accept & Claim This Order</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2 flex-1 justify-end">
+                <button
+                  onClick={() => handleSkipOrder(selectedOrder.id)}
+                  disabled={skippingOrderId === selectedOrder.id || claimingOrderId === selectedOrder.id}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs transition disabled:opacity-50 cursor-pointer"
+                  title="Skip this order from your queue"
+                >
+                  {skippingOrderId === selectedOrder.id ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                      <span>Skipping...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Skip Order</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => handleAcceptOrder(selectedOrder.id)}
+                  disabled={claimingOrderId === selectedOrder.id || skippingOrderId === selectedOrder.id}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs transition shadow-md disabled:opacity-50 cursor-pointer"
+                >
+                  {claimingOrderId === selectedOrder.id ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Claiming Order...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Accept & Claim</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

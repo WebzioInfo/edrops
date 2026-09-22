@@ -37,8 +37,10 @@ model User {
   statusUpdates        OrderStatusHistory[]
   verifiedOrderItems   OrderItem[]          @relation("VerifiedOrderItems")
   purchases            Purchase[]           @relation("DistributorPurchases")
+  suppliers            Supplier[]           @relation("DistributorSuppliers")
   distributorOrders    Order[]              @relation("DistributorOrders")
   acceptedOrders       Order[]              @relation("AcceptedOrders")
+  distributorOrderSkips DistributorOrderSkip[] @relation("DistributorOrderSkips")
 
   @@index([email])
   @@index([phone])
@@ -814,6 +816,7 @@ model Order {
   acceptedAt        DateTime?
   acceptedById      String?
   acceptedBy        User?                @relation("AcceptedOrders", fields: [acceptedById], references: [id])
+  distributorSkips  DistributorOrderSkip[]
 
   @@index([distributorId])
   @@index([assignmentStatus])
@@ -1090,22 +1093,97 @@ model DeliveryCollectedJar {
 }
 
 model Purchase {
-  id              String   @id @default(uuid())
-  purchaseNumber  String   @unique
-  purchaseDate    DateTime @default(now())
+  id              String    @id @default(uuid())
+  purchaseNumber  String    @unique
+  purchaseDate    DateTime  @default(now())
   supplierName    String
+  supplierId      String?
   referenceNumber String?
   items           Json
   subtotal        Float
-  tax             Float    @default(0.0)
+  tax             Float     @default(0.0)
   total           Float
-  paymentStatus   String   @default("PAID")
+  paymentStatus   String    @default("PAID")
+  amountPaid      Float?    @default(0.0)
+  payments        Json?     @default("[]")
   distributorId   String
   notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  distributor     User     @relation("DistributorPurchases", fields: [distributorId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  distributor     User      @relation("DistributorPurchases", fields: [distributorId], references: [id], onDelete: Cascade)
+  supplier        Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([distributorId])
+  @@index([supplierId])
   @@index([purchaseDate])
+}
+
+model Supplier {
+  id                 String                @id @default(uuid())
+  distributorId      String
+  name               String
+  contactPerson      String?
+  phone              String?
+  email              String?
+  companyName        String?
+  gstin              String?
+  pan                String?
+  supplierType       String?
+  addressLine1       String?
+  addressLine2       String?
+  city               String?
+  state              String?
+  pinCode            String?
+  country            String?               @default("India")
+  openingBalance     Float                 @default(0.0)
+  openingBalanceType String                @default("PAYABLE")
+  notes              String?
+  isActive           Boolean               @default(true)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  distributor        User                  @relation("DistributorSuppliers", fields: [distributorId], references: [id], onDelete: Cascade)
+  purchases          Purchase[]
+  transactions       SupplierTransaction[]
+
+  @@index([distributorId])
+  @@index([name])
+}
+
+model SupplierTransaction {
+  id            String   @id @default(uuid())
+  supplierId    String
+  distributorId String
+  date          DateTime @default(now())
+  type          String   // "OPENING_BALANCE", "PURCHASE", "PAYMENT"
+  reference     String?
+  description   String?
+  debit         Float    @default(0.0)
+  credit        Float    @default(0.0)
+  balance       Float    @default(0.0)
+  purchaseId    String?
+  createdAt     DateTime @default(now())
+
+  supplier      Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
+  @@index([distributorId])
+  @@index([date])
+}
+
+model DistributorOrderSkip {
+  id            String   @id @default(uuid())
+  distributorId String
+  orderId       String
+  action        String   @default("SKIPPED")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  distributor   User     @relation("DistributorOrderSkips", fields: [distributorId], references: [id], onDelete: Cascade)
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, distributorId])
+  @@index([distributorId])
+  @@index([orderId])
+  @@map("distributor_order_skips")
 }

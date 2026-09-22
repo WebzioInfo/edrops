@@ -80,14 +80,24 @@ export class OrderController {
     @Query('search') search?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+    @Req() req?: any,
   ) {
+    const userId = req?.user?.sub || req?.user?.id || req?.user?.userId;
     return this.orderService.findDistributorNewOrders({
       page,
       limit,
       search,
       sortBy,
       sortOrder,
-    });
+    }, userId);
+  }
+
+  @Post('distributor/:id/skip')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN)
+  skipDistributorOrder(@Param('id') id: string, @Req() req: any) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    return this.orderService.skipDistributorOrder(id, userId);
   }
 
   @Post('distributor/:id/accept')

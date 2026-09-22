@@ -38,6 +38,10 @@ export class CreatePurchaseDto {
 
   @IsOptional()
   @IsString()
+  supplierId?: string;
+
+  @IsOptional()
+  @IsString()
   purchaseDate?: string;
 
   @IsOptional()
@@ -62,6 +66,10 @@ export class CreatePurchaseDto {
   @IsOptional()
   @IsString()
   paymentStatus?: string;
+
+  @IsOptional()
+  @IsNumber()
+  amountPaid?: number;
 
   @IsOptional()
   @IsString()

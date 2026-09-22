@@ -16,6 +16,7 @@ import { Roles, RolesGuard } from '../auth/roles.guard';
 import { PurchaseService } from './purchase.service';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { UpdatePurchaseDto } from './dto/update-purchase.dto';
+import { RecordPurchasePaymentDto } from './dto/record-purchase-payment.dto';
 
 @Controller('purchases')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -53,6 +54,16 @@ export class PurchaseController {
   ) {
     const distributorId = req.user.id || req.user.sub;
     return this.purchaseService.update(id, distributorId, dto);
+  }
+
+  @Post(':id/payments')
+  recordPayment(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: RecordPurchasePaymentDto,
+  ) {
+    const distributorId = req.user.id || req.user.sub;
+    return this.purchaseService.recordPayment(id, distributorId, dto);
   }
 
   @Delete(':id')

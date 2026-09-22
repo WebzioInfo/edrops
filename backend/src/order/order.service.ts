@@ -1928,13 +1928,16 @@ export class OrderService {
   // DISTRIBUTOR NEW ORDER QUEUE & ATOMIC ACCEPTANCE
   // =========================================================================
 
-  async findDistributorNewOrders(query?: {
-    page?: number | string;
-    limit?: number | string;
-    search?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-  }) {
+  async findDistributorNewOrders(
+    query?: {
+      page?: number | string;
+      limit?: number | string;
+      search?: string;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+    },
+    distributorUserId?: string,
+  ) {
     const page = Math.max(1, parseInt(String(query?.page || 1), 10) || 1);
     const limit = Math.max(1, Math.min(100, parseInt(String(query?.limit || 20), 10) || 20));
     const skip = (page - 1) * limit;
@@ -1946,6 +1949,14 @@ export class OrderService {
         notIn: [OrderStatus.DELIVERED, OrderStatus.COMPLETED, OrderStatus.CANCELLED],
       },
     };
+
+    if (distributorUserId) {
+      baseCondition.distributorSkips = {
+        none: {
+          distributorId: distributorUserId,
+        },
+      };
+    }
 
     const where: any = { ...baseCondition };
 
@@ -2059,6 +2070,50 @@ export class OrderService {
     };
   }
 
+  async skipDistributorOrder(orderId: string, distributorUserId: string) {
+    // 1. Verify distributor user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: distributorUserId },
+    });
+    if (!user) {
+      throw new NotFoundException('Distributor user not found');
+    }
+
+    // 2. Verify order exists
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true, assignmentStatus: true, distributorId: true },
+    });
+    if (!order) {
+      throw new NotFoundException(`Order not found: ${orderId}`);
+    }
+
+    // 3. Upsert skip record idempotently
+    await this.prisma.distributorOrderSkip.upsert({
+      where: {
+        orderId_distributorId: {
+          orderId,
+          distributorId: distributorUserId,
+        },
+      },
+      update: {
+        action: 'SKIPPED',
+        updatedAt: new Date(),
+      },
+      create: {
+        orderId,
+        distributorId: distributorUserId,
+        action: 'SKIPPED',
+      },
+    });
+
+    return {
+      success: true,
+      orderId,
+      action: 'SKIPPED',
+    };
+  }
+
   async acceptDistributorOrder(orderId: string, distributorUserId: string) {
     // 1. Verify distributor user exists
     const user = await this.prisma.user.findUnique({
@@ -2081,11 +2136,12 @@ export class OrderService {
       WHERE "id" = ${orderId}
         AND "assignmentStatus" = 'UNASSIGNED'
         AND "distributorId" IS NULL
+        AND "status" NOT IN ('CANCELLED'::"OrderStatus", 'DELIVERED'::"OrderStatus", 'COMPLETED'::"OrderStatus")
     `;
 
     if (rowsAffected === 0) {
       throw new ConflictException(
-        'This order has already been accepted by another distributor.',
+        'This order has already been accepted by another distributor or is no longer available.',
       );
     }
 
