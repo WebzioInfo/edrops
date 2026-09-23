@@ -11,6 +11,7 @@ import {
 } from '@prisma/client';
 import { SettingsService } from '../settings/settings.service';
 import { PaymentService } from '../payment/payment.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class WalletService {
@@ -18,6 +19,7 @@ export class WalletService {
     private prisma: PrismaService,
     private settingsService: SettingsService,
     private paymentService: PaymentService,
+    private notificationService: NotificationService,
   ) {}
 
   async getWallet(userId: string) {
@@ -346,11 +348,30 @@ export class WalletService {
     );
 
     // Credit wallet with the payment amount
-    return this.addFunds(
+    const result = await this.addFunds(
       userId,
       verifiedPayment.amount,
       WalletTransactionType.TOP_UP,
       `Direct Wallet Recharge (₹${verifiedPayment.amount})`,
     );
+
+    try {
+      this.notificationService.notifyPaymentEvent({
+        paymentId: razorpayPaymentId,
+        customerId: customer.id,
+        userId,
+        amount: verifiedPayment.amount,
+        status: 'SUCCESS',
+      });
+      this.notificationService.notifyWalletRecharge({
+        customerId: customer.id,
+        amount: verifiedPayment.amount,
+        newBalance: result.wallet.balance,
+      });
+    } catch (e) {
+      console.warn('[WalletService] notification error:', e);
+    }
+
+    return result;
   }
 }

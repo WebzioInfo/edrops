@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { Bell, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, LifeBuoy, LogIn } from 'lucide-react';
+import { History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, LifeBuoy, LogIn } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -8,6 +8,7 @@ import { EdropsLogo } from '../../components/Logo';
 import { SharedMobileDrawer } from '../../components/common/SharedSidebar';
 import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import CustomerNotificationDropdown from './components/CustomerNotificationDropdown';
 
 const Shop = React.lazy(() => import('./pages/Shop'));
 const Checkout = React.lazy(() => import('./pages/Checkout'));
@@ -143,12 +144,7 @@ export default function CustomerPortal() {
 
             {/* Notifications */}
             {isAuthenticated && (
-              <div className="flex items-center gap-1.5">
-                <button className="relative flex h-10 w-10 items-center justify-center rounded-full transition-colors text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#2D79A8] hidden lg:flex">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-[#EF4444] border border-white"></span>
-                </button>
-              </div>
+              <CustomerNotificationDropdown />
             )}
 
             {/* Profile Dropdown or Sign In Button */}

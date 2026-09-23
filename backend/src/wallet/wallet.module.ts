@@ -4,9 +4,10 @@ import { WalletController } from './wallet.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SettingsModule } from '../settings/settings.module';
 import { PaymentModule } from '../payment/payment.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
-  imports: [PrismaModule, SettingsModule, PaymentModule],
+  imports: [PrismaModule, SettingsModule, PaymentModule, NotificationModule],
   providers: [WalletService],
   controllers: [WalletController],
   exports: [WalletService],

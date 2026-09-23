@@ -633,6 +633,13 @@ export class OrderService {
         totalAmount: newOrder.totalAmount,
         paymentMethod: newOrder.paymentMethod || 'PENDING_DELIVERY',
       });
+      this.notificationService.notifyOrderPlaced({
+        orderId: newOrder.id,
+        customerId: customer.id,
+        userId: customer.user?.id || (customer as any).userId,
+        totalAmount: newOrder.totalAmount,
+        paymentMethod: newOrder.paymentMethod || 'PENDING_DELIVERY',
+      });
     } catch (e) {
       console.warn('[OrderService] notification error:', e);
     }
@@ -961,6 +968,17 @@ export class OrderService {
         customerId: order.customerId,
         userId: order.customer?.userId || order.customer?.user?.id,
         newStatus,
+      });
+      const deliveredQty = updatedOrder.items?.reduce((sum: number, it: any) => sum + (it.quantity || 0), 0);
+      this.notificationService.notifyOrderStatusTransition({
+        orderId,
+        customerId: order.customerId,
+        userId: order.customer?.userId || order.customer?.user?.id,
+        newStatus,
+        previousStatus: order.status,
+        reason,
+        deliveredQty,
+        deliveredAt: updatedOrder.deliveredAt || new Date(),
       });
       this.eventsGateway.emitOrderStatusUpdate(orderId, newStatus, order.customerId, updatedOrder);
     } catch (e) {
@@ -1979,7 +1997,7 @@ export class OrderService {
         include: {
           customer: {
             include: {
-              user: { select: { firstName: true, lastName: true, phone: true } },
+              user: { select: { id: true, firstName: true, lastName: true, phone: true } },
             },
           },
           address: true,
@@ -2044,6 +2062,17 @@ export class OrderService {
     });
 
     try {
+      const deliveredQty = updated.items?.reduce((sum: number, it: any) => sum + (it.quantity || 0), 0);
+      this.notificationService.notifyOrderStatusTransition({
+        orderId,
+        customerId: order.customerId,
+        userId: updated.customer?.user?.id || (updated.customer as any)?.userId,
+        newStatus: dto.status,
+        previousStatus: order.status,
+        reason: dto.reason,
+        deliveredQty,
+        deliveredAt: updated.deliveredAt || new Date(),
+      });
       this.eventsGateway.emitOrderStatusUpdate(orderId, dto.status, order.customerId, updated);
     } catch (e) {
       console.warn('[OrderService] notification/socket broadcast warning:', e);
@@ -2492,6 +2521,11 @@ export class OrderService {
     try {
       this.eventsGateway.emitOrderClaimed(orderId, distributorUserId, fullOrder);
       if (fullOrder) {
+        this.notificationService.notifyOrderAccepted({
+          orderId,
+          customerId: fullOrder.customerId,
+          userId: fullOrder.customer?.user?.id || (fullOrder.customer as any)?.userId,
+        });
         this.eventsGateway.emitOrderStatusUpdate(
           orderId,
           OrderStatus.CONFIRMED,
@@ -2543,7 +2577,7 @@ export class OrderService {
             include: {
               customer: {
                 include: {
-                  user: { select: { firstName: true, lastName: true, phone: true } },
+                  user: { select: { id: true, firstName: true, lastName: true, phone: true } },
                 },
               },
               address: true,
@@ -2654,7 +2688,7 @@ export class OrderService {
         include: {
           customer: {
             include: {
-              user: { select: { firstName: true, lastName: true, phone: true } },
+              user: { select: { id: true, firstName: true, lastName: true, phone: true } },
             },
           },
           address: true,
@@ -2694,8 +2728,16 @@ export class OrderService {
 
     try {
       this.eventsGateway.emitOrderStatusUpdate(orderId, result.status, result.customerId, result);
+      this.notificationService.notifyPaymentEvent({
+        paymentId: `pay_${Date.now()}`,
+        orderId,
+        customerId: result.customerId,
+        userId: result.customer?.user?.id || (result.customer as any)?.userId,
+        amount: paymentAmount,
+        status: 'SUCCESS',
+      });
     } catch (e) {
-      console.warn('[OrderService] payment update socket warning:', e);
+      console.warn('[OrderService] payment update socket/notification warning:', e);
     }
 
     return result;

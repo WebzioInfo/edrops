@@ -5,6 +5,7 @@ import {
   NotificationPayload,
 } from '../interfaces/notification-provider.interface';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationType } from '@prisma/client';
 
 @Injectable()
 export class DatabaseProvider implements INotificationProvider {
@@ -17,14 +18,29 @@ export class DatabaseProvider implements INotificationProvider {
     const userId = payload.recipients?.userId;
 
     if (userId) {
-      // It's a targeted user notification
+      // It's a targeted customer/user notification
+      const eventKey = payload.data?.eventKey;
+      if (eventKey) {
+        const existing = await this.prisma.notification.findFirst({
+          where: { userId, eventKey },
+        });
+        if (existing) {
+          this.logger.debug(`Skipping duplicate notification for user ${userId}, eventKey: ${eventKey}`);
+          return;
+        }
+      }
+
       await this.prisma.notification.create({
         data: {
           userId,
-          type: 'SYSTEM', // Map from payload.type as needed
+          type: (payload.type in NotificationType ? payload.type : 'SYSTEM') as any,
           title: payload.title,
           message: payload.message,
           link: payload.data?.link,
+          orderId: payload.data?.orderId,
+          orderNumber: payload.data?.orderNumber,
+          metadata: payload.data?.metadata || payload.data,
+          eventKey,
           status: 'UNREAD',
         },
       });

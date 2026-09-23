@@ -347,17 +347,26 @@ model Transaction {
 }
 
 model Notification {
-  id        String             @id @default(uuid())
-  userId    String
-  type      NotificationType
-  title     String
-  message   String
-  status    NotificationStatus @default(UNREAD)
-  link      String?
-  createdAt DateTime           @default(now())
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String             @id @default(uuid())
+  userId      String
+  type        NotificationType
+  title       String
+  message     String
+  status      NotificationStatus @default(UNREAD)
+  link        String?
+  orderId     String?
+  orderNumber String?
+  metadata    Json?
+  eventKey    String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @default(now()) @updatedAt
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, eventKey])
   @@index([userId])
+  @@index([userId, status])
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 model Settings {
@@ -975,6 +984,18 @@ enum PaymentStatus {
 }
 
 enum NotificationType {
+  ORDER_PLACED
+  ORDER_ACCEPTED
+  ORDER_CONFIRMED
+  OUT_FOR_DELIVERY
+  DELIVERY_STARTED
+  DELIVERY_COMPLETED
+  DELIVERY_FAILED
+  ORDER_CANCELLED
+  PAYMENT_PENDING
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PAYMENT_REFUNDED
   DELIVERY_UPDATE
   LOW_BALANCE
   RECHARGE_SUCCESS

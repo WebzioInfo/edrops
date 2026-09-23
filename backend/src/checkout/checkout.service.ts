@@ -57,6 +57,18 @@ export class CheckoutService {
     });
 
     try {
+      this.notificationService.notifyOrderPlaced({
+        orderId,
+        customerId,
+        userId: customer?.id,
+        totalAmount,
+        paymentMethod,
+      });
+    } catch (e) {
+      this.logger.warn(`Failed to send notifyOrderPlaced: ${e.message}`);
+    }
+
+    try {
       const fullOrder = await this.prisma.order.findUnique({
         where: { id: orderId },
         include: {
@@ -586,6 +598,18 @@ export class CheckoutService {
         order.totalAmount,
         dto.paymentMethod,
       );
+
+      try {
+        this.notificationService.notifyPaymentEvent({
+          paymentId: dto.razorpayPaymentId || `pay_${Date.now()}`,
+          orderId: order.id,
+          customerId,
+          amount: order.totalAmount,
+          status: 'SUCCESS',
+        });
+      } catch (e) {
+        this.logger.warn(`Failed to send notifyPaymentEvent: ${e.message}`);
+      }
 
       return { success: true, orderId: dto.orderId };
     }
