@@ -16,7 +16,6 @@ import {
   FileText,
   LifeBuoy,
   Settings,
-  CalendarDays,
   Plus,
   Gift,
   ShoppingBag,
@@ -364,11 +363,6 @@ export function getPortalSidebarConfig(
                 label: 'My Orders',
                 icon: Package,
                 badge: badges?.activeOrdersCount ?? badges?.['/customer/orders'],
-              },
-              {
-                to: '/customer/schedule',
-                label: 'Schedule',
-                icon: CalendarDays,
               },
               {
                 to: '/customer/deliveries',

@@ -108,8 +108,8 @@ export default function Dashboard() {
             <button onClick={() => navigate('/customer/recharge')} className="flex items-center justify-center gap-2 h-11 px-5 bg-white border border-[#E2E8F0] shadow-sm hover:bg-[#F8FAFC] text-[#0F172A] text-[14px] font-semibold rounded-[12px] transition-colors">
               <CreditCard className="w-4 h-4 text-[#1E88E5]" /> Recharge Wallet
             </button>
-            <button onClick={() => navigate('/customer/schedule')} className="flex items-center justify-center gap-2 h-11 px-5 bg-[#1E88E5] hover:bg-[#1976D2] text-white shadow-[0_4px_12px_rgba(30,136,229,0.25)] text-[14px] font-semibold rounded-[12px] transition-colors">
-              <Calendar className="w-4 h-4" /> Manage Schedule
+            <button onClick={() => navigate('/customer/deliveries')} className="flex items-center justify-center gap-2 h-11 px-5 bg-[#1E88E5] hover:bg-[#1976D2] text-white shadow-[0_4px_12px_rgba(30,136,229,0.25)] text-[14px] font-semibold rounded-[12px] transition-colors">
+              <Calendar className="w-4 h-4" /> Manage Deliveries
             </button>
           </div>
         </motion.section>
@@ -302,22 +302,22 @@ export default function Dashboard() {
                 <p className="text-[12px] text-[#64748B] mt-1 font-medium">Add prepaid balance</p>
               </div>
             </button>
-            <button onClick={() => navigate('/customer/schedule')} className="bg-white p-5 rounded-[20px] shadow-sm border border-[#E2E8F0]/60 hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col justify-between min-h-[140px] group">
+            <button onClick={() => navigate('/customer/deliveries')} className="bg-white p-5 rounded-[20px] shadow-sm border border-[#E2E8F0]/60 hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col justify-between min-h-[140px] group">
               <div className="w-12 h-12 bg-[#1E88E5]/10 rounded-full flex items-center justify-center text-[#1E88E5] group-hover:scale-110 transition-transform">
                 <Calendar className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-bold text-[#0F172A] text-[15px]">Manage Schedule</h3>
+                <h3 className="font-bold text-[#0F172A] text-[15px]">Weekly Schedule</h3>
                 <p className="text-[12px] text-[#64748B] mt-1 font-medium">Set weekly routines</p>
               </div>
             </button>
-            <button onClick={() => navigate('/customer/track')} className="bg-white p-5 rounded-[20px] shadow-sm border border-[#E2E8F0]/60 hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col justify-between min-h-[140px] group">
+            <button onClick={() => navigate('/customer/deliveries')} className="bg-white p-5 rounded-[20px] shadow-sm border border-[#E2E8F0]/60 hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col justify-between min-h-[140px] group">
               <div className="w-12 h-12 bg-[#1E88E5]/10 rounded-full flex items-center justify-center text-[#1E88E5] group-hover:scale-110 transition-transform">
                 <Truck className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="font-bold text-[#0F172A] text-[15px]">Track Deliveries</h3>
-                <p className="text-[12px] text-[#64748B] mt-1 font-medium">View live status</p>
+                <p className="text-[12px] text-[#64748B] mt-1 font-medium">View live status & log</p>
               </div>
             </button>
           </div>

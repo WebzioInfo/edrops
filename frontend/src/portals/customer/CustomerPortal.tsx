@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { Bell, CalendarDays, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, LifeBuoy, LogIn } from 'lucide-react';
+import { Bell, History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, LifeBuoy, LogIn } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -13,8 +13,7 @@ const Shop = React.lazy(() => import('./pages/Shop'));
 const Checkout = React.lazy(() => import('./pages/Checkout'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const WalletPage = React.lazy(() => import('./pages/Wallet'));
-const SchedulePlanner = React.lazy(() => import('./pages/SchedulePlanner'));
-const TrackPage = React.lazy(() => import('./pages/Track'));
+const DeliveriesPage = React.lazy(() => import('./pages/Deliveries'));
 const RechargePage = React.lazy(() => import('./pages/Recharge'));
 const ReferPage = React.lazy(() => import('./pages/Refer'));
 const SupportPage = React.lazy(() => import('./pages/Support'));
@@ -27,8 +26,7 @@ const OrderSuccess = React.lazy(() => import('./pages/OrderSuccess'));
 const centerNavItems = [
   { to: '/customer/shop', label: 'Shop' },
   { to: '/customer/orders', label: 'Orders' },
-  { to: '/customer/schedule', label: 'Schedule' },
-  { to: '/customer/deliveries', label: 'Track' },
+  { to: '/customer/deliveries', label: 'Deliveries' },
   { to: '/customer/dashboard', label: 'Dashboard' },
 ];
 
@@ -41,8 +39,7 @@ const secondaryActions = [
 const mobileBottomNavItems = [
   { to: '/customer/shop', label: 'Shop', icon: Home },
   { to: '/customer/orders', label: 'Orders', icon: Package },
-  { to: '/customer/schedule', label: 'Schedule', icon: CalendarDays },
-  { to: '/customer/deliveries', label: 'Track', icon: Truck },
+  { to: '/customer/deliveries', label: 'Deliveries', icon: Truck },
   { to: '/customer/profile', label: 'Profile', icon: User },
 ];
 
@@ -213,8 +210,9 @@ export default function CustomerPortal() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="profile" element={<Profile />} />
               <Route path="wallet" element={<WalletPage />} />
-              <Route path="schedule" element={<SchedulePlanner />} />
-              <Route path="deliveries" element={<TrackPage />} />
+              <Route path="deliveries" element={<DeliveriesPage />} />
+              <Route path="schedule" element={<Navigate to="/customer/deliveries" replace />} />
+              <Route path="track" element={<Navigate to="/customer/deliveries" replace />} />
               <Route path="orders" element={<Orders />} />
               <Route path="orders/:orderId" element={<OrderDetails />} />
               <Route path="order-success" element={<OrderSuccess />} />
