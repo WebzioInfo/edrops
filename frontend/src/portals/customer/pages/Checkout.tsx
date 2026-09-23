@@ -154,11 +154,6 @@ export default function Checkout() {
     return total;
   }, [checkoutItems, itemReturns, additionalReturns]);
 
-  const deliveryCharge = useMemo(
-    () => (checkoutItems.length > 0 ? (subTotal > 500 ? 0 : 50) : 0),
-    [checkoutItems, subTotal]
-  );
-
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
@@ -184,7 +179,6 @@ export default function Checkout() {
         body: JSON.stringify({
           code: appliedPromo.code,
           orderAmount: subTotal,
-          deliveryCharge,
         }),
       })
         .then((res) => {
@@ -203,10 +197,10 @@ export default function Checkout() {
     } else {
       setPromoDiscount(0);
     }
-  }, [appliedPromo?.code, subTotal, deliveryCharge]);
+  }, [appliedPromo?.code, subTotal]);
 
   const [paymentMethod, setPaymentMethod] = useState('ONLINE');
-  const baseTotal = Math.max(0, subTotal + depositTotal + deliveryCharge - promoDiscount);
+  const baseTotal = Math.max(0, subTotal + depositTotal - promoDiscount);
 
   const walletDeduction = useMemo(() => {
     if (paymentMethod === 'WALLET') return Math.min(walletBalance, baseTotal);
@@ -226,7 +220,6 @@ export default function Checkout() {
         body: JSON.stringify({
           code: promoInput,
           orderAmount: subTotal,
-          deliveryCharge,
         }),
       });
       setAppliedPromo(res);
@@ -518,7 +511,6 @@ export default function Checkout() {
     items: checkoutItems,
     subTotal,
     depositTotal,
-    deliveryCharge,
     promoDiscount,
     appliedPromo,
     promoInput,
@@ -537,7 +529,7 @@ export default function Checkout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-28 lg:pb-12 text-[#0F172A]">
+    <div className="min-h-screen bg-[#F8FAFC] pb-[calc(148px+env(safe-area-inset-bottom,0px))] lg:pb-12 text-[#0F172A]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         
         {/* 2-Step Header: Delivery → Payment */}
@@ -632,20 +624,29 @@ export default function Checkout() {
                     ) : (
                       <div className="space-y-2">
                         {addresses.map((addr) => (
-                          <label
+                          <div
                             key={addr.id}
+                            onClick={() => setSelectedAddressId(addr.id)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setSelectedAddressId(addr.id);
+                              }
+                            }}
                             className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all relative ${
                               selectedAddressId === addr.id
                                 ? 'border-[#1E88E5] bg-[#EBF5FB]/60 ring-1 ring-[#1E88E5]'
                                 : 'border-[#E2E8F0] bg-white hover:border-slate-300'
                             }`}
                           >
-                            <div className={`mt-0.5 flex items-center justify-center w-4 h-4 rounded-full border shrink-0 ${
+                            <div className={`mt-0.5 flex items-center justify-center w-4 h-4 rounded-full border shrink-0 transition-colors ${
                               selectedAddressId === addr.id ? 'border-[#1E88E5] bg-[#1E88E5]' : 'border-[#CBD5E1] bg-white'
                             }`}>
                               {selectedAddressId === addr.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                             </div>
-                            <div className="flex-1 min-w-0 pr-6">
+                            <div className="flex-1 min-w-0 pr-8">
                               <div className="flex items-center gap-2 mb-0.5">
                                 <span className="font-bold text-xs text-[#0F172A]">
                                   {addr.label || 'Home'}
@@ -662,13 +663,18 @@ export default function Checkout() {
                             </div>
                             <button
                               type="button"
-                              onClick={(e) => handleDeleteAddress(e, addr.id)}
-                              className="absolute right-2 top-2 p-1 text-[#94A3B8] hover:text-rose-500 rounded-md hover:bg-white transition-colors cursor-pointer"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteAddress(e, addr.id);
+                              }}
+                              className="absolute right-2 top-2 p-1.5 text-[#94A3B8] hover:text-rose-500 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
                               title="Delete address"
+                              aria-label="Delete address"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          </label>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -1039,31 +1045,32 @@ export default function Checkout() {
         </div>
       </div>
 
-      {/* MOBILE STICKY BOTTOM BAR (<1024px) - Clean single primary action */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-[0_-4px_20px_rgba(15,23,42,0.08)]">
-        <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
+      {/* MOBILE STICKY BOTTOM BAR (<1024px) - Positioned above mobile bottom nav */}
+      <div className="lg:hidden fixed bottom-[calc(68px+env(safe-area-inset-bottom,0px))] inset-x-0 z-30 bg-white border-t border-[#E2E8F0] px-3.5 py-2.5 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]">
+        <div className="flex items-center justify-between gap-2.5 max-w-md mx-auto">
           {/* Collapsed Total with View Details Trigger */}
           <button
             type="button"
             onClick={() => setMobileSummaryOpen(!mobileSummaryOpen)}
             className="flex flex-col text-left cursor-pointer group shrink-0"
           >
-            <span className="text-[11px] font-semibold text-[#64748B] flex items-center gap-1 group-hover:text-[#1E88E5]">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-[#64748B] flex items-center gap-0.5 group-hover:text-[#1E88E5]">
               Total Payable {mobileSummaryOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
             </span>
-            <span className="text-lg font-black text-[#1E88E5]">
+            <span className="text-base sm:text-lg font-black text-[#1E88E5]">
               ₹{grandTotal}
             </span>
           </button>
 
           {/* Stage Single Primary Action */}
-          <div className="flex items-center gap-2 flex-1 justify-end">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-end min-w-0">
             {currentStep === 2 && (
               <button
                 type="button"
                 onClick={() => setCurrentStep(1)}
-                className="h-10 px-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] font-bold text-xs active:bg-[#E2E8F0] transition-colors cursor-pointer shrink-0"
+                className="h-10 px-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] font-bold text-xs active:bg-[#E2E8F0] transition-colors cursor-pointer shrink-0"
                 aria-label="Back to Delivery"
+                title="Back to Delivery"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
@@ -1073,21 +1080,25 @@ export default function Checkout() {
               <button
                 type="button"
                 onClick={handleNextStep}
-                className="h-10 px-5 rounded-xl bg-[#1E88E5] text-white font-bold text-xs sm:text-sm shadow-xs active:bg-[#1565C0] transition-colors cursor-pointer w-full max-w-[200px]"
+                className="h-10 px-3.5 sm:px-5 rounded-xl bg-[#1E88E5] text-white font-bold text-xs sm:text-sm shadow-xs active:bg-[#1565C0] transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 w-full max-w-[210px]"
               >
-                Continue to Payment
+                <span>Continue to Payment</span>
+                <span className="text-white/80">→</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handleCheckout}
                 disabled={isProcessing}
-                className="h-10 px-5 rounded-xl bg-[#1E88E5] text-white font-bold text-xs sm:text-sm shadow-xs active:bg-[#1565C0] transition-colors cursor-pointer disabled:opacity-70 flex items-center justify-center w-full max-w-[200px]"
+                className="h-10 px-3.5 sm:px-5 rounded-xl bg-[#1E88E5] text-white font-bold text-xs sm:text-sm shadow-xs active:bg-[#1565C0] transition-colors cursor-pointer disabled:opacity-70 flex items-center justify-center gap-1.5 whitespace-nowrap w-full max-w-[210px]"
               >
                 {isProcessing ? (
                   <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  `Pay ₹${grandTotal}`
+                  <>
+                    <span>Pay ₹{grandTotal}</span>
+                    <span className="text-white/80">→</span>
+                  </>
                 )}
               </button>
             )}

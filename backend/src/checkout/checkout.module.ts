@@ -6,6 +6,7 @@ import { EventsModule } from '../events/events.module';
 import { NotificationModule } from '../notification/notification.module';
 import { PromoModule } from '../promo/promo.module';
 import { AuditModule } from '../audit/audit.module';
+import { AddressModule } from '../address/address.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuditModule } from '../audit/audit.module';
     NotificationModule,
     PromoModule,
     AuditModule,
+    AddressModule,
   ],
   controllers: [CheckoutController],
   providers: [CheckoutService],

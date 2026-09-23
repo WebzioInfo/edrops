@@ -17,8 +17,6 @@ import { toast } from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   formatOrderId,
-  formatDeliverySlot,
-  formatPaymentDetails,
   getOrderPaymentState,
 } from '../../../utils/orderFormatters';
 import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
@@ -557,8 +555,6 @@ export default function Orders() {
                     primaryItem?.product?.imageUrl ||
                     primaryItem?.images?.[0]?.url ||
                     null;
-
-                  const pmt = formatPaymentDetails(order);
                   const cfg = getOrderStatusConfig(order.status);
                   const statusTitle = `${cfg.label}${formattedDate ? ` · ${formattedDate}` : ''}`;
                   const statusColorClass = cfg.label === 'Delivered'
@@ -569,16 +565,6 @@ export default function Orders() {
                     ? 'text-blue-700'
                     : 'text-amber-800';
                   const statusDotClass = cfg.dotColor;
-                  let subtext = `Slot: ${formatDeliverySlot(order.timeSlot)}`;
-
-                  if (cfg.label === 'Delivered') {
-                    subtext = 'Your water has been delivered';
-                  } else if (cfg.label === 'Out for Delivery') {
-                    subtext = 'Driver is on the way to your address';
-                  } else if (cfg.label === 'Confirmed') {
-                    subtext = 'Order verified and scheduled for delivery';
-                  }
-
                   return (
                     <div
                       key={order.id}

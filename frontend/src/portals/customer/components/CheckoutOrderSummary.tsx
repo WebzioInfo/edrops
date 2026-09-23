@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, ShieldCheck, Tag, ChevronDown, ChevronUp, Check, Truck, Lock, Minus, Plus, Trash2 } from 'lucide-react';
+import { Package, ShieldCheck, Tag, ChevronDown, ChevronUp, Check, Lock, Minus, Plus, Trash2 } from 'lucide-react';
 
 export interface CheckoutOrderSummaryProps {
   items: Array<{
@@ -14,7 +14,6 @@ export interface CheckoutOrderSummaryProps {
   }>;
   subTotal: number;
   depositTotal: number;
-  deliveryCharge: number;
   promoDiscount: number;
   appliedPromo: any | null;
   promoInput: string;
@@ -37,7 +36,6 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
   items,
   subTotal,
   depositTotal,
-  deliveryCharge,
   promoDiscount,
   appliedPromo,
   promoInput,
@@ -254,14 +252,6 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
             </div>
           )}
 
-          <div className="flex justify-between items-center">
-            <span className="flex items-center gap-1">
-              <Truck className="w-3.5 h-3.5 text-[#64748B]" /> Delivery Fee
-            </span>
-            <span className="font-semibold">
-              {deliveryCharge === 0 ? <span className="text-emerald-600 font-bold">FREE</span> : `₹${deliveryCharge}`}
-            </span>
-          </div>
 
           {promoDiscount > 0 && (
             <div className="flex justify-between items-center text-emerald-600">

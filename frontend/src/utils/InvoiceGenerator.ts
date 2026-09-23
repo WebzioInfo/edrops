@@ -165,9 +165,8 @@ export function generateOrderInvoice(order: any) {
 
   const subTotal = Number(order.subTotal) || order.items?.reduce((sum: number, i: any) => sum + (Number(i.unitPrice || i.price || 0) * (Number(i.quantity) || 1)), 0) || 0;
   const depositTotal = Number(order.depositTotal) || 0;
-  const deliveryCharge = Number(order.deliveryCharge) || 0;
   const discountTotal = Number(order.discountTotal) || 0;
-  const grandTotal = Number(order.totalAmount) || (subTotal + depositTotal + deliveryCharge - discountTotal);
+  const grandTotal = Number(order.totalAmount) || (subTotal + depositTotal - discountTotal);
 
   doc.setFontSize(8.5);
   doc.setTextColor(mutedSlate[0], mutedSlate[1], mutedSlate[2]);
@@ -186,10 +185,6 @@ export function generateOrderInvoice(order: any) {
     currentY += 5;
   }
 
-  // Delivery
-  doc.text('Delivery Fee:', summaryX, currentY);
-  doc.text(deliveryCharge === 0 ? 'FREE' : `Rs. ${deliveryCharge.toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
-  currentY += 5;
 
   // Promo Discount
   if (discountTotal > 0) {

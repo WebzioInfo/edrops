@@ -17,6 +17,7 @@ import { NotificationService } from '../notification/notification.service';
 import { PromoService } from '../promo/promo.service';
 import { AuditService } from '../audit/audit.service';
 import { EventsGateway } from '../events/events.gateway';
+import { AddressService } from '../address/address.service';
 
 @Injectable()
 export class CheckoutService {
@@ -29,6 +30,7 @@ export class CheckoutService {
     private promoService: PromoService,
     private auditService: AuditService,
     private eventsGateway: EventsGateway,
+    private addressService: AddressService,
   ) {}
 
   private async notifyNewOrder(
@@ -238,11 +240,8 @@ export class CheckoutService {
       }
     }
 
-    const deliveryCharge = dto.adminOverride?.waiveDelivery
-      ? 0
-      : subTotal > 500
-        ? 0
-        : 50;
+    // Delivery fee is always ₹0 — customers are never charged for delivery.
+    const deliveryCharge = 0;
 
     let discountTotal = 0;
     if (dto.promoCode) {
@@ -308,6 +307,24 @@ export class CheckoutService {
 
     const orderId = crypto.randomUUID();
     let razorpayOrderId: string | undefined;
+
+    // Validate that the selected address pincode is serviceable
+    const deliveryAddress = await this.prisma.address.findFirst({
+      where: { id: dto.addressId },
+      select: { zipCode: true },
+    });
+    if (!deliveryAddress) {
+      throw new BadRequestException('Selected delivery address not found');
+    }
+    const serviceability = await this.addressService.checkServiceability(
+      deliveryAddress.zipCode,
+    );
+    if (!serviceability.serviceable) {
+      throw new BadRequestException(
+        `Delivery is not available for the pincode of your selected address (${deliveryAddress.zipCode}). ` +
+          `Please update your delivery address.`,
+      );
+    }
 
     if (dto.paymentMethod === 'COD' && totalAmount > 2000) {
       throw new BadRequestException('COD not allowed for orders above ₹2000');

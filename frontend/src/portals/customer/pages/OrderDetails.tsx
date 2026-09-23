@@ -218,9 +218,7 @@ export default function OrderDetails() {
   ) || safeNumber(order.subTotal);
 
   const depositTotal = safeNumber(order.depositTotal);
-  const deliveryCharge = safeNumber(order.deliveryCharge);
   const discountTotal = safeNumber(order.discountTotal);
-  const grandTotal = safeNumber(order.totalAmount);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24 lg:pb-12 text-[#0F172A]">
@@ -542,12 +540,6 @@ export default function OrderDetails() {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center">
-                  <span>Delivery Charge</span>
-                  <span className="font-bold">
-                    {deliveryCharge === 0 ? <span className="text-emerald-600">FREE</span> : `₹${deliveryCharge}`}
-                  </span>
-                </div>
 
                 {discountTotal > 0 && (
                   <div className="flex justify-between items-center text-emerald-600">

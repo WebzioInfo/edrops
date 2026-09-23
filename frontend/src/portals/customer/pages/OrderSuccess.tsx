@@ -60,10 +60,9 @@ export default function OrderSuccess() {
 
   const itemsTotal = calculateItemsTotal();
   const depositTotal = calculateDepositTotal();
-  const deliveryCharge = safeNumber(order?.deliveryCharge);
   
-  // If order total is explicit, use it. Otherwise compute it safely.
-  const grandTotal = safeNumber(order?.totalAmount) || (itemsTotal + deliveryCharge);
+  // grandTotal always comes from the server-stored totalAmount (which never includes a delivery fee)
+  const grandTotal = safeNumber(order?.totalAmount) || itemsTotal;
 
   return (
     <div className="min-h-[calc(100vh-72px)] flex items-center justify-center bg-[#F8FAFC] text-[#0F172A] px-4 sm:px-6 py-8">
@@ -151,12 +150,6 @@ export default function OrderSuccess() {
                 </div>
               )}
 
-              <div className="flex justify-between">
-                <span>Delivery Charge</span>
-                <span className="text-[#0F172A] font-semibold">
-                  {deliveryCharge === 0 ? <span className="text-[#1E88E5]">Free</span> : `₹${deliveryCharge}`}
-                </span>
-              </div>
 
               {order.timeSlot && (
                 <div className="flex justify-between items-center">
