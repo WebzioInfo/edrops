@@ -14,10 +14,7 @@ type PincodeState = 'idle' | 'invalid' | 'checking' | 'serviceable' | 'unservice
 
 interface ServiceabilityData {
   serviceable: boolean;
-  found: boolean;
   pincode: string;
-  distanceKm: number | null;
-  serviceRadiusKm: number;
   city?: string;
   state?: string;
 }
@@ -36,7 +33,6 @@ const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-slat
 export default function AddressModal({ isOpen, onClose, onSuccess }: AddressModalProps) {
   const [pincode, setPincode] = useState('');
   const [pincodeState, setPincodeState] = useState<PincodeState>('idle');
-  const [serviceData, setServiceData] = useState<ServiceabilityData | null>(null);
 
   const [form, setForm] = useState({
     fullName: '',
@@ -55,7 +51,6 @@ export default function AddressModal({ isOpen, onClose, onSuccess }: AddressModa
     if (!isOpen) {
       setPincode('');
       setPincodeState('idle');
-      setServiceData(null);
       setForm({ fullName: '', mobileNumber: '', label: '', houseName: '', street: '', city: '', state: '' });
     }
   }, [isOpen]);
@@ -64,7 +59,6 @@ export default function AddressModal({ isOpen, onClose, onSuccess }: AddressModa
     const code = value.trim();
     if (!PINCODE_RE.test(code)) {
       setPincodeState(code.length > 0 ? 'invalid' : 'idle');
-      setServiceData(null);
       return;
     }
 
@@ -80,10 +74,9 @@ export default function AddressModal({ isOpen, onClose, onSuccess }: AddressModa
         result = await res.json();
       }
 
-      setServiceData(result);
       if (result.serviceable) {
         setPincodeState('serviceable');
-        // Auto-prefill city and state â€” user can still edit
+        // Auto-prefill city and state — user can still edit
         setForm((prev) => ({
           ...prev,
           city: prev.city || result.city || '',
@@ -95,14 +88,12 @@ export default function AddressModal({ isOpen, onClose, onSuccess }: AddressModa
     } catch (err) {
       console.error('Pincode serviceability check failed:', err);
       setPincodeState('error');
-      setServiceData(null);
     }
   };
 
   const handlePincodeChange = (value: string) => {
     const cleaned = value.replace(/\D/g, '').slice(0, 6);
     setPincode(cleaned);
-    setServiceData(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (cleaned.length === 6) {
@@ -142,7 +133,6 @@ export default function AddressModal({ isOpen, onClose, onSuccess }: AddressModa
       if (!recheck.serviceable) {
         toast.error("Sorry, we couldn't deliver to this pincode.");
         setPincodeState('unserviceable');
-        setServiceData(recheck);
         setLoading(false);
         return;
       }
@@ -262,9 +252,6 @@ export default function AddressModal({ isOpen, onClose, onSuccess }: AddressModa
                         <p className="text-xs text-emerald-600 font-bold flex items-center gap-1">
                           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
                           ✓ Delivery available
-                          {serviceData?.distanceKm !== null && serviceData?.distanceKm !== undefined
-                            ? ` (${serviceData.distanceKm} km away)`
-                            : ''}
                         </p>
                       )}
                       {pincodeState === 'unserviceable' && (

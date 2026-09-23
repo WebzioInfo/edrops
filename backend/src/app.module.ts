@@ -35,6 +35,7 @@ import { AddressModule } from './address/address.module';
 import { EventsModule } from './events/events.module';
 import { PurchaseModule } from './purchase/purchase.module';
 import { SupplierModule } from './supplier/supplier.module';
+import { DistributorModule } from './distributor/distributor.module';
 import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
@@ -72,6 +73,7 @@ import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
     AddressModule,
     PurchaseModule,
     SupplierModule,
+    DistributorModule,
     EventsModule,
   ],
   controllers: [AppController],

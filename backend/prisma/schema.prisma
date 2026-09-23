@@ -41,6 +41,7 @@ model User {
   distributorOrders    Order[]              @relation("DistributorOrders")
   acceptedOrders       Order[]              @relation("AcceptedOrders")
   distributorOrderSkips DistributorOrderSkip[] @relation("DistributorOrderSkips")
+  distributorPincodes   DistributorPincode[]   @relation("DistributorPincodes")
 
   @@index([email])
   @@index([phone])
@@ -1186,4 +1187,23 @@ model DistributorOrderSkip {
   @@index([distributorId])
   @@index([orderId])
   @@map("distributor_order_skips")
+}
+
+model DistributorPincode {
+  id            String   @id @default(uuid())
+  distributorId String
+  pincode       String
+  location      String?
+  district      String?
+  state         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  distributor   User     @relation("DistributorPincodes", fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@unique([distributorId, pincode])
+  @@index([pincode])
+  @@index([distributorId])
+  @@map("distributor_pincodes")
 }

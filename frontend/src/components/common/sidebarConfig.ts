@@ -20,6 +20,7 @@ import {
   Plus,
   Gift,
   ShoppingBag,
+  MapPin,
 } from 'lucide-react';
 
 export interface SidebarNavItem {
@@ -176,8 +177,13 @@ export function getPortalSidebarConfig(
             ],
           },
           {
-            title: 'SETTINGS',
+            title: 'OPERATIONS',
             items: [
+              {
+                to: '/distributor/service-areas',
+                label: 'Service Areas',
+                icon: MapPin,
+              },
               {
                 to: '/distributor/settings',
                 label: 'Settings',
