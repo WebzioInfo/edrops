@@ -24,7 +24,7 @@ import { generateOrderInvoice } from '../../../utils/InvoiceGenerator';
 import { useDataFetch } from '../../../hooks/useDataFetch';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 
-type StatusFilterType = 'ALL' | 'ORDER_PLACED' | 'CONFIRMED' | 'OUT_FOR_DELIVERY' | 'DELIVERED';
+type StatusFilterType = 'ALL' | 'ORDER_PLACED' | 'CONFIRMED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
 type TimeFilterType = 'ALL' | 'LAST_30_DAYS' | 'YEAR_2026' | 'OLDER';
 
 export default function Orders() {
@@ -131,7 +131,7 @@ export default function Orders() {
     }
   };
 
-  // Counts for status filters (canonical 4 statuses)
+  // Counts for status filters (canonical 4 statuses + CANCELLED)
   const counts = useMemo(() => {
     const res = {
       ALL: orders.length,
@@ -139,11 +139,13 @@ export default function Orders() {
       CONFIRMED: 0,
       OUT_FOR_DELIVERY: 0,
       DELIVERED: 0,
+      CANCELLED: 0,
     };
 
     for (const o of orders) {
       const s = (o.status || '').toUpperCase();
-      if (s === 'OUT_FOR_DELIVERY') res.OUT_FOR_DELIVERY += 1;
+      if (s === 'CANCELLED' || s === 'CANCELED') res.CANCELLED += 1;
+      else if (s === 'OUT_FOR_DELIVERY') res.OUT_FOR_DELIVERY += 1;
       else if (s === 'DELIVERED' || s === 'COMPLETED') res.DELIVERED += 1;
       else if (s === 'CONFIRMED' || s === 'ASSIGNED' || s === 'ACCEPTED_BY_PARTNER') res.CONFIRMED += 1;
       else res.ORDER_PLACED += 1;
@@ -162,6 +164,7 @@ export default function Orders() {
       const orderDate = new Date(order.createdAt);
 
       // 1. Status Filter
+      if (statusFilter === 'CANCELLED' && !['CANCELLED', 'CANCELED'].includes(s)) return false;
       if (statusFilter === 'OUT_FOR_DELIVERY' && s !== 'OUT_FOR_DELIVERY') return false;
       if (statusFilter === 'DELIVERED' && !['DELIVERED', 'COMPLETED'].includes(s)) return false;
       if (statusFilter === 'CONFIRMED' && !['CONFIRMED', 'ASSIGNED', 'ACCEPTED_BY_PARTNER'].includes(s)) return false;
@@ -381,6 +384,7 @@ export default function Orders() {
                   { key: 'CONFIRMED', label: 'Confirmed', count: counts.CONFIRMED },
                   { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', count: counts.OUT_FOR_DELIVERY },
                   { key: 'DELIVERED', label: 'Delivered', count: counts.DELIVERED },
+                  { key: 'CANCELLED', label: 'Cancelled', count: counts.CANCELLED },
                 ].map((item) => (
                   <label
                     key={item.key}
@@ -812,6 +816,7 @@ export default function Orders() {
                   { key: 'CONFIRMED', label: 'Confirmed', count: counts.CONFIRMED },
                   { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', count: counts.OUT_FOR_DELIVERY },
                   { key: 'DELIVERED', label: 'Delivered', count: counts.DELIVERED },
+                  { key: 'CANCELLED', label: 'Cancelled', count: counts.CANCELLED },
                 ].map((item) => (
                   <button
                     key={item.key}

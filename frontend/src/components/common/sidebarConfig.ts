@@ -120,18 +120,12 @@ export function getPortalSidebarConfig(
       return {
         portalKey: 'distributor',
         portalLabel: 'DISTRIBUTOR',
-        homePath: '/distributor/dashboard',
+        homePath: '/distributor/orders',
         profilePath: '/distributor/settings',
         sections: [
           {
             title: 'OVERVIEW',
             items: [
-              {
-                to: '/distributor/dashboard',
-                label: 'Dashboard',
-                icon: LayoutDashboard,
-                end: true,
-              },
               {
                 to: '/distributor/new-orders',
                 label: 'New Orders',

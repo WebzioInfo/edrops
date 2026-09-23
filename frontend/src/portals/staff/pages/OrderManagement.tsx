@@ -153,10 +153,11 @@ export default function OrderManagement() {
       }
 
       const targetDistId = data?.distributorId || data?.order?.distributorId;
+      const foundDist = targetDistId ? distributors.find(d => d.id === targetDistId || d.userId === targetDistId) : null;
       const distObj =
         data?.distributor ||
         data?.order?.distributor ||
-        (targetDistId ? distributors.find(d => d.id === targetDistId || d.userId === targetDistId)?.user : undefined);
+        (foundDist ? ((foundDist as any).user || foundDist) : undefined);
 
       setOrders((prev) =>
         prev.map((o) => {
@@ -175,7 +176,7 @@ export default function OrderManagement() {
       );
 
       const orderShortId = formatOrderId(orderId);
-      const distName = distObj ? `${distObj.firstName} ${distObj.lastName}` : 'Distributor';
+      const distName = distObj ? `${distObj.firstName || ''} ${distObj.lastName || ''}`.trim() || 'Distributor' : 'Distributor';
       toast.success(`Order ${orderShortId} confirmed & assigned to ${distName}`, { icon: '🤝', id: `assign-${orderId}` });
     };
 
@@ -184,10 +185,11 @@ export default function OrderManagement() {
       const status = data?.status || data?.order?.status;
       if (orderId) {
         const targetDistId = data.distributorId || data?.order?.distributorId;
+        const foundDist = targetDistId ? distributors.find(d => d.id === targetDistId || d.userId === targetDistId) : null;
         const distObj =
           data.distributor ||
           data?.order?.distributor ||
-          (targetDistId ? distributors.find(d => d.id === targetDistId || d.userId === targetDistId)?.user : undefined);
+          (foundDist ? ((foundDist as any).user || foundDist) : undefined);
 
         setOrders((prev) =>
           prev.map((o) => {
@@ -238,7 +240,7 @@ export default function OrderManagement() {
   }, [socket, loadOrders, distributors]);
 
   // Handle status update
-  const handleStatusUpdate = async (orderId: string, newStatus: string, paymentConfirmation?: any) => {
+  const handleStatusUpdate = async (orderId: string, newStatus: string, paymentConfirmation?: any, reason?: string) => {
     const currentOrder = orders.find(o => o.id === orderId);
     if (currentOrder && currentOrder.status === newStatus) {
       toast(`Order is already in status ${newStatus}`, { icon: 'ℹ️' });
@@ -253,6 +255,7 @@ export default function OrderManagement() {
             status: newStatus,
             paymentStatus: paymentConfirmation?.paymentReceived ? 'SUCCESS' : o.paymentStatus,
             paymentCollected: !!paymentConfirmation?.paymentReceived,
+            ...(newStatus === 'CANCELLED' ? { cancellationReason: reason } : {}),
           };
         }
         return o;
@@ -263,6 +266,7 @@ export default function OrderManagement() {
         body: JSON.stringify({
           status: newStatus,
           paymentConfirmation,
+          reason,
         }),
       });
       toast.success(`Order ${formatOrderId(orderId)} updated successfully`, { id: 'order-action-toast' });
@@ -297,14 +301,15 @@ export default function OrderManagement() {
             status: 'CONFIRMED',
             distributorId,
             assignmentStatus: 'ASSIGNED',
-            distributor: assignedDistributor?.user || o.distributor,
+            distributor: (assignedDistributor as any)?.user || assignedDistributor || o.distributor,
             ...(updatedOrder?.id ? updatedOrder : {}),
           };
         }
         return o;
       }));
 
-      const distName = assignedDistributor ? `${assignedDistributor.user.firstName} ${assignedDistributor.user.lastName}` : 'Distributor';
+      const u = (assignedDistributor as any)?.user || assignedDistributor;
+      const distName = u ? `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Distributor' : 'Distributor';
       toast.success(`Assigned to ${distName}`, { id: 'order-action-toast' });
       loadOrders(true);
     } catch (err: any) {

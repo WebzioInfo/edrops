@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   Package,
   ShieldCheck,
+  X,
+  Phone,
 } from 'lucide-react';
 import { formatOrderId, formatOrderStatus, formatPaymentDetails, formatDeliverySlot, getOrderPaymentState } from '../../../utils/orderFormatters';
 
@@ -20,7 +22,11 @@ export interface Distributor {
   id: string;
   userId?: string;
   role?: string;
-  user: {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  user?: {
     id: string;
     firstName: string;
     lastName: string;
@@ -37,7 +43,7 @@ interface OrderRowProps {
   distributors?: Distributor[];
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onStatusUpdate: (orderId: string, newStatus: string, paymentConfirmation?: any) => Promise<void>;
+  onStatusUpdate: (orderId: string, newStatus: string, paymentConfirmation?: any, reason?: string) => Promise<void>;
   onAssignPartner?: (orderId: string, deliveryPartnerId: string) => Promise<void>;
   onAssignDistributor?: (orderId: string, distributorId: string) => Promise<void>;
   onCollect?: (order: any) => void;
@@ -62,16 +68,38 @@ export default function OrderRow({
   const [partnerPromptError, setPartnerPromptError] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [paymentCollected, setPaymentCollected] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const partnerSelectRef = useRef<HTMLSelectElement>(null);
+
+  const handleConfirmCancel = async () => {
+    if (!cancelReason.trim()) {
+      setCancelError('Please specify a cancellation reason.');
+      return;
+    }
+    setCancelError(null);
+    setUpdatingStatus(true);
+    try {
+      await onStatusUpdate(order.id, 'CANCELLED', undefined, cancelReason.trim());
+      setShowCancelModal(false);
+      setCancelReason('');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const payment = formatPaymentDetails(order);
   const rawMethod = (order.paymentMethod || '').toUpperCase();
   const isCOD = rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY' || rawMethod.includes('COD') || rawMethod.includes('CASH');
 
 
+  const matchedDist = order.distributorId
+    ? distributorList.find((d: any) => d.id === order.distributorId || d.userId === order.distributorId)
+    : null;
   const assignedDistributor =
     order.distributor ||
-    (order.distributorId && distributorList.find((d) => d.id === order.distributorId || d.userId === order.distributorId)?.user) ||
+    (matchedDist ? ((matchedDist as any).user || matchedDist) : null) ||
     order.delivery?.assignment?.deliveryPartner?.user;
 
   const assignedDistributorId = order.distributorId || order.delivery?.assignment?.deliveryPartnerId;
@@ -205,7 +233,7 @@ export default function OrderRow({
               {assignedDistributor && (
                 <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                  <span>{assignedDistributor.firstName} {assignedDistributor.lastName}</span>
+                  <span>{assignedDistributor.firstName || 'Distributor'} {assignedDistributor.lastName || ''}</span>
                 </span>
               )}
             </div>
@@ -451,11 +479,14 @@ export default function OrderRow({
                           }`}
                         >
                           <option value="">-- Select Distributor --</option>
-                          {distributorList.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.user.firstName} {d.user.lastName} ({d.user.phone})
-                            </option>
-                          ))}
+                          {distributorList.map((d: any) => {
+                            const u = d.user || d;
+                            return (
+                              <option key={d.id} value={d.id}>
+                                {u?.firstName || 'Distributor'} {u?.lastName || ''} {u?.phone ? `(${u.phone})` : ''}
+                              </option>
+                            );
+                          })}
                         </select>
                       </div>
                     ) : assignedDistributor ? (
@@ -469,11 +500,12 @@ export default function OrderRow({
                           </span>
                         </div>
                         <div className="text-xs font-bold text-[#0F172A] mt-1">
-                          {assignedDistributor.firstName} {assignedDistributor.lastName}
+                          {assignedDistributor.firstName || 'Distributor'} {assignedDistributor.lastName || ''}
                         </div>
                         {assignedDistributor.phone && (
-                          <div className="text-[11px] text-[#64748B]">
-                            📞 {assignedDistributor.phone}
+                          <div className="text-[11px] text-[#64748B] flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-slate-400" />
+                            <span>{assignedDistributor.phone}</span>
                           </div>
                         )}
                       </div>
@@ -571,9 +603,9 @@ export default function OrderRow({
                           type="button"
                           disabled={updatingStatus || isAssigning}
                           onClick={() => {
-                            if (window.confirm('Are you sure you want to cancel this order?')) {
-                              handleStatusChange('CANCELLED');
-                            }
+                            setCancelReason('');
+                            setCancelError(null);
+                            setShowCancelModal(true);
                           }}
                           className="w-full px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                         >
@@ -592,19 +624,168 @@ export default function OrderRow({
 
                       {/* CANCELLED SUMMARY */}
                       {isCancelled && (
-                        <div className="w-full py-1.5 px-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center justify-center gap-1.5">
-                          <Ban className="w-4 h-4 text-rose-600" />
-                          <span>Order Cancelled</span>
+                        <div className="w-full p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700">
+                            <Ban className="w-4 h-4 text-rose-600" />
+                            <span>Order Cancelled</span>
+                            {order.cancelledBy && (
+                              <span className="text-[11px] font-semibold text-rose-600">
+                                by {order.cancelledBy.firstName} {order.cancelledBy.lastName || ''} ({order.cancelledBy.role})
+                              </span>
+                            )}
+                          </div>
+                          {order.cancellationReason && (
+                            <p className="text-xs text-rose-800">
+                              <span className="font-semibold">Reason:</span> {order.cancellationReason}
+                            </p>
+                          )}
+                          {order.cancelledAt && (
+                            <p className="text-[10px] text-rose-500">
+                              Cancelled at {new Date(order.cancelledAt).toLocaleString('en-GB')}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Assignment History & Status History Section */}
+              {(order.distributorAssignments?.length > 0 || order.history?.length > 0) && (
+                <div className="pt-3 border-t border-[#E2E8F0] grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  {order.distributorAssignments?.length > 0 && (
+                    <div className="p-3 bg-white rounded-xl border border-[#E2E8F0] space-y-2">
+                      <div className="text-[11px] font-bold text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Distributor Assignment History</span>
+                      </div>
+                      <div className="space-y-2 border-l-2 border-amber-200 pl-3 ml-1">
+                        {order.distributorAssignments.map((a: any) => (
+                          <div key={a.id} className="relative text-[11px]">
+                            <div className={`absolute -left-[17px] top-1 w-2 h-2 rounded-full ${a.status === 'COMPLETED' ? 'bg-emerald-500' : a.status === 'RELEASED' ? 'bg-amber-500' : 'bg-blue-500'}`} />
+                            <div className="font-bold text-slate-800">
+                              {a.distributor ? `${a.distributor.firstName || ''} ${a.distributor.lastName || ''}`.trim() || 'Distributor' : 'Distributor'} • <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold uppercase ${a.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : a.status === 'RELEASED' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>{a.status}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-0.5">
+                              Accepted: {new Date(a.acceptedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              {a.releasedAt && ` • Released: ${new Date(a.releasedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                              {a.releaseReason && ` • "${a.releaseReason}"`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {order.history?.length > 0 && (
+                    <div className="p-3 bg-white rounded-xl border border-[#E2E8F0] space-y-2">
+                      <div className="text-[11px] font-bold text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-[#1E88E5]" />
+                        <span>Status Audit Trail</span>
+                      </div>
+                      <div className="space-y-2 border-l-2 border-blue-200 pl-3 ml-1 max-h-[140px] overflow-y-auto">
+                        {order.history.map((h: any) => (
+                          <div key={h.id} className="relative text-[11px]">
+                            <div className="absolute -left-[17px] top-1 w-2 h-2 rounded-full bg-[#1E88E5]" />
+                            <div className="font-bold text-slate-800">
+                              {h.previousStatus} → {h.newStatus}
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-0.5">
+                              {new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              {h.user && ` by ${h.user.firstName} ${h.user.lastName || ''}`}
+                              {h.reason && ` • ${h.reason}`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* STAFF CANCEL ORDER MODAL */}
+      {showCancelModal && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in"
+        >
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2 text-rose-600 font-black text-base">
+                <Ban className="w-5 h-5" />
+                <span>Cancel Customer Order</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                  setCancelError(null);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-900 space-y-1">
+              <p className="font-bold">
+                Permanently cancel order {formatOrderId(order.id)}?
+              </p>
+              <p className="text-[11px] text-rose-800 leading-relaxed">
+                This will mark the order as <strong>CANCELLED</strong>. Any active distributor assignments will be released, and the order will be permanently preserved in historical records. A non-empty reason is mandatory.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Cancellation Reason <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                required
+                placeholder="Specify the reason for cancellation (e.g. Customer requested cancellation via call)..."
+                value={cancelReason}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  if (cancelError) setCancelError(null);
+                }}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-rose-500"
+              />
+              {cancelError && (
+                <p className="text-[11px] text-rose-600 font-semibold mt-1">{cancelError}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                  setCancelError(null);
+                }}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                disabled={updatingStatus}
+                onClick={handleConfirmCancel}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
+              >
+                {updatingStatus ? 'Cancelling...' : 'Confirm Order Cancellation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

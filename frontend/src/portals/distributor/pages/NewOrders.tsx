@@ -20,9 +20,10 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../../../utils/toast';
 import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
 import { useSocket } from '../../../contexts/SocketContext';
+import { DistributorTopbar } from '../components/DistributorTopbar';
 
 export interface NewOrderItemRecord {
   id: string;
@@ -114,6 +115,7 @@ export default function NewOrders() {
   selectedOrderRef.current = selectedOrder;
 
   const isFetchingRef = useRef(false);
+  const activeActionRef = useRef<Set<string>>(new Set());
 
   // Fetch initial queue data (once on mount, then maintained strictly via real-time WebSocket events)
   const fetchQueue = async (showLoader = false) => {
@@ -198,7 +200,7 @@ export default function NewOrders() {
         // Ignore audio play errors
       }
 
-      toast.custom(
+      showToast.custom(
         (t) => (
           <div
             className={`${
@@ -229,7 +231,7 @@ export default function NewOrders() {
             <div className="flex border-l border-slate-700 pl-3 ml-3 items-center">
               <button
                 onClick={() => {
-                  toast.dismiss(t.id);
+                  showToast.dismiss(t.id);
                   handleAcceptOrder(enrichedOrder.id);
                 }}
                 className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
@@ -239,7 +241,7 @@ export default function NewOrders() {
             </div>
           </div>
         ),
-        { duration: 8000 },
+        { id: `new-order-toast-${enrichedOrder.id}`, duration: 8000 },
       );
     };
 
@@ -268,8 +270,8 @@ export default function NewOrders() {
 
       if (selectedOrderRef.current && selectedOrderRef.current.id === orderId) {
         setSelectedOrder(null);
-        toast('Order was claimed by another distributor.', {
-          icon: 'ℹ️',
+        showToast.info('Order was claimed by another distributor.', {
+          id: `order-claimed-${orderId}`,
           style: { background: '#1E293B', color: '#F8FAFC' },
         });
       }
@@ -286,7 +288,8 @@ export default function NewOrders() {
 
   // Atomic Order Claim Action
   const handleAcceptOrder = async (orderId: string) => {
-    if (claimingOrderId) return;
+    if (activeActionRef.current.has(orderId) || claimingOrderId || skippingOrderId) return;
+    activeActionRef.current.add(orderId);
     setClaimingOrderId(orderId);
 
     try {
@@ -295,7 +298,7 @@ export default function NewOrders() {
       });
 
       // Successfully claimed!
-      toast.success(
+      showToast.success(
         (t) => (
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -304,7 +307,7 @@ export default function NewOrders() {
             </div>
             <button
               onClick={() => {
-                toast.dismiss(t.id);
+                showToast.dismiss(t.id);
                 navigate('/distributor/orders');
               }}
               className="px-2.5 py-1 bg-white/20 hover:bg-white/30 text-white rounded font-bold text-xs shrink-0 cursor-pointer"
@@ -313,7 +316,7 @@ export default function NewOrders() {
             </button>
           </div>
         ),
-        { duration: 5000 },
+        { id: `accept-order-${orderId}`, duration: 5000 },
       );
 
       // Remove from queue
@@ -342,7 +345,8 @@ export default function NewOrders() {
     } catch (err: any) {
       if (err.status === 409) {
         // Race condition: Another distributor claimed it first
-        toast.error(err.message || 'This order has already been accepted by another distributor.', {
+        showToast.error(err.message || 'This order has already been accepted by another distributor.', {
+          id: `conflict-order-${orderId}`,
           duration: 5000,
         });
 
@@ -366,15 +370,19 @@ export default function NewOrders() {
       }
 
       console.error('[NewOrders] Accept error:', err);
-      toast.error(err.message || 'Could not accept order.');
+      showToast.error(err.message || 'Could not accept order.', {
+        id: `accept-error-${orderId}`,
+      });
     } finally {
+      activeActionRef.current.delete(orderId);
       setClaimingOrderId(null);
     }
   };
 
   // Distributor-specific Skip Order Action
   const handleSkipOrder = async (orderId: string) => {
-    if (skippingOrderId || claimingOrderId) return;
+    if (activeActionRef.current.has(orderId) || skippingOrderId || claimingOrderId) return;
+    activeActionRef.current.add(orderId);
     setSkippingOrderId(orderId);
 
     try {
@@ -406,13 +414,16 @@ export default function NewOrders() {
         setSelectedOrder(null);
       }
 
-      toast.success(`Order #${formatOrderId(orderId)} skipped from your queue`, {
-        icon: '⏭️',
+      showToast.success(`Order #${formatOrderId(orderId)} skipped from your queue`, {
+        id: `skip-order-${orderId}`,
       });
     } catch (err: any) {
       console.error('[NewOrders] Skip error:', err);
-      toast.error(err?.message || 'Could not skip order.');
+      showToast.error(err?.message || 'Could not skip order.', {
+        id: `skip-error-${orderId}`,
+      });
     } finally {
+      activeActionRef.current.delete(orderId);
       setSkippingOrderId(null);
     }
   };
@@ -460,30 +471,20 @@ export default function NewOrders() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#F8FAFC] pb-16">
-      {/* ─── TOP OPERATIONAL HEADER ────────────────────────────────────────── */}
-      <div className="bg-white border-b border-[#E2E8F0] px-4 sm:px-6 py-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
-                <Flame className="w-5 h-5 text-amber-500 animate-pulse" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-black text-[#16324F] tracking-tight">New Orders Queue</h1>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
-                    Live Assignment
-                  </span>
-                </div>
-                <p className="text-xs font-semibold text-[#64748B]">
-                  Unassigned incoming customer orders available to claim. First distributor to accept gets the order.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
+    <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] pb-16 animate-in fade-in duration-150">
+      {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
+      <DistributorTopbar
+        title="New Orders Queue"
+        subtitle="Unassigned incoming customer orders available to claim. First distributor to accept gets the order."
+        icon={Flame}
+        iconVariant="amber"
+        badge={
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
+            Live Assignment
+          </span>
+        }
+        actions={
+          <>
             {/* Realtime WebSocket Indicator */}
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
@@ -517,11 +518,13 @@ export default function NewOrders() {
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </button>
-          </div>
-        </div>
+          </>
+        }
+      />
 
+      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
         {/* ─── LIVE METRIC CARDS ────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="p-3 rounded-xl border border-amber-200/80 bg-amber-50/40 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Queue Available</p>
@@ -554,10 +557,8 @@ export default function NewOrders() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ─── SEARCH & FILTER TOOLBAR ───────────────────────────────────────── */}
-      <div className="px-4 sm:px-6 py-4">
+        {/* ─── SEARCH & FILTER TOOLBAR ───────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs">
           <div className="relative w-full sm:w-96">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -576,10 +577,9 @@ export default function NewOrders() {
             </span>
           </div>
         </div>
-      </div>
 
-      {/* ─── QUEUE TABLE / LIST ────────────────────────────────────────────── */}
-      <div className="px-4 sm:px-6">
+        {/* ─── QUEUE TABLE / LIST ────────────────────────────────────────────── */}
+        <div>
         {isLoading && orders.length === 0 ? (
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center shadow-2xs">
             <RefreshCw className="w-8 h-8 text-[#1677C8] animate-spin mx-auto mb-3" />
@@ -983,6 +983,7 @@ export default function NewOrders() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

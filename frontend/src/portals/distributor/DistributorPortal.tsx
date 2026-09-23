@@ -3,8 +3,8 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import {
   Menu,
   LogOut,
-  LayoutDashboard,
   Wallet,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -13,6 +13,7 @@ import { EdropsLogo } from '../../components/Logo';
 import { SharedSidebar, SharedMobileDrawer } from '../../components/common/SharedSidebar';
 import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { DistributorTopbar } from './components/DistributorTopbar';
 
 const Purchases = React.lazy(() => import('./pages/Purchases'));
 const Suppliers = React.lazy(() => import('./pages/Suppliers'));
@@ -23,24 +24,20 @@ const Reports = React.lazy(() => import('./pages/Reports'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 const ServiceAreas = React.lazy(() => import('./pages/ServiceAreas'));
 
-
-
-/** Clean full-width operational placeholder for remaining distributor routes */
+/** Standardized operational placeholder for remaining distributor routes */
 function OperationalPlaceholder({ title, icon: Icon }: { title: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className="w-full p-4 sm:p-6 space-y-4 animate-in fade-in duration-150">
-      <div className="flex items-center gap-3 border-b border-[#E2E8F0] pb-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8]">
-          <Icon className="w-5 h-5" />
+    <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
+      <DistributorTopbar
+        title={title}
+        subtitle={`Distributor ${title.toLowerCase()} operational view`}
+        icon={Icon}
+      />
+      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 text-xs text-[#64748B]">
+          <p className="font-semibold text-sm text-[#16324F] mb-1">{title} Module</p>
+          <p className="text-slate-500">Navigation is configured. Operational controls for {title.toLowerCase()} will be attached here.</p>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-[#16324F] leading-tight">{title}</h1>
-          <p className="text-xs text-[#64748B]">Distributor {title.toLowerCase()} operational view</p>
-        </div>
-      </div>
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 text-xs text-[#64748B]">
-        <p className="font-semibold text-sm text-[#16324F] mb-1">{title} Module</p>
-        <p className="text-slate-500">Navigation is configured. Operational controls for {title.toLowerCase()} will be attached here.</p>
       </div>
     </div>
   );
@@ -184,23 +181,26 @@ export default function DistributorPortal() {
           profilePath={portalConfig.profilePath}
         />
 
+        {/* ─── STANDARDIZED DESKTOP / MAIN-AREA TOPBAR MOUNT ────────── */}
+        <div id="distributor-topbar-mount" className="w-full shrink-0 bg-white" />
+
         {/* ─── FULL-WIDTH OPERATIONAL MAIN CONTENT AREA ──────────────── */}
         <main className="flex-1 min-w-0 overflow-y-auto bg-[#F8FAFC]">
           <Suspense fallback={<LoadingSpinner fullPage label="Loading..." />}>
             <Routes>
-              <Route index element={<Navigate to="/distributor/purchases" replace />} />
+              <Route index element={<Navigate to="/distributor/orders" replace />} />
               <Route path="purchases" element={<Purchases />} />
               <Route path="suppliers" element={<Suppliers />} />
               <Route path="suppliers/:id" element={<SupplierDetail />} />
-              <Route path="dashboard" element={<OperationalPlaceholder title="Dashboard" icon={LayoutDashboard} />} />
+              <Route path="dashboard" element={<Navigate to="/distributor/orders" replace />} />
               <Route path="new-orders" element={<NewOrders />} />
               <Route path="orders" element={<Orders />} />
               <Route path="wallet" element={<OperationalPlaceholder title="Wallet" icon={Wallet} />} />
               <Route path="reports" element={<Reports />} />
               <Route path="service-areas" element={<ServiceAreas />} />
-              <Route path="settings" element={<ServiceAreas />} />
+              <Route path="settings" element={<OperationalPlaceholder title="Settings" icon={SettingsIcon} />} />
               <Route path="profile" element={<Profile />} />
-              <Route path="*" element={<Navigate to="/distributor/purchases" replace />} />
+              <Route path="*" element={<Navigate to="/distributor/orders" replace />} />
             </Routes>
           </Suspense>
         </main>

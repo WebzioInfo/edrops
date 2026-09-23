@@ -19,6 +19,7 @@ import {
   RecordDistributorPaymentDto,
   RecordOrderPaymentDto,
   CancelDistributorOrderDto,
+  ReleaseDistributorOrderDto,
 } from './dto/distributor-order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
@@ -147,6 +148,18 @@ export class OrderController {
   ) {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;
     return this.orderService.recordDistributorPayment(id, userId, dto);
+  }
+
+  @Post('distributor/:id/release')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN)
+  releaseDistributorOrder(
+    @Param('id') id: string,
+    @Body() dto: ReleaseDistributorOrderDto,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    return this.orderService.releaseDistributorOrder(id, userId, dto);
   }
 
   @Post('distributor/:id/cancel')

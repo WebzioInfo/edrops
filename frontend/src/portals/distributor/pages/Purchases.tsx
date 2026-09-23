@@ -17,7 +17,8 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../../../utils/toast';
+import { DistributorTopbar } from '../components/DistributorTopbar';
 
 export interface PurchaseItem {
   productId?: string;
@@ -132,7 +133,7 @@ export default function Purchases() {
         setPurchases([]);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load purchases');
+      showToast.error(err.message || 'Failed to load purchases');
     } finally {
       setIsLoading(false);
     }
@@ -326,7 +327,7 @@ export default function Purchases() {
   const handleCreateQuickSupplier = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!quickSupplierName.trim()) {
-      toast.error('Supplier name is required');
+      showToast.error('Supplier name is required');
       return;
     }
     try {
@@ -345,7 +346,7 @@ export default function Purchases() {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-      toast.success(`Supplier "${created.name}" created and selected!`);
+      showToast.success(`Supplier "${created.name}" created and selected!`);
       setSuppliersList((prev) => {
         const next = [...prev, { id: created.id, name: created.name, companyName: created.companyName }];
         return next.sort((a, b) => a.name.localeCompare(b.name));
@@ -355,7 +356,7 @@ export default function Purchases() {
       setIsSupplierDropdownOpen(false);
       setIsQuickSupplierModalOpen(false);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create supplier');
+      showToast.error(err.message || 'Failed to create supplier');
     } finally {
       setIsCreatingQuickSupplier(false);
     }
@@ -411,7 +412,7 @@ export default function Purchases() {
 
   const removeItemRow = (index: number) => {
     if (formItems.length <= 1) {
-      toast.error('At least one item is required');
+      showToast.error('At least one item is required');
       return;
     }
     setFormItems((prev) => prev.filter((_, i) => i !== index));
@@ -420,24 +421,24 @@ export default function Purchases() {
   const handleSavePurchase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supplierName.trim()) {
-      toast.error('Please enter a supplier name');
+      showToast.error('Please enter a supplier name');
       return;
     }
 
     const validItems = formItems.filter((it) => it.productName.trim() && it.quantity > 0);
     if (!validItems.length) {
-      toast.error('Please add at least one item with a valid product name and quantity');
+      showToast.error('Please add at least one item with a valid product name and quantity');
       return;
     }
 
     if (paymentStatus === 'PARTIAL') {
       const val = parseFloat(amountPaid);
       if (isNaN(val) || val <= 0) {
-        toast.error('Please enter an amount paid greater than ₹0 for partial payment');
+        showToast.error('Please enter an amount paid greater than ₹0 for partial payment');
         return;
       }
       if (val > grandTotal) {
-        toast.error(`Amount paid cannot exceed total amount of ${formatCurrency(grandTotal)}`);
+        showToast.error(`Amount paid cannot exceed total amount of ${formatCurrency(grandTotal)}`);
         return;
       }
     }
@@ -475,19 +476,19 @@ export default function Purchases() {
           method: 'PUT',
           body: JSON.stringify(payload),
         });
-        toast.success(`Purchase ${editingPurchase.purchaseNumber} updated!`);
+        showToast.success(`Purchase ${editingPurchase.purchaseNumber} updated!`);
       } else {
         const created = await fetchWithAuth('/purchases', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        toast.success(`Purchase ${created.purchaseNumber || ''} created!`);
+        showToast.success(`Purchase ${created.purchaseNumber || ''} created!`);
       }
 
       setIsModalOpen(false);
       await loadPurchases();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save purchase');
+      showToast.error(err.message || 'Failed to save purchase');
     } finally {
       setIsSubmitting(false);
     }
@@ -500,11 +501,11 @@ export default function Purchases() {
       await fetchWithAuth(`/purchases/${deleteConfirmPurchase.id}`, {
         method: 'DELETE',
       });
-      toast.success(`Purchase ${deleteConfirmPurchase.purchaseNumber} deleted successfully`);
+      showToast.success(`Purchase ${deleteConfirmPurchase.purchaseNumber} deleted successfully`);
       setDeleteConfirmPurchase(null);
       loadPurchases();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete purchase');
+      showToast.error(err.message || 'Failed to delete purchase');
     } finally {
       setIsDeleting(false);
     }
@@ -568,12 +569,12 @@ export default function Purchases() {
         }),
       });
 
-      toast.success(`Payment of ${formatCurrency(amountNum)} collected successfully!`);
+      showToast.success(`Payment of ${formatCurrency(amountNum)} collected successfully!`);
       setCollectingPurchase(null);
       await loadPurchases();
     } catch (err: any) {
       setCollectError(err.message || 'Failed to record payment collection');
-      toast.error(err.message || 'Failed to record payment collection');
+      showToast.error(err.message || 'Failed to record payment collection');
     } finally {
       setIsCollecting(false);
     }
@@ -627,26 +628,25 @@ export default function Purchases() {
   };
 
   return (
-    <div className="w-full p-4 sm:p-6 space-y-4 animate-in fade-in duration-150">
-      {/* ─── COMPACT TOOLBAR & HEADER ───────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8F0] pb-3">
-        <div>
-          <h1 className="text-xl font-bold text-[#16324F] leading-tight flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-[#1677C8]" />
-            Purchases
-          </h1>
-          <p className="text-xs text-[#64748B]">Manage distributor supplier procurement & inventory orders</p>
-        </div>
+    <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
+      {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
+      <DistributorTopbar
+        title="Purchases"
+        subtitle="Manage distributor supplier procurement & inventory orders"
+        icon={ShoppingCart}
+        actions={
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Purchase</span>
+          </button>
+        }
+      />
 
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Purchase</span>
-        </button>
-      </div>
+      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
 
       {/* ─── FILTERS & SEARCH ROW ───────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-center gap-2.5">
@@ -1852,6 +1852,7 @@ export default function Purchases() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

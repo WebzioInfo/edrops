@@ -158,3 +158,16 @@ export class CancelDistributorOrderDto {
   @IsNotEmpty()
   reason: string;
 }
+
+export class ReleaseDistributorOrderDto {
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+}
+
+export class CancelOrderDto {
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+}
+

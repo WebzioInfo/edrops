@@ -10,6 +10,8 @@ import {
   UpdateDistributorOrderStatusDto,
   RecordDistributorPaymentDto,
   CancelDistributorOrderDto,
+  ReleaseDistributorOrderDto,
+  CancelOrderDto,
 } from './dto/distributor-order.dto';
 import { isValidTransition, isPartnerAllowedTransition, VALID_ORDER_TRANSITIONS } from './order-state-machine';
 
@@ -37,6 +39,11 @@ export class OrderService {
           },
         },
         payments: { orderBy: { createdAt: 'desc' } },
+        cancelledBy: { select: { id: true, firstName: true, lastName: true, role: true } },
+        history: {
+          include: { user: { select: { firstName: true, lastName: true, role: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -126,11 +133,18 @@ export class OrderService {
           },
           history: {
             include: {
-              user: { select: { firstName: true, lastName: true } },
+              user: { select: { firstName: true, lastName: true, role: true } },
             },
             orderBy: { createdAt: 'asc' },
           },
           payments: { orderBy: { createdAt: 'desc' } },
+          cancelledBy: { select: { id: true, firstName: true, lastName: true, role: true } },
+          distributorAssignments: {
+            include: {
+              distributor: { select: { id: true, firstName: true, lastName: true, phone: true } },
+            },
+            orderBy: { acceptedAt: 'asc' },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -232,6 +246,13 @@ export class OrderService {
             user: { select: { firstName: true, lastName: true, phone: true, role: true } },
           },
           orderBy: { createdAt: 'asc' },
+        },
+        cancelledBy: { select: { id: true, firstName: true, lastName: true, role: true } },
+        distributorAssignments: {
+          include: {
+            distributor: { select: { id: true, firstName: true, lastName: true, phone: true } },
+          },
+          orderBy: { acceptedAt: 'asc' },
         },
       },
     });
@@ -686,6 +707,13 @@ export class OrderService {
       }
     }
 
+    // Cancellation mandatory reason validation
+    if (newStatus === OrderStatus.CANCELLED) {
+      if (!reason?.trim()) {
+        throw new BadRequestException('Cancellation reason is required when cancelling an order.');
+      }
+    }
+
     // 4. Central state machine validation
     if (!isAdminOverride && !isValidTransition(order.status, newStatus)) {
       throw new BadRequestException(
@@ -786,6 +814,14 @@ export class OrderService {
           paymentStatus: targetPaymentStatus,
           paymentMethod: targetPaymentMethod,
           deliveredAt,
+          ...(newStatus === OrderStatus.CANCELLED
+            ? {
+                cancelledAt: new Date(),
+                cancelledById: staffUserId,
+                cancellationReason: reason?.trim(),
+                assignmentStatus: 'CANCELLED',
+              }
+            : {}),
         },
         include: {
           payments: true,
@@ -818,6 +854,13 @@ export class OrderService {
             include: { user: { select: { firstName: true, lastName: true, role: true } } },
             orderBy: { createdAt: 'asc' },
           },
+          cancelledBy: { select: { id: true, firstName: true, lastName: true, role: true } },
+          distributorAssignments: {
+            include: {
+              distributor: { select: { id: true, firstName: true, lastName: true, phone: true } },
+            },
+            orderBy: { acceptedAt: 'asc' },
+          },
         },
       });
 
@@ -831,6 +874,26 @@ export class OrderService {
         } else if (paymentConfirmation && !paymentConfirmation.paymentReceived) {
           historyReason = `Delivered (Payment Pending / Unpaid)`;
         }
+      }
+
+      // Close active distributor assignment if cancelled
+      if (newStatus === OrderStatus.CANCELLED) {
+        await tx.distributorOrderAssignment.updateMany({
+          where: { orderId, status: 'ACCEPTED' },
+          data: {
+            status: 'RELEASED',
+            releasedAt: new Date(),
+            releaseReason: `Order cancelled by staff: ${reason?.trim()}`,
+          },
+        });
+      } else if (newStatus === OrderStatus.DELIVERED || newStatus === OrderStatus.COMPLETED) {
+        await tx.distributorOrderAssignment.updateMany({
+          where: { orderId, status: 'ACCEPTED' },
+          data: {
+            status: 'COMPLETED',
+            completedAt: new Date(),
+          },
+        });
       }
 
       await tx.orderStatusHistory.create({
@@ -1236,7 +1299,7 @@ export class OrderService {
     },
   ) {
     const page = Math.max(1, parseInt(String(query?.page || 1), 10) || 1);
-    const limit = Math.max(1, Math.min(100, parseInt(String(query?.limit || 25), 10) || 25));
+    const limit = Math.max(1, Math.min(5000, parseInt(String(query?.limit || 25), 10) || 25));
     const skip = (page - 1) * limit;
 
     // Strict Distributor assignment filter: Only orders assigned to this distributor
@@ -1304,14 +1367,24 @@ export class OrderService {
         const yEnd = new Date(yStart);
         yEnd.setHours(23, 59, 59, 999);
         where.createdAt = { gte: yStart, lte: yEnd };
-      } else if (query.datePreset === 'THIS_WEEK') {
+      } else if (['THIS_WEEK', '7D', 'LAST_7_DAYS', '7_DAYS'].includes(query.datePreset.toUpperCase())) {
         const weekStart = new Date(now);
-        weekStart.setDate(weekStart.getDate() - 7);
+        weekStart.setDate(weekStart.getDate() - 6);
         weekStart.setHours(0, 0, 0, 0);
         where.createdAt = { gte: weekStart };
-      } else if (query.datePreset === 'THIS_MONTH') {
+      } else if (['30D', 'LAST_30_DAYS', '30_DAYS'].includes(query.datePreset.toUpperCase())) {
+        const d30Start = new Date(now);
+        d30Start.setDate(d30Start.getDate() - 29);
+        d30Start.setHours(0, 0, 0, 0);
+        where.createdAt = { gte: d30Start };
+      } else if (['THIS_MONTH', 'MONTH'].includes(query.datePreset.toUpperCase())) {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        monthStart.setHours(0, 0, 0, 0);
         where.createdAt = { gte: monthStart };
+      } else if (['PREV_MONTH', 'LAST_MONTH', 'PREVIOUS_MONTH'].includes(query.datePreset.toUpperCase())) {
+        const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+        const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        where.createdAt = { gte: prevMonthStart, lte: prevMonthEnd };
       }
     } else if (query?.dateFrom || query?.dateTo) {
       where.createdAt = {};
@@ -1377,6 +1450,13 @@ export class OrderService {
           payments: {
             select: { id: true, amount: true, status: true, provider: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
+          },
+          cancelledBy: { select: { id: true, firstName: true, lastName: true, role: true } },
+          distributorAssignments: {
+            include: {
+              distributor: { select: { id: true, firstName: true, lastName: true, phone: true } },
+            },
+            orderBy: { acceptedAt: 'asc' },
           },
         },
         orderBy,
@@ -1909,8 +1989,29 @@ export class OrderService {
             include: { user: { select: { firstName: true, lastName: true } } },
             orderBy: { createdAt: 'asc' },
           },
+          cancelledBy: { select: { id: true, firstName: true, lastName: true, role: true } },
+          distributorAssignments: {
+            include: {
+              distributor: { select: { id: true, firstName: true, lastName: true, phone: true } },
+            },
+            orderBy: { acceptedAt: 'asc' },
+          },
         },
       });
+
+      if (isDelivering) {
+        await tx.distributorOrderAssignment.updateMany({
+          where: {
+            orderId,
+            distributorId: distributorUserId,
+            status: 'ACCEPTED',
+          },
+          data: {
+            status: 'COMPLETED',
+            completedAt: new Date(),
+          },
+        });
+      }
 
       const historyReason = paymentHistoryNote
         || dto.reason
@@ -1979,40 +2080,74 @@ export class OrderService {
     });
   }
 
-  async cancelDistributorOrder(
+  async releaseDistributorOrder(
     orderId: string,
     distributorUserId: string,
-    dto: CancelDistributorOrderDto,
+    dto: { reason: string },
   ) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-    });
-
-    if (!order) {
-      throw new NotFoundException(`Order not found: ${orderId}`);
-    }
-
-    if (order.distributorId && order.distributorId !== distributorUserId) {
-      throw new ForbiddenException('You are not authorized to cancel this order');
-    }
-
-    if (order.status === OrderStatus.CANCELLED) {
-      throw new BadRequestException('Order is already cancelled.');
-    }
-
-    if (order.status === OrderStatus.DELIVERED || order.status === OrderStatus.COMPLETED) {
-      throw new BadRequestException('Delivered orders cannot be cancelled.');
-    }
-
     if (!dto.reason?.trim()) {
-      throw new BadRequestException('Cancellation reason is required.');
+      throw new BadRequestException('Release reason is required.');
     }
+
+    const trimmedReason = dto.reason.trim();
 
     return this.prisma.$transaction(async (tx) => {
+      // 1. Exclusive row lock to serialize mutations and prevent race conditions
+      await tx.$executeRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: {
+          customer: {
+            include: { user: { select: { firstName: true, lastName: true, phone: true } } },
+          },
+          distributor: { select: { id: true, firstName: true, lastName: true } },
+          address: true,
+          items: { include: { product: true } },
+          payments: true,
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException(`Order not found: ${orderId}`);
+      }
+
+      if (order.distributorId && order.distributorId !== distributorUserId) {
+        throw new ForbiddenException('You are not authorized to release this order');
+      }
+
+      if (order.status === OrderStatus.CANCELLED) {
+        throw new BadRequestException('Order is already cancelled.');
+      }
+
+      if (order.status === OrderStatus.DELIVERED || order.status === OrderStatus.COMPLETED) {
+        throw new BadRequestException('Delivered orders cannot be released.');
+      }
+
+      // 2. Update active assignment in DistributorOrderAssignment to RELEASED
+      await tx.distributorOrderAssignment.updateMany({
+        where: {
+          orderId: order.id,
+          distributorId: distributorUserId,
+          status: 'ACCEPTED',
+        },
+        data: {
+          status: 'RELEASED',
+          releasedAt: new Date(),
+          releaseReason: trimmedReason,
+        },
+      });
+
+      // 3. Reset assignment fields on Order and return to live queue
+      // Crucial: The customer order is NOT cancelled; status resets to ORDER_PLACED and assignmentStatus='UNASSIGNED'
       const updated = await tx.order.update({
         where: { id: order.id },
         data: {
-          status: OrderStatus.CANCELLED,
+          distributorId: null,
+          assignmentStatus: 'UNASSIGNED',
+          acceptedAt: null,
+          acceptedById: null,
+          status: OrderStatus.ORDER_PLACED,
         },
         include: {
           customer: {
@@ -2022,51 +2157,68 @@ export class OrderService {
           items: { include: { product: true } },
           payments: true,
           history: { orderBy: { createdAt: 'asc' } },
+          distributorAssignments: {
+            include: { distributor: { select: { id: true, firstName: true, lastName: true, phone: true } } },
+            orderBy: { acceptedAt: 'asc' },
+          },
         },
       });
+
+      // 4. Create an audit history record
+      const distName = order.distributor
+        ? `${order.distributor.firstName} ${order.distributor.lastName}`.trim()
+        : 'Distributor';
 
       await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
           previousStatus: order.status,
-          newStatus: OrderStatus.CANCELLED,
+          newStatus: OrderStatus.ORDER_PLACED,
           changedByUserId: distributorUserId,
-          reason: `Cancelled by distributor: ${dto.reason.trim()}`,
+          reason: `Distributor ${distName} released assignment: "${trimmedReason}". Returned to queue.`,
         },
       });
+
+      // 5. Emit real-time WebSocket events
+      try {
+        // Broadcast to all eligible distributors so order immediately appears in New Orders queue
+        this.eventsGateway.emitNewOrderAvailable(updated);
+        // Specifically notify the releasing distributor so it leaves their active orders list
+        this.eventsGateway.emitEvent(`distributor:${distributorUserId}`, 'ORDER_RELEASED_BY_YOU', {
+          orderId: order.id,
+        });
+        this.eventsGateway.emitEvent(`distributor-${distributorUserId}`, 'ORDER_RELEASED_BY_YOU', {
+          orderId: order.id,
+        });
+        // Notify customer and staff of state update
+        this.eventsGateway.emitOrderStatusUpdate(
+          order.id,
+          OrderStatus.ORDER_PLACED,
+          order.customerId,
+          updated,
+        );
+      } catch (err) {
+        console.warn('[OrderService] WebSocket emit error on order release:', err);
+      }
 
       return updated;
     });
   }
 
+  // Alias cancelDistributorOrder to releaseDistributorOrder to ensure distributor cancellation NEVER cancels customer order
+  async cancelDistributorOrder(
+    orderId: string,
+    distributorUserId: string,
+    dto: CancelDistributorOrderDto,
+  ) {
+    return this.releaseDistributorOrder(orderId, distributorUserId, dto);
+  }
+
   async deleteDistributorOrder(orderId: string, distributorUserId: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-    });
-
-    if (!order) {
-      throw new NotFoundException(`Order not found: ${orderId}`);
-    }
-
-    if (order.distributorId && order.distributorId !== distributorUserId) {
-      throw new ForbiddenException('You are not authorized to delete this order');
-    }
-
-    if (
-      order.status === OrderStatus.OUT_FOR_DELIVERY ||
-      order.status === OrderStatus.DELIVERED ||
-      order.status === OrderStatus.COMPLETED
-    ) {
-      throw new BadRequestException(
-        'Finalized or dispatched orders cannot be deleted. Please use cancellation instead.',
-      );
-    }
-
-    await this.prisma.order.delete({
-      where: { id: order.id },
-    });
-
-    return { message: 'Order successfully deleted', orderId };
+    // Physical deletion of orders is permanently prohibited to preserve historical records and auditability.
+    throw new BadRequestException(
+      'Physical deletion of orders is prohibited. Orders are permanent business records. Please use the release flow if you cannot fulfill this assignment.',
+    );
   }
 
   // =========================================================================
@@ -2315,7 +2467,17 @@ export class OrderService {
       },
     });
 
-    // 4. Create audit status history record
+    // 4. Create persistent distributor assignment record
+    await this.prisma.distributorOrderAssignment.create({
+      data: {
+        orderId,
+        distributorId: distributorUserId,
+        status: 'ACCEPTED',
+        acceptedAt: new Date(),
+      },
+    });
+
+    // 5. Create audit status history record
     await this.prisma.orderStatusHistory.create({
       data: {
         orderId,
@@ -2326,7 +2488,7 @@ export class OrderService {
       },
     });
 
-    // 5. Broadcast real-time events via WebSocket to Customer, Distributor, and Admin
+    // 6. Broadcast real-time events via WebSocket to Customer, Distributor, and Admin
     try {
       this.eventsGateway.emitOrderClaimed(orderId, distributorUserId, fullOrder);
       if (fullOrder) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Building2,
@@ -23,7 +23,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../../../utils/toast';
+import { DistributorTopbar } from '../components/DistributorTopbar';
 
 export interface PurchaseItem {
   productId?: string;
@@ -165,7 +166,7 @@ export default function SupplierDetail() {
       const data = await fetchWithAuth(`/suppliers/${id}`);
       setSupplier(data);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load supplier details');
+      showToast.error(err.message || 'Failed to load supplier details');
       navigate('/distributor/suppliers');
     } finally {
       setIsLoading(false);
@@ -224,12 +225,12 @@ export default function SupplierDetail() {
         }),
       });
 
-      toast.success(`Payment of ${formatCurrency(amountNum)} recorded successfully!`);
+      showToast.success(`Payment of ${formatCurrency(amountNum)} recorded successfully!`);
       setIsPaymentModalOpen(false);
       loadSupplier();
     } catch (err: any) {
       setPaymentError(err.message || 'Failed to record payment');
-      toast.error(err.message || 'Failed to record payment');
+      showToast.error(err.message || 'Failed to record payment');
     } finally {
       setIsRecordingPayment(false);
     }
@@ -261,7 +262,7 @@ export default function SupplierDetail() {
     if (!supplier) return;
 
     if (!editName.trim()) {
-      toast.error('Supplier Name is required');
+      showToast.error('Supplier Name is required');
       return;
     }
 
@@ -291,11 +292,11 @@ export default function SupplierDetail() {
         body: JSON.stringify(payload),
       });
 
-      toast.success('Supplier details updated successfully');
+      showToast.success('Supplier details updated successfully');
       setIsEditModalOpen(false);
       loadSupplier();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update supplier');
+      showToast.error(err.message || 'Failed to update supplier');
     } finally {
       setIsSavingEdit(false);
     }
@@ -343,7 +344,7 @@ export default function SupplierDetail() {
         }),
       });
 
-      toast.success('Supplier balance adjusted successfully');
+      showToast.success('Supplier balance adjusted successfully');
       setIsAdjustModalOpen(false);
       await loadSupplier();
     } catch (err: any) {
@@ -390,7 +391,7 @@ export default function SupplierDetail() {
         }),
       });
 
-      toast.success('Payment recorded successfully');
+      showToast.success('Payment recorded successfully');
       setCollectingPurchase(null);
       await loadSupplier();
     } catch (err: any) {
@@ -515,47 +516,58 @@ export default function SupplierDetail() {
   const isSettled = supplier.outstandingBalance === 0;
 
   return (
-    <div className="w-full p-4 sm:p-6 space-y-4 animate-in fade-in duration-150">
-      {/* ─── BACK LINK & TOP ACTION BAR ─────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <Link
-          to="/distributor/suppliers"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#1677C8] transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Suppliers</span>
-        </Link>
+    <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
+      {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
+      <DistributorTopbar
+        backLink={{ label: 'Back to Suppliers', to: '/distributor/suppliers' }}
+        title={supplier.name}
+        subtitle={supplier.companyName || 'Supplier Profile & Ledger'}
+        icon={Building2}
+        badge={
+          supplier.isActive ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Active
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200">
+              Archived
+            </span>
+          )
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={openEditModal}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[#16324F] rounded-lg text-xs font-semibold transition cursor-pointer"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Edit Profile</span>
+            </button>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={openEditModal}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[#16324F] rounded-lg text-xs font-semibold transition cursor-pointer"
-          >
-            <Edit2 className="w-3.5 h-3.5" />
-            <span>Edit Profile</span>
-          </button>
+            <button
+              type="button"
+              onClick={openPaymentModal}
+              disabled={supplier.outstandingBalance <= 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Record Payment</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={openPaymentModal}
-            disabled={supplier.outstandingBalance <= 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
-          >
-            <CreditCard className="w-3.5 h-3.5" />
-            <span>Record Payment</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/distributor/purchases?supplierId=${supplier.id}`)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Purchase</span>
+            </button>
+          </>
+        }
+      />
 
-          <button
-            type="button"
-            onClick={() => navigate(`/distributor/purchases?supplierId=${supplier.id}`)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Purchase</span>
-          </button>
-        </div>
-      </div>
+      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
 
       {/* ─── SUPPLIER HEADER PROFILE CARD ───────────────────────────── */}
       <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-2xs">
@@ -1985,6 +1997,7 @@ export default function SupplierDetail() {
           </div>
         );
       })()}
+      </div>
     </div>
   );
 }

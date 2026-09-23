@@ -16,7 +16,8 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../../../utils/toast';
+import { DistributorTopbar } from '../components/DistributorTopbar';
 
 export interface SupplierRecord {
   id: string;
@@ -91,7 +92,7 @@ export default function Suppliers() {
       const data = await fetchWithAuth(`/suppliers${qs}`);
       setSuppliers(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load suppliers');
+      showToast.error(err.message || 'Failed to load suppliers');
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +159,7 @@ export default function Suppliers() {
   const handleSaveSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Supplier Name is required');
+      showToast.error('Supplier Name is required');
       return;
     }
 
@@ -190,19 +191,19 @@ export default function Suppliers() {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        toast.success(`Supplier ${name} created successfully!`);
+        showToast.success(`Supplier ${name} created successfully!`);
       } else {
         await fetchWithAuth(`/suppliers/${editingSupplier.id}`, {
           method: 'PUT',
           body: JSON.stringify(payload),
         });
-        toast.success(`Supplier ${name} updated successfully!`);
+        showToast.success(`Supplier ${name} updated successfully!`);
       }
 
       setIsModalOpen(false);
       loadSuppliers();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save supplier');
+      showToast.error(err.message || 'Failed to save supplier');
     } finally {
       setIsSubmitting(false);
     }
@@ -215,11 +216,11 @@ export default function Suppliers() {
       const res = await fetchWithAuth(`/suppliers/${deleteConfirmSupplier.id}`, {
         method: 'DELETE',
       });
-      toast.success(res.message || 'Supplier deleted');
+      showToast.success(res.message || 'Supplier deleted');
       setDeleteConfirmSupplier(null);
       loadSuppliers();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete supplier');
+      showToast.error(err.message || 'Failed to delete supplier');
     } finally {
       setIsDeleting(false);
     }
@@ -240,26 +241,25 @@ export default function Suppliers() {
   const totalPayablesSum = suppliers.reduce((sum, s) => (s.balance > 0 ? sum + s.balance : sum), 0);
 
   return (
-    <div className="w-full p-4 sm:p-6 space-y-4 animate-in fade-in duration-150">
-      {/* ─── HEADER & NEW SUPPLIER ACTION ───────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8F0] pb-3">
-        <div>
-          <h1 className="text-xl font-bold text-[#16324F] leading-tight flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-[#1677C8]" />
-            Suppliers
-          </h1>
-          <p className="text-xs text-[#64748B]">Manage your suppliers, purchases, balances and payment history</p>
-        </div>
+    <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
+      {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
+      <DistributorTopbar
+        title="Suppliers"
+        subtitle="Manage your suppliers, purchases, balances and payment history"
+        icon={Building2}
+        actions={
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Supplier</span>
+          </button>
+        }
+      />
 
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Supplier</span>
-        </button>
-      </div>
+      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
 
       {/* ─── SUMMARY CARDS ──────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -846,6 +846,7 @@ export default function Suppliers() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

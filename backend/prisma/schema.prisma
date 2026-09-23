@@ -40,6 +40,8 @@ model User {
   suppliers            Supplier[]           @relation("DistributorSuppliers")
   distributorOrders    Order[]              @relation("DistributorOrders")
   acceptedOrders       Order[]              @relation("AcceptedOrders")
+  cancelledOrders      Order[]              @relation("CancelledOrders")
+  distributorAssignments DistributorOrderAssignment[] @relation("DistributorAssignments")
   distributorOrderSkips DistributorOrderSkip[] @relation("DistributorOrderSkips")
   distributorPincodes   DistributorPincode[]   @relation("DistributorPincodes")
 
@@ -818,6 +820,11 @@ model Order {
   acceptedById      String?
   acceptedBy        User?                @relation("AcceptedOrders", fields: [acceptedById], references: [id])
   distributorSkips  DistributorOrderSkip[]
+  cancelledAt           DateTime?
+  cancelledById         String?
+  cancelledBy           User?                @relation("CancelledOrders", fields: [cancelledById], references: [id])
+  cancellationReason    String?
+  distributorAssignments DistributorOrderAssignment[]
 
   @@index([distributorId])
   @@index([assignmentStatus])
@@ -1206,4 +1213,25 @@ model DistributorPincode {
   @@index([pincode])
   @@index([distributorId])
   @@map("distributor_pincodes")
+}
+
+model DistributorOrderAssignment {
+  id            String    @id @default(uuid())
+  orderId       String
+  distributorId String
+  status        String    // 'ACCEPTED', 'RELEASED', 'COMPLETED'
+  acceptedAt    DateTime  @default(now())
+  releasedAt    DateTime?
+  releaseReason String?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  distributor   User      @relation("DistributorAssignments", fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([distributorId])
+  @@index([status])
+  @@map("distributor_order_assignments")
 }

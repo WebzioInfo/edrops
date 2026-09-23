@@ -88,6 +88,86 @@
 }
 
 /* ============================================================
+   MODERN APPLICATION-WIDE SCROLLBAR SYSTEM (EDROPS THEME)
+   ============================================================ */
+
+/* Global standard scrollbar for all browsers (Firefox, modern standards) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(22, 119, 200, 0.3) transparent;
+}
+
+/* WebKit & Blink Browsers (Chrome, Edge, Safari, Opera) */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(22, 119, 200, 0.28);
+  border-radius: 9999px;
+  transition: background-color 0.15s ease-in-out;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(22, 119, 200, 0.65);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background-color: #1677C8;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Tables and Horizontally Scrollable Containers (Draggable & Accessible) */
+.table-container::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar {
+  height: 7px;
+  width: 7px;
+}
+
+.table-container::-webkit-scrollbar-track,
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.8);
+  border-radius: 9999px;
+}
+
+.table-container::-webkit-scrollbar-thumb,
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(22, 119, 200, 0.35);
+  border-radius: 9999px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover,
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(22, 119, 200, 0.7);
+}
+
+/* Compact Dropdowns, Popovers, and Modals */
+.dropdown-scroll::-webkit-scrollbar,
+.compact-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.dropdown-scroll::-webkit-scrollbar-thumb,
+.compact-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.45);
+  border-radius: 9999px;
+}
+
+.dropdown-scroll::-webkit-scrollbar-thumb:hover,
+.compact-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(22, 119, 200, 0.6);
+}
+
+/* ============================================================
    AUTH FULL-BLEED GRADIENT & RADIAL GLOW ANIMATIONS
    ============================================================ */
 

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import type { ReactNode } from 'react';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
-import toast from 'react-hot-toast';
+import { showToast } from '../utils/toast';
 
 export interface AppNotification {
   id: string;
@@ -74,14 +74,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         return [data.notification, ...prev];
       });
 
-      toast(
+      showToast.info(
         () => (
           <div className="flex flex-col gap-1">
             <span className="font-semibold text-sm">{data.notification.title}</span>
             <span className="text-xs text-gray-600">{data.notification.message}</span>
           </div>
         ),
-        { icon: '🔔', duration: 5000 }
+        { id: `notif-${data.notification.id}`, duration: 5000 }
       );
 
       if (soundEnabled) {

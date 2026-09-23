@@ -14,7 +14,8 @@ import {
   Check,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../../../utils/toast';
+import { DistributorTopbar } from '../components/DistributorTopbar';
 
 export interface ServiceAreaRecord {
   id: string;
@@ -59,7 +60,7 @@ export default function ServiceAreas() {
       const data = await fetchWithAuth('/distributor/service-areas');
       setAreas(Array.isArray(data) ? data : []);
     } catch {
-      toast.error('Failed to load delivery areas');
+      showToast.error('Failed to load delivery areas');
     } finally {
       setIsLoading(false);
     }
@@ -180,12 +181,12 @@ export default function ServiceAreas() {
     e.preventDefault();
     const cleanPincode = pincode.trim();
     if (!/^\d{6}$/.test(cleanPincode)) {
-      toast.error('Please enter a valid 6-digit pincode');
+      showToast.error('Please enter a valid 6-digit pincode');
       return;
     }
 
     if (isDuplicate) {
-      toast.error(`Pincode ${cleanPincode} is already configured in your active delivery areas.`);
+      showToast.error(`Pincode ${cleanPincode} is already configured in your active delivery areas.`);
       return;
     }
 
@@ -200,11 +201,11 @@ export default function ServiceAreas() {
           state: state.trim() || undefined,
         }),
       });
-      toast.success(`Pincode ${cleanPincode} added to your delivery areas`);
+      showToast.success(`Pincode ${cleanPincode} added to your delivery areas`);
       setIsModalOpen(false);
       loadAreas();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save service area');
+      showToast.error(err.message || 'Failed to save service area');
     } finally {
       setIsSubmitting(false);
     }
@@ -218,9 +219,9 @@ export default function ServiceAreas() {
       setAreas((prev) =>
         prev.map((a) => (a.id === id ? { ...a, isActive: !a.isActive } : a))
       );
-      toast.success('Status updated');
+      showToast.success('Status updated');
     } catch {
-      toast.error('Failed to update area status');
+      showToast.error('Failed to update area status');
     }
   };
 
@@ -229,11 +230,11 @@ export default function ServiceAreas() {
       await fetchWithAuth(`/distributor/service-areas/${id}`, {
         method: 'DELETE',
       });
-      toast.success('Pincode removed from your delivery network');
+      showToast.success('Pincode removed from your delivery network');
       setAreas((prev) => prev.filter((a) => a.id !== id));
       setDeleteConfirmId(null);
     } catch {
-      toast.error('Failed to delete service area');
+      showToast.error('Failed to delete service area');
     }
   };
 
@@ -257,34 +258,25 @@ export default function ServiceAreas() {
   const pausedCount = areas.length - activeCount;
 
   return (
-    <div className="w-full max-w-7xl 2xl:max-w-none mx-auto p-4 sm:p-6 lg:p-8 space-y-5 animate-in fade-in duration-150">
-      {/* ─── 1. HEADER SECTION ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1677C8]/10 text-[#1677C8]">
-              <MapPin className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-[#16324F] leading-tight">
-                Delivery Service Areas
-              </h1>
-              <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">
-                Manage the pincodes and localities your fleet delivers to. Customers in these pincodes can place orders.
-              </p>
-            </div>
-          </div>
-        </div>
+    <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
+      {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
+      <DistributorTopbar
+        title="Delivery Service Areas"
+        subtitle="Manage the pincodes and localities your fleet delivers to. Customers in these pincodes can place orders."
+        icon={MapPin}
+        actions={
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Service Pincode</span>
+          </button>
+        }
+      />
 
-        <button
-          type="button"
-          onClick={openAddModal}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#1677C8] hover:bg-[#125ea0] text-white font-bold text-xs sm:text-sm shadow-xs transition-all cursor-pointer self-start sm:self-auto shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Service Pincode</span>
-        </button>
-      </div>
+      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
 
       {/* ─── 2. SUMMARY STATS CARDS (FULL WIDTH) ──────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -736,6 +728,7 @@ export default function ServiceAreas() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

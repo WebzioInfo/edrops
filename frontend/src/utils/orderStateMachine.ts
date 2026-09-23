@@ -79,6 +79,15 @@ export function getOrderStatusConfig(status?: string | null): StatusConfig {
         stepIndex: 3,
       };
 
+    case 'CANCELLED':
+    case 'CANCELED':
+      return {
+        label: 'Cancelled',
+        badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200',
+        dotColor: 'bg-rose-500',
+        stepIndex: -1,
+      };
+
     default:
       return {
         label: 'Order Placed',

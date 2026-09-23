@@ -4,7 +4,6 @@ import {
   Search,
   RefreshCw,
   Eye,
-  Trash2,
   X,
   CheckCircle2,
   AlertCircle,
@@ -17,12 +16,14 @@ import {
   User,
   Phone,
   MapPin,
+  Undo2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../../../utils/toast';
 import { formatOrderId, formatOrderStatus, getOrderPaymentState } from '../../../utils/orderFormatters';
 import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
 import { useSocket } from '../../../contexts/SocketContext';
+import { DistributorTopbar } from '../components/DistributorTopbar';
 
 // Types
 export interface OrderItemProduct {
@@ -64,6 +65,23 @@ export interface OrderStatusHistoryRecord {
     lastName?: string;
     phone?: string;
     role?: string;
+  } | null;
+}
+
+export interface DistributorAssignmentRecord {
+  id: string;
+  orderId: string;
+  distributorId: string;
+  status: string;
+  acceptedAt: string;
+  releasedAt?: string | null;
+  releaseReason?: string | null;
+  completedAt?: string | null;
+  distributor?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone?: string | null;
   } | null;
 }
 
@@ -122,6 +140,16 @@ export interface DistributorOrder {
   items: OrderItemRecord[];
   payments: PaymentRecord[];
   history?: OrderStatusHistoryRecord[];
+  distributorAssignments?: DistributorAssignmentRecord[];
+  cancelledAt?: string | null;
+  cancelledById?: string | null;
+  cancelledBy?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+  } | null;
+  cancellationReason?: string | null;
 }
 
 export interface OrderStats {
@@ -204,13 +232,9 @@ export default function Orders() {
   const [paymentRefNumber, setPaymentRefNumber] = useState<string>('');
   const [paymentNotes, setPaymentNotes] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState<boolean>(false);
-
-  const [cancelModalOrder, setCancelModalOrder] = useState<DistributorOrder | null>(null);
-  const [cancelReason, setCancelReason] = useState<string>('');
-  const [isCancelling, setIsCancelling] = useState<boolean>(false);
-
-  const [deleteModalOrder, setDeleteModalOrder] = useState<DistributorOrder | null>(null);
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [releaseModalOrder, setReleaseModalOrder] = useState<DistributorOrder | null>(null);
+  const [releaseReason, setReleaseReason] = useState<string>('');
+  const [isReleasing, setIsReleasing] = useState<boolean>(false);
 
   // Create Order Form State
   const [formCustomerId, setFormCustomerId] = useState<string>('');
@@ -254,7 +278,7 @@ export default function Orders() {
     } catch (err: any) {
       setIsError(true);
       setErrorMessage(err.message || 'Failed to load distributor orders');
-      toast.error(err.message || 'Error loading orders');
+      showToast.error(err.message || 'Error loading orders');
     } finally {
       setIsLoading(false);
     }
@@ -287,10 +311,12 @@ export default function Orders() {
 
     const handleAssigned = (payload: any) => {
       loadOrders();
-      toast.success(
-        payload?.order?.id
-          ? `Order #${formatOrderId(payload.order.id)} assigned to you!`
+      const orderId = payload?.order?.id;
+      showToast.success(
+        orderId
+          ? `Order #${formatOrderId(orderId)} assigned to you!`
           : 'New order assigned to you!',
+        { id: orderId ? `order-assigned-${orderId}` : 'order-assigned' },
       );
     };
 
@@ -298,12 +324,18 @@ export default function Orders() {
       loadOrders();
     };
 
+    const handleReleased = () => {
+      loadOrders();
+    };
+
     socket.on('ORDER_ASSIGNED_TO_YOU', handleAssigned);
     socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
+    socket.on('ORDER_RELEASED_BY_YOU', handleReleased);
 
     return () => {
       socket.off('ORDER_ASSIGNED_TO_YOU', handleAssigned);
       socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
+      socket.off('ORDER_RELEASED_BY_YOU', handleReleased);
     };
   }, [socket]);
 
@@ -419,7 +451,7 @@ export default function Orders() {
 
   const removeItemRow = (index: number) => {
     if (formItems.length === 1) {
-      toast.error('Order must have at least one line item');
+      showToast.error('Order must have at least one line item');
       return;
     }
     setFormItems((prev) => prev.filter((_, i) => i !== index));
@@ -443,13 +475,13 @@ export default function Orders() {
   const handleCreateOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formCustomerId) {
-      toast.error('Please select a customer');
+      showToast.error('Please select a customer');
       return;
     }
 
     const invalidItems = formItems.some((i) => !i.productId || Number(i.quantity) <= 0);
     if (invalidItems) {
-      toast.error('Please select a valid product and quantity for each item');
+      showToast.error('Please select a valid product and quantity for each item');
       return;
     }
 
@@ -478,12 +510,12 @@ export default function Orders() {
         body: JSON.stringify(payload),
       });
 
-      toast.success('Order created successfully!');
+      showToast.success('Order created successfully!');
       setIsCreateModalOpen(false);
       loadOrders();
       if (res?.id) handleOpenDetails(res);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create order');
+      showToast.error(err.message || 'Failed to create order');
     } finally {
       setIsCreatingOrder(false);
     }
@@ -532,12 +564,12 @@ export default function Orders() {
     if (isDelivering && deliveryPaymentMode === 'PARTIAL') {
       const amt = Number(deliveryPaymentAmount);
       if (isNaN(amt) || amt <= 0) {
-        toast.error('Please enter a valid partial payment amount greater than 0.');
+        showToast.error('Please enter a valid partial payment amount greater than 0.');
         return;
       }
       const pst = getOrderPaymentState(statusModalOrder);
       if (amt > pst.due + 0.01) {
-        toast.error(`Amount (₹${amt}) cannot exceed remaining due (₹${pst.due.toFixed(2)}).`);
+        showToast.error(`Amount (₹${amt}) cannot exceed remaining due (₹${pst.due.toFixed(2)}).`);
         return;
       }
     }
@@ -565,14 +597,14 @@ export default function Orders() {
         body: JSON.stringify(body),
       });
 
-      toast.success(`Order updated to ${newTargetStatus}`);
+      showToast.success(`Order updated to ${newTargetStatus}`);
       setStatusModalOrder(null);
       loadOrders();
       if (selectedOrder && selectedOrder.id === statusModalOrder.id) {
         handleOpenDetails({ ...selectedOrder, status: newTargetStatus });
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update order status');
+      showToast.error(err.message || 'Failed to update order status');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -594,7 +626,7 @@ export default function Orders() {
     if (!paymentModalOrder) return;
     const amt = Number(paymentAmount);
     if (isNaN(amt) || amt <= 0) {
-      toast.error('Please enter a valid positive payment amount');
+      showToast.error('Please enter a valid positive payment amount');
       return;
     }
 
@@ -612,72 +644,52 @@ export default function Orders() {
         }),
       });
 
-      toast.success(`Payment of ₹${amt} collected successfully!`);
+      showToast.success(`Payment of ₹${amt} collected successfully!`);
       setPaymentModalOrder(null);
       loadOrders();
       if (selectedOrder && selectedOrder.id === paymentModalOrder.id) {
         handleOpenDetails(selectedOrder);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to collect payment');
+      showToast.error(err.message || 'Failed to collect payment');
     } finally {
       setIsSubmittingPayment(false);
     }
   };
 
-  // Cancel Order
-  const handleOpenCancelModal = (order: DistributorOrder) => {
-    setCancelModalOrder(order);
-    setCancelReason('');
+  // Release Order Assignment (Returns order to live queue without cancelling customer order)
+  const handleOpenReleaseModal = (order: DistributorOrder) => {
+    setReleaseModalOrder(order);
+    setReleaseReason('');
   };
 
-  const handleCancelSubmit = async (e: React.FormEvent) => {
+  const handleReleaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cancelModalOrder) return;
-    if (!cancelReason.trim()) {
-      toast.error('Please provide a reason for cancellation');
+    if (!releaseModalOrder) return;
+    if (!releaseReason.trim()) {
+      showToast.error('Please provide a reason for releasing this order assignment');
       return;
     }
 
     try {
-      setIsCancelling(true);
-      await fetchWithAuth(`/orders/distributor/${cancelModalOrder.id}/cancel`, {
+      setIsReleasing(true);
+      await fetchWithAuth(`/orders/distributor/${releaseModalOrder.id}/release`, {
         method: 'POST',
-        body: JSON.stringify({ reason: cancelReason.trim() }),
+        body: JSON.stringify({ reason: releaseReason.trim() }),
       });
 
-      toast.success('Order cancelled successfully');
-      setCancelModalOrder(null);
-      loadOrders();
-      if (selectedOrder && selectedOrder.id === cancelModalOrder.id) {
-        handleOpenDetails({ ...selectedOrder, status: 'CANCELLED' });
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to cancel order');
-    } finally {
-      setIsCancelling(false);
-    }
-  };
-
-  // Delete Order (Only for draft / unfinalized orders)
-  const handleDeleteSubmit = async () => {
-    if (!deleteModalOrder) return;
-    try {
-      setIsDeleting(true);
-      await fetchWithAuth(`/orders/distributor/${deleteModalOrder.id}`, {
-        method: 'DELETE',
-      });
-      toast.success('Order deleted');
-      setDeleteModalOrder(null);
-      if (selectedOrder?.id === deleteModalOrder.id) {
+      showToast.success('Order assignment released and returned to queue');
+      setReleaseModalOrder(null);
+      setReleaseReason('');
+      if (selectedOrder && selectedOrder.id === releaseModalOrder.id) {
         setIsDetailsModalOpen(false);
         setSelectedOrder(null);
       }
       loadOrders();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete order');
+      showToast.error(err.message || 'Failed to release order');
     } finally {
-      setIsDeleting(false);
+      setIsReleasing(false);
     }
   };
 
@@ -732,40 +744,38 @@ export default function Orders() {
   }, [customersList, formCustomerId]);
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 max-w-full overflow-x-hidden">
-      {/* ─── 1. PAGE HEADER ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <h1 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-            <Package className="w-5 h-5 text-[#1677C8]" />
-            Orders
-          </h1>
-          <p className="text-xs font-semibold text-slate-500 mt-0.5">
-            Manage distributor customer orders
-          </p>
-        </div>
+    <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
+      {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
+      <DistributorTopbar
+        title="Orders"
+        subtitle="Manage distributor customer orders and delivery fulfillment"
+        icon={Package}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={loadOrders}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-xs font-bold text-[#16324F] hover:bg-slate-50 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+              title="Refresh Orders"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={loadOrders}
-            disabled={isLoading}
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-            title="Refresh Orders"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
-          </button>
+            <button
+              type="button"
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Order</span>
+            </button>
+          </>
+        }
+      />
 
-          <button
-            type="button"
-            onClick={handleOpenCreateModal}
-            className="bg-[#1677C8] hover:bg-[#1264A8] text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Order</span>
-          </button>
-        </div>
-      </div>
+      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
 
       {/* ─── 2. COMPACT SUMMARY BAR (REAL BACKEND DATA) ─────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
@@ -1193,27 +1203,15 @@ export default function Orders() {
                             </button>
                           )}
 
-                          {/* Cancel Order (if not delivered or cancelled) */}
+                          {/* Release Order Assignment (if not delivered or cancelled) */}
                           {!isDeliveredOrFinalized && !isCancelled && (
                             <button
                               type="button"
-                              onClick={() => handleOpenCancelModal(order)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Cancel Order"
+                              onClick={() => handleOpenReleaseModal(order)}
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                              title="Release Order Assignment (Return to Queue)"
                             >
-                              <Ban className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-
-                          {/* Delete (only if in initial/draft state) */}
-                          {(order.status === 'NEW' || order.status === 'PENDING') && (
-                            <button
-                              type="button"
-                              onClick={() => setDeleteModalOrder(order)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Delete Draft Order"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Undo2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
@@ -1814,6 +1812,48 @@ export default function Orders() {
                   </div>
                 </div>
               )}
+
+              {/* Distributor Assignment History */}
+              {selectedOrder.distributorAssignments && selectedOrder.distributorAssignments.length > 0 && (
+                <div>
+                  <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+                    Distributor Assignment History
+                  </h5>
+                  <div className="space-y-2 border-l-2 border-amber-200 pl-4 ml-2">
+                    {selectedOrder.distributorAssignments.map((a) => (
+                      <div key={a.id} className="relative text-xs">
+                        <div className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ${a.status === 'COMPLETED' ? 'bg-emerald-500' : a.status === 'RELEASED' ? 'bg-amber-500' : 'bg-blue-500'} border-2 border-white`} />
+                        <div className="font-bold text-slate-800">
+                          {a.distributor ? `${a.distributor.firstName} ${a.distributor.lastName}` : 'Distributor'} • <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${a.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : a.status === 'RELEASED' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>{a.status}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium mt-0.5">
+                          Accepted: {new Date(a.acceptedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {a.releasedAt && ` • Released: ${new Date(a.releasedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                          {a.releaseReason && ` • Reason: ${a.releaseReason}`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Staff Cancellation Banner */}
+              {selectedOrder.status === 'CANCELLED' && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                  <div className="flex items-center gap-1.5 text-rose-700 font-bold text-xs mb-1">
+                    <Ban className="w-4 h-4 text-rose-600" />
+                    <span>Order Cancelled by {selectedOrder.cancelledBy?.firstName ? `${selectedOrder.cancelledBy.firstName} ${selectedOrder.cancelledBy.lastName || ''}` : 'Staff'} {selectedOrder.cancelledBy?.role && `(${selectedOrder.cancelledBy.role})`}</span>
+                  </div>
+                  <div className="text-xs text-rose-800 font-medium">
+                    <strong>Reason:</strong> {selectedOrder.cancellationReason || 'No reason specified'}
+                  </div>
+                  {selectedOrder.cancelledAt && (
+                    <div className="text-[10px] text-rose-600 mt-1">
+                      Cancelled at {new Date(selectedOrder.cancelledAt).toLocaleString('en-GB')}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer action bar inside drawer */}
@@ -1846,11 +1886,12 @@ export default function Orders() {
                 {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' && (
                   <button
                     type="button"
-                    onClick={() => handleOpenCancelModal(selectedOrder)}
-                    className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                    onClick={() => handleOpenReleaseModal(selectedOrder)}
+                    className="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                    title="Release assignment to live queue"
                   >
-                    <Ban className="w-3.5 h-3.5" />
-                    Cancel Order
+                    <Undo2 className="w-3.5 h-3.5" />
+                    Release Assignment
                   </button>
                 )}
               </div>
@@ -2158,97 +2199,69 @@ export default function Orders() {
         </div>
       )}
 
-      {/* ─── MODAL: CANCEL ORDER ────────────────────────────────────── */}
-      {cancelModalOrder && (
+      {/* ─── MODAL: RELEASE ORDER ASSIGNMENT ──────────────────────── */}
+      {releaseModalOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-rose-600 text-base flex items-center gap-2">
-                <Ban className="w-5 h-5" />
-                Cancel Order
+              <h3 className="font-black text-amber-700 text-base flex items-center gap-2">
+                <Undo2 className="w-5 h-5 text-amber-600" />
+                Release Order Assignment
               </h3>
               <button
                 type="button"
-                onClick={() => setCancelModalOrder(null)}
+                onClick={() => setReleaseModalOrder(null)}
                 className="p-1 text-slate-400 hover:text-slate-700"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCancelSubmit} className="space-y-4">
-              <p className="text-xs text-slate-600 font-semibold">
-                Are you sure you want to cancel order{' '}
-                <span className="font-black text-slate-800">#ORD-{formatOrderId(cancelModalOrder.id)}</span>?
-                This action is destructive and will be recorded in the audit history.
-              </p>
+            <form onSubmit={handleReleaseSubmit} className="space-y-4">
+              <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-2xl text-xs text-amber-900 space-y-1">
+                <p className="font-bold">
+                  Release assignment for order #ORD-{formatOrderId(releaseModalOrder.id)}?
+                </p>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Releasing this order will remove it from your active list and immediately return it to the live queue for another distributor to accept. The customer's order remains active and will <strong>NOT</strong> be cancelled.
+                </p>
+              </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Cancellation Reason <span className="text-rose-500">*</span>
+                  Reason for Release <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   rows={3}
                   required
-                  placeholder="Explain why this order is being cancelled..."
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-rose-500"
+                  placeholder="Explain why you are unable to fulfill this order (e.g., delivery vehicle unavailable, capacity limit)..."
+                  value={releaseReason}
+                  onChange={(e) => setReleaseReason(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-amber-500"
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setCancelModalOrder(null)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  onClick={() => setReleaseModalOrder(null)}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
-                  Keep Order
+                  Keep Assignment
                 </button>
                 <button
                   type="submit"
-                  disabled={isCancelling}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2"
+                  disabled={isReleasing}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
                 >
-                  {isCancelling ? 'Cancelling...' : 'Cancel Order'}
+                  {isReleasing ? 'Releasing...' : 'Release Assignment'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* ─── MODAL: DELETE DRAFT ORDER ──────────────────────────────── */}
-      {deleteModalOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-sm w-full p-6 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3">
-              <Trash2 className="w-6 h-6" />
-            </div>
-            <h3 className="font-black text-slate-800 text-base">Delete Draft Order?</h3>
-            <p className="text-xs text-slate-500 font-medium mt-1 mb-5">
-              Permanently delete draft order #ORD-{formatOrderId(deleteModalOrder.id)}? This cannot be undone.
-            </p>
-            <div className="flex justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setDeleteModalOrder(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={handleDeleteSubmit}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold disabled:opacity-50"
-              >
-                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

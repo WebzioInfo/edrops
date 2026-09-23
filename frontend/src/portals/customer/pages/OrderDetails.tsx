@@ -302,14 +302,26 @@ export default function OrderDetails() {
               </div>
 
               {isCancelled ? (
-                <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-3 text-rose-800">
-                  <XCircle className="w-6 h-6 text-rose-600 shrink-0" />
-                  <div>
-                    <h4 className="font-bold text-sm">This order was cancelled</h4>
-                    <p className="text-xs text-rose-600 mt-0.5">
-                      Any payments or wallet deductions have been reversed or credited.
-                    </p>
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-2 text-rose-900">
+                  <div className="flex items-center gap-2.5">
+                    <XCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-sm text-rose-900">This order was cancelled</h4>
+                      {order.cancelledAt && (
+                        <p className="text-[11px] text-rose-500">
+                          Cancelled on {new Date(order.cancelledAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                        </p>
+                      )}
+                    </div>
                   </div>
+                  {order.cancellationReason && (
+                    <div className="pl-7 text-xs text-rose-800">
+                      <span className="font-semibold">Reason:</span> {order.cancellationReason}
+                    </div>
+                  )}
+                  <p className="pl-7 text-xs text-rose-600">
+                    Any payments or wallet deductions have been reversed or credited. If you have questions, please reach out to customer support.
+                  </p>
                 </div>
               ) : (
                 <div className="relative">
