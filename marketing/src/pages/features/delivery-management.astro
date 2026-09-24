@@ -1,6 +1,73 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navigation from '../../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Features', url: '/features/' },
+  { name: 'Delivery Management', url: '/features/delivery-management/' }
+];
+
+const serviceData = {
+  name: 'eDrops Water Delivery & Route Scheduling Software',
+  description: 'Schedule, assign, track, and complete 20L water jar deliveries with balance-safe workflows, live route sheets, and verified doorstep jar swaps.',
+  url: '/features/delivery-management/',
+  serviceType: 'Water Delivery Dispatch Software'
+};
 ---
-<BaseLayout title="Water Delivery Scheduling Software | Edrops" description="Schedule, assign, complete, fail, skip, and reschedule 20L jar deliveries with balance-safe workflows.">
-  <main class="mx-auto max-w-5xl px-5 py-20 text-edrops-ocean"><a href="/features" class="font-black text-edrops-primary">Features</a><h1 class="mt-8 text-5xl font-black tracking-tight sm:text-7xl">Water delivery management without balance mistakes.</h1><p class="mt-8 text-lg font-medium leading-9 text-edrops-ocean/68">Completed deliveries deduct jars, failed deliveries do not, skipped deliveries preserve allocation, and every balance change becomes an auditable transaction.</p><a href="/contact" class="mt-10 inline-flex rounded-full sun-gradient px-7 py-4 text-sm font-black text-white">Contact sales</a></main>
+
+<BaseLayout
+  title="Water Delivery Scheduling & Dispatch Software | eDrops™"
+  description="Schedule, assign, complete, fail, skip, and reschedule 20L jar deliveries with balance-safe workflows, live driver route sheets, and doorstep jar verification."
+  keywords="Water delivery management software, 20L water jar dispatch, water route optimization, bottle swap tracking"
+  breadcrumbs={breadcrumbs}
+  serviceData={serviceData}
+>
+  <Navigation />
+
+  <main class="mx-auto max-w-5xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Delivery Management</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-10 max-w-3xl">
+      <header class="space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Route Execution</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
+          Water delivery management without balance mistakes.
+        </h1>
+        <p class="text-lg text-edrops-slate leading-relaxed">
+          Completed deliveries deduct jars, failed deliveries do not, skipped deliveries preserve allocation, and every balance change becomes an auditable digital transaction.
+        </p>
+      </header>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Balance-Safe Completion</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Jar counts only deduct when doorstep swap is physically confirmed by the driver. Zero accidental charges on skipped stops.
+          </p>
+        </div>
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Live Route Sheets</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Dispatchers group orders by building, sector, or pin code for minimal drive time and maximum jars per vehicle trip.
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-6">
+        <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
+          Explore Driver Dispatch
+        </a>
+      </div>
+    </div>
+  </main>
 </BaseLayout>

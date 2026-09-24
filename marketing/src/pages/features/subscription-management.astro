@@ -1,6 +1,73 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navigation from '../../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Features', url: '/features/' },
+  { name: 'Subscription Management', url: '/features/subscription-management/' }
+];
+
+const serviceData = {
+  name: 'eDrops Water Subscription Management Software',
+  description: 'Manage recurring water jar subscriptions, pause/resume workflows, delivery schedules, and prepaid balance forecasting.',
+  url: '/features/subscription-management/',
+  serviceType: 'Water Jar Subscription Management Software'
+};
 ---
-<BaseLayout title="Water Subscription Management Software | Edrops" description="Manage recurring water jar subscriptions, pause/resume workflows, schedules, and recharge forecasting.">
-  <main class="mx-auto max-w-5xl px-5 py-20 text-edrops-ocean"><a href="/features" class="font-black text-edrops-primary">Features</a><h1 class="mt-8 text-5xl font-black tracking-tight sm:text-7xl">Subscription management for 20L water jar delivery.</h1><p class="mt-8 text-lg font-medium leading-9 text-edrops-ocean/68">Create recurring schedules, pause and resume plans, connect every delivery to prepaid balance, and forecast recharge needs before customers run out.</p><a href="/contact" class="mt-10 inline-flex rounded-full sun-gradient px-7 py-4 text-sm font-black text-white">Book demo</a></main>
+
+<BaseLayout
+  title="20L Water Jar Subscription Management Software | eDrops™"
+  description="Manage recurring water jar subscriptions, pause/resume workflows, customized schedules, and automated recharge forecasting with eDrops."
+  keywords="Water subscription management software, 20L water recurring delivery, bottled water subscription software"
+  breadcrumbs={breadcrumbs}
+  serviceData={serviceData}
+>
+  <Navigation />
+
+  <main class="mx-auto max-w-5xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Subscription Management</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-10 max-w-3xl">
+      <header class="space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Recurring Convenience</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
+          Subscription management for 20L water jar delivery.
+        </h1>
+        <p class="text-lg text-edrops-slate leading-relaxed">
+          Create recurring schedules, pause and resume plans, connect every delivery to prepaid balance, and forecast recharge needs before customers run dry.
+        </p>
+      </header>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Zero-Lockin Flexibility</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Customers adjust drop dates, increase jar quantities for events, or pause during holidays straight from their phones.
+          </p>
+        </div>
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Predictive Recharging</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Our consumption engine calculates runout dates based on household jar velocity and sends timely recharge prompts.
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-6">
+        <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
+          Start Managing Subscriptions
+        </a>
+      </div>
+    </div>
+  </main>
 </BaseLayout>

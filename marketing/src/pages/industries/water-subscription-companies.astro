@@ -1,6 +1,73 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navigation from '../../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Industries', url: '/industries/' },
+  { name: 'Water Subscription Companies', url: '/industries/water-subscription-companies/' }
+];
+
+const serviceData = {
+  name: 'eDrops Water Subscription Software Platform',
+  description: 'Water subscription software for recurring 20L jar deliveries, prepaid recharge, delivery completion, and balance tracking.',
+  url: '/industries/water-subscription-companies/',
+  serviceType: 'Subscription Management Software'
+};
 ---
-<BaseLayout title="Water Subscription Software | Edrops" description="Water subscription software for recurring 20L jar deliveries, prepaid recharge, delivery completion, and balance tracking.">
-  <main class="mx-auto max-w-5xl px-5 py-20 text-edrops-ocean"><a href="/" class="font-black text-edrops-primary">Edrops</a><h1 class="mt-8 text-5xl font-black tracking-tight sm:text-7xl">Water subscription software customers understand instantly.</h1><p class="mt-8 text-lg font-medium leading-9 text-edrops-ocean/68">The Edrops smart jar turns prepaid balance into a visual subscription experience: recharge fills, deliveries consume, and customers know exactly when to buy again.</p><a href="/contact" class="mt-10 inline-flex rounded-full sun-gradient px-7 py-4 text-sm font-black text-white">Book demo</a></main>
+
+<BaseLayout
+  title="Water Subscription Management Software | Recurring 20L Delivery | eDrops™"
+  description="Water subscription software for recurring 20L jar deliveries, prepaid recharge, delivery completion, and visual balance tracking with eDrops."
+  keywords="Water subscription software, 20L drinking water subscriptions, recurring water delivery platform, bottled water subscription app"
+  breadcrumbs={breadcrumbs}
+  serviceData={serviceData}
+>
+  <Navigation />
+
+  <main class="mx-auto max-w-5xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li><a href="/industries/" class="hover:text-edrops-primary transition-colors">Industries</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Subscription Companies</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-10 max-w-3xl">
+      <header class="space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Modern Subscriptions</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
+          Water subscription software customers understand instantly.
+        </h1>
+        <p class="text-lg text-edrops-slate leading-relaxed">
+          The eDrops platform turns prepaid balances into a modern, visual subscription experience: recharges fill the jar, deliveries consume balance, and customers always know when their next delivery is coming.
+        </p>
+      </header>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Visual Smart Balance</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Customers check their remaining water jars at a glance on mobile or web with zero confusion about billing days.
+          </p>
+        </div>
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Automated Churn Defense</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Detect inactive customers, alert drivers to check in, and send win-back reorder packs automatically.
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-6">
+        <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
+          Launch Your Subscription Brand
+        </a>
+      </div>
+    </div>
+  </main>
 </BaseLayout>

@@ -1,103 +1,82 @@
 ---
+import {
+  SITE_URL,
+  ENTITY_CONFIG,
+  getCanonicalUrl,
+  buildOrganizationSchema,
+  buildWebSiteSchema,
+  buildSiteNavigationSchema,
+  buildLocalBusinessSchema,
+  buildSoftwareApplicationSchema,
+  buildBreadcrumbSchema,
+  buildFaqSchema,
+  buildHowToSchema,
+  buildBlogPostingSchema,
+  buildServiceSchema
+} from '../lib/seoConfig';
+
 export interface Props {
   title: string;
   description: string;
   keywords?: string;
   image?: string;
-  canonicalURL: string;
+  canonicalURL?: string;
+  noindex?: boolean;
+  isHome?: boolean;
   faqItems?: Array<{ question: string; answer: string }>;
+  breadcrumbs?: Array<{ name: string; url: string }>;
+  howToData?: {
+    title: string;
+    description: string;
+    steps: Array<{ name: string; text: string; url?: string }>;
+  };
+  articleData?: {
+    title: string;
+    description: string;
+    url: string;
+    datePublished: string;
+    dateModified?: string;
+    category?: string;
+    image?: string;
+    authorName?: string;
+  };
+  serviceData?: {
+    name: string;
+    description: string;
+    url: string;
+    serviceType?: string;
+  };
 }
 
 const {
   title,
   description,
-  keywords = 'Edrops, water jar delivery app, 20L water jar subscription software, water delivery business software, bulk water delivery platform, mineral water delivery app, packaged drinking water distribution',
+  keywords = 'eDrops, water jar delivery app, 20L water jar subscription software, water delivery business software, bulk water delivery platform, mineral water delivery app, packaged drinking water distribution, water plant management software',
   image = '/og-image.jpg',
   canonicalURL,
-  faqItems = []
+  noindex = false,
+  isHome = false,
+  faqItems = [],
+  breadcrumbs = [],
+  howToData,
+  articleData,
+  serviceData
 } = Astro.props;
 
-const siteUrl = Astro.site ? Astro.site.origin : 'https://edrops.in';
-const absoluteImageUrl = image.startsWith('http') ? image : new URL(image, siteUrl).href;
-const fullCanonicalURL = canonicalURL.startsWith('http') ? canonicalURL : new URL(canonicalURL, siteUrl).href;
+const fullCanonicalURL = getCanonicalUrl(canonicalURL || Astro.url.href);
+const absoluteImageUrl = image.startsWith('http') ? image : `${SITE_URL}${image.startsWith('/') ? '' : '/'}${image}`;
 
-// Structured Data Schemas
-const organizationSchema = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "@id": `${siteUrl}/#organization`,
-  "name": "Edrops",
-  "url": siteUrl,
-  "logo": {
-    "@type": "ImageObject",
-    "url": `${siteUrl}/logo.png`,
-    "caption": "Edrops Logo"
-  },
-  "description": "Intelligent 20L water jar delivery, prepaid wallets, and subscription management software.",
-  "contactPoint": {
-    "@type": "ContactPoint",
-    "telephone": "+91-7907805620",
-    "contactType": "customer service",
-    "areaServed": "IN",
-    "availableLanguage": ["English", "Hindi"]
-  }
-};
-
-const webSiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": `${siteUrl}/#website`,
-  "url": siteUrl,
-  "name": "Edrops",
-  "description": "The Operating System for Modern 20L Water Delivery Businesses",
-  "publisher": {
-    "@id": `${siteUrl}/#organization`
-  },
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": {
-      "@type": "EntryPoint",
-      "urlTemplate": `${siteUrl}/?q={search_term_string}`
-    },
-    "query-input": "required name=search_term_string"
-  }
-};
-
-const softwareSchema = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "@id": `${siteUrl}/#software`,
-  "name": "Edrops",
-  "operatingSystem": "All (Web, iOS, Android)",
-  "applicationCategory": "BusinessApplication",
-  "applicationSubCategory": "Delivery & Subscription Management",
-  "description": description,
-  "url": siteUrl,
-  "author": {
-    "@id": `${siteUrl}/#organization`
-  },
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "INR",
-    "availability": "https://schema.org/InStock",
-    "description": "Free startup plan for water delivery businesses"
-  }
-};
-
-const faqSchema = faqItems.length > 0 ? {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "@id": `${fullCanonicalURL}#faq`,
-  "mainEntity": faqItems.map(item => ({
-    "@type": "Question",
-    "name": item.question,
-    "acceptedAnswer": {
-      "@type": "Answer",
-      "text": item.answer
-    }
-  }))
-} : null;
+// Build structured data schemas
+const organizationSchema = buildOrganizationSchema();
+const webSiteSchema = buildWebSiteSchema();
+const siteNavigationSchema = buildSiteNavigationSchema();
+const softwareSchema = buildSoftwareApplicationSchema(description);
+const localBusinessSchema = isHome ? buildLocalBusinessSchema() : null;
+const breadcrumbSchema = breadcrumbs.length > 0 ? buildBreadcrumbSchema(breadcrumbs) : null;
+const faqSchema = buildFaqSchema(faqItems, fullCanonicalURL);
+const howToSchema = howToData ? buildHowToSchema(howToData.title, howToData.description, howToData.steps) : null;
+const articleSchema = articleData ? buildBlogPostingSchema(articleData) : null;
+const serviceSchema = serviceData ? buildServiceSchema(serviceData) : null;
 ---
 
 <!-- Primary Meta Tags -->
@@ -108,20 +87,30 @@ const faqSchema = faqItems.length > 0 ? {
 <link rel="canonical" href={fullCanonicalURL} />
 
 <!-- Robots / Crawlers Directives -->
-<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
-<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
-<meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+{noindex ? (
+  <meta name="robots" content="noindex, follow" />
+  <meta name="googlebot" content="noindex, follow" />
+  <meta name="bingbot" content="noindex, follow" />
+) : (
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+)}
 
-<!-- Author & App Meta -->
-<meta name="author" content="Edrops" />
-<meta name="publisher" content="Edrops Technologies" />
-<meta name="application-name" content="Edrops" />
-<meta name="apple-mobile-web-app-title" content="Edrops" />
+<!-- Entity & Author Knowledge Graph Meta -->
+<meta name="author" content={ENTITY_CONFIG.brandName} />
+<meta name="publisher" content={ENTITY_CONFIG.legalName} />
+<meta name="application-name" content={ENTITY_CONFIG.brandName} />
+<meta name="apple-mobile-web-app-title" content={ENTITY_CONFIG.brandName} />
 <meta name="format-detection" content="telephone=no" />
+<meta name="geo.region" content="IN-KL" />
+<meta name="geo.placename" content="Kochi, Kerala, India" />
+<meta name="geo.position" content={`${ENTITY_CONFIG.geo.latitude};${ENTITY_CONFIG.geo.longitude}`} />
+<meta name="ICBM" content={`${ENTITY_CONFIG.geo.latitude}, ${ENTITY_CONFIG.geo.longitude}`} />
 
-<!-- Open Graph / Facebook / LinkedIn -->
-<meta property="og:type" content="website" />
-<meta property="og:site_name" content="Edrops" />
+<!-- Open Graph / Facebook / LinkedIn / WhatsApp -->
+<meta property="og:type" content={articleData ? 'article' : 'website'} />
+<meta property="og:site_name" content={ENTITY_CONFIG.brandName} />
 <meta property="og:url" content={fullCanonicalURL} />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
@@ -130,10 +119,10 @@ const faqSchema = faqItems.length > 0 ? {
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta property="og:image:type" content="image/jpeg" />
-<meta property="og:image:alt" content="Edrops — 20L Water Jar Delivery & Subscription Software" />
-<meta property="og:locale" content="en_US" />
+<meta property="og:image:alt" content="eDrops™ — 20L Water Jar Delivery & Subscription Software" />
+<meta property="og:locale" content="en_IN" />
 
-<!-- Twitter Cards -->
+<!-- Twitter / X Cards -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:site" content="@edrops_in" />
 <meta name="twitter:creator" content="@edrops_in" />
@@ -141,12 +130,34 @@ const faqSchema = faqItems.length > 0 ? {
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={absoluteImageUrl} />
-<meta name="twitter:image:alt" content="Edrops — 20L Water Jar Delivery & Subscription Software" />
+<meta name="twitter:image:alt" content="eDrops™ — 20L Water Jar Delivery & Subscription Software" />
 
 <!-- JSON-LD Structured Data for Rich Search Results -->
 <script type="application/ld+json" set:html={JSON.stringify(organizationSchema)} />
 <script type="application/ld+json" set:html={JSON.stringify(webSiteSchema)} />
+<script type="application/ld+json" set:html={JSON.stringify(siteNavigationSchema)} />
 <script type="application/ld+json" set:html={JSON.stringify(softwareSchema)} />
+
+{localBusinessSchema && (
+  <script type="application/ld+json" set:html={JSON.stringify(localBusinessSchema)} />
+)}
+
+{breadcrumbSchema && (
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+)}
+
 {faqSchema && (
   <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+)}
+
+{howToSchema && (
+  <script type="application/ld+json" set:html={JSON.stringify(howToSchema)} />
+)}
+
+{articleSchema && (
+  <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+)}
+
+{serviceSchema && (
+  <script type="application/ld+json" set:html={JSON.stringify(serviceSchema)} />
 )}

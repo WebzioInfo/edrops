@@ -1,6 +1,73 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navigation from '../../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Features', url: '/features/' },
+  { name: 'Customer Management', url: '/features/customer-management/' }
+];
+
+const serviceData = {
+  name: 'eDrops Water Delivery Customer Management & CRM Portal',
+  description: 'Self-service customer portal, address management, automated delivery notifications, referral incentives, and instant support chat.',
+  url: '/features/customer-management/',
+  serviceType: 'Customer Relationship Management Software'
+};
 ---
-<BaseLayout title="Water Delivery CRM & Customer Management Software | Edrops" description="Manage water delivery customers, addresses, prepaid jar balance, subscriptions, notifications, and support in Edrops.">
-  <main class="mx-auto max-w-5xl px-5 py-20 text-edrops-ocean"><a href="/features" class="font-black text-edrops-primary">Features</a><h1 class="mt-8 text-5xl font-black tracking-tight sm:text-7xl">Water delivery CRM for prepaid jar customers.</h1><p class="mt-8 text-lg font-medium leading-9 text-edrops-ocean/68">Edrops organizes customer profiles, addresses, subscriptions, recharge history, jar balance, delivery notes, referrals, and support conversations for water delivery businesses.</p><a href="/contact" class="mt-10 inline-flex rounded-full sun-gradient px-7 py-4 text-sm font-black text-white">Book demo</a></main>
+
+<BaseLayout
+  title="Water Delivery Customer Management & CRM Portal | eDrops™"
+  description="Manage customer accounts, delivery addresses, recurring orders, balance history, and referral incentives with eDrops CRM."
+  keywords="Water delivery customer portal, water CRM software, subscription customer management, delivery address manager"
+  breadcrumbs={breadcrumbs}
+  serviceData={serviceData}
+>
+  <Navigation />
+
+  <main class="mx-auto max-w-5xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Customer Management</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-10 max-w-3xl">
+      <header class="space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Customer Experience</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
+          Delight customers with transparent self-service.
+        </h1>
+        <p class="text-lg text-edrops-slate leading-relaxed">
+          Give consumers and businesses total transparency into their orders, delivery timestamps, driver details, and prepaid balances without support ticket delays.
+        </p>
+      </header>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Multi-Address Profiles</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Customers manage delivery preferences across apartments, villas, and commercial offices with dedicated drop instructions.
+          </p>
+        </div>
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Growth & Referrals</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Built-in referral rewards credit extra jars to advocates when their invited neighbors subscribe.
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-6">
+        <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
+          View Customer Portal
+        </a>
+      </div>
+    </div>
+  </main>
 </BaseLayout>

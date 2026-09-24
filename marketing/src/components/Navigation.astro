@@ -7,12 +7,22 @@ interface Props {
 
 const { currentPath = Astro.url.pathname } = Astro.props;
 
-const navLinks = [
-  { href: '#how-it-works', label: 'How it Works' },
-  { href: '#purpose-built', label: 'Purpose Built' },
-  { href: '#why-it-works', label: 'Why it Works' },
-  { href: '#for-business', label: 'For Business' },
-];
+const isHome = currentPath === '/' || currentPath === '';
+
+const navLinks = isHome
+  ? [
+      { href: '#how-it-works', label: 'How it Works' },
+      { href: '#purpose-built', label: 'Purpose Built' },
+      { href: '#why-it-works', label: 'Why it Works' },
+      { href: '#for-business', label: 'For Business' },
+    ]
+  : [
+      { href: '/features/', label: 'Features' },
+      { href: '/how-it-works/', label: 'How it Works' },
+      { href: '/pricing/', label: 'Pricing' },
+      { href: '/industries/', label: 'Industries' },
+      { href: '/blog/', label: 'Blog' },
+    ];
 ---
 
 <!-- Skip to content link (accessibility) -->

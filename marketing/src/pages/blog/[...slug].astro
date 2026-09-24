@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navigation from '../../components/Navigation.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
@@ -9,15 +10,76 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content } = await render(post);
+
+const slug = post.id.replace(/\.md$/, '');
+const articleUrl = `/blog/${slug}/`;
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Blog', url: '/blog/' },
+  { name: post.data.title, url: articleUrl }
+];
+
+const articleData = {
+  title: post.data.title,
+  description: post.data.description,
+  url: articleUrl,
+  datePublished: post.data.publishDate ? new Date(post.data.publishDate).toISOString() : new Date('2026-05-31').toISOString(),
+  category: post.data.category,
+  image: '/og-image.jpg',
+  authorName: 'eDrops Logistics & Editorial Team'
+};
 ---
-<BaseLayout title={`${post.data.title} | Edrops`} description={post.data.description}>
-  <main class="mx-auto max-w-3xl px-5 py-20 text-edrops-ocean">
-    <a href="/blog" class="font-black text-edrops-primary">Edrops Blog</a>
-    <p class="mt-8 text-xs font-black uppercase tracking-[0.22em] text-edrops-primary">{post.data.category}</p>
-    <h1 class="mt-4 text-5xl font-black tracking-tight">{post.data.title}</h1>
-    <article class="mt-10 text-lg font-medium leading-9 text-edrops-ocean/70">
+
+<BaseLayout
+  title={`${post.data.title} | eDrops™ Knowledge Hub`}
+  description={post.data.description}
+  breadcrumbs={breadcrumbs}
+  articleData={articleData}
+>
+  <Navigation />
+
+  <main class="mx-auto max-w-4xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li><a href="/blog/" class="hover:text-edrops-primary transition-colors">Blog</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold truncate max-w-[200px] sm:max-w-md" aria-current="page">{post.data.title}</li>
+      </ol>
+    </nav>
+
+    <header class="space-y-4 border-b border-edrops-border/60 pb-8 mb-10">
+      <span class="inline-block px-3 py-1 rounded-full bg-edrops-light text-xs font-black uppercase tracking-[0.2em] text-edrops-primary">
+        {post.data.category}
+      </span>
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-[1.15]">
+        {post.data.title}
+      </h1>
+      <p class="text-lg text-edrops-slate leading-relaxed">
+        {post.data.description}
+      </p>
+      {post.data.publishDate && (
+        <p class="text-xs font-medium text-edrops-muted">
+          Published: {new Date(post.data.publishDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+        </p>
+      )}
+    </header>
+
+    <article class="prose max-w-none text-base sm:text-lg font-normal leading-relaxed text-edrops-ocean/80 space-y-6">
       <Content />
     </article>
-    <a href="/contact" class="mt-10 inline-flex rounded-full sun-gradient px-7 py-4 text-sm font-black text-white">Book demo</a>
+
+    <div class="mt-14 pt-8 border-t border-edrops-border/60 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-wider text-edrops-primary">About eDrops Platform</p>
+        <p class="text-sm text-edrops-slate mt-1 max-w-md">Automate your 20L water delivery operations, driver routes, and prepaid balances.</p>
+      </div>
+      <a href="https://app.edrops.in" class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-sm font-bold px-7 py-3 shadow-md hover:bg-edrops-secondary-hover transition-colors">
+        Try eDrops Free
+      </a>
+    </div>
   </main>
 </BaseLayout>

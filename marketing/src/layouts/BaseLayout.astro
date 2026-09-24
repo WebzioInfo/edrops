@@ -9,8 +9,32 @@ export interface Props {
   keywords?: string;
   image?: string;
   canonicalURL?: string;
+  noindex?: boolean;
+  isHome?: boolean;
   hideFooter?: boolean;
   faqItems?: Array<{ question: string; answer: string }>;
+  breadcrumbs?: Array<{ name: string; url: string }>;
+  howToData?: {
+    title: string;
+    description: string;
+    steps: Array<{ name: string; text: string; url?: string }>;
+  };
+  articleData?: {
+    title: string;
+    description: string;
+    url: string;
+    datePublished: string;
+    dateModified?: string;
+    category?: string;
+    image?: string;
+    authorName?: string;
+  };
+  serviceData?: {
+    name: string;
+    description: string;
+    url: string;
+    serviceType?: string;
+  };
 }
 
 const {
@@ -19,11 +43,15 @@ const {
   keywords,
   image = '/og-image.jpg',
   canonicalURL,
+  noindex = false,
+  isHome = false,
   hideFooter = false,
-  faqItems = []
+  faqItems = [],
+  breadcrumbs = [],
+  howToData,
+  articleData,
+  serviceData
 } = Astro.props;
-
-const currentCanonical = canonicalURL || (Astro.site ? new URL(Astro.url.pathname, Astro.site).href : `https://edrops.in${Astro.url.pathname}`);
 ---
 
 <!DOCTYPE html>
@@ -32,14 +60,16 @@ const currentCanonical = canonicalURL || (Astro.site ? new URL(Astro.url.pathnam
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- Favicon & PWA Icons (Google & Modern Browser Compliant) -->
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <!-- Favicon & PWA Icons (Google & Modern Browser Compliant: multiples of 48px + version cache-busting) -->
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=2" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png?v=2" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
+    <link rel="manifest" href="/site.webmanifest?v=2" />
     <meta name="theme-color" content="#0e7490" />
     
     <!-- Complete On-page & Technical SEO -->
@@ -48,8 +78,14 @@ const currentCanonical = canonicalURL || (Astro.site ? new URL(Astro.url.pathnam
       description={description} 
       keywords={keywords}
       image={image} 
-      canonicalURL={currentCanonical}
+      canonicalURL={canonicalURL}
+      noindex={noindex}
+      isHome={isHome}
       faqItems={faqItems}
+      breadcrumbs={breadcrumbs}
+      howToData={howToData}
+      articleData={articleData}
+      serviceData={serviceData}
     />
     
     <!-- Fonts Preconnect & Optimized Loading -->

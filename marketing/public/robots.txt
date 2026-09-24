@@ -1,7 +1,47 @@
+# eDrops Technical SEO & AI Search Engine Directives
+# Canonical Host & Sitemap
+
 User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /api/
 Disallow: /app/
+Disallow: /customer/
+Disallow: /distributor/
+Disallow: /staff/
+Disallow: /404
 
+# Google Search, Images & News Crawlers
+User-agent: Googlebot
+User-agent: Googlebot-Image
+User-agent: Googlebot-News
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /app/
+Disallow: /customer/
+Disallow: /distributor/
+Disallow: /staff/
+
+# Bing Search
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /app/
+
+# AI Search & Answer Engines (AEO/GEO: ChatGPT, Perplexity, Claude, Apple Intelligence)
+User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: PerplexityBot
+User-agent: ClaudeBot
+User-agent: anthropic-ai
+User-agent: Applebot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /app/
+
+# Host & Sitemap Location
+Host: https://edrops.in
 Sitemap: https://edrops.in/sitemap.xml

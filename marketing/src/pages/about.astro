@@ -1,24 +1,68 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Navigation from '../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'About', url: '/about/' }
+];
 ---
 
 <BaseLayout
-  title="About Edrops — Modern Water Jar Delivery Platform"
-  description="Learn about Edrops, the dedicated operating system built to automate 20L water jar subscriptions, prepaid digital wallets, and route dispatch."
-  keywords="About Edrops, water delivery company, water subscription platform story"
+  title="About eDrops™ | Transforming 20L Packaged Drinking Water Distribution"
+  description="Learn about eDrops, the dedicated operating system built to automate 20L water jar subscriptions, prepaid digital wallets, and route dispatch."
+  keywords="About eDrops, water delivery company, water subscription platform story, water jar distribution software"
+  breadcrumbs={breadcrumbs}
 >
   <Navigation />
 
-  <main id="main-content" class="pt-32 pb-20 px-5 max-w-7xl mx-auto min-h-screen">
-    <div class="max-w-3xl space-y-6">
-      <h1 class="text-4xl sm:text-5xl font-extrabold text-edrops-ocean tracking-tight">About Edrops</h1>
-      <p class="text-lg text-edrops-slate leading-relaxed">
-        Edrops was founded to eliminate the friction of notebook-managed water deliveries. We provide a calm, unified platform connecting water plants, distributors, delivery drivers, and customers.
-      </p>
-      <p class="text-base text-edrops-slate leading-relaxed">
-        With automated recurring schedules, prepaid recharge balances, and real-time route execution, Edrops empowers 20L water operations to scale smoothly while giving customers transparent, dependable doorstep delivery.
-      </p>
+  <main id="main-content" class="pt-32 pb-24 px-5 max-w-4xl mx-auto min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">About</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-8">
+      <header class="space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Our Mission</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-edrops-ocean tracking-tight">
+          About eDrops
+        </h1>
+        <p class="text-xl text-edrops-slate leading-relaxed font-normal">
+          The calm, intelligent platform uniting water plants, delivery fleets, and customers into one dependable ecosystem.
+        </p>
+      </header>
+
+      <div class="space-y-6 text-base sm:text-lg text-edrops-ocean/80 leading-relaxed pt-2">
+        <p>
+          eDrops was founded to eliminate the daily friction of notebook-managed water deliveries, uncollected customer balances, and chaotic phone calls. Across thousands of residential neighborhoods and commercial districts, 20L packaged drinking water is essential daily life — yet the distribution infrastructure was built on paper cards and guesswork.
+        </p>
+        <p>
+          We engineered eDrops as an all-in-one operating platform. For consumers and offices, it brings the convenience of a modern subscription app: automated recurring drops, real-time prepaid balances, and doorstep jar swaps without touching cash.
+        </p>
+        <p>
+          For water bottling plants, distributors, and delivery drivers, eDrops provides enterprise-grade logistics: balance-safe delivery dispatch, live route guidance, empty jar inventory reconciliation, and immediate digital receipts.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6">
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs text-center space-y-2">
+          <p class="text-3xl font-extrabold text-edrops-primary">100%</p>
+          <p class="text-xs font-bold uppercase tracking-wider text-edrops-slate">Prepaid Security</p>
+        </div>
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs text-center space-y-2">
+          <p class="text-3xl font-extrabold text-edrops-primary">99.4%</p>
+          <p class="text-xs font-bold uppercase tracking-wider text-edrops-slate">Fulfillment Reliability</p>
+        </div>
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs text-center space-y-2">
+          <p class="text-3xl font-extrabold text-edrops-primary">0</p>
+          <p class="text-xs font-bold uppercase tracking-wider text-edrops-slate">Paper Billing Cards</p>
+        </div>
+      </div>
     </div>
   </main>
 </BaseLayout>

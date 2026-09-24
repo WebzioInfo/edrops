@@ -1,15 +1,68 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Navigation from '../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Privacy Policy', url: '/privacy/' }
+];
 ---
 
 <BaseLayout
-  title="Privacy Policy | Edrops — Water Delivery & Subscription Software"
-  description="Read the Edrops Privacy Policy. Learn how we safeguard customer identity, delivery addresses, and subscription payment records with strict data protection."
-  keywords="Edrops privacy policy, water delivery data security, customer privacy water app"
+  title="Privacy Policy | eDrops™ — Data Protection & Privacy Standards"
+  description="Read the eDrops Privacy Policy. Learn how we safeguard customer identity, delivery addresses, and subscription payment records with strict data protection."
+  keywords="eDrops privacy policy, water delivery data security, customer privacy water app"
+  breadcrumbs={breadcrumbs}
 >
-  <main class="mx-auto max-w-4xl px-5 py-20 text-edrops-ocean">
-    <a href="/" class="font-black text-edrops-primary">Edrops</a>
-    <h1 class="mt-8 text-5xl font-black tracking-tight">Privacy</h1>
-    <p class="mt-8 text-lg font-medium leading-9 text-edrops-ocean/66">Edrops is designed to protect customer identity, addresses, delivery history, and subscription data with role-aware access and auditable actions.</p>
+  <Navigation />
+
+  <main class="mx-auto max-w-4xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Privacy Policy</li>
+      </ol>
+    </nav>
+
+    <header class="space-y-4 mb-8">
+      <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Legal & Security</span>
+      <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean">
+        Privacy Policy
+      </h1>
+      <p class="text-xs text-edrops-muted">Last Updated: September 2026</p>
+    </header>
+
+    <div class="prose max-w-none space-y-6 text-base sm:text-lg leading-relaxed text-edrops-ocean/80">
+      <p>
+        At <strong>eDrops Technologies Private Limited</strong> ("eDrops", "we", "our", or "us"), we prioritize the security and confidentiality of our consumers, delivery partners, and water plant operators. This Privacy Policy details how we collect, use, and protect your information when utilizing the eDrops platform via our websites, mobile applications, and connected services.
+      </p>
+
+      <h2 class="text-2xl font-bold text-edrops-ocean mt-8 mb-3">1. Information We Collect</h2>
+      <p>
+        To facilitate 20L water jar doorstep deliveries and prepaid wallet management, we collect:
+      </p>
+      <ul class="list-disc pl-6 space-y-2 text-base">
+        <li><strong>Account Data:</strong> Name, phone number, and email address for authentication and order alerts.</li>
+        <li><strong>Delivery Address:</strong> Physical delivery locations, floor/apartment details, and geolocation coordinates to route drivers accurately.</li>
+        <li><strong>Transaction & Balance Records:</strong> Prepaid wallet top-ups, jar consumption ledger, and digital payment identifiers (card details are processed via secure RBI-compliant payment gateways and never stored on our servers).</li>
+      </ul>
+
+      <h2 class="text-2xl font-bold text-edrops-ocean mt-8 mb-3">2. How We Use Information</h2>
+      <p>
+        Your data is used solely to execute doorstep water deliveries, calculate prepaid balances, generate digital invoices, provide route instructions to assigned drivers, and notify you of low jar balances.
+      </p>
+
+      <h2 class="text-2xl font-bold text-edrops-ocean mt-8 mb-3">3. Data Security & Contact</h2>
+      <p>
+        All communications are encrypted via SSL/TLS protocols with role-based access control. If you have privacy inquiries, contact our Data Protection Officer at <a href="mailto:support@edrops.in" class="text-edrops-primary font-bold hover:underline">support@edrops.in</a> or write to:
+      </p>
+      <div class="p-6 rounded-2xl bg-white border border-edrops-border text-sm">
+        <strong>eDrops Technologies Private Limited</strong><br />
+        Infopark Expressway, Kakkanad, Kochi, Kerala 682042, India<br />
+        Phone: +91 7907805620
+      </div>
+    </div>
   </main>
 </BaseLayout>
