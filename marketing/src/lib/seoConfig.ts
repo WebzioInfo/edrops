@@ -35,25 +35,25 @@ export const ENTITY_CONFIG = {
   email: 'support@edrops.in',
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'Infopark Expressway, Kakkanad',
-    addressLocality: 'Kochi',
+    streetAddress: 'Kondotty',
+    addressLocality: 'Kondotty, Malappuram',
     addressRegion: 'Kerala',
-    postalCode: '682042',
+    postalCode: '673638',
     addressCountry: 'IN'
   },
   geo: {
     '@type': 'GeoCoordinates',
-    latitude: 10.0159,
-    longitude: 76.3419
+    latitude: 11.1485,
+    longitude: 75.9616
   },
   areaServed: [
     { '@type': 'Country', name: 'India' },
     { '@type': 'State', name: 'Kerala' },
+    { '@type': 'City', name: 'Kondotty' },
+    { '@type': 'City', name: 'Malappuram' },
+    { '@type': 'City', name: 'Kozhikode' },
     { '@type': 'City', name: 'Kochi' },
-    { '@type': 'City', name: 'Bangalore' },
-    { '@type': 'City', name: 'Chennai' },
-    { '@type': 'City', name: 'Hyderabad' },
-    { '@type': 'City', name: 'Mumbai' }
+    { '@type': 'City', name: 'Bangalore' }
   ],
   currenciesAccepted: 'INR',
   paymentAccepted: 'UPI, Credit Card, Debit Card, Net Banking, Wallet',
