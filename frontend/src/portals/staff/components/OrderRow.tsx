@@ -222,7 +222,7 @@ export default function OrderRow({
               <span className="font-mono text-xs font-bold text-[#1E88E5] bg-[#EBF5FB] px-1.5 py-0.5 rounded">
                 {formatOrderId(order.id)}
               </span>
-              <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate">
+              <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[120px] xs:max-w-[180px] sm:max-w-none">
                 {order.customer?.user?.firstName} {order.customer?.user?.lastName}
               </span>
               {order.customer?.user?.phone && (
@@ -306,7 +306,7 @@ export default function OrderRow({
                 : 'bg-white text-[#16324F] border-[#CBD5E1] hover:border-[#1E88E5] hover:text-[#1E88E5]'
             }`}
           >
-            <span>{isExpanded ? 'Close' : 'Manage'}</span>
+            <span className="hidden xs:inline">{isExpanded ? 'Close' : 'Manage'}</span>
             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
           </button>
         </div>

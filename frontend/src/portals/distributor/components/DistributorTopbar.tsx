@@ -1,7 +1,8 @@
 import React, { useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, UserPlus } from 'lucide-react';
+import { useDistributor } from '../context/DistributorContext';
 
 export interface DistributorTopbarProps {
   title: string | React.ReactNode;
@@ -35,12 +36,14 @@ const TopbarContent: React.FC<DistributorTopbarProps> = ({
   secondaryRow,
   className = '',
 }) => {
+  const { openQuickCustomerModal } = useDistributor();
+
   return (
-    <header className={`w-full bg-white border-b border-[#E2E8F0] px-4 sm:px-6 shrink-0 select-none ${className}`}>
-      {/* Primary Header Row: min-h-[64px] matching brand header with responsive expansion */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 min-h-[64px]">
-        {/* Left Side: Back button (if any) + Icon + Title + Subtitle */}
-        <div className="flex items-center gap-3 min-w-0">
+    <header className={`w-full bg-white border-b border-[#E2E8F0] px-3.5 sm:px-6 shrink-0 select-none ${className}`}>
+      {/* Primary Header Row: tight on mobile, 64px on desktop */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 py-2 sm:py-3 min-h-[48px] sm:min-h-[64px]">
+        {/* Left Side: Back button (if any) + Icon (desktop only) + Title + Subtitle */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {backLink && (
             <Link
               to={backLink.to}
@@ -53,7 +56,7 @@ const TopbarContent: React.FC<DistributorTopbarProps> = ({
 
           {Icon && (
             <div
-              className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 font-bold ${
+              className={`hidden sm:flex h-10 w-10 items-center justify-center rounded-xl shrink-0 font-bold ${
                 ICON_VARIANTS[iconVariant] || ICON_VARIANTS.blue
               }`}
             >
@@ -62,26 +65,34 @@ const TopbarContent: React.FC<DistributorTopbarProps> = ({
           )}
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl font-bold text-[#16324F] leading-tight tracking-tight">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg sm:text-xl font-bold text-[#16324F] leading-tight tracking-tight">
                 {title}
               </h1>
               {badge && <div className="shrink-0">{badge}</div>}
             </div>
             {subtitle && (
-              <div className="text-xs text-[#64748B] leading-normal mt-1">
+              <div className="text-xs text-[#64748B] leading-normal mt-0.5 sm:mt-1 truncate sm:whitespace-normal">
                 {subtitle}
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Side: Page-Specific Actions */}
-        {actions && (
-          <div className="flex items-center sm:justify-end gap-2 sm:gap-2.5 shrink-0">
-            {actions}
-          </div>
-        )}
+        {/* Right Side: Global Quick Add Customer + Page-Specific Actions */}
+        <div className="flex items-center sm:justify-end gap-1.5 sm:gap-2.5 shrink-0 flex-wrap">
+          <button
+            type="button"
+            onClick={openQuickCustomerModal}
+            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 bg-[#1677C8] hover:bg-[#125ea0] active:scale-95 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
+            title="Quick Add Customer"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">+ Quick Add Customer</span>
+            <span className="sm:hidden font-bold text-[11px]">+ Add Customer</span>
+          </button>
+          {actions}
+        </div>
       </div>
 
       {/* Optional Secondary Row (e.g. Tabs in Reports) */}

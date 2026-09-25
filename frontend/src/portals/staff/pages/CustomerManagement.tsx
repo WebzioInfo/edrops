@@ -10,6 +10,8 @@ import {
   X,
   Edit2,
   Trash2,
+  Tag,
+  Building2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -318,6 +320,7 @@ export default function CustomerManagement() {
               <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500 select-none">
                 <th className="py-2.5 px-3">Customer</th>
                 <th className="py-2.5 px-3">Phone</th>
+                <th className="py-2.5 px-3">Referral / Distributor</th>
                 <th className="py-2.5 px-3">Status</th>
                 <th className="py-2.5 px-3">Prepaid Balance</th>
                 <th className="py-2.5 px-3">Jar Balance</th>
@@ -333,6 +336,7 @@ export default function CustomerManagement() {
                   <tr key={idx} className="animate-pulse h-11">
                     <td className="p-3"><div className="h-4 w-32 bg-slate-200 rounded-sm" /></td>
                     <td className="p-3"><div className="h-4 w-24 bg-slate-200 rounded-sm" /></td>
+                    <td className="p-3"><div className="h-4 w-24 bg-slate-200 rounded-sm" /></td>
                     <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-full" /></td>
                     <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm" /></td>
                     <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-full" /></td>
@@ -345,14 +349,14 @@ export default function CustomerManagement() {
               ) : error ? (
                 <DataErrorState
                   isTableRow
-                  colSpan={9}
+                  colSpan={10}
                   title="Unable to load customers"
                   message={error}
                   onRetry={loadCustomers}
                 />
               ) : filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-14 text-center">
+                  <td colSpan={10} className="py-14 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                       <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#1677C8] flex items-center justify-center mb-2">
                         <Users className="w-5 h-5" />
@@ -428,6 +432,23 @@ export default function CustomerManagement() {
                       {/* Phone */}
                       <td className="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">
                         <span className="font-mono">{cust.user?.phone || '—'}</span>
+                      </td>
+
+                      {/* Referral / Distributor */}
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        {cust.referralInfo?.code ? (
+                          <div>
+                            <span className="text-[11px] text-slate-800 block truncate max-w-[150px] font-bold">
+                              {cust.referralInfo.distributorName}
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-50 text-[#1677C8] border border-sky-200 mt-0.5">
+                              <Tag className="w-2.5 h-2.5" />
+                              {cust.referralInfo.code}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400">Direct</span>
+                        )}
                       </td>
 
                       {/* Status */}
@@ -625,6 +646,17 @@ export default function CustomerManagement() {
                         <span>•</span>
                         <span>{availableJars} Jars</span>
                       </div>
+                      {cust.referralInfo?.code && (
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px]">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-sky-50 text-[#1677C8] border border-sky-100">
+                            <Tag className="w-2.5 h-2.5" />
+                            {cust.referralInfo.code}
+                          </span>
+                          <span className="text-slate-600 font-semibold truncate max-w-[180px]">
+                            {cust.referralInfo.distributorName}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -843,6 +875,49 @@ export default function CustomerManagement() {
                                 </div>
                               ))}
                             </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Referral Information */}
+                      <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Tag className="w-3.5 h-3.5 text-[#1677C8]" />
+                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Referral Information
+                            </h3>
+                          </div>
+                          <span className="text-[9px] font-semibold text-slate-400">
+                            Tracking attribution only
+                          </span>
+                        </div>
+
+                        {selectedCust.referralInfo?.code ? (
+                          <div className="bg-sky-50/60 p-3 rounded-xl border border-sky-100 space-y-2">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#1677C8]">
+                              Referred By
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-[10px] text-slate-500 block">Distributor</span>
+                                <span className="text-slate-800 font-bold mt-0.5 block flex items-center gap-1.5">
+                                  <Building2 className="w-3.5 h-3.5 text-[#1677C8] shrink-0" />
+                                  {selectedCust.referralInfo.distributorName}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-slate-500 block">Referral Code</span>
+                                <span className="font-mono font-extrabold text-[#1677C8] text-sm mt-0.5 block">
+                                  {selectedCust.referralInfo.code}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 flex items-center justify-between">
+                            <span className="text-[11px]">Channel:</span>
+                            <span className="font-semibold text-slate-700 text-xs">Direct registration / Not referred</span>
                           </div>
                         )}
                       </div>

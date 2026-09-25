@@ -346,7 +346,8 @@ export default function Suppliers() {
 
       {/* ─── SUPPLIERS TABLE ────────────────────────────────────────── */}
       <div className="w-full bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-[#E2E8F0] bg-slate-50/80 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
@@ -502,6 +503,115 @@ export default function Suppliers() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* ─── Mobile Card List View ─────────────────────────────────── */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {isLoading && suppliers.length === 0 ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="p-3 animate-pulse space-y-2">
+                <div className="flex justify-between">
+                  <div className="h-4 w-28 bg-slate-200 rounded" />
+                  <div className="h-4 w-14 bg-slate-200 rounded-full" />
+                </div>
+                <div className="h-3 w-40 bg-slate-100 rounded" />
+              </div>
+            ))
+          ) : suppliers.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500 font-semibold">
+              No suppliers found.
+            </div>
+          ) : (
+            suppliers.map((supplier) => {
+              const isPayable = supplier.balance > 0;
+              const isSettled = supplier.balance === 0;
+
+              return (
+                <div
+                  key={supplier.id}
+                  onClick={() => navigate(`/distributor/suppliers/${supplier.id}`)}
+                  className="p-3.5 bg-white hover:bg-slate-50/80 active:bg-slate-50 transition cursor-pointer space-y-2 relative"
+                >
+                  {/* Top Line: Supplier Name + Status Badge */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-sm text-[#16324F] truncate">
+                      {supplier.name}
+                    </span>
+                    <div className="shrink-0">
+                      {supplier.isActive ? (
+                        <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200">
+                          Archived
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Company / Contact */}
+                  <div className="text-xs text-[#64748B] truncate">
+                    {supplier.companyName || supplier.phone || supplier.email || 'Vendor'}
+                  </div>
+
+                  {/* Purchases & Balance */}
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-600 font-medium">
+                      {supplier.purchaseCount} {supplier.purchaseCount === 1 ? 'purchase' : 'purchases'}
+                    </span>
+                    <div className="shrink-0">
+                      {isSettled ? (
+                        <span className="font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">
+                          ₹0 (Settled)
+                        </span>
+                      ) : isPayable ? (
+                        <span className="font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                          Payable {formatCurrency(supplier.balance)}
+                        </span>
+                      ) : (
+                        <span className="font-bold text-sky-700 bg-sky-50 border border-sky-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                          Receivable {formatCurrency(Math.abs(supplier.balance))}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions Row */}
+                  <div
+                    className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/distributor/suppliers/${supplier.id}`)}
+                      title="View Supplier Profile & Ledger"
+                      className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer flex items-center gap-1"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-slate-500" />
+                      <span>View</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(supplier)}
+                      title="Edit Supplier"
+                      className="p-1.5 text-slate-500 hover:text-[#1677C8] hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmSupplier(supplier)}
+                      title="Delete Supplier"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

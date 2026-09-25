@@ -930,7 +930,7 @@ export default function Reports() {
       />
 
       {/* ── MAIN CONTENT ── */}
-      <div className="w-full p-4 sm:p-6 space-y-6">
+      <div className="w-full p-3.5 sm:p-6 space-y-6">
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-20 text-[#64748B]">
             <RefreshCw className="w-8 h-8 animate-spin text-[#1677C8] mb-3" />
@@ -1168,7 +1168,8 @@ export default function Reports() {
                     </div>
                   }
                 >
-                  <div className="overflow-x-auto -mx-4 sm:-mx-5 -my-4 sm:-my-5">
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto -mx-4 sm:-mx-5 -my-4 sm:-my-5">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
@@ -1233,6 +1234,49 @@ export default function Reports() {
                         </tfoot>
                       )}
                     </table>
+                  </div>
+
+                  {/* Mobile Card List View (No internal IDs, clean hierarchy) */}
+                  <div className="md:hidden divide-y divide-[#F1F5F9] -mx-4 sm:-mx-5 -my-4 sm:-my-5">
+                    {filteredPurchases.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-[#94A3B8]">
+                        <FileText className="w-8 h-8 mx-auto mb-2 opacity-30 stroke-1" />
+                        <p className="text-xs font-semibold text-[#64748B]">No purchases found for this period</p>
+                      </div>
+                    ) : (
+                      filteredPurchases
+                        .slice((tablePage - 1) * pageSize, tablePage * pageSize)
+                        .map((p) => {
+                          const pending = Math.max(0, p.total - (p.amountPaid ?? 0));
+                          return (
+                            <div key={p.id} className="p-3.5 bg-white space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-bold text-xs text-[#16324F] truncate">
+                                  {p.supplierName}
+                                </span>
+                                <span className="text-[10px] text-[#94A3B8] font-medium shrink-0">
+                                  {formatDateTime(p.purchaseDate || p.createdAt)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <div className="text-slate-600 font-medium">
+                                  <span>{p.items?.length ?? 0} items</span>
+                                  <span className="mx-1 text-slate-300">•</span>
+                                  <span className="font-bold text-[#16324F]">{formatINR(p.total)}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <StatusBadge status={p.paymentStatus} type="payment" />
+                                  {pending > 0 && (
+                                    <span className="text-rose-600 font-bold bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded text-[10px]">
+                                      Due {formatINR(pending)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
                   </div>
 
                   {/* Pagination */}
@@ -1321,7 +1365,8 @@ export default function Reports() {
                     </div>
                   }
                 >
-                  <div className="overflow-x-auto -mx-4 sm:-mx-5 -my-4 sm:-my-5">
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto -mx-4 sm:-mx-5 -my-4 sm:-my-5">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
@@ -1387,6 +1432,53 @@ export default function Reports() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile Card List View */}
+                  <div className="md:hidden divide-y divide-[#F1F5F9] -mx-4 sm:-mx-5 -my-4 sm:-my-5">
+                    {supplierSummaries.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-[#94A3B8]">
+                        <Users className="w-8 h-8 mx-auto mb-2 opacity-30 stroke-1" />
+                        <p className="text-xs font-semibold text-[#64748B]">No supplier records available</p>
+                      </div>
+                    ) : (
+                      supplierSummaries.map((s) => (
+                        <div
+                          key={s.id}
+                          onClick={() => navigate(`/distributor/suppliers/${s.id}`)}
+                          className="p-3.5 bg-white hover:bg-slate-50 transition cursor-pointer space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-xs text-[#16324F] truncate">
+                              {s.name}
+                            </span>
+                            {!s.isActive ? (
+                              <span className="text-[9px] px-1.5 py-0.2 bg-slate-100 text-slate-500 rounded font-normal shrink-0">
+                                Inactive
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.2 bg-emerald-50 text-emerald-700 rounded font-bold shrink-0">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-[#64748B] truncate">
+                            {s.companyName || s.phone || 'No company info'}
+                          </div>
+                          <div className="flex items-center justify-between gap-2 text-xs pt-1">
+                            <div className="text-slate-600 font-medium">
+                              <span>{s.purchasesInRange} purchases</span>
+                              <span className="mx-1 text-slate-300">•</span>
+                              <span className="font-bold text-[#16324F]">{formatINR(s.totalInRange)}</span>
+                            </div>
+                            <span className={`font-bold text-xs ${s.balance > 0 ? 'text-rose-600' : s.balance < 0 ? 'text-emerald-600' : 'text-[#94A3B8]'}`}>
+                              {s.balance === 0 ? '₹0' : formatINR(Math.abs(s.balance))}
+                              {s.balance > 0 && <span className="text-[10px] ml-1 font-normal uppercase">Due</span>}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </ReportSection>
               </div>
@@ -1473,7 +1565,8 @@ export default function Reports() {
                     subtitle={`Aggregated by customer orders placed within ${dateRange.label}`}
                     icon={Users}
                   >
-                    <div className="overflow-x-auto -mx-4 sm:-mx-5 -my-4 sm:-my-5">
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto -mx-4 sm:-mx-5 -my-4 sm:-my-5">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
@@ -1545,6 +1638,40 @@ export default function Reports() {
                         )}
                       </table>
                     </div>
+
+                    {/* Mobile Card List View for Customer Matrix */}
+                    <div className="md:hidden divide-y divide-[#F1F5F9] -mx-4 sm:-mx-5 -my-4 sm:-my-5">
+                      {customerReports.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-[#94A3B8]">
+                          <Users className="w-8 h-8 mx-auto mb-2 opacity-30 stroke-1" />
+                          <p className="text-xs font-semibold text-[#64748B]">No customer orders in this period</p>
+                        </div>
+                      ) : (
+                        customerReports.map((c) => (
+                          <div key={c.customerId} className="p-3.5 bg-white space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-xs text-[#16324F] truncate">
+                                {c.customerName}
+                              </span>
+                              <span className="text-xs font-bold text-[#16324F] font-mono">
+                                {formatINR(c.totalAmount)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 text-[11px] text-[#64748B]">
+                              <span>{c.companyName || c.phone || 'Residential'}</span>
+                              <span>{c.orderCount} {c.orderCount === 1 ? 'order' : 'orders'}</span>
+                            </div>
+                            {c.dueAmount > 0 && (
+                              <div className="flex justify-end pt-0.5">
+                                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded">
+                                  Due {formatINR(c.dueAmount)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </ReportSection>
                 )}
 
@@ -1555,7 +1682,62 @@ export default function Reports() {
                     subtitle={`Listing individual orders placed within ${dateRange.label}`}
                     icon={ShoppingCart}
                   >
-                    <div className="overflow-x-auto -mx-4 sm:-mx-5 -my-4 sm:-my-5">
+                    {/* Mobile View: Cards */}
+                    <div className="md:hidden divide-y divide-[#F1F5F9]">
+                      {filteredOrders.length === 0 ? (
+                        <div className="py-10 text-center text-[#94A3B8]">
+                          <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30 stroke-1" />
+                          <p className="text-xs font-semibold text-[#64748B]">No orders found for this period</p>
+                        </div>
+                      ) : (
+                        filteredOrders
+                          .slice((tablePage - 1) * pageSize, tablePage * pageSize)
+                          .map((o) => {
+                            const custName = o.customer?.user?.firstName
+                              ? `${o.customer.user.firstName} ${o.customer.user.lastName ?? ''}`.trim()
+                              : o.customer?.companyName ?? '—';
+                            const jars = o.items?.reduce((s, it) => s + (it.product?.isJar ? it.quantity : 0), 0) ?? 0;
+                            const totalQty = o.items?.reduce((s, it) => s + it.quantity, 0) ?? 0;
+                            const paid = Number(
+                              o.amountPaid ??
+                              (o.payments?.filter((p) => ['PAID', 'SUCCESS'].includes(p.status?.toUpperCase())).reduce((s, p) => s + p.amount, 0) ??
+                              (['PAID', 'SUCCESS'].includes(o.paymentStatus?.toUpperCase()) ? o.totalAmount : 0))
+                            );
+                            const due = Math.max(0, o.totalAmount - paid);
+
+                            return (
+                              <div key={o.id} className="py-3 px-1 space-y-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-bold text-[#16324F] truncate">{custName}</div>
+                                    <div className="text-[10px] text-[#64748B]">{formatDateTime(o.createdAt)}</div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <StatusBadge status={o.status} type="order" />
+                                    <StatusBadge status={o.paymentStatus} type="payment" />
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between text-xs pt-1 border-t border-[#F8FAFC]">
+                                  <span className="text-[#64748B] text-[11px]">
+                                    {jars > 0 ? `${jars} jars` : `${totalQty} items`}
+                                  </span>
+                                  <div className="text-right">
+                                    <span className="font-bold text-[#16324F] font-mono">{formatINR(o.totalAmount)}</span>
+                                    {due > 0 ? (
+                                      <div className="text-[10px] text-rose-600 font-medium">Due {formatINR(due)}</div>
+                                    ) : (
+                                      <div className="text-[10px] text-emerald-600 font-medium">Paid</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                      )}
+                    </div>
+
+                    {/* Desktop View: Table */}
+                    <div className="hidden md:block overflow-x-auto -mx-4 sm:-mx-5 -my-4 sm:-my-5">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">

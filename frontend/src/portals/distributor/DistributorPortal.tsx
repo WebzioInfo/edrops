@@ -13,6 +13,7 @@ import { SharedSidebar, SharedMobileDrawer } from '../../components/common/Share
 import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { DistributorTopbar } from './components/DistributorTopbar';
+import { DistributorProvider } from './context/DistributorContext';
 
 const Purchases = React.lazy(() => import('./pages/Purchases'));
 const Suppliers = React.lazy(() => import('./pages/Suppliers'));
@@ -129,81 +130,80 @@ export default function DistributorPortal() {
   });
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
-      {/* ─── STANDARDIZED SHARED DESKTOP SIDEBAR ──────────────────── */}
-      <SharedSidebar
-        portalLabel={portalConfig.portalLabel}
-        sections={portalConfig.sections}
-        homePath={portalConfig.homePath}
-        profilePath={portalConfig.profilePath}
-        collapsible={true}
-        collapsed={collapsed}
-        onToggleCollapse={toggleCollapsed}
-      />
-
-      {/* ─── MAIN LAYOUT WRAPPER ────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
-        {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white px-4 shadow-xs shrink-0">
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => setMobileDrawerOpen(true)}
-              className="p-2 -ml-2 text-slate-600 hover:text-[#16324F] hover:bg-slate-100 rounded-lg cursor-pointer"
-              aria-label="Open mobile menu"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <EdropsLogo variant="blue" className="h-5 w-auto" />
-            <span className="inline-block px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase tracking-wider bg-sky-50 text-[#0088CC] border border-sky-200">
-              DISTRIBUTOR
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={logout}
-            title="Logout"
-            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </header>
-
-        {/* ─── STANDARDIZED SHARED MOBILE DRAWER ────────────────── */}
-        <SharedMobileDrawer
-          isOpen={mobileDrawerOpen}
-          onClose={() => setMobileDrawerOpen(false)}
+    <DistributorProvider>
+      <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+        {/* ─── STANDARDIZED SHARED DESKTOP SIDEBAR ──────────────────── */}
+        <SharedSidebar
           portalLabel={portalConfig.portalLabel}
           sections={portalConfig.sections}
           homePath={portalConfig.homePath}
           profilePath={portalConfig.profilePath}
+          collapsible={true}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
         />
 
-        {/* ─── STANDARDIZED DESKTOP / MAIN-AREA TOPBAR MOUNT ────────── */}
-        <div id="distributor-topbar-mount" className="w-full shrink-0 bg-white" />
+        {/* ─── MAIN LAYOUT WRAPPER ────────────────────────────────────── */}
+        <div className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
+          {/* Mobile Header: Logo, Menu/hamburger button, Logout button */}
+          <header className="lg:hidden sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white px-3.5 shadow-xs shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileDrawerOpen(true)}
+                className="p-2 -ml-1.5 text-slate-600 hover:text-[#16324F] hover:bg-slate-100 rounded-lg cursor-pointer"
+                aria-label="Open mobile menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <EdropsLogo variant="blue" className="h-5 w-auto" />
+            </div>
 
-        {/* ─── FULL-WIDTH OPERATIONAL MAIN CONTENT AREA ──────────────── */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-[#F8FAFC]">
-          <Suspense fallback={<LoadingSpinner fullPage label="Loading..." />}>
-            <Routes>
-              <Route index element={<Navigate to="/distributor/orders" replace />} />
-              <Route path="purchases" element={<Purchases />} />
-              <Route path="suppliers" element={<Suppliers />} />
-              <Route path="suppliers/:id" element={<SupplierDetail />} />
-              <Route path="dashboard" element={<Navigate to="/distributor/orders" replace />} />
-              <Route path="new-orders" element={<NewOrders />} />
-              <Route path="orders" element={<Orders />} />
-              <Route path="wallet" element={<OperationalPlaceholder title="Wallet" icon={Wallet} />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="service-areas" element={<ServiceAreas />} />
-              <Route path="settings" element={<Navigate to="/distributor/profile" replace />} />
-              <Route path="profile" element={<DistributorProfile />} />
-              <Route path="*" element={<Navigate to="/distributor/orders" replace />} />
-            </Routes>
-          </Suspense>
-        </main>
+            <button
+              type="button"
+              onClick={logout}
+              title="Logout"
+              className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </header>
+
+          {/* ─── STANDARDIZED SHARED MOBILE DRAWER ────────────────── */}
+          <SharedMobileDrawer
+            isOpen={mobileDrawerOpen}
+            onClose={() => setMobileDrawerOpen(false)}
+            portalLabel={portalConfig.portalLabel}
+            sections={portalConfig.sections}
+            homePath={portalConfig.homePath}
+            profilePath={portalConfig.profilePath}
+          />
+
+          {/* ─── STANDARDIZED DESKTOP / MAIN-AREA TOPBAR MOUNT ────────── */}
+          <div id="distributor-topbar-mount" className="w-full shrink-0 bg-white" />
+
+          {/* ─── FULL-WIDTH OPERATIONAL MAIN CONTENT AREA ──────────────── */}
+          <main className="flex-1 min-w-0 overflow-y-auto bg-[#F8FAFC]">
+            <Suspense fallback={<LoadingSpinner fullPage label="Loading..." />}>
+              <Routes>
+                <Route index element={<Navigate to="/distributor/orders" replace />} />
+                <Route path="purchases" element={<Purchases />} />
+                <Route path="suppliers" element={<Suppliers />} />
+                <Route path="suppliers/:id" element={<SupplierDetail />} />
+                <Route path="dashboard" element={<Navigate to="/distributor/orders" replace />} />
+                <Route path="new-orders" element={<NewOrders />} />
+                <Route path="orders" element={<Orders />} />
+                <Route path="wallet" element={<OperationalPlaceholder title="Wallet" icon={Wallet} />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="service-areas" element={<ServiceAreas />} />
+                <Route path="settings" element={<Navigate to="/distributor/profile" replace />} />
+                <Route path="profile" element={<DistributorProfile />} />
+                <Route path="*" element={<Navigate to="/distributor/orders" replace />} />
+              </Routes>
+            </Suspense>
+          </main>
+        </div>
       </div>
-    </div>
+    </DistributorProvider>
   );
 }

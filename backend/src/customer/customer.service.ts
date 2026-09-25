@@ -82,6 +82,49 @@ export class CustomerService {
         ? Number(jarsAtCustomer)
         : 0;
 
+    // If created by a distributor or referralCode provided, derive referral attribution
+    let appliedReferralCode: string | null = null;
+    let createdFrom = 'Registration';
+    let referringDistributor: any = null;
+
+    if (createdByUserId) {
+      createdFrom = 'Admin Panel';
+      const creator = await this.prisma.user.findUnique({
+        where: { id: createdByUserId },
+        include: { distributor: true },
+      });
+      if (creator?.role === 'DISTRIBUTOR') {
+        if (!creator.distributor?.referralCode) {
+          throw new BadRequestException('Distributor does not have an assigned referral code. Cannot onboard customer.');
+        }
+        appliedReferralCode = creator.distributor.referralCode;
+        referringDistributor = creator.distributor;
+        createdFrom = 'Distributor Portal';
+
+        // Validate client passed referral code if provided
+        if (referralCode && referralCode.trim().toUpperCase() !== appliedReferralCode.toUpperCase()) {
+          throw new BadRequestException('Invalid referral code. It must match your assigned distributor code.');
+        }
+      }
+    }
+
+    if (!referringDistributor && referralCode) {
+      const dist = await this.prisma.distributor.findFirst({
+        where: { referralCode: { equals: referralCode.trim(), mode: 'insensitive' } },
+        include: { user: true },
+      });
+      if (dist) {
+        appliedReferralCode = dist.referralCode;
+        referringDistributor = dist;
+      }
+    }
+
+    // Customer's own referral code (unique)
+    let customerOwnCode = referralCode;
+    if (!customerOwnCode || customerOwnCode.toUpperCase() === appliedReferralCode?.toUpperCase()) {
+      customerOwnCode = `CUST-${Math.floor(100000 + Math.random() * 900000)}`;
+    }
+
     // Create via Transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // 1. Create User
@@ -109,10 +152,11 @@ export class CustomerService {
           contactPerson,
           businessCategory,
           jarsAtCustomer: initialJars,
-          referralCode,
+          referralCode: customerOwnCode,
+          source: appliedReferralCode || referralCode || null,
           referredById,
           createdById: createdByUserId,
-          createdFrom: createdByUserId ? 'Admin Panel' : 'Registration',
+          createdFrom,
         },
       });
 
@@ -213,9 +257,18 @@ export class CustomerService {
       this.mailService.sendWelcomeEmail(result.user).catch(() => {});
     }
 
+    const referringDistName = referringDistributor
+      ? referringDistributor.agencyName || (referringDistributor.user ? `${referringDistributor.user.firstName} ${referringDistributor.user.lastName}`.trim() : undefined)
+      : undefined;
+
     return {
+      success: true,
       message: 'Customer created successfully',
+      customerName: `${result.user.firstName} ${result.user.lastName}`,
       customerId: result.customer.id,
+      referralCode: appliedReferralCode || undefined,
+      referredByDistributorId: referringDistributor?.id || undefined,
+      referredByDistributorName: referringDistName,
       password: rawPassword, // Returning generated password to the admin/staff so they can share it
     };
   }
@@ -236,10 +289,82 @@ export class CustomerService {
       },
       orderBy: { user: { createdAt: 'desc' } },
     });
-    return customers.map((c) => ({
-      ...c,
-      jars_at_customer: c.jarsAtCustomer,
-    }));
+
+    const creatorIds = Array.from(
+      new Set(customers.map((c) => c.createdById).filter(Boolean)),
+    ) as string[];
+
+    const creators = creatorIds.length > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: creatorIds } },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            distributor: {
+              select: {
+                id: true,
+                referralCode: true,
+                agencyName: true,
+              },
+            },
+          },
+        })
+      : [];
+    const creatorMap = new Map(creators.map((u) => [u.id, u]));
+
+    const sourceCodes = Array.from(
+      new Set(customers.map((c) => c.source).filter(Boolean)),
+    ) as string[];
+    const distByCode = sourceCodes.length > 0
+      ? await this.prisma.distributor.findMany({
+          where: { referralCode: { in: sourceCodes } },
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        })
+      : [];
+    const distCodeMap = new Map(distByCode.map((d) => [d.referralCode.toUpperCase(), d]));
+
+    return customers.map((c) => {
+      const creator = c.createdById ? creatorMap.get(c.createdById) : null;
+      const distFromCode = c.source ? distCodeMap.get(c.source.toUpperCase()) : null;
+
+      const code = c.source || creator?.distributor?.referralCode || distFromCode?.referralCode || null;
+      let distributorName: string | null = null;
+      let distributorId: string | null = null;
+      if (distFromCode) {
+        distributorId = distFromCode.id;
+        distributorName = distFromCode.agencyName || `${distFromCode.user.firstName} ${distFromCode.user.lastName}`.trim();
+      } else if (creator?.distributor) {
+        distributorId = creator.distributor.id;
+        distributorName = creator.distributor.agencyName || `${creator.firstName} ${creator.lastName}`.trim();
+      } else if (creator && creator.role === 'DISTRIBUTOR') {
+        distributorId = creator.id;
+        distributorName = `${creator.firstName} ${creator.lastName}`.trim();
+      }
+
+      const referralInfo = code ? {
+        code,
+        distributorId: distributorId || undefined,
+        distributorName: distributorName || 'Edrops Distributor',
+        isDistributor: true,
+      } : null;
+
+      return {
+        ...c,
+        jars_at_customer: c.jarsAtCustomer,
+        referredByDistributorId: distributorId,
+        referredByDistributorName: distributorName,
+        referralInfo,
+      };
+    });
   }
 
   async findOne(id: string) {
@@ -260,9 +385,58 @@ export class CustomerService {
       },
     });
     if (!customer) return null;
+
+    let referralInfo: { code: string; distributorId?: string; distributorName: string; isDistributor: boolean } | null = null;
+    let distId: string | null = null;
+    let distName: string | null = null;
+
+    if (customer.source || customer.createdById) {
+      let code = customer.source || null;
+
+      if (code) {
+        const dist = await this.prisma.distributor.findFirst({
+          where: { referralCode: { equals: code, mode: 'insensitive' } },
+          include: { user: { select: { firstName: true, lastName: true } } },
+        });
+        if (dist) {
+          distId = dist.id;
+          distName = dist.agencyName || `${dist.user.firstName} ${dist.user.lastName}`.trim();
+        }
+      }
+
+      if (!distName && customer.createdById) {
+        const creator = await this.prisma.user.findUnique({
+          where: { id: customer.createdById },
+          select: {
+            firstName: true,
+            lastName: true,
+            role: true,
+            distributor: { select: { id: true, referralCode: true, agencyName: true } },
+          },
+        });
+        if (creator?.distributor?.referralCode) {
+          code = creator.distributor.referralCode;
+          distId = creator.distributor.id;
+          distName = creator.distributor.agencyName || `${creator.firstName} ${creator.lastName}`.trim();
+        }
+      }
+
+      if (code) {
+        referralInfo = {
+          code,
+          distributorId: distId || undefined,
+          distributorName: distName || 'Edrops Distributor',
+          isDistributor: true,
+        };
+      }
+    }
+
     return {
       ...customer,
       jars_at_customer: customer.jarsAtCustomer,
+      referredByDistributorId: distId,
+      referredByDistributorName: distName,
+      referralInfo,
     };
   }
 

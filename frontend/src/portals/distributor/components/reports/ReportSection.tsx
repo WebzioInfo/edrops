@@ -22,7 +22,7 @@ export const ReportSection: React.FC<ReportSectionProps> = ({
       <div className="px-4 py-3.5 sm:px-5 border-b border-[#E2E8F0] flex flex-wrap items-center justify-between gap-3 bg-[#F8FAFC]">
         <div className="flex items-center gap-2.5">
           {Icon && (
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] shrink-0">
+            <div className="hidden sm:flex h-7 w-7 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] shrink-0">
               <Icon className="w-4 h-4" />
             </div>
           )}

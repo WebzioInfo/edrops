@@ -940,7 +940,8 @@ export default function Orders() {
 
       {/* ─── 4. DENSE OPERATIONAL ORDER TABLE ───────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs font-medium border-collapse min-w-[900px]">
             <thead>
               <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500 select-none">
@@ -1222,6 +1223,137 @@ export default function Orders() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* ─── Mobile Card List View ─────────────────────────────────── */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="p-3 animate-pulse space-y-2">
+                <div className="flex justify-between">
+                  <div className="h-4 w-24 bg-slate-200 rounded" />
+                  <div className="h-4 w-16 bg-slate-200 rounded-full" />
+                </div>
+                <div className="h-3.5 w-36 bg-slate-200 rounded" />
+                <div className="h-3 w-48 bg-slate-100 rounded" />
+              </div>
+            ))
+          ) : isError ? (
+            <div className="p-6 text-center text-xs text-rose-600 font-semibold">
+              <AlertCircle className="w-6 h-6 mx-auto mb-1.5 text-rose-500" />
+              {errorMessage}
+              <button
+                onClick={loadOrders}
+                className="mt-2 block mx-auto px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500 font-semibold">
+              No orders match the current filter criteria.
+            </div>
+          ) : (
+            orders.map((order) => {
+              const customerName = `${order.customer?.user?.firstName || 'Customer'} ${order.customer?.user?.lastName || ''}`.trim();
+              const isDeliveredOrFinalized = order.status === 'DELIVERED' || order.status === 'COMPLETED';
+              const isCancelled = order.status === 'CANCELLED';
+              const pst = getOrderPaymentState(order);
+              const totalQty = order.totalQuantity || order.items?.reduce((s: number, i: any) => s + (i.quantity || 0), 0) || 0;
+
+              return (
+                <div
+                  key={order.id}
+                  onClick={() => handleOpenDetails(order)}
+                  className="p-3.5 bg-white hover:bg-slate-50/80 active:bg-slate-50 transition cursor-pointer space-y-2 relative"
+                >
+                  {/* Top Line: Customer Name (left) + Status Badge (right) */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-sm text-[#16324F] truncate">
+                      {customerName}
+                    </span>
+                    <div className="scale-90 origin-right shrink-0">
+                      {getStatusBadge(order.status)}
+                    </div>
+                  </div>
+
+                  {/* Second Line: Jars • Total (left) & Payment State (right) */}
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <div className="text-slate-600 font-medium">
+                      <span>{totalQty} {totalQty === 1 ? 'Jar' : 'Jars'}</span>
+                      <span className="mx-1 text-slate-300">•</span>
+                      <span className="font-bold text-[#16324F]">
+                        ₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {pst.hasDue ? (
+                        <span className="font-bold text-orange-700 bg-orange-50 border border-orange-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                          Due ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                        </span>
+                      ) : (
+                        <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                          Paid
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Third Line: Compact Actions */}
+                  <div
+                    className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {pst.hasDue && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPaymentModal(order)}
+                        className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                        title={`Collect payment — ₹${pst.due.toFixed(2)} due`}
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        <span>Pay</span>
+                      </button>
+                    )}
+
+                    {!isDeliveredOrFinalized && !isCancelled && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenStatusModal(order)}
+                        className="px-2.5 py-1 text-xs font-bold text-[#1677C8] bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        title="Update Status"
+                      >
+                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span>Status</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDetails(order)}
+                      className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer flex items-center gap-1"
+                      title="View Details"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-slate-500" />
+                      <span>View</span>
+                    </button>
+
+                    {!isDeliveredOrFinalized && !isCancelled && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenReleaseModal(order)}
+                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"
+                        title="Release Order"
+                      >
+                        <Undo2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* ─── 5. PAGINATION BAR ────────────────────────────────────── */}

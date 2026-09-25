@@ -15,6 +15,7 @@ import {
   Eye,
   Building2,
   ChevronDown,
+  MoreHorizontal,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { showToast } from '../../../utils/toast';
@@ -83,6 +84,7 @@ export default function Purchases() {
   const [collectNotes, setCollectNotes] = useState<string>('');
   const [collectError, setCollectError] = useState<string>('');
   const [isCollecting, setIsCollecting] = useState<boolean>(false);
+  const [activeMobileMenuId, setActiveMobileMenuId] = useState<string | null>(null);
 
   // Form states
   const location = useLocation();
@@ -696,7 +698,8 @@ export default function Purchases() {
 
       {/* ─── DENSE FULL-WIDTH OPERATIONAL TABLE ─────────────────────── */}
       <div className="w-full bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-[#E2E8F0] bg-slate-50/80 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
@@ -840,6 +843,148 @@ export default function Purchases() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* ─── Mobile Card List View ─────────────────────────────────── */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {isLoading && purchases.length === 0 ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="p-3 animate-pulse space-y-2">
+                <div className="flex justify-between">
+                  <div className="h-4 w-24 bg-slate-200 rounded" />
+                  <div className="h-4 w-16 bg-slate-200 rounded-full" />
+                </div>
+                <div className="h-3.5 w-36 bg-slate-200 rounded" />
+                <div className="h-3 w-48 bg-slate-100 rounded" />
+              </div>
+            ))
+          ) : purchases.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500 font-semibold">
+              No purchases found.
+            </div>
+          ) : (
+            purchases.map((purchase) => {
+              const itemsCount = Array.isArray(purchase.items) ? purchase.items.length : 0;
+              const pending = getPendingAmount(purchase);
+              const effectiveStatus = getEffectivePaymentStatus(purchase);
+
+              return (
+                <div
+                  key={purchase.id}
+                  onClick={() => setViewingPurchase(purchase)}
+                  className="p-3.5 bg-white hover:bg-slate-50/80 active:bg-slate-50 transition cursor-pointer space-y-2 relative"
+                >
+                  {/* Top Line: Supplier Name + Date */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-sm text-[#16324F] truncate">
+                      {purchase.supplierName}
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-medium shrink-0">
+                      {new Date(purchase.purchaseDate).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
+                    </span>
+                  </div>
+
+                  {/* Second Line: Items • Total (left) & Status + Due/Settled (right) */}
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <div className="text-slate-600 font-medium">
+                      <span>{itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span>
+                      <span className="mx-1 text-slate-300">•</span>
+                      <span className="font-bold text-[#16324F]">{formatCurrency(purchase.total)}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="scale-90 origin-right">
+                        {getStatusBadge(effectiveStatus)}
+                      </div>
+                      {pending > 0 ? (
+                        <span className="font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                          Due {formatCurrency(pending)}
+                        </span>
+                      ) : (
+                        <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                          Settled
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Third Line: Compact Actions [Collect] [View] [More] */}
+                  <div
+                    className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {pending > 0 && purchase.paymentStatus !== 'CANCELLED' && (
+                      <button
+                        type="button"
+                        onClick={() => openCollectModal(purchase)}
+                        className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition shadow-2xs cursor-pointer"
+                        title="Collect Payment"
+                      >
+                        Collect
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setViewingPurchase(purchase)}
+                      className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer flex items-center gap-1"
+                      title="View Details"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-slate-500" />
+                      <span>View</span>
+                    </button>
+
+                    {/* More Menu Dropdown for Edit & Delete */}
+                    <div className="relative inline-block text-left">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveMobileMenuId(
+                            activeMobileMenuId === purchase.id ? null : purchase.id
+                          )
+                        }
+                        className="px-2.5 py-1 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        title="More options"
+                      >
+                        <MoreHorizontal className="w-3.5 h-3.5" />
+                        <span>More</span>
+                      </button>
+
+                      {activeMobileMenuId === purchase.id && (
+                        <div className="absolute right-0 bottom-full mb-1 w-32 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMobileMenuId(null);
+                              openEditModal(purchase);
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMobileMenuId(null);
+                              setDeleteConfirmPurchase(purchase);
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-medium"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

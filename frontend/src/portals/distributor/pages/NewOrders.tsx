@@ -614,7 +614,8 @@ export default function NewOrders() {
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-2xs overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-[#E2E8F0] text-[#64748B] font-extrabold uppercase tracking-wider text-[10px]">
@@ -775,6 +776,114 @@ export default function NewOrders() {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* ─── Mobile Card List View ─────────────────────────────────── */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filteredOrders.map((order) => {
+                const totalQty = order.items?.reduce((sum, i) => sum + (i.quantity || 0), 0) || 0;
+                const isClaiming = claimingOrderId === order.id;
+                const isSkipping = skippingOrderId === order.id;
+                const customerName = order.customer?.user
+                  ? `${order.customer.user.firstName || ''} ${order.customer.user.lastName || ''}`.trim()
+                  : 'Customer';
+
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => setSelectedOrder(order)}
+                    className={`p-3.5 transition cursor-pointer space-y-2 relative ${
+                      order.isRecentlyAdded ? 'bg-amber-50/70 border-l-3 border-amber-500' : 'bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    {/* Top Line: Customer Name (left) + NEW/Status badge & Time (right) */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-sm text-[#16324F] truncate">
+                        {customerName}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {order.isRecentlyAdded ? (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase bg-amber-500 text-white">
+                            NEW
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            {formatOrderStatus(order.status)}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                          <Clock className="w-2.5 h-2.5" />
+                          {getRelativeTime(order.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Second Line: Amount • Jars • Location */}
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <div className="text-slate-600 font-medium">
+                        <span className="font-bold text-[#16324F]">
+                          {formatCurrency(order.totalAmount)}
+                        </span>
+                        <span className="mx-1 text-slate-300">•</span>
+                        <span>{totalQty} {totalQty === 1 ? 'Jar' : 'Jars'}</span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 truncate max-w-[140px] text-right">
+                        {order.address?.city || order.address?.area || 'Local'}
+                      </span>
+                    </div>
+
+                    {/* Third Line: Compact Actions */}
+                    <div
+                      className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrder(order)}
+                        className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        title="View Details"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-slate-500" />
+                        <span>View</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSkipOrder(order.id)}
+                        disabled={isSkipping || isClaiming}
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition disabled:opacity-50 cursor-pointer text-xs font-semibold flex items-center gap-1"
+                        title="Skip order"
+                      >
+                        {isSkipping ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                        ) : (
+                          <>
+                            <Ban className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Skip</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAcceptOrder(order.id)}
+                        disabled={isClaiming || isSkipping}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-2xs disabled:opacity-50 cursor-pointer"
+                        title="Accept and claim order"
+                      >
+                        {isClaiming ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Accept</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

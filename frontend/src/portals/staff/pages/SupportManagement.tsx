@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
-import { Search, X, Send } from 'lucide-react';
+import { Search, X, Send, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSocket } from '../../../contexts/SocketContext';
 
@@ -150,7 +150,8 @@ export default function SupportManagement() {
       <div className="flex gap-4 flex-1 min-h-0 overflow-hidden relative">
         {/* Ticket List */}
         <div className="flex-1 bg-white border border-slate-200/80 rounded-2xl overflow-hidden flex flex-col shadow-xs">
-          <div className="overflow-y-auto flex-1">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-y-auto flex-1">
             <table className="w-full text-xs text-left">
               <thead className="text-[11px] text-slate-500 uppercase bg-slate-50/80 sticky top-0 z-10 border-b border-slate-200/80 font-bold">
                 <tr>
@@ -194,6 +195,60 @@ export default function SupportManagement() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card List View */}
+          <div className="md:hidden overflow-y-auto flex-1 divide-y divide-slate-100">
+            {tickets.map(ticket => {
+              const customerName = `${ticket.customer?.user?.firstName || ''} ${ticket.customer?.user?.lastName || ''}`.trim() || 'Customer';
+              const isSelected = selectedTicket?.id === ticket.id;
+
+              return (
+                <div
+                  key={ticket.id}
+                  onClick={() => {
+                    setSelectedTicket(ticket);
+                    fetchTicketDetails(ticket.id);
+                  }}
+                  className={`p-3 transition cursor-pointer flex items-center justify-between gap-2.5 ${
+                    isSelected ? 'bg-blue-50/70' : 'bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                        ticket.status === 'OPEN' ? 'bg-blue-100 text-blue-700' :
+                        ticket.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {ticket.status}
+                      </span>
+                      <span className="text-[10px] text-slate-400 ml-auto">
+                        {new Date(ticket.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <div className="font-bold text-xs text-slate-900 truncate">
+                      {ticket.subject}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 truncate">
+                      <span>{customerName}</span>
+                      {ticket.customer?.user?.phone && (
+                        <>
+                          <span>•</span>
+                          <span className="font-mono">{ticket.customer.user.phone}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 text-slate-400">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

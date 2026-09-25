@@ -567,7 +567,7 @@ export default function SupplierDetail() {
         }
       />
 
-      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
+      <div className="w-full p-3.5 sm:p-6 space-y-4 flex-1">
 
       {/* ─── SUPPLIER HEADER PROFILE CARD ───────────────────────────── */}
       <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-2xs">
@@ -817,8 +817,10 @@ export default function SupplierDetail() {
 
         {/* ─── PURCHASES TABLE TAB ──────────────────────────────────── */}
         {activeTab === 'purchases' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+          <div>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-[#E2E8F0] bg-slate-50/40 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   <th className="py-2.5 px-3.5">Date</th>
@@ -911,12 +913,92 @@ export default function SupplierDetail() {
               </tbody>
             </table>
           </div>
+
+            {/* Mobile Cards View */}
+            <div className="md:hidden divide-y divide-[#E2E8F0]">
+              {supplier.purchases.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  No purchases recorded for this supplier yet.
+                </div>
+              ) : (
+                supplier.purchases.map((purchase) => {
+                  const itemsCount = Array.isArray(purchase.items) ? purchase.items.length : 0;
+                  const pending = getPurchasePending(purchase);
+
+                  return (
+                    <div
+                      key={purchase.id}
+                      onClick={() => setViewingPurchase(purchase)}
+                      className="p-3.5 bg-white hover:bg-slate-50 transition cursor-pointer space-y-2 relative"
+                    >
+                      {/* Top Line: Date (left) + Status Badge (right) */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-[#16324F]">
+                          {new Date(purchase.purchaseDate).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </span>
+                        <div className="scale-90 origin-right shrink-0">
+                          {getEffectiveStatusBadge(purchase)}
+                        </div>
+                      </div>
+
+                      {/* Second Line: Items • Total • Due/Settled */}
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <div className="text-slate-600 font-medium">
+                          <span>{itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span>
+                          <span className="mx-1 text-slate-300">•</span>
+                          <span className="font-bold text-[#16324F]">{formatCurrency(purchase.total)}</span>
+                        </div>
+                        <div className="shrink-0">
+                          {pending > 0 ? (
+                            <span className="font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                              Due {formatCurrency(pending)}
+                            </span>
+                          ) : (
+                            <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                              Settled
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions Row */}
+                      <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                        {pending > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => openCollectPurchaseModal(purchase)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition cursor-pointer"
+                          >
+                            Collect
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setViewingPurchase(purchase)}
+                          className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <span>View</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         )}
 
         {/* ─── TRANSACTIONS / LEDGER TAB ────────────────────────────── */}
         {activeTab === 'ledger' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+          <div>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-[#E2E8F0] bg-slate-50/40 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   <th className="py-2.5 px-3.5 whitespace-nowrap">Date & Time</th>
@@ -1025,7 +1107,105 @@ export default function SupplierDetail() {
               </tbody>
             </table>
           </div>
-        )}
+
+          {/* Mobile Cards View */}
+          <div className="md:hidden divide-y divide-[#E2E8F0]">
+            {filteredTransactions.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                No ledger transactions match the filter.
+              </div>
+            ) : (
+              filteredTransactions.map((tx) => {
+                const matchedPurchase =
+                  tx.type === 'PURCHASE'
+                    ? supplier.purchases.find(
+                        (p) => p.id === tx.purchaseId || p.purchaseNumber === tx.reference,
+                      )
+                    : null;
+                const pendingVal = tx.pending !== undefined ? tx.pending : 0;
+                const hasPending = pendingVal > 0;
+
+                return (
+                  <div
+                    key={tx.id}
+                    className="p-3.5 bg-white hover:bg-slate-50 transition space-y-2 relative"
+                  >
+                    {/* Top Line: Transaction Type + Timestamp */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        {tx.type === 'PURCHASE' ? (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-200">
+                            Purchase
+                          </span>
+                        ) : tx.type === 'BALANCE_ADJUSTMENT' || tx.type === 'ADJUSTMENT' ? (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-purple-50 text-purple-700 border border-purple-200">
+                            Adjustment
+                          </span>
+                        ) : tx.type === 'OPENING_BALANCE' ? (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200">
+                            Opening
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-slate-50 text-slate-700 border border-slate-200">
+                            {tx.type}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-medium shrink-0">
+                        {formatTransactionTimestamp(tx.createdAt || tx.date)}
+                      </span>
+                    </div>
+
+                    {tx.description && (
+                      <p className="text-xs text-slate-600 truncate">
+                        {tx.description}
+                      </p>
+                    )}
+
+                    {/* Amounts Line: Total & Running Balance */}
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <div className="text-slate-600 font-medium">
+                        <span>Total: <strong className="text-[#16324F]">{formatCurrency(tx.total !== undefined ? tx.total : (tx.debit || 0))}</strong></span>
+                        <span className="mx-1 text-slate-300">•</span>
+                        <span>Bal: <strong className="text-[#16324F]">{formatCurrency(tx.runningBalance !== undefined ? tx.runningBalance : (tx.balance || 0))}</strong></span>
+                      </div>
+                      {hasPending && (
+                        <span className="font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded text-[10px] shrink-0">
+                          Pending {formatCurrency(pendingVal)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Actions Row */}
+                    {matchedPurchase && (
+                      <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100">
+                        {hasPending && (
+                          <button
+                            type="button"
+                            onClick={() => openCollectPurchaseModal(matchedPurchase)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition cursor-pointer"
+                          >
+                            Collect
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setViewingPurchase(matchedPurchase)}
+                          title="View Details"
+                          className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <span>View</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
       </div>
 
       {/* ─── RECORD SUPPLIER PAYMENT MODAL ───────────────────────────── */}

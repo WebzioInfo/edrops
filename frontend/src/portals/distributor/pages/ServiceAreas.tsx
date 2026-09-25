@@ -276,7 +276,7 @@ export default function ServiceAreas() {
         }
       />
 
-      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
+      <div className="w-full p-3.5 sm:p-6 space-y-4 flex-1">
 
       {/* ─── 2. SUMMARY STATS CARDS (FULL WIDTH) ──────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
