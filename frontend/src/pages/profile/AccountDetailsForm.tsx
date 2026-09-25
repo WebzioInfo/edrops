@@ -159,8 +159,8 @@ export default function AccountDetailsForm({ profile, onRefresh }: AccountDetail
           <div className="flex items-start gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100/60">
             <Award className="h-5 w-5 text-[#0F6E8C] shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">User ID</p>
-              <p className="text-xs sm:text-sm font-semibold text-[#0F172A] mt-0.5 break-all">{profile.id}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Account Status</p>
+              <p className="text-xs sm:text-sm font-semibold text-[#0F172A] mt-0.5">Verified Active</p>
             </div>
           </div>
         </div>

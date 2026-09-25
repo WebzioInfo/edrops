@@ -10,6 +10,7 @@ import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
 const RouteOperations = React.lazy(() => import('./pages/RouteOperations'));
 const CustomerManagement = React.lazy(() => import('./pages/CustomerManagement'));
+const DistributorManagement = React.lazy(() => import('./pages/DistributorManagement'));
 const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
 const InventoryAudit = React.lazy(() => import('./pages/InventoryAudit'));
 const SupportManagement = React.lazy(() => import('./pages/SupportManagement'));
@@ -37,7 +38,10 @@ export default function StaffPortal() {
     const path = location.pathname;
     if (path.includes('/operations')) return 'Route Operations';
     if (path.includes('/orders')) return 'Order Management';
+    if (path.includes('/customers/add')) return 'Add Customer';
+    if (path.includes('/customers/') && path.includes('/edit')) return 'Edit Customer';
     if (path.includes('/customers')) return 'Customer Management';
+    if (path.includes('/distributors')) return 'Distributor Management';
     if (path.includes('/packages')) return 'Package Management';
     if (path.includes('/inventory')) return 'Inventory Audit';
     if (path.includes('/support')) return 'Support Management';
@@ -162,14 +166,16 @@ export default function StaffPortal() {
         </header>
 
         {/* Scrollable Content Viewport */}
-        <main className="flex-1 overflow-y-auto">
-          <section className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 min-w-0 overflow-y-auto bg-[#F8FAFC]">
+          <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
             <Suspense fallback={<StaffLoader />}>
               <Routes>
                 <Route path="orders" element={<OrderManagement />} />
                 <Route path="operations" element={<RouteOperations />} />
                 <Route path="customers/add" element={<CustomerForm basePath="/staff/customers" />} />
+                <Route path="customers/:id/edit" element={<CustomerForm basePath="/staff/customers" />} />
                 <Route path="customers/*" element={<CustomerManagement />} />
+                <Route path="distributors/*" element={<DistributorManagement />} />
                 <Route path="packages" element={<PackageManagement />} />
                 <Route path="inventory" element={<InventoryAudit />} />
                 <Route path="support" element={<SupportManagement />} />
@@ -178,7 +184,7 @@ export default function StaffPortal() {
                 <Route path="*" element={<Navigate to="operations" replace />} />
               </Routes>
             </Suspense>
-          </section>
+          </div>
         </main>
       </div>
     </div>

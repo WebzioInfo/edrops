@@ -1,0 +1,640 @@
+import { useState, useMemo, useEffect } from 'react';
+import {
+  Building2,
+  Search,
+  Plus,
+  RefreshCw,
+  Tag,
+  Copy,
+  Check,
+  Package,
+  Edit2,
+  X,
+  MapPin,
+  Truck,
+} from 'lucide-react';
+import { fetchWithAuth } from '../../../api/client';
+import { toast } from 'react-hot-toast';
+import { DataErrorState } from '../../../components/common/DataErrorState';
+import DistributorFormModal, { type DistributorRecord } from '../components/DistributorFormModal';
+import DistributorDetailDrawer from '../components/DistributorDetailDrawer';
+
+export default function DistributorManagement() {
+  const [distributors, setDistributors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Search & Filter
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+
+  // Modal / Drawer state
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [distributorToEdit, setDistributorToEdit] = useState<DistributorRecord | null>(null);
+  const [selectedDistributor, setSelectedDistributor] = useState<any | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const loadDistributors = async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      const data = await fetchWithAuth('/staff/distributors');
+      setDistributors(data || []);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load distributors');
+      toast.error('Failed to load distributors');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDistributors();
+  }, []);
+
+  const handleCopyCode = (e: React.MouseEvent, code: string, id: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
+    setCopiedCodeId(id);
+    toast.success(`Copied code: ${code}`);
+    setTimeout(() => setCopiedCodeId(null), 2500);
+  };
+
+  const handleOpenCreate = () => {
+    setDistributorToEdit(null);
+    setFormModalOpen(true);
+  };
+
+  const handleOpenEdit = (dist: any) => {
+    setDistributorToEdit({
+      id: dist.id,
+      userId: dist.userId || dist.id,
+      firstName: dist.firstName,
+      lastName: dist.lastName,
+      fullName: dist.fullName,
+      phone: dist.phone,
+      email: dist.email,
+      role: dist.role,
+      isActive: dist.isActive,
+      referralCode: dist.referralCode,
+      agencyName: dist.agencyName,
+      address: dist.address,
+      routeOrArea: dist.routeOrArea,
+      vehicleType: dist.vehicleType,
+      vehiclePlate: dist.vehiclePlate,
+      jarOwnership: dist.jarOwnership,
+      companyOwnedJars: dist.companyOwnedJars,
+      distributorOwnedJars: dist.distributorOwnedJars,
+    });
+    setFormModalOpen(true);
+  };
+
+  const handleOpenDetails = async (dist: any) => {
+    try {
+      const detailed = await fetchWithAuth(`/staff/distributors/${dist.id}`);
+      setSelectedDistributor(detailed || dist);
+    } catch {
+      setSelectedDistributor(dist);
+    }
+    setDrawerOpen(true);
+  };
+
+  const handleToggleStatus = async (dist: any) => {
+    try {
+      const newStatus = !dist.isActive;
+      const targetId = dist.userId || dist.id;
+      await fetchWithAuth(`/staff/distributors/${targetId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: newStatus }),
+      });
+      toast.success(`Distributor ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      loadDistributors();
+      if (selectedDistributor?.id === dist.id) {
+        setSelectedDistributor({ ...selectedDistributor, isActive: newStatus });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update status');
+    }
+  };
+
+  // Filtered list
+  const filteredDistributors = useMemo(() => {
+    const term = search.toLowerCase().trim();
+    return distributors.filter((d: any) => {
+      const name = (d.fullName || `${d.firstName || ''} ${d.lastName || ''}`).toLowerCase();
+      const phone = (d.phone || '').toLowerCase();
+      const email = (d.email || '').toLowerCase();
+      const code = (d.referralCode || '').toLowerCase();
+      const route = (d.routeOrArea || '').toLowerCase();
+      const agency = (d.agencyName || '').toLowerCase();
+
+      const matchesSearch =
+        !term ||
+        name.includes(term) ||
+        phone.includes(term) ||
+        email.includes(term) ||
+        code.includes(term) ||
+        route.includes(term) ||
+        agency.includes(term);
+
+      if (!matchesSearch) return false;
+
+      if (statusFilter === 'ACTIVE' && d.isActive === false) return false;
+      if (statusFilter === 'INACTIVE' && d.isActive !== false) return false;
+
+      return true;
+    });
+  }, [distributors, search, statusFilter]);
+
+  // Derived Summary Metrics from real data
+  const summaryMetrics = useMemo(() => {
+    const total = distributors.length;
+    const active = distributors.filter((d) => d.isActive !== false).length;
+    const inactive = total - active;
+    const totalCompanyJars = distributors.reduce(
+      (sum, d) => sum + (Number(d.companyOwnedJars) || 0),
+      0,
+    );
+    const totalPartnerJars = distributors.reduce(
+      (sum, d) => sum + (Number(d.distributorOwnedJars) || 0),
+      0,
+    );
+    const totalJars = totalCompanyJars + totalPartnerJars;
+
+    return {
+      total,
+      active,
+      inactive,
+      totalJars,
+      totalCompanyJars,
+    };
+  }, [distributors]);
+
+  return (
+    <div className="space-y-4 animate-in fade-in duration-150">
+      {/* ─── 1. COMPACT TOOLBAR (SEARCH + FILTERS + ACTIONS) ────────── */}
+      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-[240px]">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px] sm:min-w-[260px]">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by name, phone, referral code, route..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#1677C8] focus:bg-white transition-all"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8]"
+          >
+            <option value="ALL">All Status ({distributors.length})</option>
+            <option value="ACTIVE">Active ({summaryMetrics.active})</option>
+            <option value="INACTIVE">Inactive ({summaryMetrics.inactive})</option>
+          </select>
+
+          {(search || statusFilter !== 'ALL') && (
+            <button
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('ALL');
+              }}
+              className="text-xs font-bold text-[#1677C8] hover:underline px-1.5 py-1 cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={loadDistributors}
+            disabled={loading}
+            title="Refresh Distributors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#1677C8]' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenCreate}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Distributor</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ─── 2. COMPACT SUMMARY CARDS (EXACT DISTRIBUTOR DENSITY) ────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+            Total Distributors
+          </span>
+          <span className="text-lg sm:text-xl font-black text-slate-800 leading-tight mt-0.5 block">
+            {summaryMetrics.total}
+          </span>
+          <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">
+            Partner accounts
+          </span>
+        </div>
+
+        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block">
+            Active Distributors
+          </span>
+          <span className="text-lg sm:text-xl font-black text-emerald-700 leading-tight mt-0.5 block">
+            {summaryMetrics.active}
+          </span>
+          <span className="text-[10px] text-emerald-600/80 font-bold mt-0.5 block">
+            {summaryMetrics.total > 0
+              ? `${Math.round((summaryMetrics.active / summaryMetrics.total) * 100)}% operational`
+              : '0% active'}
+          </span>
+        </div>
+
+        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 block">
+            Inactive Distributors
+          </span>
+          <span className="text-lg sm:text-xl font-black text-slate-700 leading-tight mt-0.5 block">
+            {summaryMetrics.inactive}
+          </span>
+          <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">
+            Suspended or on hold
+          </span>
+        </div>
+
+        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 block">
+            Allocated Jars
+          </span>
+          <span className="text-lg sm:text-xl font-black text-purple-700 leading-tight mt-0.5 block">
+            {summaryMetrics.totalJars}
+          </span>
+          <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">
+            Company: {summaryMetrics.totalCompanyJars} jars
+          </span>
+        </div>
+      </div>
+
+      {/* ─── 3. DENSE DISTRIBUTORS DIRECTORY TABLE & MOBILE LIST ───── */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left text-xs font-medium border-collapse min-w-[900px]">
+            <thead>
+              <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500 select-none">
+                <th className="py-2.5 px-3">Distributor</th>
+                <th className="py-2.5 px-3">Phone</th>
+                <th className="py-2.5 px-3">Referral Code</th>
+                <th className="py-2.5 px-3">Status</th>
+                <th className="py-2.5 px-3">Route / Area</th>
+                <th className="py-2.5 px-3">Vehicle</th>
+                <th className="py-2.5 px-3">Jar Allocation</th>
+                <th className="py-2.5 px-3">Registered</th>
+                <th className="py-2.5 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={idx} className="animate-pulse h-11">
+                    <td className="p-3"><div className="h-4 w-32 bg-slate-200 rounded-sm" /></td>
+                    <td className="p-3"><div className="h-4 w-24 bg-slate-200 rounded-sm" /></td>
+                    <td className="p-3"><div className="h-5 w-20 bg-slate-200 rounded-md" /></td>
+                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-full" /></td>
+                    <td className="p-3"><div className="h-4 w-24 bg-slate-200 rounded-sm" /></td>
+                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 rounded-sm" /></td>
+                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 rounded-sm" /></td>
+                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm" /></td>
+                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm ml-auto" /></td>
+                  </tr>
+                ))
+              ) : error ? (
+                <DataErrorState
+                  isTableRow
+                  colSpan={9}
+                  title="Unable to load distributors"
+                  message={error}
+                  onRetry={loadDistributors}
+                />
+              ) : filteredDistributors.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-14 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                      <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#1677C8] flex items-center justify-center mb-2">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <p className="font-bold text-slate-800 text-sm">No distributors found</p>
+                      <p className="text-xs text-slate-500 mt-1 mb-3 text-center">
+                        {search || statusFilter !== 'ALL'
+                          ? 'No distributors match the current filter criteria.'
+                          : 'Register your first distributor partner to get started.'}
+                      </p>
+                      {(search || statusFilter !== 'ALL') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearch('');
+                            setStatusFilter('ALL');
+                          }}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Clear Filters
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredDistributors.map((dist) => {
+                  const fullName =
+                    dist.fullName ||
+                    `${dist.firstName || ''} ${dist.lastName || ''}`.trim() ||
+                    'Distributor';
+                  const isActive = dist.isActive !== false;
+                  const isCopied = copiedCodeId === dist.id;
+
+                  return (
+                    <tr
+                      key={dist.id}
+                      onClick={() => handleOpenDetails(dist)}
+                      className="hover:bg-slate-50/60 transition cursor-pointer"
+                    >
+                      {/* Distributor Name */}
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-sky-100 text-[#1677C8] flex items-center justify-center font-bold text-xs shrink-0">
+                            {fullName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-800 hover:text-[#1677C8] transition truncate block">
+                              {fullName}
+                            </span>
+                            <span className="text-[11px] text-slate-400 truncate block">
+                              {dist.agencyName || dist.email || 'Independent Partner'}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Phone */}
+                      <td className="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">
+                        <span className="font-mono">{dist.phone || '—'}</span>
+                      </td>
+
+                      {/* Referral Code */}
+                      <td className="py-2.5 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1 bg-sky-50 border border-sky-200 hover:border-sky-300 rounded-md px-2 py-0.5 text-xs font-mono font-bold text-[#1677C8] shadow-2xs">
+                          <Tag className="w-3 h-3 text-[#1677C8]" />
+                          <span>{dist.referralCode}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyCode(e, dist.referralCode, dist.id)}
+                            className="p-0.5 hover:bg-sky-100 rounded text-[#1677C8] transition cursor-pointer"
+                            title="Copy Referral Code"
+                          >
+                            {isCopied ? (
+                              <Check className="w-3 h-3 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-2.5 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(dist)}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer ${
+                            isActive
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                          }`}
+                          title={`Click to ${isActive ? 'deactivate' : 'activate'}`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                            }`}
+                          />
+                          {isActive ? 'Active' : 'Inactive'}
+                        </button>
+                      </td>
+
+                      {/* Route / Area */}
+                      <td className="py-2.5 px-3 text-slate-700">
+                        {dist.routeOrArea ? (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate max-w-[130px] font-medium">{dist.routeOrArea}</span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic text-[11px]">Unassigned</span>
+                        )}
+                      </td>
+
+                      {/* Vehicle */}
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                        {dist.vehiclePlate ? (
+                          <div className="flex items-center gap-1">
+                            <Truck className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="font-mono font-medium text-[11px]">{dist.vehiclePlate}</span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic text-[11px]">No vehicle</span>
+                        )}
+                      </td>
+
+                      {/* Jar Allocation */}
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <Package className="w-3 h-3 text-purple-600 shrink-0" />
+                          <span className="font-bold text-slate-800">
+                            {dist.totalJars ?? (dist.companyOwnedJars || 0) + (dist.distributorOwnedJars || 0)}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            ({dist.companyOwnedJars || 0} Co / {dist.distributorOwnedJars || 0} Ptr)
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Registered */}
+                      <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap font-mono text-[11px]">
+                        {dist.createdAt
+                          ? new Date(dist.createdAt).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : '—'}
+                      </td>
+
+                      {/* Actions */}
+                      <td
+                        className="py-2.5 px-3 text-right whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDetails(dist)}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-sky-50 text-[#1677C8] rounded-lg text-xs font-bold transition cursor-pointer"
+                          >
+                            Profile
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(dist)}
+                            className="p-1 text-slate-400 hover:text-[#1677C8] hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                            title="Edit Distributor"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ─── Mobile Card List View ─────────────────────────────────── */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="p-3 animate-pulse space-y-2">
+                <div className="h-4 w-32 bg-slate-200 rounded" />
+                <div className="h-3 w-48 bg-slate-100 rounded" />
+              </div>
+            ))
+          ) : error ? (
+            <div className="p-4 text-center text-xs text-rose-600 font-semibold">
+              {error}
+            </div>
+          ) : filteredDistributors.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500 font-semibold">
+              No distributors match the current filter criteria.
+            </div>
+          ) : (
+            filteredDistributors.map((dist) => {
+              const distName =
+                dist.fullName ||
+                `${dist.firstName || ''} ${dist.lastName || ''}`.trim() ||
+                'Distributor';
+              const allocatedJars =
+                (dist.companyOwnedJars || 0) + (dist.distributorOwnedJars || 0);
+              const isActive = dist.isActive !== false;
+
+              return (
+                <div
+                  key={dist.id}
+                  onClick={() => handleOpenDetails(dist)}
+                  className="p-3 bg-white hover:bg-slate-50 transition cursor-pointer flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center font-bold text-xs shrink-0">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-xs text-slate-800 truncate">
+                          {distName}
+                        </span>
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                          }`}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5 flex-wrap">
+                        <span className="font-mono">{dist.phone || 'No phone'}</span>
+                        <span>•</span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleCopyCode(e, dist.referralCode, dist.id)}
+                          className="inline-flex items-center gap-1 font-mono font-bold text-[#1677C8] bg-sky-50 px-1 py-0.5 rounded text-[10px] hover:bg-sky-100"
+                        >
+                          <Tag className="w-2.5 h-2.5" />
+                          <span>{dist.referralCode || '—'}</span>
+                          {copiedCodeId === dist.id ? (
+                            <Check className="w-2.5 h-2.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-2.5 h-2.5 text-slate-400" />
+                          )}
+                        </button>
+                        <span>•</span>
+                        <span>{allocatedJars} Jars</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex items-center gap-1 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDetails(dist)}
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-sky-50 text-[#1677C8] rounded-lg text-xs font-bold transition"
+                    >
+                      Profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(dist)}
+                      className="p-1 text-slate-400 hover:text-[#1677C8] hover:bg-slate-100 rounded-lg transition"
+                      title="Edit Distributor"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ─── ADD / EDIT DISTRIBUTOR MODAL ───────────────────────── */}
+      <DistributorFormModal
+        isOpen={formModalOpen}
+        distributorToEdit={distributorToEdit}
+        onClose={() => setFormModalOpen(false)}
+        onSuccess={loadDistributors}
+      />
+
+      {/* ─── DISTRIBUTOR PROFILE DRAWER ─────────────────────────── */}
+      <DistributorDetailDrawer
+        isOpen={drawerOpen}
+        distributor={selectedDistributor}
+        onClose={() => setDrawerOpen(false)}
+        onEdit={handleOpenEdit}
+        onToggleStatus={handleToggleStatus}
+      />
+    </div>
+  );
+}

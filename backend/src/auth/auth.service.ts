@@ -253,6 +253,17 @@ export class AuthService {
         },
         admin: true,
         deliveryPartner: true,
+        distributor: {
+          include: {
+            createdBy: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+        distributorPincodes: true,
       },
     });
 
@@ -274,6 +285,11 @@ export class AuthService {
       lastName?: string;
       email?: string;
       phone?: string;
+      agencyName?: string;
+      address?: string;
+      vehiclePlate?: string;
+      vehicleType?: string;
+      routeOrArea?: string;
     },
   ) {
     if (data.email) {
@@ -303,6 +319,34 @@ export class AuthService {
         phone: data.phone,
       },
     });
+
+    if (
+      data.agencyName !== undefined ||
+      data.address !== undefined ||
+      data.vehiclePlate !== undefined ||
+      data.vehicleType !== undefined ||
+      data.routeOrArea !== undefined
+    ) {
+      await this.prisma.distributor.upsert({
+        where: { userId },
+        create: {
+          userId,
+          referralCode: `EDR-${Math.floor(1000 + Math.random() * 9000)}`,
+          agencyName: data.agencyName,
+          address: data.address,
+          vehiclePlate: data.vehiclePlate,
+          vehicleType: data.vehicleType,
+          routeOrArea: data.routeOrArea,
+        },
+        update: {
+          agencyName: data.agencyName,
+          address: data.address,
+          vehiclePlate: data.vehiclePlate,
+          vehicleType: data.vehicleType,
+          routeOrArea: data.routeOrArea,
+        },
+      });
+    }
 
     return {
       success: true,

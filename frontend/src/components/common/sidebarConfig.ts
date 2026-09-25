@@ -120,7 +120,7 @@ export function getPortalSidebarConfig(
         portalKey: 'distributor',
         portalLabel: 'DISTRIBUTOR',
         homePath: '/distributor/orders',
-        profilePath: '/distributor/settings',
+        profilePath: '/distributor/profile',
         sections: [
           {
             title: 'OVERVIEW',
@@ -178,9 +178,9 @@ export function getPortalSidebarConfig(
                 icon: MapPin,
               },
               {
-                to: '/distributor/settings',
-                label: 'Settings',
-                icon: Settings,
+                to: '/distributor/profile',
+                label: 'Profile',
+                icon: User,
               },
             ],
           },
@@ -306,6 +306,11 @@ export function getPortalSidebarConfig(
                 to: '/staff/customers',
                 label: 'Customers',
                 icon: Users,
+              },
+              {
+                to: '/staff/distributors',
+                label: 'Distributors',
+                icon: Building2,
               },
             ],
           },

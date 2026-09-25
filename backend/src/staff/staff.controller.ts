@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -16,6 +17,8 @@ import { StaffService } from './staff.service';
 import { OrderService } from '../order/order.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
+import { CreateDistributorDto } from './dto/create-distributor.dto';
+import { UpdateDistributorDto } from './dto/update-distributor.dto';
 
 @Controller('staff')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -31,10 +34,56 @@ export class StaffController {
     return this.staffService.create(createStaffDto);
   }
 
+  // --- DISTRIBUTOR MANAGEMENT ENDPOINTS ---
+
+  @Get('distributors/summary')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  getDistributorsSummary() {
+    return this.staffService.getDistributorsSummary();
+  }
+
   @Get('distributors')
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
-  getDistributors() {
-    return this.staffService.getDistributors();
+  getDistributors(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('route') route?: string,
+  ) {
+    return this.staffService.getDistributors({ search, status, route });
+  }
+
+  @Get('distributors/:id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  getDistributorById(@Param('id') id: string) {
+    return this.staffService.getDistributorById(id);
+  }
+
+  @Post('distributors')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  createDistributor(
+    @Body() createDistributorDto: CreateDistributorDto,
+    @Req() req: any,
+  ) {
+    const staffUserId = req.user?.sub || req.user?.id || req.user?.userId;
+    return this.staffService.createDistributor(createDistributorDto, staffUserId);
+  }
+
+  @Patch('distributors/:id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  updateDistributor(
+    @Param('id') id: string,
+    @Body() updateDistributorDto: UpdateDistributorDto,
+  ) {
+    return this.staffService.updateDistributor(id, updateDistributorDto);
+  }
+
+  @Patch('distributors/:id/status')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  updateDistributorStatus(
+    @Param('id') id: string,
+    @Body('isActive') isActive: boolean,
+  ) {
+    return this.staffService.updateDistributorStatus(id, isActive);
   }
 
   @Get('delivery-partners')

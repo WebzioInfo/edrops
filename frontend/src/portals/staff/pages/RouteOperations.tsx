@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  CheckCircle2, Droplets, Truck, UserPlus, FileSignature, RefreshCw, Clock
+  CheckCircle2, Droplets, UserPlus, FileSignature, RefreshCw, Clock
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -105,45 +105,36 @@ export default function RouteOperations() {
   ];
 
   return (
-    <main className="min-h-screen px-4 py-5 text-foreground sm:px-6 lg:px-10 space-y-6">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute left-[-12rem] top-[-12rem] h-[30rem] w-[30rem] rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute bottom-[-12rem] right-[-10rem] h-[28rem] w-[28rem] rounded-full bg-secondary/30 blur-3xl" />
-      </div>
-
-      <section className="clay-card overflow-hidden rounded-[2.5rem] p-6 sm:p-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-background px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-primary">
-              <Truck className="h-4 w-4" />
-              Daily Operations
-            </span>
-            <h1 className="mt-5 max-w-2xl text-4xl font-black tracking-tight sm:text-6xl text-[#245361]">
-              Today's Route Board
-            </h1>
-            <p className="mt-4 max-w-xl text-base font-medium leading-8 text-muted-foreground">
-              Manually assign drivers to generated stops, monitor partner feedback, and confirm final quantities.
-            </p>
-          </div>
-          <div className="flex flex-col gap-4 items-center">
-            <div className="grid grid-cols-3 gap-3 rounded-[2rem] bg-background/50 p-3 w-full">
-              {stats.map(([value, label]) => (
-                <div key={label} className="rounded-[1.35rem] bg-background p-4 text-center min-w-[70px]">
-                  <p className="text-2xl font-black">{value}</p>
-                  <p className="mt-1 text-[0.65rem] font-black uppercase tracking-[0.18em] text-muted-foreground/80">{label}</p>
-                </div>
-              ))}
+    <div className="space-y-4 animate-in fade-in duration-150">
+      {/* ─── COMPACT TOOLBAR (METRICS + ACTIONS) ────────────────── */}
+      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          {stats.map(([value, label]) => (
+            <div key={label} className="bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl text-center flex items-center gap-1.5">
+              <span className="text-xs font-black text-slate-800">{value}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
             </div>
-            <button
-              onClick={handleGenerateToday}
-              className="w-full py-4 rounded-full bg-primary text-sm font-black text-primary-foreground shadow-lg hover:shadow-primary/20 transition active:scale-98 cursor-pointer flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Generate Today's Deliveries
-            </button>
-          </div>
+          ))}
         </div>
-      </section>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadData}
+            disabled={loading}
+            title="Refresh"
+            className="p-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#1677C8]' : ''}`} />
+          </button>
+          <button
+            onClick={handleGenerateToday}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#1677C8] hover:bg-[#125ea0] text-white text-xs font-bold transition shadow-xs cursor-pointer"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Generate Today's Deliveries</span>
+          </button>
+        </div>
+      </div>
 
       <section className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="grid gap-4">
@@ -344,6 +335,6 @@ export default function RouteOperations() {
           </motion.div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

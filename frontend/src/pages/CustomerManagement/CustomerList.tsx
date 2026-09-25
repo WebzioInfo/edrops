@@ -53,7 +53,7 @@ export default function CustomerList({ basePath }: { basePath: string }) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-100">
-                  <th className="px-6 py-3 font-medium">Customer ID</th>
+                  <th className="px-6 py-3 font-medium">Customer Code</th>
                   <th className="px-6 py-3 font-medium">Name</th>
                   <th className="px-6 py-3 font-medium">Contact</th>
                   <th className="px-6 py-3 font-medium">Type</th>
@@ -65,7 +65,7 @@ export default function CustomerList({ basePath }: { basePath: string }) {
               <tbody className="divide-y divide-gray-100">
                 {filteredCustomers?.map((customer: any) => (
                   <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-xs font-mono text-gray-500">{customer.id.substring(0, 8)}</td>
+                    <td className="px-6 py-4 text-xs font-mono text-gray-500">{customer.referralCode || '—'}</td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-gray-800">{customer.user.firstName} {customer.user.lastName}</div>
                     </td>

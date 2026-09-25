@@ -227,6 +227,12 @@ export class CustomerService {
         addresses: true,
         wallet: true,
         jarBalances: true,
+        jarDeposits: true,
+        deliverySchedule: {
+          include: {
+            rules: true,
+          },
+        },
       },
       orderBy: { user: { createdAt: 'desc' } },
     });

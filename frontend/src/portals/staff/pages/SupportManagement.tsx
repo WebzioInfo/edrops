@@ -112,28 +112,24 @@ export default function SupportManagement() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Support Tickets</h1>
-          <p className="text-sm text-slate-500">Manage customer issues and requests</p>
-        </div>
-        
-        <div className="flex gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+    <div className="space-y-3.5 flex flex-col h-[calc(100vh-140px)] animate-in fade-in duration-150">
+      {/* ─── COMPACT TOOLBAR ────────────────────────────── */}
+      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-lg">
+          <div className="relative flex-1">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Search tickets..." 
+              placeholder="Search tickets, customers, IDs..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1E88E5]/20 focus:border-[#1E88E5]"
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] focus:bg-white transition-all"
             />
           </div>
           <select 
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1E88E5]/20 focus:border-[#1E88E5]"
+            className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] cursor-pointer"
           >
             <option value="">All Statuses</option>
             <option value="OPEN">Open</option>
@@ -143,22 +139,28 @@ export default function SupportManagement() {
             <option value="RESOLVED">Resolved</option>
           </select>
         </div>
+
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+          <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-slate-600">
+            {tickets.length} {tickets.length === 1 ? 'Ticket' : 'Tickets'}
+          </span>
+        </div>
       </div>
 
-      <div className="flex gap-6 flex-1 min-h-0 overflow-hidden">
+      <div className="flex gap-4 flex-1 min-h-0 overflow-hidden relative">
         {/* Ticket List */}
-        <div className="flex-1 bg-white border border-slate-200 rounded-[20px] overflow-hidden flex flex-col">
+        <div className="flex-1 bg-white border border-slate-200/80 rounded-2xl overflow-hidden flex flex-col shadow-xs">
           <div className="overflow-y-auto flex-1">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+            <table className="w-full text-xs text-left">
+              <thead className="text-[11px] text-slate-500 uppercase bg-slate-50/80 sticky top-0 z-10 border-b border-slate-200/80 font-bold">
                 <tr>
-                  <th className="px-6 py-4 font-bold">Ticket</th>
-                  <th className="px-6 py-4 font-bold">Customer</th>
-                  <th className="px-6 py-4 font-bold">Status</th>
-                  <th className="px-6 py-4 font-bold">Created</th>
+                  <th className="px-4 py-2.5">Ticket</th>
+                  <th className="px-4 py-2.5">Customer</th>
+                  <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5 hidden sm:table-cell">Created</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {tickets.map(ticket => (
                   <tr 
                     key={ticket.id} 
@@ -166,18 +168,18 @@ export default function SupportManagement() {
                       setSelectedTicket(ticket);
                       fetchTicketDetails(ticket.id);
                     }}
-                    className={`hover:bg-slate-50 cursor-pointer transition-colors ${selectedTicket?.id === ticket.id ? 'bg-[#1E88E5]/5' : ''}`}
+                    className={`hover:bg-slate-50 cursor-pointer transition-colors ${selectedTicket?.id === ticket.id ? 'bg-[#1677C8]/5' : ''}`}
                   >
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-slate-900 truncate max-w-[200px]">{ticket.subject}</div>
-                      <div className="text-xs text-slate-500">#{ticket.id.split('-')[0]}</div>
+                    <td className="px-4 py-2.5">
+                      <div className="font-bold text-slate-900 truncate max-w-[180px] sm:max-w-[220px]">{ticket.subject}</div>
+                      <div className="text-[11px] text-slate-400">#{ticket.id.split('-')[0]}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-slate-900">{ticket.customer?.user?.firstName} {ticket.customer?.user?.lastName}</div>
-                      <div className="text-xs text-slate-500">{ticket.customer?.user?.phone}</div>
+                    <td className="px-4 py-2.5">
+                      <div className="font-semibold text-slate-800">{ticket.customer?.user?.firstName} {ticket.customer?.user?.lastName}</div>
+                      <div className="text-[11px] text-slate-400">{ticket.customer?.user?.phone}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                    <td className="px-4 py-2.5">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         ticket.status === 'OPEN' ? 'bg-blue-100 text-blue-700' :
                         ticket.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-700' :
                         'bg-amber-100 text-amber-700'
@@ -185,7 +187,7 @@ export default function SupportManagement() {
                         {ticket.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-500 text-xs font-medium">
+                    <td className="px-4 py-2.5 text-slate-400 text-[11px] font-medium hidden sm:table-cell">
                       {new Date(ticket.createdAt).toLocaleDateString()}
                     </td>
                   </tr>
@@ -197,16 +199,16 @@ export default function SupportManagement() {
 
         {/* Ticket Drawer / Details Panel */}
         {selectedTicket && (
-          <div className="w-[450px] shrink-0 bg-white border border-slate-200 rounded-[20px] shadow-sm flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div className="fixed inset-y-0 right-0 z-50 w-full sm:static sm:w-[400px] lg:w-[440px] shrink-0 bg-white border-l sm:border border-slate-200/80 sm:rounded-2xl shadow-xl sm:shadow-xs flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
               <div>
-                <h3 className="font-bold text-slate-900 truncate">#{selectedTicket.id.split('-')[0]}</h3>
-                <p className="text-xs text-slate-500">
+                <h3 className="font-bold text-xs text-slate-900 truncate">#{selectedTicket.id.split('-')[0]}</h3>
+                <p className="text-[11px] text-slate-500">
                   {selectedTicket.customer?.user?.firstName} {selectedTicket.customer?.user?.lastName}
                 </p>
               </div>
-              <button onClick={() => setSelectedTicket(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                <X className="w-5 h-5 text-slate-400" />
+              <button onClick={() => setSelectedTicket(null)} className="p-1.5 hover:bg-slate-200/80 rounded-lg transition-colors cursor-pointer">
+                <X className="w-4 h-4 text-slate-400" />
               </button>
             </div>
 

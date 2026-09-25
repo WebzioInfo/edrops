@@ -4,7 +4,6 @@ import {
   Menu,
   LogOut,
   Wallet,
-  Settings as SettingsIcon,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -21,7 +20,7 @@ const SupplierDetail = React.lazy(() => import('./pages/SupplierDetail'));
 const Orders = React.lazy(() => import('./pages/Orders'));
 const NewOrders = React.lazy(() => import('./pages/NewOrders'));
 const Reports = React.lazy(() => import('./pages/Reports'));
-const Profile = React.lazy(() => import('../../pages/Profile'));
+const DistributorProfile = React.lazy(() => import('./pages/DistributorProfile'));
 const ServiceAreas = React.lazy(() => import('./pages/ServiceAreas'));
 
 /** Standardized operational placeholder for remaining distributor routes */
@@ -198,8 +197,8 @@ export default function DistributorPortal() {
               <Route path="wallet" element={<OperationalPlaceholder title="Wallet" icon={Wallet} />} />
               <Route path="reports" element={<Reports />} />
               <Route path="service-areas" element={<ServiceAreas />} />
-              <Route path="settings" element={<OperationalPlaceholder title="Settings" icon={SettingsIcon} />} />
-              <Route path="profile" element={<Profile />} />
+              <Route path="settings" element={<Navigate to="/distributor/profile" replace />} />
+              <Route path="profile" element={<DistributorProfile />} />
               <Route path="*" element={<Navigate to="/distributor/orders" replace />} />
             </Routes>
           </Suspense>

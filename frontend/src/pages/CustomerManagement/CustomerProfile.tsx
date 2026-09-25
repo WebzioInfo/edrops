@@ -41,8 +41,8 @@ export default function CustomerProfile({ basePath }: { basePath: string }) {
             </div>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Customer ID</span>
-                <span className="font-mono text-gray-800">{customer.id.substring(0,8)}</span>
+                <span className="text-gray-500">Customer Code</span>
+                <span className="font-mono text-gray-800">{customer.referralCode || '—'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Phone</span>

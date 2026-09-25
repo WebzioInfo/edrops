@@ -381,21 +381,11 @@ export default function OrderManagement() {
   const endOrderIndex = Math.min(page * limit, totalDisplayOrders);
 
   return (
-    <main className="min-h-screen px-4 py-5 text-[#245361] sm:px-6 lg:px-10 space-y-4">
-      {/* Header (Plain text, no card wrapper) */}
-      <div className="pt-1 pb-0.5">
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#245361]">
-          Order Management
-        </h1>
-        <p className="mt-1 text-xs sm:text-sm text-[#64748B]">
-          Real-time feed of all customer orders. Updates automatically.
-        </p>
-      </div>
-
+    <div className="space-y-4 animate-in fade-in duration-150">
       {/* Orders List & Controls Container */}
-      <section className="bg-white rounded-3xl shadow-xs border border-[#E2E8F0] overflow-hidden">
+      <section className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
         {/* Controls Header: Tabs + Search + Live indicator */}
-        <div className="p-4 sm:p-5 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <div className="p-3 sm:p-4 border-b border-slate-200/80 bg-slate-50/80 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
           {/* Status Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
             {(['ALL', 'PENDING', 'ACTIVE', 'DELIVERED', 'CANCELLED'] as StatusFilter[]).map((tab) => {
@@ -698,6 +688,6 @@ export default function OrderManagement() {
           </div>
         );
       })()}
-    </main>
+    </div>
   );
 }

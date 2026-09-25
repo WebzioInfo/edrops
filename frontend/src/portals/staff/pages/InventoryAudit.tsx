@@ -82,55 +82,54 @@ export default function InventoryAudit() {
   if (loading) return <StaffLoader />;
 
   return (
-    <main className="min-h-screen px-4 py-5 text-foreground sm:px-6 lg:px-10 space-y-6">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute left-[-12rem] bottom-[-12rem] h-[30rem] w-[30rem] rounded-full bg-blue-500/10 blur-3xl" />
-      </div>
-
-      <section className="clay-card p-6 sm:p-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-background px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-primary">
-            <ClipboardList className="h-4 w-4" />
-            Inventory
-          </span>
-          <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl text-[#245361]">Warehouse Stock Audit</h1>
-          <p className="mt-2 text-muted-foreground">Track production cycles, damaged allocations, and raw inventory.</p>
+    <div className="space-y-4 animate-in fade-in duration-150">
+      {/* ─── COMPACT TOOLBAR ────────────────────────────── */}
+      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center font-bold">
+            <ClipboardList className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-xs font-bold text-slate-800">Warehouse Stock Audit</span>
+            <span className="text-[11px] text-slate-400 block">Track production cycles, inventory allocations, and jar pools</span>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => { setAdjusting('PRODUCTION'); setQty(10); }}
-            className="p-3 bg-primary text-white rounded-2xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-md hover:bg-primary/80 transition"
+            className="px-3 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs transition"
           >
             Log Production
           </button>
           <button
             onClick={() => { setAdjusting('REPLENISH'); setQty(50); }}
-            className="p-3 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-md hover:bg-emerald-700 transition"
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs transition"
           >
             Direct Replenish
           </button>
           <button
             onClick={() => { setAdjusting('DAMAGE'); setQty(1); }}
-            className="p-3 bg-red-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-md hover:bg-red-700 transition"
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs transition"
           >
             Log Damage
           </button>
         </div>
-      </section>
+      </div>
 
       {/* Stock Cards */}
-      <section className="grid gap-6 grid-cols-3">
-        <div className="clay-card p-6 text-center space-y-2 bg-emerald-50/50 border-emerald-100">
-          <p className="text-xs font-black uppercase text-emerald-700 tracking-wider">Filled Jars Available</p>
-          <p className="text-4xl sm:text-5xl font-black text-emerald-900">{status?.filledJars ?? 0}</p>
+      <section className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs text-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block">Filled Jars Available</span>
+          <span className="text-2xl sm:text-3xl font-black text-emerald-800 mt-1 block">{status?.filledJars ?? 0}</span>
         </div>
-        <div className="clay-card p-6 text-center space-y-2 bg-blue-50/50 border-blue-100">
-          <p className="text-xs font-black uppercase text-blue-700 tracking-wider">Empty Jars Return Pool</p>
-          <p className="text-4xl sm:text-5xl font-black text-blue-900">{status?.emptyJars ?? 0}</p>
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs text-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 block">Empty Jars Return Pool</span>
+          <span className="text-2xl sm:text-3xl font-black text-sky-800 mt-1 block">{status?.emptyJars ?? 0}</span>
         </div>
-        <div className="clay-card p-6 text-center space-y-2 bg-red-50/50 border-red-100">
-          <p className="text-xs font-black uppercase text-red-700 tracking-wider">Damaged/Discarded Jars</p>
-          <p className="text-4xl sm:text-5xl font-black text-red-900">{status?.damagedJars ?? 0}</p>
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs text-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 block">Damaged/Discarded Jars</span>
+          <span className="text-2xl sm:text-3xl font-black text-rose-800 mt-1 block">{status?.damagedJars ?? 0}</span>
         </div>
       </section>
 
@@ -232,6 +231,6 @@ export default function InventoryAudit() {
           </motion.div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
