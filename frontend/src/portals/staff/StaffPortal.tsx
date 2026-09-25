@@ -8,7 +8,6 @@ import { SharedSidebar, SharedMobileDrawer } from '../../components/common/Share
 import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 
 const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
-const RouteOperations = React.lazy(() => import('./pages/RouteOperations'));
 const CustomerManagement = React.lazy(() => import('./pages/CustomerManagement'));
 const DistributorManagement = React.lazy(() => import('./pages/DistributorManagement'));
 const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
@@ -36,7 +35,6 @@ export default function StaffPortal() {
 
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path.includes('/operations')) return 'Route Operations';
     if (path.includes('/orders')) return 'Order Management';
     if (path.includes('/customers/add')) return 'Add Customer';
     if (path.includes('/customers/') && path.includes('/edit')) return 'Edit Customer';
@@ -171,7 +169,7 @@ export default function StaffPortal() {
             <Suspense fallback={<StaffLoader />}>
               <Routes>
                 <Route path="orders" element={<OrderManagement />} />
-                <Route path="operations" element={<RouteOperations />} />
+                <Route path="operations" element={<Navigate to="/staff/orders" replace />} />
                 <Route path="customers/add" element={<CustomerForm basePath="/staff/customers" />} />
                 <Route path="customers/:id/edit" element={<CustomerForm basePath="/staff/customers" />} />
                 <Route path="customers/*" element={<CustomerManagement />} />
@@ -180,8 +178,8 @@ export default function StaffPortal() {
                 <Route path="inventory" element={<InventoryAudit />} />
                 <Route path="support" element={<SupportManagement />} />
                 <Route path="profile" element={<Profile />} />
-                <Route path="" element={<Navigate to="operations" replace />} />
-                <Route path="*" element={<Navigate to="operations" replace />} />
+                <Route path="" element={<Navigate to="/staff/orders" replace />} />
+                <Route path="*" element={<Navigate to="/staff/orders" replace />} />
               </Routes>
             </Suspense>
           </div>

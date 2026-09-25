@@ -1,5 +1,6 @@
 import React, { createContext, useState, useCallback, type ReactNode } from 'react';
 import { DialogContainer } from '../components/dialogs/DialogContainer';
+import { showToast as globalToast } from '../utils/toast';
 
 export type DialogVariant = 'primary' | 'danger' | 'warning' | 'success' | 'info';
 
@@ -26,6 +27,8 @@ export interface AlertOptions {
 
 export interface ToastOptions {
   message: string;
+  title?: string;
+  description?: string;
   type?: 'success' | 'error' | 'warning' | 'info';
   duration?: number;
 }
@@ -50,14 +53,13 @@ interface DialogContextType {
     warning: (msg: string, duration?: number) => void;
     info: (msg: string, duration?: number) => void;
     show: (options: ToastOptions) => void;
-  }
+  };
 }
 
 export const DialogContext = createContext<DialogContextType | undefined>(undefined);
 
 export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [dialog, setDialog] = useState<DialogState | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
 
   const confirm = useCallback((options: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
@@ -77,21 +79,20 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     });
   }, []);
 
-  const showToast = useCallback((options: ToastOptions) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { ...options, id }]);
-    
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, options.duration || 3000);
-  }, []);
-
   const toast = {
-    show: showToast,
-    success: (msg: string, duration?: number) => showToast({ message: msg, type: 'success', duration }),
-    error: (msg: string, duration?: number) => showToast({ message: msg, type: 'error', duration }),
-    warning: (msg: string, duration?: number) => showToast({ message: msg, type: 'warning', duration }),
-    info: (msg: string, duration?: number) => showToast({ message: msg, type: 'info', duration }),
+    show: (options: ToastOptions) => {
+      const type = options.type || 'info';
+      const duration = options.duration;
+      const desc = options.description;
+      if (type === 'success') globalToast.success(options.message, { duration, description: desc });
+      else if (type === 'error') globalToast.error(options.message, { duration, description: desc });
+      else if (type === 'warning') globalToast.warning(options.message, { duration, description: desc });
+      else globalToast.info(options.message, { duration, description: desc });
+    },
+    success: (msg: string, duration?: number) => globalToast.success(msg, { duration }),
+    error: (msg: string, duration?: number) => globalToast.error(msg, { duration }),
+    warning: (msg: string, duration?: number) => globalToast.warning(msg, { duration }),
+    info: (msg: string, duration?: number) => globalToast.info(msg, { duration }),
   };
 
   const handleClose = useCallback((value: any) => {
@@ -101,14 +102,10 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, [dialog]);
 
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
   return (
     <DialogContext.Provider value={{ confirm, alert, prompt, toast }}>
       {children}
-      <DialogContainer dialog={dialog} onClose={handleClose} toasts={toasts} removeToast={removeToast} />
+      <DialogContainer dialog={dialog} onClose={handleClose} />
     </DialogContext.Provider>
   );
 };

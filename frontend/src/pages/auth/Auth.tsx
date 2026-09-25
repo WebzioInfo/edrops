@@ -3,13 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
-import { toast } from 'react-hot-toast';
+import { toast, showToast } from '../../utils/toast';
 import { Eye, EyeOff, Lock, Mail, Check, AlertCircle, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchWithAuth } from '../../api/client';
 import { EdropsLogo } from '../../components/Logo';
 import PullToRefresh from '../../components/pwa/PullToRefresh';
-import Toast from '../../components/Toast';
 import PhoneGate from './PhoneGate';
 
 export type AuthState = 'signin' | 'signup' | 'forgot';
@@ -190,7 +189,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
   const [searchParams] = useSearchParams();
   const { user, authStatus, isLoading, login } = useAuth();
   
-  const [authToastMessage, setAuthToastMessage] = useState<string | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [phoneGateState, setPhoneGateState] = useState<{
     tempToken: string;
@@ -262,7 +260,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
         } else if (reason === 'session_expired') {
           msg = 'Your session has expired. Please log in again';
         }
-        setAuthToastMessage(msg);
+        showToast.info(msg, { id: 'auth-reason-toast' });
 
         // Strip query parameters from URL so it doesn't persist on page refresh
         const cleanPath = window.location.pathname;
@@ -313,7 +311,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
 
       if (response.status === 'authenticated' && response.access_token && response.user) {
         login(response.access_token, response.user);
-        toast.success(`Welcome, ${response.user.firstName}!`);
         handleSuccessRedirect(response.user);
       } else if (response.status === 'phone_required' && response.temp_token) {
         setPhoneGateState({
@@ -380,7 +377,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
       });
       login(response.access_token, response.user);
       if (values.rememberMe) localStorage.setItem('edrops_remember', 'true');
-      toast.success(`Welcome back, ${response.user.firstName}!`);
       handleSuccessRedirect(response.user);
     } catch (err: any) {
       const errorMsg = (err?.message || '').toLowerCase();
@@ -475,16 +471,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
     <PullToRefresh onRefresh={handleRefresh} className="h-[100dvh]">
       {/* Hidden container for GIS button fallback */}
       <div id="google-btn-hidden" className="hidden" />
-
-      {/* Floating Auth Notification Toast Overlay */}
-      {authToastMessage && (
-        <Toast
-          message={authToastMessage}
-          type="auth"
-          duration={3000}
-          onClose={() => setAuthToastMessage(null)}
-        />
-      )}
 
       {/* Mandatory Phone Gate Modal */}
       {phoneGateState && (

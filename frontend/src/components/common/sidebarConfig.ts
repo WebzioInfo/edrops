@@ -285,18 +285,12 @@ export function getPortalSidebarConfig(
       return {
         portalKey: 'staff',
         portalLabel: normalizedKey === 'MANAGER' ? 'MANAGER' : normalizedKey === 'OPERATOR' ? 'OPERATOR' : 'STAFF',
-        homePath: '/staff/operations',
+        homePath: '/staff/orders',
         profilePath: '/staff/profile',
         sections: [
           {
             title: 'OPERATIONS',
             items: [
-              {
-                to: '/staff/operations',
-                label: 'Route Operations',
-                icon: Truck,
-                end: true,
-              },
               {
                 to: '/staff/orders',
                 label: 'Orders',

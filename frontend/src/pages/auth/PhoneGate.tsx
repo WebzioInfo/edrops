@@ -4,7 +4,7 @@ import { Phone, ArrowRight, ShieldCheck, User } from 'lucide-react';
 import { EdropsLogo } from '../../components/Logo';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../utils/toast';
 
 export interface PhoneGateProps {
   tempToken: string;
@@ -48,7 +48,6 @@ export const PhoneGate: React.FC<PhoneGateProps> = ({
 
       if (response.access_token && response.user) {
         login(response.access_token, response.user);
-        toast.success(`Welcome to Edrops, ${response.user.firstName}!`);
         onSuccess(response);
       } else {
         throw new Error('Failed to complete sign in. Please try again.');

@@ -88,7 +88,7 @@ const TopbarContent: React.FC<DistributorTopbarProps> = ({
             title="Quick Add Customer"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">+ Quick Add Customer</span>
+            <span className="hidden sm:inline"> Quick Add Customer</span>
             <span className="sm:hidden font-bold text-[11px]">+ Add Customer</span>
           </button>
           {actions}

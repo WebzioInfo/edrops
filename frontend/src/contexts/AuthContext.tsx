@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../utils/toast';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -78,13 +78,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setToken(storedToken);
           setUser(parsed);
           setAuthStatus('authenticated');
-
-          // Ensure "Welcome back, {name}!" fires only once per actual login / session-restore
-          const alreadyWelcomed = sessionStorage.getItem(SESSION_WELCOME_KEY);
-          if (!alreadyWelcomed) {
-            sessionStorage.setItem(SESSION_WELCOME_KEY, 'true');
-            toast.success(`Welcome back, ${parsed.firstName}!`, { id: 'auth-welcome-toast' });
-          }
         } else {
           setAuthStatus('unauthenticated');
         }
@@ -108,7 +101,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(TOKEN_KEY, newToken);
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
     sessionStorage.setItem(SESSION_WELCOME_KEY, 'true');
-    toast.success(`Welcome back, ${newUser.firstName}!`, { id: 'auth-welcome-toast' });
+    showToast.success(`Welcome back, ${newUser.firstName || 'User'}!`, {
+      id: 'auth-welcome-toast',
+      description: 'You are now signed in.',
+    });
   };
 
   const updateUser = (updatedFields: Partial<User>) => {
