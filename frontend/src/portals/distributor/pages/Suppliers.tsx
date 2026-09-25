@@ -18,6 +18,7 @@ import {
 import { fetchWithAuth } from '../../../api/client';
 import { showToast } from '../../../utils/toast';
 import { DistributorTopbar } from '../components/DistributorTopbar';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 export interface SupplierRecord {
   id: string;
@@ -346,36 +347,27 @@ export default function Suppliers() {
 
       {/* ─── SUPPLIERS TABLE ────────────────────────────────────────── */}
       <div className="w-full bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-[#E2E8F0] bg-slate-50/80 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
-                <th className="py-2.5 px-3.5 whitespace-nowrap">Supplier</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap">Contact</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap text-center">Purchases</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap text-right">Total Purchased</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap text-right">Paid</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap text-right">Balance</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap text-center">Status</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E2E8F0] text-xs">
-              {isLoading && suppliers.length === 0 ? (
-                Array.from({ length: 4 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse">
-                    <td className="py-3 px-3.5"><div className="h-4 w-32 bg-slate-200 rounded" /></td>
-                    <td className="py-3 px-3.5"><div className="h-4 w-28 bg-slate-200 rounded" /></td>
-                    <td className="py-3 px-3.5"><div className="h-4 w-12 bg-slate-200 rounded mx-auto" /></td>
-                    <td className="py-3 px-3.5"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
-                    <td className="py-3 px-3.5"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
-                    <td className="py-3 px-3.5"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
-                    <td className="py-3 px-3.5"><div className="h-4 w-16 bg-slate-200 rounded mx-auto" /></td>
-                    <td className="py-3 px-3.5"><div className="h-4 w-14 bg-slate-200 rounded ml-auto" /></td>
+        {isLoading && suppliers.length === 0 ? (
+          <EdropsPageLoader minHeight="min-h-[360px]" />
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-[#E2E8F0] bg-slate-50/80 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                    <th className="py-2.5 px-3.5 whitespace-nowrap">Supplier</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap">Contact</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap text-center">Purchases</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap text-right">Total Purchased</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap text-right">Paid</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap text-right">Balance</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap text-center">Status</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap text-right">Actions</th>
                   </tr>
-                ))
-              ) : suppliers.length === 0 ? (
+                </thead>
+                <tbody className="divide-y divide-[#E2E8F0] text-xs">
+                  {suppliers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 px-4 text-center">
                     <div className="max-w-xs mx-auto space-y-3">
@@ -507,17 +499,7 @@ export default function Suppliers() {
 
         {/* ─── Mobile Card List View ─────────────────────────────────── */}
         <div className="md:hidden divide-y divide-slate-100">
-          {isLoading && suppliers.length === 0 ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="p-3 animate-pulse space-y-2">
-                <div className="flex justify-between">
-                  <div className="h-4 w-28 bg-slate-200 rounded" />
-                  <div className="h-4 w-14 bg-slate-200 rounded-full" />
-                </div>
-                <div className="h-3 w-40 bg-slate-100 rounded" />
-              </div>
-            ))
-          ) : suppliers.length === 0 ? (
+          {suppliers.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-500 font-semibold">
               No suppliers found.
             </div>
@@ -613,6 +595,8 @@ export default function Suppliers() {
             })
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* ─── CREATE / EDIT SUPPLIER MODAL ───────────────────────────── */}

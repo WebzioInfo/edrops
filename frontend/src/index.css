@@ -53,8 +53,11 @@
   html,
   body,
   #root {
+    height: 100%;
+    min-height: 100dvh;
     overscroll-behavior: none;
     overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   body {

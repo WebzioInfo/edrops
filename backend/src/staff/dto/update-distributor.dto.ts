@@ -6,6 +6,7 @@ import {
   IsInt,
   Min,
   Matches,
+  IsArray,
 } from 'class-validator';
 
 export class UpdateDistributorDto {
@@ -73,4 +74,9 @@ export class UpdateDistributorDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  servicePincodes?: string[];
 }

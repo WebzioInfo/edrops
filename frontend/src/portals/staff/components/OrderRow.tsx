@@ -420,7 +420,7 @@ export default function OrderRow({
                   <div className="font-bold text-[#0F172A] uppercase tracking-wider text-[11px] flex items-center gap-1.5 pb-1 border-b border-[#F1F5F9]">
                     <Package className="w-3.5 h-3.5 text-[#1E88E5]" /> Ordered Products ({order.items?.length || 0})
                   </div>
-                  <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+                  <div className="space-y-1.5 md:max-h-[140px] md:overflow-y-auto pr-1">
                     {order.items?.map((item: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between py-1 border-b border-[#F8FAFC] last:border-0 text-xs">
                         <div className="flex items-center gap-2 min-w-0">
@@ -684,7 +684,7 @@ export default function OrderRow({
                         <Clock className="w-3.5 h-3.5 text-[#1E88E5]" />
                         <span>Status Audit Trail</span>
                       </div>
-                      <div className="space-y-2 border-l-2 border-blue-200 pl-3 ml-1 max-h-[140px] overflow-y-auto">
+                      <div className="space-y-2 border-l-2 border-blue-200 pl-3 ml-1 md:max-h-[140px] md:overflow-y-auto">
                         {order.history.map((h: any) => (
                           <div key={h.id} className="relative text-[11px]">
                             <div className="absolute -left-[17px] top-1 w-2 h-2 rounded-full bg-[#1E88E5]" />

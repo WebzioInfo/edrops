@@ -18,6 +18,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,47 +149,47 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ─── 2. COMPACT KPI STAT CARDS (4-COL GRID) ─────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
-        {metrics.map((metric, idx) => {
-          const Icon = metric.icon;
-          return (
-            <div 
-              key={idx} 
-              className="bg-white border border-[#E2E8F0] rounded-xl p-3 sm:p-3.5 shadow-2xs hover:border-[#CBD5E1] transition-all flex flex-col justify-between group"
-            >
-              {/* Card Header Row: Icon + Label + Inline Badge */}
-              <div className="flex items-center justify-between gap-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${metric.iconBg}`}>
-                    <Icon className="w-4 h-4" />
+      {/* ─── 2. DASHBOARD BODY (KPI STAT CARDS & WATCHLIST) ──────── */}
+      {loading && !data ? (
+        <EdropsPageLoader minHeight="min-h-[50vh]" label="Loading dashboard metrics..." />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+            {metrics.map((metric, idx) => {
+              const Icon = metric.icon;
+              return (
+                <div 
+                  key={idx} 
+                  className="bg-white border border-[#E2E8F0] rounded-xl p-3 sm:p-3.5 shadow-2xs hover:border-[#CBD5E1] transition-all flex flex-col justify-between group"
+                >
+                  {/* Card Header Row: Icon + Label + Inline Badge */}
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${metric.iconBg}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B] truncate">
+                        {metric.label}
+                      </span>
+                    </div>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${metric.badgeClass}`}>
+                      {metric.badge}
+                    </span>
                   </div>
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B] truncate">
-                    {metric.label}
-                  </span>
-                </div>
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${metric.badgeClass}`}>
-                  {metric.badge}
-                </span>
-              </div>
 
-              {/* Number and Detail */}
-              <div className="mt-2.5">
-                <div className="text-xl sm:text-2xl font-bold text-[#16324F] tracking-tight">
-                  {loading ? (
-                    <div className="h-7 w-20 bg-slate-100 animate-pulse rounded" />
-                  ) : (
-                    metric.value
-                  )}
+                  {/* Number and Detail */}
+                  <div className="mt-2.5">
+                    <div className="text-xl sm:text-2xl font-bold text-[#16324F] tracking-tight">
+                      {metric.value}
+                    </div>
+                    <p className="text-[11px] text-[#64748B] font-medium truncate mt-0.5">
+                      {metric.detail}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[11px] text-[#64748B] font-medium truncate mt-0.5">
-                  {metric.detail}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
 
       {/* ─── 3. SECOND ROW: DENSE WATCHLIST TABLE + SIDE WIDGETS ──── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 items-start">
@@ -246,15 +247,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-[#16324F]">
-                {loading ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i} className="h-10">
-                      <td colSpan={5} className="py-2.5 px-3">
-                        <div className="h-4 bg-slate-100 animate-pulse rounded" />
-                      </td>
-                    </tr>
-                  ))
-                ) : filteredWatchlist.length > 0 ? (
+                {filteredWatchlist.length > 0 ? (
                   filteredWatchlist.map((cust: any) => {
                     const firstName = cust.user?.firstName || '';
                     const lastName = cust.user?.lastName || '';
@@ -432,6 +425,9 @@ export default function AdminDashboard() {
         </div>
 
       </div>
+
+        </>
+      )}
 
     </div>
   );

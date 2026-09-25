@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Building2,
@@ -9,10 +9,10 @@ import {
   EyeOff,
   Tag,
   MapPin,
-  Truck,
   Package,
   AlertCircle,
   RotateCw,
+  Plus,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -36,6 +36,7 @@ export interface DistributorRecord {
   jarOwnership?: string;
   companyOwnedJars?: number;
   distributorOwnedJars?: number;
+  servicePincodes?: Array<string | { pincode: string; [key: string]: any }>;
 }
 
 interface DistributorFormModalProps {
@@ -58,15 +59,17 @@ export default function DistributorFormModal({
   const [referralCode, setReferralCode] = useState('');
   const [agencyName, setAgencyName] = useState('');
   const [address, setAddress] = useState('');
-  const [routeOrArea, setRouteOrArea] = useState('');
-  const [vehicleType, setVehicleType] = useState('Three-Wheeler');
-  const [vehiclePlate, setVehiclePlate] = useState('');
   const [jarOwnership, setJarOwnership] = useState('COMPANY_OWNED');
   const [companyOwnedJars, setCompanyOwnedJars] = useState(0);
   const [distributorOwnedJars, setDistributorOwnedJars] = useState(0);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isActive, setIsActive] = useState(true);
+
+  // Available Service Pincodes State
+  const [pincodes, setPincodes] = useState<string[]>([]);
+  const [pincodeInput, setPincodeInput] = useState('');
+  const [pincodeError, setPincodeError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,14 +86,32 @@ export default function DistributorFormModal({
         setReferralCode(distributorToEdit.referralCode || '');
         setAgencyName(distributorToEdit.agencyName || '');
         setAddress(distributorToEdit.address || '');
-        setRouteOrArea(distributorToEdit.routeOrArea || '');
-        setVehicleType(distributorToEdit.vehicleType || 'Three-Wheeler');
-        setVehiclePlate(distributorToEdit.vehiclePlate || '');
         setJarOwnership(distributorToEdit.jarOwnership || 'COMPANY_OWNED');
         setCompanyOwnedJars(distributorToEdit.companyOwnedJars || 0);
         setDistributorOwnedJars(distributorToEdit.distributorOwnedJars || 0);
         setPassword('');
         setIsActive(distributorToEdit.isActive !== false);
+
+        // Load existing service pincodes into chips
+        const initialPins: string[] = (distributorToEdit.servicePincodes || [])
+          .map((p: any) => (typeof p === 'string' ? p.trim() : String(p?.pincode || '').trim()))
+          .filter((p: string) => /^\d{6}$/.test(p));
+        setPincodes(Array.from(new Set(initialPins)));
+
+        // If service pincodes were not loaded, fetch fresh from backend
+        const targetId = distributorToEdit.userId || distributorToEdit.id;
+        if (targetId && initialPins.length === 0) {
+          fetchWithAuth(`/staff/distributors/${targetId}`)
+            .then((res) => {
+              if (res?.servicePincodes && Array.isArray(res.servicePincodes)) {
+                const fetchedPins = res.servicePincodes
+                  .map((p: any) => (typeof p === 'string' ? p.trim() : String(p?.pincode || '').trim()))
+                  .filter((p: string) => /^\d{6}$/.test(p));
+                setPincodes((prev) => Array.from(new Set([...prev, ...fetchedPins])));
+              }
+            })
+            .catch(() => {});
+        }
       } else {
         setFirstName('');
         setLastName('');
@@ -100,21 +121,51 @@ export default function DistributorFormModal({
         setReferralCode(`EDR-${randomSuffix}`);
         setAgencyName('');
         setAddress('');
-        setRouteOrArea('');
-        setVehicleType('Three-Wheeler');
-        setVehiclePlate('');
         setJarOwnership('COMPANY_OWNED');
         setCompanyOwnedJars(0);
         setDistributorOwnedJars(0);
         setPassword('');
         setIsActive(true);
+        setPincodes([]);
       }
+      setPincodeInput('');
+      setPincodeError(null);
       setError(null);
       setLoading(false);
     }
   }, [isOpen, distributorToEdit]);
 
   if (!isOpen) return null;
+
+  const handleAddPincode = () => {
+    setPincodeError(null);
+    const clean = pincodeInput.trim();
+    if (!clean) return;
+
+    if (!/^\d{6}$/.test(clean)) {
+      setPincodeError('Pincode must be exactly 6 digits');
+      return;
+    }
+
+    if (pincodes.includes(clean)) {
+      setPincodeError(`Pincode ${clean} is already added`);
+      return;
+    }
+
+    setPincodes((prev) => [...prev, clean]);
+    setPincodeInput('');
+  };
+
+  const handlePincodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Prevent modal form submission
+      handleAddPincode();
+    }
+  };
+
+  const handleRemovePincode = (pinToRemove: string) => {
+    setPincodes((prev) => prev.filter((p) => p !== pinToRemove));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,12 +199,10 @@ export default function DistributorFormModal({
         referralCode: cleanRefCode,
         agencyName: agencyName.trim() || undefined,
         address: address.trim() || undefined,
-        routeOrArea: routeOrArea.trim() || undefined,
-        vehicleType: vehicleType.trim() || undefined,
-        vehiclePlate: vehiclePlate.trim() || undefined,
         jarOwnership,
         companyOwnedJars: Number(companyOwnedJars) || 0,
         distributorOwnedJars: Number(distributorOwnedJars) || 0,
+        servicePincodes: pincodes,
         isActive,
       };
 
@@ -188,10 +237,10 @@ export default function DistributorFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="px-5 py-3.5 bg-slate-50/80 border-b border-slate-200/80 flex items-center justify-between">
+        <div className="px-5 py-3.5 bg-slate-50/80 border-b border-slate-200/80 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center font-bold">
               <Building2 className="w-4 h-4" />
@@ -202,12 +251,13 @@ export default function DistributorFormModal({
               </h2>
               <p className="text-[11px] text-slate-500">
                 {isEdit
-                  ? 'Update distributor profile and assigned operational details.'
+                  ? 'Update distributor profile and service pincodes.'
                   : 'Register a new distributor partner with a staff-assigned referral code.'}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition cursor-pointer"
           >
@@ -216,7 +266,7 @@ export default function DistributorFormModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-rose-700">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -224,7 +274,7 @@ export default function DistributorFormModal({
             </div>
           )}
 
-          {/* Referral Code (Prominently Highlighted) */}
+          {/* 1. STAFF-ASSIGNED REFERRAL CODE */}
           <div className="bg-sky-50/60 p-3.5 rounded-xl border border-sky-200/80 space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#1677C8] flex items-center gap-1">
@@ -246,7 +296,7 @@ export default function DistributorFormModal({
             </p>
           </div>
 
-          {/* Personal Details */}
+          {/* 2. PERSONAL INFORMATION */}
           <div className="space-y-2.5">
             <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Personal Information
@@ -310,85 +360,39 @@ export default function DistributorFormModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Agency / Business Name
-                </label>
-                <input
-                  type="text"
-                  value={agencyName}
-                  onChange={(e) => setAgencyName(e.target.value)}
-                  placeholder="e.g. Edrops South Agency"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#1677C8] outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-[#1677C8]" />
-                  Operating Address
-                </label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Street / Warehouse address"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#1677C8] outline-none"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Agency / Business Name
+              </label>
+              <input
+                type="text"
+                value={agencyName}
+                onChange={(e) => setAgencyName(e.target.value)}
+                placeholder="e.g. Edrops South Agency"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#1677C8] outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-[#1677C8]" />
+                Operating Address
+              </label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Street / Warehouse address"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#1677C8] outline-none"
+              />
             </div>
           </div>
 
-          {/* Operations & Vehicle */}
+          {/* 3. JAR OWNERSHIP / INVENTORY */}
           <div className="space-y-2.5 pt-2 border-t border-slate-100">
             <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Operations & Logistics
+              Jar Ownership / Inventory
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Assigned Route
-                </label>
-                <input
-                  type="text"
-                  value={routeOrArea}
-                  onChange={(e) => setRouteOrArea(e.target.value)}
-                  placeholder="e.g. Zone 1 - Downtown"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#1677C8] outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-                  <Truck className="w-3 h-3 text-[#1677C8]" />
-                  Vehicle Type
-                </label>
-                <select
-                  value={vehicleType}
-                  onChange={(e) => setVehicleType(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
-                >
-                  <option value="Three-Wheeler">Three-Wheeler</option>
-                  <option value="Mini Truck">Mini Truck / Pickup</option>
-                  <option value="Motorcycle">Motorcycle</option>
-                  <option value="Heavy Van">Commercial Van</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Vehicle Plate #
-                </label>
-                <input
-                  type="text"
-                  value={vehiclePlate}
-                  onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
-                  placeholder="KL-07-CD-1234"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#1677C8] outline-none font-mono"
-                />
-              </div>
-            </div>
-
-            {/* Jar Ownership & Counts */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
@@ -419,7 +423,7 @@ export default function DistributorFormModal({
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Partner Jars
+                  Distributor Jars
                 </label>
                 <input
                   type="number"
@@ -432,7 +436,79 @@ export default function DistributorFormModal({
             </div>
           </div>
 
-          {/* Access & Status */}
+          {/* 4. AVAILABLE SERVICE PINCODES */}
+          <div className="space-y-2.5 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-[#1677C8]" />
+                Available Service Pincodes
+              </label>
+              <span className="text-[10px] font-semibold text-[#1677C8] bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200/60">
+                {pincodes.length} {pincodes.length === 1 ? 'Pincode' : 'Pincodes'}
+              </span>
+            </div>
+
+            {/* Pincode Tag/Chip Container */}
+            {pincodes.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 border border-slate-200/80 rounded-xl min-h-[42px] items-center">
+                {pincodes.map((pin) => (
+                  <span
+                    key={pin}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-[#16324F] border border-sky-200 rounded-lg text-xs font-mono font-bold shadow-2xs group hover:border-[#1677C8] transition-colors"
+                  >
+                    <span>{pin}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePincode(pin)}
+                      className="text-slate-400 hover:text-rose-600 rounded p-0.5 transition cursor-pointer"
+                      title={`Remove pincode ${pin}`}
+                      aria-label={`Remove pincode ${pin}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                No service pincodes added yet. Add 6-digit pincodes where this distributor can deliver orders.
+              </div>
+            )}
+
+            {/* Input + Add button */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={pincodeInput}
+                  onChange={(e) => {
+                    setPincodeError(null);
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setPincodeInput(val);
+                  }}
+                  onKeyDown={handlePincodeKeyDown}
+                  placeholder="Enter 6-digit pincode (e.g. 673638)..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-mono font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#1677C8] outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleAddPincode}
+                disabled={pincodeInput.trim().length !== 6}
+                className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer disabled:cursor-not-allowed shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add</span>
+              </button>
+            </div>
+
+            {pincodeError && (
+              <p className="text-[11px] text-rose-500 font-semibold">{pincodeError}</p>
+            )}
+          </div>
+
+          {/* 5. ACCESS & ACCOUNT STATUS */}
           <div className="space-y-2.5 pt-2 border-t border-slate-100">
             <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Access & Account Status
@@ -482,7 +558,7 @@ export default function DistributorFormModal({
           </div>
 
           {/* Footer */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
             <button
               type="button"
               onClick={onClose}

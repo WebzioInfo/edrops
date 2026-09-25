@@ -1,3 +1,4 @@
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import type { GeocodedAddress } from '../hooks/useReverseGeocoding';
 
 interface AddressPreviewCardProps {
@@ -16,11 +17,7 @@ export default function AddressPreviewCard({ address, loading, onConfirm, onCanc
       
       <div className="min-h-[80px]">
         {loading ? (
-          <div className="flex flex-col space-y-3 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-3 bg-gray-200 rounded w-5/6"></div>
-          </div>
+          <EdropsPageLoader size="sm" minHeight="min-h-[80px]" label="Locating address..." />
         ) : address ? (
           <div>
             <p className="text-gray-800 font-medium mb-1">

@@ -300,7 +300,7 @@ export default function DistributorDetailDrawer({
                   <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
                     Recent Order Assignments
                   </h3>
-                  <div className="space-y-1.5 max-h-[220px] overflow-y-auto">
+                  <div className="space-y-1.5 md:max-h-[220px] md:overflow-y-auto">
                     {distributor.recentAssignments.map((a: any) => (
                       <div
                         key={a.id}

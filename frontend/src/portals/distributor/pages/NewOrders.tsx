@@ -24,6 +24,7 @@ import { showToast } from '../../../utils/toast';
 import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
 import { useSocket } from '../../../contexts/SocketContext';
 import { DistributorTopbar } from '../components/DistributorTopbar';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 export interface NewOrderItemRecord {
   id: string;
@@ -523,8 +524,12 @@ export default function NewOrders() {
       />
 
       <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
-        {/* ─── LIVE METRIC CARDS ────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {isLoading && orders.length === 0 ? (
+          <EdropsPageLoader minHeight="min-h-[50vh]" />
+        ) : (
+          <>
+            {/* ─── LIVE METRIC CARDS ────────────────────────────────────────────── */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="p-3 rounded-xl border border-amber-200/80 bg-amber-50/40 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Queue Available</p>
@@ -580,13 +585,7 @@ export default function NewOrders() {
 
         {/* ─── QUEUE TABLE / LIST ────────────────────────────────────────────── */}
         <div>
-        {isLoading && orders.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center shadow-2xs">
-            <RefreshCw className="w-8 h-8 text-[#1677C8] animate-spin mx-auto mb-3" />
-            <p className="text-sm font-bold text-[#16324F]">Connecting to live order queue...</p>
-            <p className="text-xs text-[#64748B] mt-1">Retrieving incoming customer orders</p>
-          </div>
-        ) : isError ? (
+        {isError ? (
           <div className="bg-white rounded-xl border border-rose-200 p-8 text-center shadow-2xs">
             <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
             <p className="text-sm font-bold text-rose-700">Failed to load order queue</p>
@@ -887,6 +886,9 @@ export default function NewOrders() {
             </div>
           </div>
         )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* ─── SLIDE-OVER DETAILS DRAWER ─────────────────────────────────────── */}
@@ -1092,7 +1094,6 @@ export default function NewOrders() {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

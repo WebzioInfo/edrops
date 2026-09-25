@@ -16,6 +16,7 @@ import {
 import { fetchWithAuth } from '../../../api/client';
 import { showToast } from '../../../utils/toast';
 import { DistributorTopbar } from '../components/DistributorTopbar';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 export interface ServiceAreaRecord {
   id: string;
@@ -277,114 +278,112 @@ export default function ServiceAreas() {
       />
 
       <div className="w-full p-3.5 sm:p-6 space-y-4 flex-1">
+        {isLoading && areas.length === 0 ? (
+          <EdropsPageLoader minHeight="min-h-[50vh]" />
+        ) : (
+          <>
+            {/* ─── 2. SUMMARY STATS CARDS (FULL WIDTH) ──────────────────────────── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Configured</span>
+                  <Building className="w-4 h-4 text-slate-400" />
+                </div>
+                <p className="text-2xl font-black text-[#16324F] mt-1">{areas.length}</p>
+                <span className="text-[11px] text-slate-500 mt-0.5 block">Serviceable postal codes</span>
+              </div>
 
-      {/* ─── 2. SUMMARY STATS CARDS (FULL WIDTH) ──────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Configured</span>
-            <Building className="w-4 h-4 text-slate-400" />
-          </div>
-          <p className="text-2xl font-black text-[#16324F] mt-1">{areas.length}</p>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">Serviceable postal codes</span>
-        </div>
+              <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Active Areas</span>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                </div>
+                <p className="text-2xl font-black text-emerald-600 mt-1">{activeCount}</p>
+                <span className="text-[11px] text-emerald-700/80 mt-0.5 block">Receiving customer orders</span>
+              </div>
 
-        <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Active Areas</span>
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-          <p className="text-2xl font-black text-emerald-600 mt-1">{activeCount}</p>
-          <span className="text-[11px] text-emerald-700/80 mt-0.5 block">Receiving customer orders</span>
-        </div>
+              <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Paused Areas</span>
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
+                </div>
+                <p className="text-2xl font-black text-amber-600 mt-1">{pausedCount}</p>
+                <span className="text-[11px] text-slate-500 mt-0.5 block">Temporarily inactive</span>
+              </div>
 
-        <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Paused Areas</span>
-            <span className="h-2 w-2 rounded-full bg-amber-400" />
-          </div>
-          <p className="text-2xl font-black text-amber-600 mt-1">{pausedCount}</p>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">Temporarily inactive</span>
-        </div>
+              <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Service Rule</span>
+                  <Navigation className="w-4 h-4 text-[#1677C8]" />
+                </div>
+                <p className="text-sm font-bold text-[#16324F] mt-1">Exact 6-Digit Match</p>
+                <span className="text-[11px] text-[#64748B] mt-0.5 block">Zero geographic radius dependency</span>
+              </div>
+            </div>
 
-        <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Service Rule</span>
-            <Navigation className="w-4 h-4 text-[#1677C8]" />
-          </div>
-          <p className="text-sm font-bold text-[#16324F] mt-1">Exact 6-Digit Match</p>
-          <span className="text-[11px] text-[#64748B] mt-0.5 block">Zero geographic radius dependency</span>
-        </div>
-      </div>
+            {/* ─── 3. SEARCH & FILTER TOOLBAR ────────────────────────────────────── */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-xs">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by pincode, locality, district, or state..."
+                  className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm text-slate-800 outline-none bg-transparent placeholder:text-slate-400 rounded-lg border border-transparent focus:border-[#E2E8F0]"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
 
-      {/* ─── 3. SEARCH & FILTER TOOLBAR ────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-xs">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by pincode, locality, district, or state..."
-            className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm text-slate-800 outline-none bg-transparent placeholder:text-slate-400 rounded-lg border border-transparent focus:border-[#E2E8F0]"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1 bg-[#F1F5F9] p-1 rounded-lg shrink-0 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('all')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    activeTab === 'all'
+                      ? 'bg-white text-[#16324F] shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All ({areas.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('active')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    activeTab === 'active'
+                      ? 'bg-white text-emerald-700 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Active ({activeCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('paused')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    activeTab === 'paused'
+                      ? 'bg-white text-amber-700 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Paused ({pausedCount})
+                </button>
+              </div>
+            </div>
 
-        {/* Filter Tabs */}
-        <div className="flex items-center gap-1 bg-[#F1F5F9] p-1 rounded-lg shrink-0 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab('all')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-              activeTab === 'all'
-                ? 'bg-white text-[#16324F] shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            All ({areas.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('active')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-              activeTab === 'active'
-                ? 'bg-white text-emerald-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Active ({activeCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('paused')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-              activeTab === 'paused'
-                ? 'bg-white text-amber-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Paused ({pausedCount})
-          </button>
-        </div>
-      </div>
-
-      {/* ─── 4. SERVICE AREAS LIST / TABLE (FULL WIDTH) ────────────────────── */}
-      <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-xs overflow-hidden">
-        {isLoading ? (
-          <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <Loader2 className="w-6 h-6 animate-spin text-[#1677C8]" />
-            <span className="text-xs">Loading delivery areas...</span>
-          </div>
-        ) : filtered.length === 0 ? (
+            {/* ─── 4. SERVICE AREAS LIST / TABLE (FULL WIDTH) ────────────────────── */}
+            <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-xs overflow-hidden">
+              {filtered.length === 0 ? (
           <div className="py-16 text-center text-slate-500 space-y-2 px-4">
             <AlertCircle className="w-8 h-8 text-slate-300 mx-auto" />
             <p className="font-semibold text-sm text-[#16324F]">No service pincodes found</p>
@@ -530,6 +529,9 @@ export default function ServiceAreas() {
               ))}
             </div>
           </div>
+        )}
+            </div>
+          </>
         )}
       </div>
 
@@ -728,7 +730,6 @@ export default function ServiceAreas() {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

@@ -50,7 +50,7 @@ export default function StaffPortal() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] text-[#16324F] font-sans antialiased overflow-hidden">
+    <div className="flex h-[100dvh] lg:h-screen bg-[#F8FAFC] text-[#16324F] font-sans antialiased overflow-hidden">
       {/* ─── STANDARDIZED SHARED DESKTOP SIDEBAR ────────────────── */}
       <SharedSidebar
         portalLabel={portalConfig.portalLabel}
@@ -70,7 +70,7 @@ export default function StaffPortal() {
       />
 
       {/* ─── MAIN CONTENT WRAPPER ───────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header (h-16) matching Delivery Partner & standard layout */}
         <header className="h-16 bg-white border-b border-[#E2E8F0] px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 z-20">
           <div className="flex items-center gap-3">
@@ -166,7 +166,7 @@ export default function StaffPortal() {
         </header>
 
         {/* Scrollable Content Viewport */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-[#F8FAFC]">
+        <main className="flex-1 min-w-0 overflow-y-auto overscroll-y-contain bg-[#F8FAFC] [-webkit-overflow-scrolling:touch]">
           <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
             <Suspense fallback={<StaffLoader />}>
               <Routes>

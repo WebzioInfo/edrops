@@ -17,6 +17,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { DataErrorState } from '../../../components/common/DataErrorState';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 export default function CustomerManagement() {
   const navigate = useNavigate();
@@ -313,40 +314,29 @@ export default function CustomerManagement() {
 
       {/* ─── 3. DENSE CUSTOMER DIRECTORY TABLE & MOBILE LIST ────────── */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-xs font-medium border-collapse min-w-[900px]">
-            <thead>
-              <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500 select-none">
-                <th className="py-2.5 px-3">Customer</th>
-                <th className="py-2.5 px-3">Phone</th>
-                <th className="py-2.5 px-3">Referral / Distributor</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">Prepaid Balance</th>
-                <th className="py-2.5 px-3">Jar Balance</th>
-                <th className="py-2.5 px-3">Deposit Paid/Due</th>
-                <th className="py-2.5 px-3">Delivery Schedule</th>
-                <th className="py-2.5 px-3">Registered</th>
-                <th className="py-2.5 px-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse h-11">
-                    <td className="p-3"><div className="h-4 w-32 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-24 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-24 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-full" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-full" /></td>
-                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-24 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm ml-auto" /></td>
+        {loading && customers.length === 0 ? (
+          <EdropsPageLoader minHeight="min-h-[400px]" />
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs font-medium border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500 select-none">
+                    <th className="py-2.5 px-3">Customer</th>
+                    <th className="py-2.5 px-3">Phone</th>
+                    <th className="py-2.5 px-3">Referral / Distributor</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3">Prepaid Balance</th>
+                    <th className="py-2.5 px-3">Jar Balance</th>
+                    <th className="py-2.5 px-3">Deposit Paid/Due</th>
+                    <th className="py-2.5 px-3">Delivery Schedule</th>
+                    <th className="py-2.5 px-3">Registered</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
-                ))
-              ) : error ? (
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {error ? (
                 <DataErrorState
                   isTableRow
                   colSpan={10}
@@ -578,14 +568,7 @@ export default function CustomerManagement() {
 
         {/* ─── Mobile Card List View ─────────────────────────────────── */}
         <div className="md:hidden divide-y divide-slate-100">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="p-3 animate-pulse space-y-2">
-                <div className="h-4 w-32 bg-slate-200 rounded" />
-                <div className="h-3 w-48 bg-slate-100 rounded" />
-              </div>
-            ))
-          ) : error ? (
+          {error ? (
             <div className="p-4 text-center text-xs text-rose-600 font-semibold">
               {error}
             </div>
@@ -698,6 +681,8 @@ export default function CustomerManagement() {
             })
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* ─── 5. SLIDE-OVER CUSTOMER DETAILS DRAWER ─────────────────── */}
@@ -764,10 +749,7 @@ export default function CustomerManagement() {
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
                   {drawerLoading ? (
-                    <div className="py-16 text-center text-slate-500">
-                      <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#1677C8] mb-2" />
-                      <p className="text-xs font-semibold">Loading profile information...</p>
-                    </div>
+                    <EdropsPageLoader minHeight="min-h-[300px]" />
                   ) : selectedCust ? (
                     <>
                       {/* Financial & Jar Overview */}
@@ -981,7 +963,7 @@ export default function CustomerManagement() {
                           <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                             Recent Transactions
                           </h3>
-                          <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                          <div className="space-y-1.5 md:max-h-[180px] md:overflow-y-auto pr-1">
                             {selectedCust.transactions.map((t: any) => (
                               <div
                                 key={t.id}
@@ -1072,7 +1054,7 @@ export default function CustomerManagement() {
               </button>
             </div>
 
-            <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+            <div className="space-y-3 md:max-h-[260px] md:overflow-y-auto pr-1">
               {rules.map((rule, idx) => (
                 <div
                   key={idx}

@@ -20,6 +20,7 @@ import { useSocket } from '../../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
 import CompleteDeliveryModal from './CompleteDeliveryModal';
 import { formatOrderId, formatPaymentDetails, getPaymentStatusLabel, getOrderPaymentState } from '../../../utils/orderFormatters';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import {
   getOrderStatusConfig,
   getNextPartnerAction,
@@ -482,10 +483,7 @@ export default function OrderDetailModal({
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             {/* Loading State */}
             {loading && (
-              <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-[#64748B]">
-                <Loader2 className="w-6 h-6 animate-spin text-[#1677C8]" />
-                <span>Loading fresh order details...</span>
-              </div>
+              <EdropsPageLoader minHeight="min-h-[220px]" label="Loading fresh order details..." />
             )}
 
             {/* Error Banner */}

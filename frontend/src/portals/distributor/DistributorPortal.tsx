@@ -131,7 +131,7 @@ export default function DistributorPortal() {
 
   return (
     <DistributorProvider>
-      <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+      <div className="flex h-[100dvh] lg:h-screen bg-[#F8FAFC] overflow-hidden">
         {/* ─── STANDARDIZED SHARED DESKTOP SIDEBAR ──────────────────── */}
         <SharedSidebar
           portalLabel={portalConfig.portalLabel}
@@ -144,7 +144,7 @@ export default function DistributorPortal() {
         />
 
         {/* ─── MAIN LAYOUT WRAPPER ────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
           {/* Mobile Header: Logo, Menu/hamburger button, Logout button */}
           <header className="lg:hidden sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white px-3.5 shadow-xs shrink-0">
             <div className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export default function DistributorPortal() {
           <div id="distributor-topbar-mount" className="w-full shrink-0 bg-white" />
 
           {/* ─── FULL-WIDTH OPERATIONAL MAIN CONTENT AREA ──────────────── */}
-          <main className="flex-1 min-w-0 overflow-y-auto bg-[#F8FAFC]">
+          <main className="flex-1 min-w-0 overflow-y-auto overscroll-y-contain bg-[#F8FAFC] [-webkit-overflow-scrolling:touch]">
             <Suspense fallback={<LoadingSpinner fullPage label="Loading..." />}>
               <Routes>
                 <Route index element={<Navigate to="/distributor/orders" replace />} />

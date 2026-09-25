@@ -14,7 +14,6 @@ import {
   Edit2,
   Calendar,
   AlertCircle,
-  Loader2,
   X,
   Eye,
   EyeOff,
@@ -22,6 +21,7 @@ import {
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { DistributorTopbar } from '../components/DistributorTopbar';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 export default function DistributorProfile() {
   const [profile, setProfile] = useState<any>(null);
@@ -184,10 +184,7 @@ export default function DistributorProfile() {
       {/* ─── MAIN CONTENT AREA (FULL-WIDTH ON MOBILE) ──────── */}
       <div className="w-full p-3.5 sm:p-5 lg:p-6 space-y-4 max-w-7xl mx-auto flex-1">
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <Loader2 className="w-7 h-7 animate-spin text-[#1677C8]" />
-            <span className="text-xs font-semibold">Loading profile information...</span>
-          </div>
+          <EdropsPageLoader minHeight="min-h-[50vh]" />
         ) : !profile ? (
           <div className="py-16 text-center text-slate-500 bg-white rounded-2xl border border-slate-200/80 p-6 space-y-2">
             <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />

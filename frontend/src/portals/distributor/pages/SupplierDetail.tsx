@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
   Building2,
   Phone,
   Mail,
@@ -25,6 +24,7 @@ import {
 import { fetchWithAuth } from '../../../api/client';
 import { showToast } from '../../../utils/toast';
 import { DistributorTopbar } from '../components/DistributorTopbar';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 export interface PurchaseItem {
   productId?: string;
@@ -496,20 +496,7 @@ export default function SupplierDetail() {
   }, [ledgerTransactions, ledgerFilter]);
 
   if (isLoading || !supplier) {
-    return (
-      <div className="w-full p-6 space-y-4 animate-in fade-in duration-150">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Suppliers</span>
-        </div>
-        <div className="h-28 bg-white border border-[#E2E8F0] rounded-xl animate-pulse" />
-        <div className="grid grid-cols-4 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-20 bg-white border border-[#E2E8F0] rounded-xl animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
+    return <EdropsPageLoader fullPage />;
   }
 
   const isPayable = supplier.outstandingBalance > 0;

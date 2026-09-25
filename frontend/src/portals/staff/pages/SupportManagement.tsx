@@ -147,9 +147,9 @@ export default function SupportManagement() {
         </div>
       </div>
 
-      <div className="flex gap-4 flex-1 min-h-0 overflow-hidden relative">
+      <div className="flex flex-col md:flex-row gap-4 flex-1 md:min-h-0 md:overflow-hidden relative">
         {/* Ticket List */}
-        <div className="flex-1 bg-white border border-slate-200/80 rounded-2xl overflow-hidden flex flex-col shadow-xs">
+        <div className="flex-1 bg-white border border-slate-200/80 rounded-2xl md:overflow-hidden flex flex-col shadow-xs">
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-y-auto flex-1">
             <table className="w-full text-xs text-left">
@@ -198,7 +198,7 @@ export default function SupportManagement() {
           </div>
 
           {/* Mobile Card List View */}
-          <div className="md:hidden overflow-y-auto flex-1 divide-y divide-slate-100">
+          <div className="md:hidden divide-y divide-slate-100">
             {tickets.map(ticket => {
               const customerName = `${ticket.customer?.user?.firstName || ''} ${ticket.customer?.user?.lastName || ''}`.trim() || 'Customer';
               const isSelected = selectedTicket?.id === ticket.id;

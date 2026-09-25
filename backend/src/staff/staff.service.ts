@@ -261,6 +261,25 @@ export class StaffService {
         },
       });
 
+      if (dto.servicePincodes && Array.isArray(dto.servicePincodes)) {
+        const cleanPincodes = Array.from(
+          new Set(
+            dto.servicePincodes
+              .map((p: string) => String(p).trim())
+              .filter((p: string) => /^\d{6}$/.test(p)),
+          ),
+        );
+        for (const pin of cleanPincodes) {
+          await tx.distributorPincode.create({
+            data: {
+              distributorId: user.id,
+              pincode: pin,
+              isActive: true,
+            },
+          });
+        }
+      }
+
       return user;
     });
 
@@ -365,6 +384,40 @@ export class StaffService {
             ...distData,
           },
         });
+      }
+
+      if (dto.servicePincodes !== undefined && Array.isArray(dto.servicePincodes)) {
+        const cleanPincodes = Array.from(
+          new Set(
+            dto.servicePincodes
+              .map((p: string) => String(p).trim())
+              .filter((p: string) => /^\d{6}$/.test(p)),
+          ),
+        );
+        await tx.distributorPincode.deleteMany({
+          where: {
+            distributorId: existingUser.id,
+            pincode: { notIn: cleanPincodes },
+          },
+        });
+        for (const pin of cleanPincodes) {
+          await tx.distributorPincode.upsert({
+            where: {
+              distributorId_pincode: {
+                distributorId: existingUser.id,
+                pincode: pin,
+              },
+            },
+            create: {
+              distributorId: existingUser.id,
+              pincode: pin,
+              isActive: true,
+            },
+            update: {
+              isActive: true,
+            },
+          });
+        }
       }
     });
 

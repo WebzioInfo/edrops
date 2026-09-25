@@ -139,7 +139,7 @@ export default function InventoryAudit() {
           <AlertTriangle className="h-5 w-5 text-amber-500" />
           Warehouse Audit Trail
         </h3>
-        <div className="divide-y divide-border/40 max-h-[350px] overflow-y-auto pr-2">
+        <div className="divide-y divide-border/40 md:max-h-[350px] md:overflow-y-auto pr-2">
           {logs.map((log) => (
             <div key={log.id} className="py-3 flex flex-col sm:flex-row justify-between sm:items-center text-sm font-semibold">
               <div>

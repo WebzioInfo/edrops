@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
 import { EdropsLogo } from '../Logo';
 import { useIsPullGestureActive } from '../pwa/PullToRefresh';
 
@@ -96,10 +95,7 @@ export const TopSwipeLoader = CenteredPageLoader;
  * - Suppressed automatically if a manual pull-to-refresh gesture is active so they never conflict.
  */
 export const GlobalCenteredPageLoader: React.FC = () => {
-  const location = useLocation();
-  const [routeLoading, setRouteLoading] = useState(false);
   const [, setTick] = useState(0);
-  const isInitialMount = useRef(true);
   const isPullGestureActive = useIsPullGestureActive();
 
   // Subscribe to page loader changes
@@ -111,23 +107,8 @@ export const GlobalCenteredPageLoader: React.FC = () => {
     };
   }, []);
 
-  // Trigger centered loader on every route navigation (forward or back navigation)
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-
-    setRouteLoading(true);
-    const timer = setTimeout(() => {
-      setRouteLoading(false);
-    }, 450);
-
-    return () => clearTimeout(timer);
-  }, [location.pathname, location.search]);
-
   // Cleanly isolate: if manual pull-to-refresh is active, do not show the centered loader
-  const active = !isPullGestureActive && (routeLoading || isGloballyLoading());
+  const active = !isPullGestureActive && isGloballyLoading();
 
   if (typeof document === 'undefined') return null;
 

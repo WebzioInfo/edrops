@@ -4,6 +4,7 @@ import { Wallet, History, ArrowUpRight, ArrowDownLeft, AlertCircle, Sparkles, Lo
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { injectMockRazorpay } from '../../../utils/MockRazorpay';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 interface Transaction {
   id: string;
@@ -121,18 +122,7 @@ export default function WalletPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F7FAFC] pb-24">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-6">
-          <div className="h-8 w-48 bg-slate-200/80 rounded-lg animate-pulse" />
-          <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="h-64 rounded-[24px] bg-slate-200/70 animate-pulse" />
-            <div className="h-64 rounded-[24px] bg-slate-200/70 animate-pulse" />
-          </div>
-          <div className="h-72 rounded-[24px] bg-slate-200/70 animate-pulse" />
-        </div>
-      </div>
-    );
+    return <EdropsPageLoader fullPage label="Loading wallet..." />;
   }
 
   return (

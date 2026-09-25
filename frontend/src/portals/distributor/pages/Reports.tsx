@@ -26,6 +26,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
 import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
 import { DistributorTopbar } from '../components/DistributorTopbar';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import {
   ReportDateFilter,
   calculateDateRange,
@@ -931,13 +932,7 @@ export default function Reports() {
 
       {/* ── MAIN CONTENT ── */}
       <div className="w-full p-3.5 sm:p-6 space-y-6">
-        {isLoading && (
-          <div className="flex flex-col items-center justify-center py-20 text-[#64748B]">
-            <RefreshCw className="w-8 h-8 animate-spin text-[#1677C8] mb-3" />
-            <p className="text-sm font-semibold text-[#16324F]">Calculating financial metrics…</p>
-            <p className="text-xs text-[#94A3B8] mt-1">Aggregating live transactions for {dateRange.label}</p>
-          </div>
-        )}
+        {isLoading && <EdropsPageLoader minHeight="min-h-[50vh]" />}
 
         {!isLoading && (
           <>

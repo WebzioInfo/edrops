@@ -165,10 +165,16 @@ const RootPullToRefresh: React.FC<PullToRefreshProps> = ({
     };
   }, [pullDistance, isRefreshing]);
 
+  // Paths where native single container scrolling must never be hijacked by PullToRefresh
+  const isExcludedPath = () => {
+    if (typeof window === 'undefined') return false;
+    return /^\/(distributor|staff|admin)/.test(window.location.pathname);
+  };
+
   // Handle Touch Gesture
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
-      if (disabled || isRefreshingRef.current) return;
+      if (disabled || isRefreshingRef.current || isExcludedPath()) return;
       const target = e.touches[0].target as HTMLElement;
       activeScrollTargetRef.current = getScrollParent(target);
 
@@ -182,18 +188,20 @@ const RootPullToRefresh: React.FC<PullToRefreshProps> = ({
 
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
-      if (!isDraggingRef.current || disabled || isRefreshingRef.current) return;
+      if (!isDraggingRef.current || disabled || isRefreshingRef.current || isExcludedPath()) return;
 
       const currentY = e.touches[0].clientY;
       const rawPull = currentY - startYRef.current;
 
-      if (rawPull > 0 && getScrollTop(activeScrollTargetRef.current) <= 0) {
+      // Only intercept touch once user has dragged down past a minimum threshold (15px)
+      // to avoid hijacking slight touch drifts during normal scrolling
+      if (rawPull > 15 && getScrollTop(activeScrollTargetRef.current) <= 0) {
         if (e.cancelable) {
           e.preventDefault();
         }
 
         // Bidirectional responsive travel distance with damping curve (maxPull ~115px)
-        const visualPull = Math.max(0, Math.min(maxPull, rawPull * 0.55));
+        const visualPull = Math.max(0, Math.min(maxPull, (rawPull - 15) * 0.55));
         setPullDistance(visualPull);
         setIsPulling(true);
       } else if (rawPull <= 0) {
@@ -207,7 +215,7 @@ const RootPullToRefresh: React.FC<PullToRefreshProps> = ({
   // Handle Mouse Gesture (for desktop testing)
   const handleMouseDown = useCallback(
     (e: MouseEvent) => {
-      if (disabled || isRefreshingRef.current) return;
+      if (disabled || isRefreshingRef.current || isExcludedPath()) return;
       if (e.button !== 0) return; // Only primary button
       const target = e.target as HTMLElement;
       if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(target.tagName) || target.closest('button, a')) {
@@ -225,13 +233,13 @@ const RootPullToRefresh: React.FC<PullToRefreshProps> = ({
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!isDraggingRef.current || disabled || isRefreshingRef.current) return;
+      if (!isDraggingRef.current || disabled || isRefreshingRef.current || isExcludedPath()) return;
 
       const currentY = e.clientY;
       const rawPull = currentY - startYRef.current;
 
-      if (rawPull > 0 && getScrollTop(activeScrollTargetRef.current) <= 0) {
-        const visualPull = Math.max(0, Math.min(maxPull, rawPull * 0.55));
+      if (rawPull > 15 && getScrollTop(activeScrollTargetRef.current) <= 0) {
+        const visualPull = Math.max(0, Math.min(maxPull, (rawPull - 15) * 0.55));
         setPullDistance(visualPull);
         setIsPulling(true);
       } else if (rawPull <= 0) {

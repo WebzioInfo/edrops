@@ -24,6 +24,7 @@ import { formatOrderId, formatOrderStatus, getOrderPaymentState } from '../../..
 import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
 import { useSocket } from '../../../contexts/SocketContext';
 import { DistributorTopbar } from '../components/DistributorTopbar';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 // Types
 export interface OrderItemProduct {
@@ -940,8 +941,12 @@ export default function Orders() {
 
       {/* ─── 4. DENSE OPERATIONAL ORDER TABLE ───────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
+        {isLoading && orders.length === 0 ? (
+          <EdropsPageLoader minHeight="min-h-[400px]" />
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs font-medium border-collapse min-w-[900px]">
             <thead>
               <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500 select-none">
@@ -990,22 +995,7 @@ export default function Orders() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse h-12">
-                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-28 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-8 bg-slate-200 rounded-sm mx-auto" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm ml-auto" /></td>
-                    <td className="p-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
-                    <td className="p-3"><div className="h-5 w-20 bg-slate-200 rounded-full" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-14 bg-slate-200 rounded-sm ml-auto" /></td>
-                  </tr>
-                ))
-              ) : isError ? (
+              {isError ? (
                 <tr>
                   <td colSpan={10} className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
@@ -1227,18 +1217,7 @@ export default function Orders() {
 
         {/* ─── Mobile Card List View ─────────────────────────────────── */}
         <div className="md:hidden divide-y divide-slate-100">
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="p-3 animate-pulse space-y-2">
-                <div className="flex justify-between">
-                  <div className="h-4 w-24 bg-slate-200 rounded" />
-                  <div className="h-4 w-16 bg-slate-200 rounded-full" />
-                </div>
-                <div className="h-3.5 w-36 bg-slate-200 rounded" />
-                <div className="h-3 w-48 bg-slate-100 rounded" />
-              </div>
-            ))
-          ) : isError ? (
+          {isError ? (
             <div className="p-6 text-center text-xs text-rose-600 font-semibold">
               <AlertCircle className="w-6 h-6 mx-auto mb-1.5 text-rose-500" />
               {errorMessage}
@@ -1355,6 +1334,8 @@ export default function Orders() {
             })
           )}
         </div>
+          </>
+        )}
 
         {/* ─── 5. PAGINATION BAR ────────────────────────────────────── */}
         <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold text-slate-600">
@@ -1902,7 +1883,7 @@ export default function Orders() {
                     )}
                   </div>
                   {selectedOrder.payments && selectedOrder.payments.length > 0 ? (
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    <div className="space-y-1.5 md:max-h-36 md:overflow-y-auto">
                       {selectedOrder.payments.map((p) => (
                         <div key={p.id} className="p-2 bg-white rounded-xl border border-slate-200/60 text-xs flex items-center justify-between">
                           <div>

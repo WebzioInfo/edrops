@@ -23,6 +23,7 @@ import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
 import { generateOrderInvoice } from '../../../utils/InvoiceGenerator';
 import { useDataFetch } from '../../../hooks/useDataFetch';
 import { DataErrorState } from '../../../components/common/DataErrorState';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 type StatusFilterType = 'ALL' | 'ORDER_PLACED' | 'CONFIRMED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
 type TimeFilterType = 'ALL' | 'LAST_30_DAYS' | 'YEAR_2026' | 'OLDER';
@@ -482,18 +483,7 @@ export default function Orders() {
 
             {/* Order Items Listing Container */}
             {isLoading ? (
-              <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 space-y-4 shadow-2xs">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="animate-pulse space-y-3 p-4 border border-slate-100 rounded-xl">
-                    <div className="flex justify-between items-center">
-                      <div className="h-4 bg-slate-200 rounded w-28" />
-                      <div className="h-5 bg-slate-200 rounded-full w-20" />
-                    </div>
-                    <div className="h-3 bg-slate-100 rounded w-1/2" />
-                    <div className="h-10 bg-slate-50 rounded-lg" />
-                  </div>
-                ))}
-              </div>
+              <EdropsPageLoader minHeight="min-h-[360px]" label="Loading orders..." />
             ) : isError ? (
               <DataErrorState
                 title="Unable to load your orders"

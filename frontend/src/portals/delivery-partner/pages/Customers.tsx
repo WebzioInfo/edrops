@@ -21,6 +21,7 @@ import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import QuickJarEditModal from '../components/QuickJarEditModal';
 import { useDataFetch } from '../../../hooks/useDataFetch';
 import { DataErrorState } from '../../../components/common/DataErrorState';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import type { DeliveryTask } from './Overview';
 
 interface CustomersProps {
@@ -228,39 +229,7 @@ export default function Customers({ tasks = [] }: CustomersProps) {
 
       {/* Customer Directory Table / Cards (Natural Height - No Internal Scrollbar) */}
       {isLoading ? (
-        <div className="space-y-3">
-          {/* Desktop Table Skeleton */}
-          <div className="hidden md:block bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-2xs">
-            <div className="p-4 bg-slate-50/80 border-b border-gray-200">
-              <div className="h-4 bg-slate-200 rounded w-1/4 animate-pulse" />
-            </div>
-            <div className="divide-y divide-gray-100 p-4 space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center justify-between gap-4 animate-pulse py-2">
-                  <div className="h-4 bg-slate-200 rounded w-32" />
-                  <div className="h-4 bg-slate-100 rounded w-24" />
-                  <div className="h-4 bg-slate-100 rounded w-36" />
-                  <div className="h-4 bg-slate-100 rounded w-28" />
-                  <div className="h-4 bg-slate-200 rounded w-16" />
-                  <div className="h-4 bg-slate-100 rounded w-20" />
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Mobile Cards Skeleton */}
-          <div className="md:hidden space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3 animate-pulse">
-                <div className="flex justify-between items-start">
-                  <div className="h-4 bg-slate-200 rounded w-28" />
-                  <div className="h-5 bg-slate-200 rounded w-16" />
-                </div>
-                <div className="h-3 bg-slate-100 rounded w-1/2" />
-                <div className="h-8 bg-slate-50 rounded-lg" />
-              </div>
-            ))}
-          </div>
-        </div>
+        <EdropsPageLoader minHeight="min-h-[360px]" label="Loading customers..." />
       ) : isError ? (
         <DataErrorState
           title="Unable to load customers"

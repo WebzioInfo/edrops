@@ -6,6 +6,7 @@ import {
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { DataErrorState } from '../../../components/common/DataErrorState';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 export default function RouteOperations() {
   const [stops, setStops] = useState<any[]>([]);
@@ -139,10 +140,7 @@ export default function RouteOperations() {
       <section className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="grid gap-4">
           {loading ? (
-            <div className="clay-card p-10 text-center space-y-2">
-              <Clock className="h-10 w-10 text-primary mx-auto animate-spin" />
-              <h3 className="text-lg font-black text-[#245361]">Loading today's route board...</h3>
-            </div>
+            <EdropsPageLoader minHeight="min-h-[300px]" label="Loading today's route board..." />
           ) : error ? (
             <DataErrorState
               title="Unable to load operations"

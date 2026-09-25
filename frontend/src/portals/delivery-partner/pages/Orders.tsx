@@ -20,6 +20,7 @@ import OrderDetailModal, {
 import { formatOrderId, getPaymentStatusLabel } from '../../../utils/orderFormatters';
 import { useDataFetch } from '../../../hooks/useDataFetch';
 import { DataErrorState } from '../../../components/common/DataErrorState';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import { useRegisterRefreshHandler } from '../../../components/pwa/PullToRefresh';
 
 type TabFilter = 'ALL' | 'PENDING' | 'DELIVERED';
@@ -324,41 +325,7 @@ export default function Orders() {
 
       {/* Orders List / Table */}
       {isLoading ? (
-        <div className="space-y-3">
-          {/* Desktop Table Skeleton */}
-          <div className="hidden md:block bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-2xs">
-            <div className="p-4 bg-slate-50/80 border-b border-gray-200 flex items-center justify-between">
-              <div className="h-4 bg-slate-200 rounded w-1/4 animate-pulse" />
-              <div className="h-4 bg-slate-200 rounded w-20 animate-pulse" />
-            </div>
-            <div className="divide-y divide-gray-100 p-4 space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center justify-between gap-4 animate-pulse py-2">
-                  <div className="h-4 bg-slate-200 rounded w-20" />
-                  <div className="h-4 bg-slate-200 rounded w-32" />
-                  <div className="h-4 bg-slate-100 rounded w-40" />
-                  <div className="h-4 bg-slate-100 rounded w-28" />
-                  <div className="h-4 bg-slate-200 rounded w-16" />
-                  <div className="h-6 bg-slate-200 rounded-full w-20" />
-                  <div className="h-4 bg-slate-100 rounded w-24" />
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Mobile Cards Skeleton */}
-          <div className="md:hidden space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3 animate-pulse">
-                <div className="flex justify-between items-start">
-                  <div className="h-4 bg-slate-200 rounded w-24" />
-                  <div className="h-5 bg-slate-200 rounded-full w-16" />
-                </div>
-                <div className="h-3 bg-slate-100 rounded w-3/4" />
-                <div className="h-10 bg-slate-50 rounded-lg" />
-              </div>
-            ))}
-          </div>
-        </div>
+        <EdropsPageLoader minHeight="min-h-[360px]" label="Loading orders..." />
       ) : isError ? (
         <DataErrorState
           title="Unable to load orders"

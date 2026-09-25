@@ -16,6 +16,7 @@ import {
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { DataErrorState } from '../../../components/common/DataErrorState';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import DistributorFormModal, { type DistributorRecord } from '../components/DistributorFormModal';
 import DistributorDetailDrawer from '../components/DistributorDetailDrawer';
 
@@ -86,6 +87,7 @@ export default function DistributorManagement() {
       jarOwnership: dist.jarOwnership,
       companyOwnedJars: dist.companyOwnedJars,
       distributorOwnedJars: dist.distributorOwnedJars,
+      servicePincodes: dist.servicePincodes || dist.distributorPincodes || [],
     });
     setFormModalOpen(true);
   };
@@ -298,38 +300,28 @@ export default function DistributorManagement() {
 
       {/* ─── 3. DENSE DISTRIBUTORS DIRECTORY TABLE & MOBILE LIST ───── */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-xs font-medium border-collapse min-w-[900px]">
-            <thead>
-              <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500 select-none">
-                <th className="py-2.5 px-3">Distributor</th>
-                <th className="py-2.5 px-3">Phone</th>
-                <th className="py-2.5 px-3">Referral Code</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">Route / Area</th>
-                <th className="py-2.5 px-3">Vehicle</th>
-                <th className="py-2.5 px-3">Jar Allocation</th>
-                <th className="py-2.5 px-3">Registered</th>
-                <th className="py-2.5 px-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse h-11">
-                    <td className="p-3"><div className="h-4 w-32 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-24 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-5 w-20 bg-slate-200 rounded-md" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-full" /></td>
-                    <td className="p-3"><div className="h-4 w-24 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm" /></td>
-                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 rounded-sm ml-auto" /></td>
+        {loading && distributors.length === 0 ? (
+          <EdropsPageLoader minHeight="min-h-[400px]" />
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs font-medium border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500 select-none">
+                    <th className="py-2.5 px-3">Distributor</th>
+                    <th className="py-2.5 px-3">Phone</th>
+                    <th className="py-2.5 px-3">Referral Code</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3">Route / Area</th>
+                    <th className="py-2.5 px-3">Vehicle</th>
+                    <th className="py-2.5 px-3">Jar Allocation</th>
+                    <th className="py-2.5 px-3">Registered</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
-                ))
-              ) : error ? (
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {error ? (
                 <DataErrorState
                   isTableRow
                   colSpan={9}
@@ -524,14 +516,7 @@ export default function DistributorManagement() {
 
         {/* ─── Mobile Card List View ─────────────────────────────────── */}
         <div className="md:hidden divide-y divide-slate-100">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="p-3 animate-pulse space-y-2">
-                <div className="h-4 w-32 bg-slate-200 rounded" />
-                <div className="h-3 w-48 bg-slate-100 rounded" />
-              </div>
-            ))
-          ) : error ? (
+          {error ? (
             <div className="p-4 text-center text-xs text-rose-600 font-semibold">
               {error}
             </div>
@@ -617,6 +602,8 @@ export default function DistributorManagement() {
             })
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* ─── ADD / EDIT DISTRIBUTOR MODAL ───────────────────────── */}

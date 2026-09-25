@@ -17,6 +17,7 @@ import {
 import CatalogItemModal from '../components/CatalogItemModal';
 import { useDialog } from '../../../hooks/useDialog';
 import { DataErrorState } from '../../../components/common/DataErrorState';
+import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 type TabType = 'products' | 'categories' | 'brands';
 
@@ -434,13 +435,11 @@ export default function CatalogManager() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-[#16324F]">
                   {prodLoading ? (
-                    Array.from({ length: 4 }).map((_, i) => (
-                      <tr key={i} className="h-12">
-                        <td colSpan={5} className="py-3 px-3.5">
-                          <div className="h-5 bg-slate-100 animate-pulse rounded" />
-                        </td>
-                      </tr>
-                    ))
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center">
+                        <EdropsPageLoader minHeight="min-h-[220px]" label="Loading products..." />
+                      </td>
+                    </tr>
                   ) : prodError ? (
                     <DataErrorState
                       isTableRow
@@ -596,11 +595,7 @@ export default function CatalogManager() {
         {activeTab === 'categories' && (
           <div className="p-3.5 sm:p-4">
             {catLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-xl" />
-                ))}
-              </div>
+              <EdropsPageLoader minHeight="min-h-[180px]" label="Loading categories..." />
             ) : catError ? (
               <DataErrorState
                 title="Failed to load categories"
@@ -661,11 +656,7 @@ export default function CatalogManager() {
         {activeTab === 'brands' && (
           <div className="p-3.5 sm:p-4">
             {brandLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-xl" />
-                ))}
-              </div>
+              <EdropsPageLoader minHeight="min-h-[180px]" label="Loading brands..." />
             ) : brandError ? (
               <DataErrorState
                 title="Failed to load brands"

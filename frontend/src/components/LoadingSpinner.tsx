@@ -1,37 +1,41 @@
-import { usePageLoader } from './common/CenteredPageLoader';
+import { EdropsPageLoader, type EdropsPageLoaderProps } from './common/EdropsPageLoader';
 
-interface LoadingSpinnerProps {
-  className?: string;
-  size?: 'sm' | 'md' | 'lg';
-  fullPage?: boolean;
+export interface LoadingSpinnerProps extends EdropsPageLoaderProps {
   label?: string;
   light?: boolean;
 }
 
-export default function LoadingSpinner({ className = '', size = 'md', fullPage = false, label, light = false }: LoadingSpinnerProps) {
-  // If fullPage, activate the global centered loading indicator
-  usePageLoader(fullPage);
-
-  const sizeClasses = {
-    sm: 'h-6 w-6 border-2',
-    md: 'h-10 w-10 border-4',
-    lg: 'h-16 w-16 border-4',
-  };
-
-  const spinner = (
-    <div className={`flex flex-col items-center justify-center gap-3 ${className}`}>
-      <div className={`animate-spin rounded-full ${light ? 'border-white/30 border-t-white' : 'border-slate-200 border-t-[#0F6E8C]'} ${sizeClasses[size]}`} />
-      {label && <p className="text-sm font-semibold text-slate-500">{label}</p>}
-    </div>
-  );
-
-  if (fullPage) {
+/**
+ * Standardized LoadingSpinner component.
+ * Uses the single global Edrops Logo Spinner across the entire application.
+ */
+export default function LoadingSpinner({
+  className = '',
+  size = 'md',
+  fullPage = false,
+  light = false,
+  minHeight,
+  label,
+}: LoadingSpinnerProps) {
+  // If used as a tiny inline button action spinner (e.g. inside a colored submit button)
+  if (size === 'sm' && light) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center w-full" aria-busy="true">
-        {/* TopSwipeLoader is actively displayed at the top; preserve layout height */}
-      </div>
+      <div
+        className={`w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0 ${className}`}
+        aria-busy="true"
+      />
     );
   }
 
-  return spinner;
+  return (
+    <EdropsPageLoader
+      className={className}
+      size={size}
+      fullPage={fullPage}
+      minHeight={minHeight}
+      label={label}
+    />
+  );
 }
+
+export { EdropsPageLoader };
