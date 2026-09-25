@@ -36,6 +36,7 @@ import { EventsModule } from './events/events.module';
 import { PurchaseModule } from './purchase/purchase.module';
 import { SupplierModule } from './supplier/supplier.module';
 import { DistributorModule } from './distributor/distributor.module';
+import { DriverModule } from './driver/driver.module';
 import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
@@ -74,6 +75,7 @@ import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
     PurchaseModule,
     SupplierModule,
     DistributorModule,
+    DriverModule,
     EventsModule,
   ],
   controllers: [AppController],

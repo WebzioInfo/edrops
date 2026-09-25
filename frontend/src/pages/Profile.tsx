@@ -70,28 +70,23 @@ export default function Profile() {
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto max-w-6xl px-4 py-4 sm:py-8 space-y-6 sm:space-y-8 bg-[#F8FAFC]"
+      className="mx-auto max-w-6xl space-y-4 sm:space-y-5 bg-[#F8FAFC]"
     >
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-200">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight">Account Settings</h1>
-          <p className="text-slate-500 font-medium text-xs sm:text-sm mt-1">Manage your personal profile, credentials, and track your hydration stats.</p>
+      {/* User Quick Info Summary & Role Badge */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#1677C8] to-[#22C55E] text-white text-xl font-bold shadow-md shrink-0">
+            {profile.firstName[0]?.toUpperCase()}{profile.lastName[0]?.toUpperCase()}
+          </div>
+          <div className="text-left min-w-0 flex-1">
+            <h2 className="text-base sm:text-lg font-bold text-[#16324F] truncate">{profile.firstName} {profile.lastName}</h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">{profile.email || 'No email set'}</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 bg-[#0F6E8C]/10 border border-[#0F6E8C]/20 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-[#0F6E8C]">
-          <Shield className="h-4 w-4" />
-          <span>{profile.role.replace('_', ' ')}</span>
-        </div>
-      </div>
 
-      {/* User Quick Info Summary */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center gap-5">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-[#0F6E8C] to-[#22C55E] text-white text-xl font-bold shadow-md shrink-0">
-          {profile.firstName[0]?.toUpperCase()}{profile.lastName[0]?.toUpperCase()}
-        </div>
-        <div className="text-center sm:text-left min-w-0">
-          <h2 className="text-xl font-bold text-[#0F172A] truncate">{profile.firstName} {profile.lastName}</h2>
-          <p className="text-sm text-slate-500 font-medium mt-0.5 truncate">{profile.email || 'No email set'}</p>
+        <div className="flex items-center gap-2 bg-[#1677C8]/10 border border-[#1677C8]/20 rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#1677C8] shrink-0 self-start sm:self-auto">
+          <Shield className="h-3.5 w-3.5" />
+          <span>{profile.role.replace('_', ' ')}</span>
         </div>
       </div>
 

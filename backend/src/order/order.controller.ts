@@ -138,6 +138,18 @@ export class OrderController {
     return this.orderService.updateDistributorOrderStatus(id, userId, dto);
   }
 
+  @Patch('distributor/:id/driver')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN)
+  assignDistributorDriver(
+    @Param('id') id: string,
+    @Body('driverId') driverId: string | null,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    return this.orderService.assignDriverToDistributorOrder(id, userId, driverId);
+  }
+
   @Post('distributor/:id/payments')
   @UseGuards(RolesGuard)
   @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN)

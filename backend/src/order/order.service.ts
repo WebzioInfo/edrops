@@ -2250,6 +2250,47 @@ export class OrderService {
     );
   }
 
+  async assignDriverToDistributorOrder(
+    orderId: string,
+    distributorUserId: string,
+    driverId: string | null,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (order.distributorId !== distributorUserId) {
+      throw new ForbiddenException('You do not own this order');
+    }
+
+    if (driverId) {
+      const driver = await this.prisma.driver.findFirst({
+        where: { id: driverId, distributorId: distributorUserId },
+      });
+      if (!driver) {
+        throw new NotFoundException('Driver not found');
+      }
+      if (!driver.isActive) {
+        throw new BadRequestException('Cannot assign an inactive driver to an order');
+      }
+    }
+
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { driverId: driverId || null },
+      include: {
+        driver: true,
+        customer: {
+          include: {
+            user: { select: { firstName: true, lastName: true, phone: true } },
+          },
+        },
+      },
+    });
+  }
+
   // =========================================================================
   // DISTRIBUTOR NEW ORDER QUEUE & ATOMIC ACCEPTANCE
   // =========================================================================

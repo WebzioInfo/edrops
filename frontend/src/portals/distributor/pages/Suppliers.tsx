@@ -14,11 +14,13 @@ import {
   Mail,
   ArrowUpRight,
   TrendingDown,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { showToast } from '../../../utils/toast';
 import { DistributorTopbar } from '../components/DistributorTopbar';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
+import { MobileFilterSheet } from '../../../components/common/MobileFilterSheet';
 
 export interface SupplierRecord {
   id: string;
@@ -54,6 +56,7 @@ export default function Suppliers() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -244,71 +247,79 @@ export default function Suppliers() {
   return (
     <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
       {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
+      {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
       <DistributorTopbar
         title="Suppliers"
         subtitle="Manage your suppliers, purchases, balances and payment history"
         icon={Building2}
         actions={
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Supplier</span>
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={loadSuppliers}
+              title="Refresh"
+              className="p-2 sm:px-3 sm:py-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 inline-flex items-center gap-1.5 shadow-2xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Supplier</span>
+            </button>
+          </div>
         }
       />
 
-      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
+      <div className="w-full p-3.5 sm:p-6 space-y-4 flex-1">
 
       {/* ─── SUMMARY CARDS ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Total Suppliers</span>
-          <span className="text-lg font-extrabold text-[#16324F] mt-1 block">{totalSuppliersCount}</span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">Active vendors in directory</span>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="p-3 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">Total Suppliers</span>
+          <span className="text-base sm:text-lg font-extrabold text-[#16324F] mt-1 block">{totalSuppliersCount}</span>
         </div>
 
-        <div className="p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs">
+        <div className="p-3 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs flex flex-col justify-center">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Outstanding Payables</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block truncate">Payables</span>
             <span className="p-1 rounded bg-amber-50 text-amber-600">
               <ArrowUpRight className="w-3.5 h-3.5" />
             </span>
           </div>
-          <span className="text-lg font-extrabold text-amber-700 mt-1 block">{formatCurrency(totalPayablesSum)}</span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">Amount owed to suppliers</span>
+          <span className="text-base sm:text-lg font-extrabold text-amber-700 mt-1 block">{formatCurrency(totalPayablesSum)}</span>
         </div>
 
-        <div className="p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Total Purchases</span>
-          <span className="text-lg font-extrabold text-[#16324F] mt-1 block">{formatCurrency(totalPurchasesSum)}</span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">All procurement orders</span>
+        <div className="p-3 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">Total Purchases</span>
+          <span className="text-base sm:text-lg font-extrabold text-[#16324F] mt-1 block">{formatCurrency(totalPurchasesSum)}</span>
         </div>
 
-        <div className="p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs">
+        <div className="p-3 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs flex flex-col justify-center">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Paid Amount</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block truncate">Paid Amount</span>
             <span className="p-1 rounded bg-emerald-50 text-emerald-600">
               <TrendingDown className="w-3.5 h-3.5" />
             </span>
           </div>
-          <span className="text-lg font-extrabold text-emerald-700 mt-1 block">{formatCurrency(totalPaidSum)}</span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">Settled procurement payments</span>
+          <span className="text-base sm:text-lg font-extrabold text-emerald-700 mt-1 block">{formatCurrency(totalPaidSum)}</span>
         </div>
       </div>
 
       {/* ─── FILTERS & SEARCH ROW ───────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-center gap-2.5">
-        <div className="relative flex-1 w-full">
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search suppliers by name, company, phone, email, or GSTIN..."
-            className="w-full pl-9 pr-8 py-2 bg-white border border-[#E2E8F0] rounded-lg text-xs text-[#16324F] placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1677C8] focus:border-[#1677C8] transition-all"
+            placeholder="Search suppliers by name, company, phone, email..."
+            className="w-full pl-9 pr-8 py-2 bg-white border border-[#E2E8F0] rounded-lg text-xs text-[#16324F] placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1677C8] focus:border-[#1677C8] transition-all shadow-2xs"
           />
           {search && (
             <button
@@ -321,11 +332,29 @@ export default function Suppliers() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+        {/* Mobile Filter Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setIsFilterOpen(true)}
+          className={`sm:hidden relative inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors cursor-pointer shrink-0 shadow-2xs ${
+            statusFilter !== 'ALL'
+              ? 'bg-[#1677C8]/10 border-[#1677C8] text-[#1677C8]'
+              : 'bg-white border-[#E2E8F0] text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>Filters</span>
+          {statusFilter !== 'ALL' && (
+            <span className="w-2 h-2 rounded-full bg-[#1677C8]"></span>
+          )}
+        </button>
+
+        {/* Desktop inline filter */}
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-40 px-2.5 py-2 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#16324F] focus:outline-none focus:ring-1 focus:ring-[#1677C8]"
+            className="w-44 px-2.5 py-2 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#16324F] focus:outline-none focus:ring-1 focus:ring-[#1677C8] shadow-2xs"
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active</option>
@@ -333,17 +362,50 @@ export default function Suppliers() {
             <option value="HAS_OUTSTANDING">Has Outstanding</option>
             <option value="FULLY_PAID">Fully Paid</option>
           </select>
-
-          <button
-            type="button"
-            onClick={loadSuppliers}
-            title="Refresh"
-            className="p-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg transition-colors cursor-pointer shrink-0"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
-          </button>
         </div>
       </div>
+
+      {/* Mobile Filter Sheet */}
+      <MobileFilterSheet
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Suppliers"
+        activeCount={statusFilter !== 'ALL' ? 1 : 0}
+        onReset={() => setStatusFilter('ALL')}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+              Status & Balance
+            </label>
+            <div className="grid grid-cols-1 gap-1.5">
+              {[
+                { id: 'ALL', label: 'All Statuses' },
+                { id: 'ACTIVE', label: 'Active Suppliers' },
+                { id: 'INACTIVE', label: 'Inactive / Archived' },
+                { id: 'HAS_OUTSTANDING', label: 'Has Outstanding Payables' },
+                { id: 'FULLY_PAID', label: 'Fully Paid / Settled' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter(opt.id);
+                    setIsFilterOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium border transition-colors ${
+                    statusFilter === opt.id
+                      ? 'bg-[#1677C8]/10 border-[#1677C8] text-[#1677C8] font-bold'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </MobileFilterSheet>
 
       {/* ─── SUPPLIERS TABLE ────────────────────────────────────────── */}
       <div className="w-full bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden">

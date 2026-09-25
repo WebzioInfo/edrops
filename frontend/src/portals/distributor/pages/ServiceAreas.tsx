@@ -269,86 +269,82 @@ export default function ServiceAreas() {
           <button
             type="button"
             onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add Service Pincode</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Pincode</span>
           </button>
         }
       />
 
-      <div className="w-full p-3.5 sm:p-6 space-y-4 flex-1">
+      <div className="w-full p-3.5 sm:p-6 space-y-3.5 sm:space-y-4 flex-1">
         {isLoading && areas.length === 0 ? (
           <EdropsPageLoader minHeight="min-h-[50vh]" />
         ) : (
           <>
-            {/* ─── 2. SUMMARY STATS CARDS (FULL WIDTH) ──────────────────────────── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
+            {/* ─── 2. SUMMARY STATS CARDS (2-COL RESPONSIVE) ──────────────────── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+              <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Configured</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate">Total Configured</span>
                   <Building className="w-4 h-4 text-slate-400" />
                 </div>
-                <p className="text-2xl font-black text-[#16324F] mt-1">{areas.length}</p>
-                <span className="text-[11px] text-slate-500 mt-0.5 block">Serviceable postal codes</span>
+                <p className="text-xl sm:text-2xl font-extrabold text-[#16324F] mt-1">{areas.length}</p>
               </div>
 
-              <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
+              <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Active Areas</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 truncate">Active Areas</span>
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
-                <p className="text-2xl font-black text-emerald-600 mt-1">{activeCount}</p>
-                <span className="text-[11px] text-emerald-700/80 mt-0.5 block">Receiving customer orders</span>
+                <p className="text-xl sm:text-2xl font-extrabold text-emerald-600 mt-1">{activeCount}</p>
               </div>
 
-              <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
+              <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Paused Areas</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 truncate">Paused Areas</span>
                   <span className="h-2 w-2 rounded-full bg-amber-400" />
                 </div>
-                <p className="text-2xl font-black text-amber-600 mt-1">{pausedCount}</p>
-                <span className="text-[11px] text-slate-500 mt-0.5 block">Temporarily inactive</span>
+                <p className="text-xl sm:text-2xl font-extrabold text-amber-600 mt-1">{pausedCount}</p>
               </div>
 
-              <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs">
+              <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Service Rule</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate">Matching Rule</span>
                   <Navigation className="w-4 h-4 text-[#1677C8]" />
                 </div>
-                <p className="text-sm font-bold text-[#16324F] mt-1">Exact 6-Digit Match</p>
-                <span className="text-[11px] text-[#64748B] mt-0.5 block">Zero geographic radius dependency</span>
+                <p className="text-sm sm:text-base font-extrabold text-[#16324F] mt-1 truncate">Exact 6-Digit</p>
               </div>
             </div>
 
             {/* ─── 3. SEARCH & FILTER TOOLBAR ────────────────────────────────────── */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-xs">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by pincode, locality, district, or state..."
-                  className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm text-slate-800 outline-none bg-transparent placeholder:text-slate-400 rounded-lg border border-transparent focus:border-[#E2E8F0]"
+                  placeholder="Search by pincode, locality, district..."
+                  className="w-full pl-9 pr-8 py-2 text-xs font-semibold text-slate-800 outline-none bg-slate-50 placeholder:text-slate-400 rounded-xl border border-slate-200 focus:border-[#1677C8] focus:bg-white transition-all"
                 />
                 {search && (
                   <button
                     type="button"
                     onClick={() => setSearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-1 bg-[#F1F5F9] p-1 rounded-lg shrink-0 self-start sm:self-auto">
+              {/* Segmented Filter Tabs */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setActiveTab('all')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
                     activeTab === 'all'
                       ? 'bg-white text-[#16324F] shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -359,7 +355,7 @@ export default function ServiceAreas() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('active')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
                     activeTab === 'active'
                       ? 'bg-white text-emerald-700 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -370,7 +366,7 @@ export default function ServiceAreas() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('paused')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
                     activeTab === 'paused'
                       ? 'bg-white text-amber-700 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'

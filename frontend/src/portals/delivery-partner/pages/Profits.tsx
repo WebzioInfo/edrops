@@ -174,65 +174,58 @@ export default function Profits({ tasks = [] }: ProfitsProps) {
       </div>
 
       {/* ─── FINANCIAL HERO SUMMARY CARDS ──────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
         
         {/* Total Net Profit */}
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1677C8] to-[#105691] text-white shadow-md relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between opacity-90 text-xs font-semibold">
+        <div className="p-4 rounded-xl bg-gradient-to-br from-[#1677C8] to-[#105691] text-white shadow-md relative overflow-hidden flex flex-col justify-center">
+          <div className="flex items-center justify-between opacity-90 text-[11px] font-bold uppercase tracking-wider">
             <span>TOTAL PROFIT</span>
-            <Coins className="w-4 h-4 text-yellow-300" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-bold">{summary.profitMargin}% margin</span>
+              <Coins className="w-4 h-4 text-yellow-300" />
+            </div>
           </div>
-          <div className="my-2">
-            <span className="text-2xl sm:text-3xl font-black tracking-tight">
+          <div className="mt-2">
+            <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               ₹{Number(summary.totalProfit).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-          </div>
-          <div className="text-[11px] opacity-80 flex items-center justify-between">
-            <span>Based on paid completed deliveries</span>
-            <span className="font-bold">{summary.profitMargin}% margin</span>
           </div>
         </div>
 
         {/* Paid Delivery Revenue */}
-        <div className="p-5 rounded-2xl bg-white border border-[#E2E8F0] shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#64748B] text-xs font-semibold">
+        <div className="p-4 rounded-xl bg-white border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <div className="flex items-center justify-between text-[#64748B] text-[11px] font-bold uppercase tracking-wider">
             <span>PAID REVENUE</span>
             <Receipt className="w-4 h-4 text-[#1677C8]" />
           </div>
-          <div className="my-2">
-            <span className="text-2xl font-black text-[#16324F] tracking-tight">
+          <div className="mt-2">
+            <span className="text-2xl font-extrabold text-[#16324F] tracking-tight">
               ₹{Number(summary.paidRevenue).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-          </div>
-          <div className="text-[11px] text-[#64748B]">
-            Customer payments recognized
           </div>
         </div>
 
         {/* Edrops Cost */}
-        <div className="p-5 rounded-2xl bg-white border border-[#E2E8F0] shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#64748B] text-xs font-semibold">
+        <div className="p-4 rounded-xl bg-white border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <div className="flex items-center justify-between text-[#64748B] text-[11px] font-bold uppercase tracking-wider">
             <span>EDROPS COST</span>
             <IndianRupee className="w-4 h-4 text-amber-600" />
           </div>
-          <div className="my-2">
-            <span className="text-2xl font-black text-[#16324F] tracking-tight">
+          <div className="mt-2">
+            <span className="text-2xl font-extrabold text-[#16324F] tracking-tight">
               ₹{Number(summary.edropsCost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-          </div>
-          <div className="text-[11px] text-[#64748B]">
-            Assigned partner jar rate cost
           </div>
         </div>
 
         {/* Completed Deliveries */}
-        <div className="p-5 rounded-2xl bg-white border border-[#E2E8F0] shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#64748B] text-xs font-semibold">
+        <div className="p-4 rounded-xl bg-white border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <div className="flex items-center justify-between text-[#64748B] text-[11px] font-bold uppercase tracking-wider">
             <span>PAID DELIVERIES</span>
             <CheckCircle className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="my-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-emerald-700 tracking-tight">
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-emerald-700 tracking-tight">
               {summary.completedDeliveries}
             </span>
             {Number(summary.pendingPaymentCount || 0) > 0 && (
@@ -240,9 +233,6 @@ export default function Profits({ tasks = [] }: ProfitsProps) {
                 ({summary.pendingPaymentCount} pending)
               </span>
             )}
-          </div>
-          <div className="text-[11px] text-[#64748B]">
-            {summary.totalJars} paid jars delivered
           </div>
         </div>
 

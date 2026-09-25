@@ -25,7 +25,6 @@ const COLOR_MAP: Record<NonNullable<ReportKpiCardProps['colorVariant']>, { bg: s
 export const ReportKpiCard: React.FC<ReportKpiCardProps> = ({
   label,
   value,
-  sub,
   icon: Icon,
   colorVariant = 'blue',
   trend,
@@ -35,40 +34,37 @@ export const ReportKpiCard: React.FC<ReportKpiCardProps> = ({
   const color = COLOR_MAP[colorVariant] || COLOR_MAP.blue;
 
   return (
-    <div className={`bg-white rounded-xl border border-[#E2E8F0] p-4 flex flex-col justify-between hover:border-[#CBD5E1] transition-shadow shadow-2xs ${className}`}>
-      <div className="flex items-start justify-between gap-2">
+    <div className={`bg-white rounded-xl border border-[#E2E8F0] p-3 sm:p-3.5 flex flex-col justify-center hover:border-[#CBD5E1] transition-shadow shadow-2xs ${className}`}>
+      <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider truncate mb-1">
+          <p className="text-[10px] sm:text-[11px] font-bold text-[#64748B] uppercase tracking-wider truncate mb-1">
             {label}
           </p>
-          <p className="text-xl sm:text-2xl font-bold text-[#16324F] tracking-tight leading-tight truncate">
+          <p className="text-lg sm:text-2xl font-extrabold text-[#16324F] tracking-tight leading-tight truncate">
             {value}
           </p>
         </div>
-        <div className={`shrink-0 flex h-9 w-9 items-center justify-center rounded-xl ${color.bg} ${color.text} ring-1 ${color.ring}`}>
+        <div className={`shrink-0 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg sm:rounded-xl ${color.bg} ${color.text} ring-1 ${color.ring}`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>
 
-      {(sub || trend) && (
-        <div className="mt-2.5 pt-2 border-t border-[#F8FAFC] flex items-center justify-between text-[11px] gap-2">
-          {sub && <div className="text-[#64748B] truncate font-medium">{sub}</div>}
-          {trend && (
-            <div
-              className={`inline-flex items-center gap-1 font-semibold shrink-0 ${
-                trend === 'up'
-                  ? 'text-emerald-600'
-                  : trend === 'down'
-                  ? 'text-rose-600'
-                  : 'text-slate-500'
-              }`}
-            >
-              {trend === 'up' && <TrendingUp className="w-3.5 h-3.5" />}
-              {trend === 'down' && <TrendingDown className="w-3.5 h-3.5" />}
-              {trend === 'neutral' && <Minus className="w-3.5 h-3.5" />}
-              {trendLabel && <span>{trendLabel}</span>}
-            </div>
-          )}
+      {trend && (
+        <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[11px] gap-2">
+          <div
+            className={`inline-flex items-center gap-1 font-semibold shrink-0 ${
+              trend === 'up'
+                ? 'text-emerald-600'
+                : trend === 'down'
+                ? 'text-rose-600'
+                : 'text-slate-500'
+            }`}
+          >
+            {trend === 'up' && <TrendingUp className="w-3.5 h-3.5" />}
+            {trend === 'down' && <TrendingDown className="w-3.5 h-3.5" />}
+            {trend === 'neutral' && <Minus className="w-3.5 h-3.5" />}
+            {trendLabel && <span>{trendLabel}</span>}
+          </div>
         </div>
       )}
     </div>

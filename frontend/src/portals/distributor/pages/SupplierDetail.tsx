@@ -522,35 +522,38 @@ export default function SupplierDetail() {
           )
         }
         actions={
-          <>
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={openEditModal}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[#16324F] rounded-lg text-xs font-semibold transition cursor-pointer"
+              title="Edit Profile"
+              className="p-2 sm:px-3 sm:py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[#16324F] rounded-lg text-xs font-semibold transition cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
             >
               <Edit2 className="w-3.5 h-3.5" />
-              <span>Edit Profile</span>
+              <span className="hidden sm:inline">Edit Profile</span>
             </button>
 
             <button
               type="button"
               onClick={openPaymentModal}
               disabled={supplier.outstandingBalance <= 0}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+              title="Record Payment"
+              className="p-2 sm:px-3 sm:py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
             >
               <CreditCard className="w-3.5 h-3.5" />
-              <span>Record Payment</span>
+              <span className="hidden sm:inline">Record Payment</span>
             </button>
 
             <button
               type="button"
               onClick={() => navigate(`/distributor/purchases?supplierId=${supplier.id}`)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Purchase</span>
+              <span className="hidden sm:inline">New Purchase</span>
+              <span className="sm:hidden">Purchase</span>
             </button>
-          </>
+          </div>
         }
       />
 
@@ -633,31 +636,29 @@ export default function SupplierDetail() {
       </div>
 
       {/* ─── FINANCIAL SUMMARY METRICS ──────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Total Purchases</span>
-          <span className="text-lg font-extrabold text-[#16324F] mt-1 block">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="p-3 sm:p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">Total Purchases</span>
+          <span className="text-base sm:text-lg font-extrabold text-[#16324F] mt-1 block">
             {formatCurrency(supplier.totalPurchased)}
           </span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">{supplier.purchases.length} total orders</span>
         </div>
 
-        <div className="p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs">
+        <div className="p-3 sm:p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs flex flex-col justify-center">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Total Paid</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block truncate">Total Paid</span>
             <span className="p-1 rounded bg-emerald-50 text-emerald-600">
               <TrendingDown className="w-3.5 h-3.5" />
             </span>
           </div>
-          <span className="text-lg font-extrabold text-emerald-700 mt-1 block">
+          <span className="text-base sm:text-lg font-extrabold text-emerald-700 mt-1 block">
             {formatCurrency(supplier.totalPaid)}
           </span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">Total collections and payments</span>
         </div>
 
-        <div className="p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs">
+        <div className="p-3 sm:p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs flex flex-col justify-center">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Current Balance</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block truncate">Current Balance</span>
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -673,21 +674,15 @@ export default function SupplierDetail() {
               </span>
             </div>
           </div>
-          <span className="text-lg font-extrabold text-amber-700 mt-1 block">
+          <span className="text-base sm:text-lg font-extrabold text-amber-700 mt-1 block">
             {formatCurrency(supplier.outstandingBalance)}
-          </span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">
-            {supplier.outstandingBalance <= 0 ? 'Fully Paid' : 'Pending payment'}
           </span>
         </div>
 
-        <div className="p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Opening Balance</span>
-          <span className="text-lg font-extrabold text-[#16324F] mt-1 block">
+        <div className="p-3 sm:p-3.5 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">Opening Balance</span>
+          <span className="text-base sm:text-lg font-extrabold text-[#16324F] mt-1 block">
             {formatCurrency(supplier.openingBalance)}
-          </span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">
-            {supplier.openingBalanceType === 'RECEIVABLE' ? 'Receivable' : 'Payable'}
           </span>
         </div>
       </div>
@@ -757,12 +752,12 @@ export default function SupplierDetail() {
       {/* ─── TABS: PURCHASES & TRANSACTIONS / LEDGER ──────────────────── */}
       <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden">
         {/* Tab Headers */}
-        <div className="px-4 border-b border-[#E2E8F0] bg-slate-50/70 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="px-3 sm:px-4 border-b border-[#E2E8F0] bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 sm:py-0">
+          <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setActiveTab('purchases')}
-              className={`py-3 text-xs font-bold transition-all relative border-b-2 cursor-pointer flex items-center gap-1.5 ${
+              className={`py-2.5 sm:py-3 text-xs font-bold transition-all relative border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'purchases'
                   ? 'border-[#1677C8] text-[#1677C8]'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -775,7 +770,7 @@ export default function SupplierDetail() {
             <button
               type="button"
               onClick={() => setActiveTab('ledger')}
-              className={`py-3 text-xs font-bold transition-all relative border-b-2 cursor-pointer flex items-center gap-1.5 ${
+              className={`py-2.5 sm:py-3 text-xs font-bold transition-all relative border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'ledger'
                   ? 'border-[#1677C8] text-[#1677C8]'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -787,11 +782,11 @@ export default function SupplierDetail() {
           </div>
 
           {activeTab === 'ledger' && (
-            <div className="flex items-center gap-2 py-1.5">
+            <div className="flex items-center gap-2 pb-1 sm:pb-0 sm:py-1.5">
               <select
                 value={ledgerFilter}
                 onChange={(e) => setLedgerFilter(e.target.value)}
-                className="px-2.5 py-1 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#16324F] focus:outline-none"
+                className="w-full sm:w-auto px-2.5 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#16324F] focus:outline-none shadow-2xs"
               >
                 <option value="ALL">All Transactions</option>
                 <option value="PURCHASES">Purchases Only</option>

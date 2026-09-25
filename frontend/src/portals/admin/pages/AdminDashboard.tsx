@@ -160,7 +160,7 @@ export default function AdminDashboard() {
               return (
                 <div 
                   key={idx} 
-                  className="bg-white border border-[#E2E8F0] rounded-xl p-3 sm:p-3.5 shadow-2xs hover:border-[#CBD5E1] transition-all flex flex-col justify-between group"
+                  className="bg-white border border-[#E2E8F0] rounded-xl p-3 sm:p-3.5 shadow-2xs hover:border-[#CBD5E1] transition-all flex flex-col justify-center group"
                 >
                   {/* Card Header Row: Icon + Label + Inline Badge */}
                   <div className="flex items-center justify-between gap-1.5">
@@ -177,14 +177,11 @@ export default function AdminDashboard() {
                     </span>
                   </div>
 
-                  {/* Number and Detail */}
-                  <div className="mt-2.5">
-                    <div className="text-xl sm:text-2xl font-bold text-[#16324F] tracking-tight">
+                  {/* Value */}
+                  <div className="mt-2">
+                    <div className="text-xl sm:text-2xl font-extrabold text-[#16324F] tracking-tight">
                       {metric.value}
                     </div>
-                    <p className="text-[11px] text-[#64748B] font-medium truncate mt-0.5">
-                      {metric.detail}
-                    </p>
                   </div>
                 </div>
               );

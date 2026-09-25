@@ -95,43 +95,39 @@ export default function Overview({
       )}
 
       {/* Operational Stats Bar - Clean inline metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white border border-[#E2E8F0] p-4 rounded-xl">
-          <div className="flex items-center justify-between text-xs font-medium text-[#64748B] mb-1">
-            <span>Assigned Stops</span>
-            <Truck className="w-4 h-4 text-[#1677C8]" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="bg-white border border-[#E2E8F0] p-3 sm:p-3.5 rounded-xl shadow-2xs flex flex-col justify-center">
+          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+            <span className="truncate">Assigned Stops</span>
+            <Truck className="w-4 h-4 text-[#1677C8] shrink-0" />
           </div>
-          <div className="text-2xl font-bold text-[#16324F]">{totalStops}</div>
-          <div className="text-xs text-[#64748B] mt-0.5">Total for today</div>
+          <div className="text-xl sm:text-2xl font-extrabold text-[#16324F]">{totalStops}</div>
         </div>
 
-        <div className="bg-white border border-[#E2E8F0] p-4 rounded-xl">
-          <div className="flex items-center justify-between text-xs font-medium text-[#64748B] mb-1">
-            <span>Pending</span>
-            <Clock className="w-4 h-4 text-amber-500" />
+        <div className="bg-white border border-[#E2E8F0] p-3 sm:p-3.5 rounded-xl shadow-2xs flex flex-col justify-center">
+          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+            <span className="truncate">Pending</span>
+            <Clock className="w-4 h-4 text-amber-500 shrink-0" />
           </div>
-          <div className="text-2xl font-bold text-amber-600">{pendingStops}</div>
-          <div className="text-xs text-[#64748B] mt-0.5">Remaining stops</div>
+          <div className="text-xl sm:text-2xl font-extrabold text-amber-600">{pendingStops}</div>
         </div>
 
-        <div className="bg-white border border-[#E2E8F0] p-4 rounded-xl">
-          <div className="flex items-center justify-between text-xs font-medium text-[#64748B] mb-1">
-            <span>Completed</span>
-            <CheckCircle className="w-4 h-4 text-emerald-500" />
+        <div className="bg-white border border-[#E2E8F0] p-3 sm:p-3.5 rounded-xl shadow-2xs flex flex-col justify-center">
+          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+            <span className="truncate">Completed</span>
+            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
           </div>
-          <div className="text-2xl font-bold text-emerald-600">{completedStops}</div>
-          <div className="text-xs text-[#64748B] mt-0.5">Delivered / logged</div>
+          <div className="text-xl sm:text-2xl font-extrabold text-emerald-600">{completedStops}</div>
         </div>
 
-        <div className="bg-white border border-[#E2E8F0] p-4 rounded-xl">
-          <div className="flex items-center justify-between text-xs font-medium text-[#64748B] mb-1">
-            <span>Jars Handled</span>
-            <Layers className="w-4 h-4 text-[#1677C8]" />
+        <div className="bg-white border border-[#E2E8F0] p-3 sm:p-3.5 rounded-xl shadow-2xs flex flex-col justify-center">
+          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+            <span className="truncate">Jars Handled</span>
+            <Layers className="w-4 h-4 text-[#1677C8] shrink-0" />
           </div>
-          <div className="text-2xl font-bold text-[#16324F]">
-            {totalJarsDelivered} <span className="text-xs font-normal text-[#64748B]">/ {totalJarsToDeliver}</span>
+          <div className="text-xl sm:text-2xl font-extrabold text-[#16324F]">
+            {totalJarsDelivered} <span className="text-xs font-semibold text-[#64748B]">/ {totalJarsToDeliver}</span>
           </div>
-          <div className="text-xs text-[#64748B] mt-0.5">Bottles scheduled</div>
         </div>
       </div>
 

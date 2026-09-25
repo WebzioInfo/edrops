@@ -21,6 +21,7 @@ const SupplierDetail = React.lazy(() => import('./pages/SupplierDetail'));
 const Orders = React.lazy(() => import('./pages/Orders'));
 const NewOrders = React.lazy(() => import('./pages/NewOrders'));
 const Reports = React.lazy(() => import('./pages/Reports'));
+const Drivers = React.lazy(() => import('./pages/Drivers'));
 const DistributorProfile = React.lazy(() => import('./pages/DistributorProfile'));
 const ServiceAreas = React.lazy(() => import('./pages/ServiceAreas'));
 
@@ -195,6 +196,7 @@ export default function DistributorPortal() {
                 <Route path="orders" element={<Orders />} />
                 <Route path="wallet" element={<OperationalPlaceholder title="Wallet" icon={Wallet} />} />
                 <Route path="reports" element={<Reports />} />
+                <Route path="drivers" element={<Drivers />} />
                 <Route path="service-areas" element={<ServiceAreas />} />
                 <Route path="settings" element={<Navigate to="/distributor/profile" replace />} />
                 <Route path="profile" element={<DistributorProfile />} />

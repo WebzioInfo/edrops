@@ -173,6 +173,11 @@ export function getPortalSidebarConfig(
             title: 'OPERATIONS',
             items: [
               {
+                to: '/distributor/drivers',
+                label: 'Drivers',
+                icon: Truck,
+              },
+              {
                 to: '/distributor/service-areas',
                 label: 'Service Areas',
                 icon: MapPin,
@@ -305,6 +310,11 @@ export function getPortalSidebarConfig(
                 to: '/staff/distributors',
                 label: 'Distributors',
                 icon: Building2,
+              },
+              {
+                to: '/staff/drivers',
+                label: 'Drivers',
+                icon: Truck,
               },
             ],
           },

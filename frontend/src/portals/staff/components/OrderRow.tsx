@@ -246,27 +246,24 @@ export default function OrderRow({
         </div>
 
         {/* Right: Price + Payment Status Indicator + Delivery Status Badge + Manage Button */}
-        <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Price & Payment Status */}
           {(() => {
             const pst = getOrderPaymentState(order);
             return (
-              <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-2.5">
                 <div className="text-right">
                   <div className="text-xs sm:text-sm font-black text-[#0F172A]">
                     ₹{pst.total.toLocaleString('en-IN')}
                   </div>
-                  {pst.paid > 0 && (
-                    <div className="text-[10px] font-semibold text-emerald-700">
-                      Paid ₹{pst.paid.toLocaleString('en-IN')}
-                    </div>
-                  )}
                   {pst.hasDue ? (
                     <div className="text-[10px] font-bold text-orange-600">
                       Due ₹{pst.due.toLocaleString('en-IN')}
                     </div>
                   ) : (
-                    <div className="text-[10px] font-semibold text-emerald-600">Paid in full</div>
+                    <div className="text-[10px] font-semibold text-emerald-600 hidden xs:block">
+                      Paid
+                    </div>
                   )}
                 </div>
 
@@ -277,7 +274,7 @@ export default function OrderRow({
                       e.stopPropagation();
                       onCollect(order);
                     }}
-                    className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer shadow-2xs flex items-center gap-1 shrink-0"
+                    className="px-2 py-1 text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer shadow-2xs flex items-center gap-1 shrink-0"
                     title={`Collect outstanding payment ₹${pst.due.toFixed(2)}`}
                   >
                     <CreditCard className="w-3 h-3" />
@@ -288,8 +285,8 @@ export default function OrderRow({
             );
           })()}
 
-          {/* Status Badge */}
-          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap hidden sm:inline-flex items-center gap-1 ${getStatusBadgeStyle()}`}>
+          {/* Status Badge: Compact on mobile, full on desktop */}
+          <span className={`text-[10px] sm:text-[11px] font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border whitespace-nowrap inline-flex items-center gap-1 ${getStatusBadgeStyle()}`}>
             {formatOrderStatus(order.status)}
           </span>
 
@@ -300,13 +297,14 @@ export default function OrderRow({
               e.stopPropagation();
               onToggleExpand();
             }}
-            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`p-1.5 sm:px-3 sm:py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1 cursor-pointer ${
               isExpanded
                 ? 'bg-[#1E88E5] text-white border-[#1E88E5] shadow-xs'
                 : 'bg-white text-[#16324F] border-[#CBD5E1] hover:border-[#1E88E5] hover:text-[#1E88E5]'
             }`}
+            title={isExpanded ? 'Close details' : 'Manage order'}
           >
-            <span className="hidden xs:inline">{isExpanded ? 'Close' : 'Manage'}</span>
+            <span className="hidden sm:inline">{isExpanded ? 'Close' : 'Manage'}</span>
             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
           </button>
         </div>

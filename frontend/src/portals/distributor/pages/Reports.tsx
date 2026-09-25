@@ -796,12 +796,12 @@ export default function Reports() {
     <div className="w-full min-h-full bg-[#F8FAFC]">
       {/* ── UNIFIED DISTRIBUTOR TOPBAR ── */}
       <DistributorTopbar
-        title="Reports & Analytics"
+        title="Reports"
         subtitle={
           <span>
             {dateRange.label}
             {lastRefreshed && (
-              <span className="hidden sm:inline">
+              <span>
                 {' '}
                 · Live Updated {lastRefreshed.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
               </span>
@@ -809,28 +809,11 @@ export default function Reports() {
           </span>
         }
         icon={BarChart3}
+        hideQuickCustomer={true}
         actions={
-          <div className="flex flex-col sm:items-end gap-2">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={loadData}
-                disabled={isLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#64748B] border border-[#E2E8F0] bg-white rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
-              </button>
-              <button
-                onClick={handleDownloadPDF}
-                disabled={isLoading}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#125ea0] rounded-lg transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Export PDF</span>
-                <span className="sm:hidden">Export</span>
-              </button>
-            </div>
-            <div>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap justify-end w-full sm:w-auto">
+            {/* Date filter - wraps to full-width row 2 on mobile as order-3, sits first on desktop as order-1 */}
+            <div className="order-3 sm:order-1 w-full sm:w-auto mt-1 sm:mt-0">
               <ReportDateFilter
                 datePreset={datePreset}
                 customStart={customStart}
@@ -842,41 +825,69 @@ export default function Reports() {
                 }}
               />
             </div>
+
+            {/* Refresh button */}
+            <button
+              type="button"
+              onClick={loadData}
+              disabled={isLoading}
+              className="order-1 sm:order-2 inline-flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 text-xs font-semibold text-[#64748B] border border-[#E2E8F0] bg-white rounded-lg hover:bg-slate-50 hover:text-[#16324F] transition-colors disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
+              title="Refresh Report Data"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+
+            {/* Export PDF button */}
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              disabled={isLoading}
+              className="order-2 sm:order-3 inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#125ea0] active:scale-95 rounded-lg transition-all shadow-xs disabled:opacity-50 cursor-pointer shrink-0"
+              title="Export Report PDF"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export PDF</span>
+              <span className="sm:hidden">Export</span>
+            </button>
           </div>
         }
         secondaryRow={
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            {/* Left: Tab Switcher */}
-            <div className="flex bg-slate-100/90 rounded-lg p-1 shrink-0 border border-[#E2E8F0]">
-              {(['OVERVIEW', 'PURCHASES', 'SUPPLIERS', 'ORDERS'] as ReportType[]).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setReportType(tab)}
-                  className={`px-3.5 py-1.5 text-xs rounded-md transition-all font-semibold whitespace-nowrap cursor-pointer ${
-                    reportType === tab
-                      ? 'bg-white text-[#1677C8] shadow-xs'
-                      : 'text-[#64748B] hover:text-[#16324F]'
-                  }`}
-                >
-                  {tab === 'OVERVIEW'
-                    ? 'Overview'
-                    : tab === 'PURCHASES'
-                    ? 'Purchases'
-                    : tab === 'SUPPLIERS'
-                    ? 'Suppliers'
-                    : 'Customer Orders'}
-                </button>
-              ))}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+            {/* Left: Tab Switcher (compact & horizontally scrollable on mobile) */}
+            <div className="w-full sm:w-auto overflow-x-auto scrollbar-none -mx-0.5 px-0.5 py-0.5">
+              <div className="inline-flex items-center bg-slate-100/90 rounded-lg p-0.5 sm:p-1 border border-[#E2E8F0] min-w-max">
+                {(['OVERVIEW', 'PURCHASES', 'SUPPLIERS', 'ORDERS'] as ReportType[]).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setReportType(tab)}
+                    className={`px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-xs rounded-md transition-all font-semibold whitespace-nowrap cursor-pointer ${
+                      reportType === tab
+                        ? 'bg-white text-[#1677C8] shadow-xs font-bold'
+                        : 'text-[#64748B] hover:text-[#16324F]'
+                    }`}
+                  >
+                    {tab === 'OVERVIEW'
+                      ? 'Overview'
+                      : tab === 'PURCHASES'
+                      ? 'Purchases'
+                      : tab === 'SUPPLIERS'
+                      ? 'Suppliers'
+                      : 'Customer Orders'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Right: Secondary Filters */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto">
               {/* Status Filter for Purchases or Orders */}
               {(reportType === 'PURCHASES' || reportType === 'ORDERS') && (
                 <select
                   value={paymentStatusFilter}
                   onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                  className="text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer"
+                  className="flex-1 sm:flex-initial text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer shadow-2xs"
                 >
                   <option value="ALL">All Payment Status</option>
                   <option value="PAID">Paid in Full</option>
@@ -890,7 +901,7 @@ export default function Reports() {
                 <select
                   value={orderStatusFilter}
                   onChange={(e) => setOrderStatusFilter(e.target.value)}
-                  className="text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer"
+                  className="flex-1 sm:flex-initial text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer shadow-2xs"
                 >
                   <option value="ALL">All Order Status</option>
                   <option value="DELIVERED">Delivered / Completed</option>
@@ -904,7 +915,7 @@ export default function Reports() {
                 <select
                   value={supplierFilter}
                   onChange={(e) => setSupplierFilter(e.target.value)}
-                  className="text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer max-w-[170px]"
+                  className="flex-1 sm:flex-initial text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer max-w-full sm:max-w-[170px] shadow-2xs"
                 >
                   <option value="ALL">All Suppliers</option>
                   {suppliers.map((s) => (
@@ -918,8 +929,10 @@ export default function Reports() {
               {/* Clear Filters Button */}
               {hasActiveFilters && (
                 <button
+                  type="button"
                   onClick={clearFilters}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-rose-600 border border-rose-200 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors shrink-0 cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 border border-rose-200 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors shrink-0 cursor-pointer shadow-2xs"
+                  title="Reset filters"
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>Reset</span>
@@ -931,7 +944,7 @@ export default function Reports() {
       />
 
       {/* ── MAIN CONTENT ── */}
-      <div className="w-full p-3.5 sm:p-6 space-y-6">
+      <div className="w-full p-3.5 sm:p-6 space-y-4 sm:space-y-5">
         {isLoading && <EdropsPageLoader minHeight="min-h-[50vh]" />}
 
         {!isLoading && (

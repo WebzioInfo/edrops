@@ -40,6 +40,7 @@ model User {
   verifiedOrderItems   OrderItem[]          @relation("VerifiedOrderItems")
   purchases            Purchase[]           @relation("DistributorPurchases")
   suppliers            Supplier[]           @relation("DistributorSuppliers")
+  drivers              Driver[]             @relation("DistributorDrivers")
   distributorOrders    Order[]              @relation("DistributorOrders")
   acceptedOrders       Order[]              @relation("AcceptedOrders")
   cancelledOrders      Order[]              @relation("CancelledOrders")
@@ -849,6 +850,8 @@ model Order {
   expectedReturns   OrderExpectedReturn[]
   distributorId     String?
   distributor       User?                @relation("DistributorOrders", fields: [distributorId], references: [id])
+  driverId          String?
+  driver            Driver?              @relation("DriverOrders", fields: [driverId], references: [id], onDelete: SetNull)
   assignmentStatus  String               @default("UNASSIGNED")
   acceptedAt        DateTime?
   acceptedById      String?
@@ -861,6 +864,7 @@ model Order {
   distributorAssignments DistributorOrderAssignment[]
 
   @@index([distributorId])
+  @@index([driverId])
   @@index([assignmentStatus])
   @@index([distributorId, assignmentStatus])
 }
@@ -1281,3 +1285,30 @@ model DistributorOrderAssignment {
   @@index([status])
   @@map("distributor_order_assignments")
 }
+
+model Driver {
+  id             String    @id @default(uuid())
+  distributorId  String
+  name           String
+  phone          String
+  alternatePhone String?
+  routeOrArea    String?
+  pincode        String    @default("682001")
+  vehicleType    String    // '2 Wheeler', '3 Wheeler', '4 Wheeler', 'Other'
+  vehicleNumber  String
+  notes          String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  distributor    User      @relation("DistributorDrivers", fields: [distributorId], references: [id], onDelete: Cascade)
+  orders         Order[]   @relation("DriverOrders")
+
+  @@index([distributorId])
+  @@index([isActive])
+  @@index([phone])
+  @@index([vehicleNumber])
+  @@index([pincode])
+  @@map("drivers")
+}
+

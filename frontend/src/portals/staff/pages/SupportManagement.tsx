@@ -114,8 +114,8 @@ export default function SupportManagement() {
   return (
     <div className="space-y-3.5 flex flex-col h-[calc(100vh-140px)] animate-in fade-in duration-150">
       {/* ─── COMPACT TOOLBAR ────────────────────────────── */}
-      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-2.5 shrink-0">
-        <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-lg">
+      <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center gap-2 flex-1">
           <div className="relative flex-1">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
@@ -123,13 +123,13 @@ export default function SupportManagement() {
               placeholder="Search tickets, customers, IDs..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] focus:bg-white transition-all"
+              className="w-full pl-8 pr-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#1677C8] focus:border-[#1677C8] transition-all shadow-2xs"
             />
           </div>
           <select 
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] cursor-pointer"
+            className="px-2.5 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1677C8] cursor-pointer shrink-0 shadow-2xs"
           >
             <option value="">All Statuses</option>
             <option value="OPEN">Open</option>
@@ -140,7 +140,7 @@ export default function SupportManagement() {
           </select>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+        <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-500">
           <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-slate-600">
             {tickets.length} {tickets.length === 1 ? 'Ticket' : 'Tickets'}
           </span>

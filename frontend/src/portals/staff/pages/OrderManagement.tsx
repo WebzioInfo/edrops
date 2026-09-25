@@ -381,65 +381,92 @@ export default function OrderManagement() {
   const endOrderIndex = Math.min(page * limit, totalDisplayOrders);
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-150">
-      {/* Orders List & Controls Container */}
+    <div className="space-y-3.5 sm:space-y-4 animate-in fade-in duration-150">
+      {/* ─── ORDERS LIST & CONTROLS CONTAINER ────────────────────── */}
       <section className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
-        {/* Controls Header: Tabs + Search + Live indicator */}
-        <div className="p-3 sm:p-4 border-b border-slate-200/80 bg-slate-50/80 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
-          {/* Status Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
-            {(['ALL', 'PENDING', 'ACTIVE', 'DELIVERED', 'CANCELLED'] as StatusFilter[]).map((tab) => {
-              const label = tab === 'ALL' ? 'All Orders' : tab === 'PENDING' ? 'New / Placed' : tab === 'ACTIVE' ? 'Active' : tab === 'DELIVERED' ? 'Delivered' : 'Cancelled';
-              const isActive = activeFilter === tab;
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => {
-                    setActiveFilter(tab);
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
-                    isActive
-                      ? 'bg-[#1E88E5] text-white shadow-2xs'
-                      : 'bg-white text-[#64748B] hover:text-[#0F172A] border border-[#E2E8F0]'
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Search Bar & Refresh */}
-          <div className="flex items-center gap-2.5 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+        {/* Controls Header: Tabs + Search */}
+        <div className="p-3 sm:p-4 border-b border-slate-200/80 bg-slate-50/70 space-y-3">
+          {/* Top row: Search + Live Status + Refresh */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search order ID, name, phone..."
+                placeholder="Search order ID, customer name, phone..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-[#CBD5E1] rounded-xl outline-none focus:border-[#1E88E5] text-[#0F172A]"
+                className="w-full pl-9 pr-8 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-xl outline-none focus:border-[#1677C8] focus:ring-1 focus:ring-[#1677C8] text-slate-800 placeholder-slate-400 transition-all"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setPage(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
+            {/* Live Indicator (desktop & tablet) */}
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+            </span>
+
+            {/* Refresh Action */}
             <button
               type="button"
               onClick={() => loadOrders()}
               disabled={refreshing}
               title="Refresh Orders"
-              className="p-2 text-[#64748B] hover:text-[#1E88E5] hover:bg-white bg-white border border-[#CBD5E1] rounded-xl transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+              className="inline-flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 text-slate-700 hover:text-[#1677C8] bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold transition cursor-pointer shadow-2xs disabled:opacity-50 shrink-0"
             >
-              <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RotateCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-[#1677C8]' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
             </button>
+          </div>
 
-            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 hidden lg:flex items-center gap-1.5 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live
-            </span>
+          {/* Segmented Status Tabs (Horizontal Scrollable container only, no page overflow) */}
+          <div className="w-full overflow-x-auto scrollbar-none pb-0.5">
+            <div className="inline-flex p-1 bg-slate-200/60 rounded-xl gap-1 min-w-full sm:min-w-0">
+              {(['ALL', 'PENDING', 'ACTIVE', 'DELIVERED', 'CANCELLED'] as StatusFilter[]).map((tab) => {
+                const label =
+                  tab === 'ALL'
+                    ? 'All Orders'
+                    : tab === 'PENDING'
+                    ? 'New / Placed'
+                    : tab === 'ACTIVE'
+                    ? 'Active'
+                    : tab === 'DELIVERED'
+                    ? 'Delivered'
+                    : 'Cancelled';
+                const isActive = activeFilter === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => {
+                      setActiveFilter(tab);
+                      setPage(1);
+                    }}
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap cursor-pointer text-center ${
+                      isActive
+                        ? 'bg-[#1677C8] text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 

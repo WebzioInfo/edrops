@@ -16,11 +16,13 @@ import {
   Building2,
   ChevronDown,
   MoreHorizontal,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { showToast } from '../../../utils/toast';
 import { DistributorTopbar } from '../components/DistributorTopbar';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
+import { MobileFilterSheet } from '../../../components/common/MobileFilterSheet';
 
 export interface PurchaseItem {
   productId?: string;
@@ -70,6 +72,7 @@ export default function Purchases() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -630,54 +633,182 @@ export default function Purchases() {
     }).format(val);
   };
 
+  const summaryMetrics = useMemo(() => {
+    const totalCount = purchases.length;
+    const totalAmount = purchases.reduce((sum, p) => sum + (Number(p.total) || 0), 0);
+    const paidAmount = purchases.reduce((sum, p) => sum + getPaidAmount(p), 0);
+    const dueAmount = purchases.reduce((sum, p) => sum + getPendingAmount(p), 0);
+    return { totalCount, totalAmount, paidAmount, dueAmount };
+  }, [purchases]);
+
+  const activeFilterCount = statusFilter !== 'ALL' ? 1 : 0;
+
   return (
     <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
       {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
       <DistributorTopbar
         title="Purchases"
-        subtitle="Manage distributor supplier procurement & inventory orders"
+        subtitle="Manage supplier procurement orders, items, and inventory receipts"
         icon={ShoppingCart}
         actions={
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Purchase</span>
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={loadPurchases}
+              disabled={isLoading}
+              title="Refresh Purchases"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
+              <span className="hidden sm:inline ml-1.5">Refresh</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Purchase</span>
+            </button>
+          </div>
         }
       />
 
-      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
+      <div className="w-full p-3.5 sm:p-6 space-y-3.5 sm:space-y-4 flex-1">
 
-      {/* ─── FILTERS & SEARCH ROW ───────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-center gap-2.5">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search purchases by number, supplier, or reference..."
-            className="w-full pl-9 pr-8 py-2 bg-white border border-[#E2E8F0] rounded-lg text-xs text-[#16324F] placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1677C8] focus:border-[#1677C8] transition-all"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+      {/* ─── 2. COMPACT SUMMARY CARDS (RESPONSIVE) ───────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">Total Purchases</span>
+          <span className="text-base sm:text-lg font-extrabold text-[#16324F] block mt-1">{summaryMetrics.totalCount}</span>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 block truncate">Total Amount</span>
+          <span className="text-base sm:text-lg font-extrabold text-sky-700 block mt-1">{formatCurrency(summaryMetrics.totalAmount)}</span>
+        </div>
+
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block truncate">Paid Amount</span>
+          <span className="text-base sm:text-lg font-extrabold text-emerald-700 block mt-1">{formatCurrency(summaryMetrics.paidAmount)}</span>
+        </div>
+
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 block truncate">Pending Due</span>
+          <span className="text-base sm:text-lg font-extrabold text-amber-700 block mt-1">{formatCurrency(summaryMetrics.dueAmount)}</span>
+        </div>
+      </div>
+
+      {/* ─── 3. FILTERS & SEARCH ROW (RESPONSIVE) ────────────────────── */}
+      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+        {/* Mobile View: Search + Filter Sheet Button */}
+        <div className="flex md:hidden items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search purchases..."
+              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#1677C8] focus:bg-white transition-all"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsMobileFilterOpen(true)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+              activeFilterCount > 0
+                ? 'bg-[#1677C8]/10 text-[#1677C8] border-[#1677C8]/30'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span>Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-[#1677C8] text-white text-[10px] font-black flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Desktop View: Full Inline Filters */}
+        <div className="hidden md:flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-1 max-w-xl">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search purchases by number, supplier, or reference..."
+                className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#1677C8] focus:bg-white transition-all"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8] cursor-pointer"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="PAID">Paid</option>
+              <option value="PENDING">Pending</option>
+              <option value="PARTIAL">Partial</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+
+            {(search || statusFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('ALL');
+                }}
+                className="text-xs font-bold text-[#1677C8] hover:underline px-2 py-1 cursor-pointer shrink-0"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── MOBILE FILTER SHEET ────────────────────────────────────── */}
+      <MobileFilterSheet
+        isOpen={isMobileFilterOpen}
+        onClose={() => setIsMobileFilterOpen(false)}
+        activeCount={activeFilterCount}
+        onReset={() => setStatusFilter('ALL')}
+      >
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            Payment Status
+          </label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-36 px-2.5 py-2 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#16324F] focus:outline-none focus:ring-1 focus:ring-[#1677C8]"
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
           >
             <option value="ALL">All Statuses</option>
             <option value="PAID">Paid</option>
@@ -685,17 +816,8 @@ export default function Purchases() {
             <option value="PARTIAL">Partial</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
-
-          <button
-            type="button"
-            onClick={loadPurchases}
-            title="Refresh"
-            className="p-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg transition-colors cursor-pointer shrink-0"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
-          </button>
         </div>
-      </div>
+      </MobileFilterSheet>
 
       {/* ─── DENSE FULL-WIDTH OPERATIONAL TABLE ─────────────────────── */}
       <div className="w-full bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden">

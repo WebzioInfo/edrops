@@ -17,6 +17,7 @@ import {
   Phone,
   MapPin,
   Undo2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { showToast } from '../../../utils/toast';
@@ -25,6 +26,7 @@ import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
 import { useSocket } from '../../../contexts/SocketContext';
 import { DistributorTopbar } from '../components/DistributorTopbar';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
+import { MobileFilterSheet } from '../../../components/common/MobileFilterSheet';
 
 // Types
 export interface OrderItemProduct {
@@ -211,6 +213,7 @@ export default function Orders() {
   const [limit, setLimit] = useState<number>(25);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalMatching, setTotalMatching] = useState<number>(0);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
@@ -744,113 +747,264 @@ export default function Orders() {
     return customersList.find((c) => c.id === formCustomerId);
   }, [customersList, formCustomerId]);
 
+  const activeFilterCount =
+    (statusFilter !== 'ALL' ? 1 : 0) +
+    (paymentStatusFilter !== 'ALL' ? 1 : 0) +
+    (datePreset !== 'ALL' ? 1 : 0) +
+    (customerFilter !== 'ALL' ? 1 : 0);
+
   return (
     <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
       {/* ─── STANDARDIZED DISTRIBUTOR TOPBAR ──────────────────────── */}
       <DistributorTopbar
         title="Orders"
-        subtitle="Manage distributor customer orders and delivery fulfillment"
+        subtitle="Manage customer orders, assignments, and delivery fulfillment"
         icon={Package}
         actions={
-          <>
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={loadOrders}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-xs font-bold text-[#16324F] hover:bg-slate-50 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition shadow-2xs disabled:opacity-50 cursor-pointer"
               title="Refresh Orders"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
+              <span className="hidden sm:inline ml-1.5">Refresh</span>
             </button>
 
             <button
               type="button"
               onClick={handleOpenCreateModal}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span>New Order</span>
             </button>
-          </>
+          </div>
         }
       />
 
-      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
+      <div className="w-full p-3.5 sm:p-6 space-y-3.5 sm:space-y-4 flex-1">
 
-      {/* ─── 2. COMPACT SUMMARY BAR (REAL BACKEND DATA) ─────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Orders</span>
-          <span className="text-lg font-black text-slate-800">{stats.totalOrders}</span>
+      {/* ─── 2. COMPACT SUMMARY BAR (RESPONSIVE) ─────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-2.5">
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">Total Orders</span>
+          <span className="text-base sm:text-lg font-extrabold text-[#16324F] block mt-1">{stats.totalOrders}</span>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 block">Pending</span>
-          <span className="text-lg font-black text-sky-700">{stats.pendingCount}</span>
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 block truncate">Pending</span>
+          <span className="text-base sm:text-lg font-extrabold text-sky-700 block mt-1">{stats.pendingCount}</span>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block">Confirmed</span>
-          <span className="text-lg font-black text-blue-700">{stats.confirmedCount}</span>
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block truncate">Confirmed</span>
+          <span className="text-base sm:text-lg font-extrabold text-blue-700 block mt-1">{stats.confirmedCount}</span>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 block">Out for Delivery</span>
-          <span className="text-lg font-black text-purple-700">{stats.outForDeliveryCount}</span>
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 block truncate">Out for Delivery</span>
+          <span className="text-base sm:text-lg font-extrabold text-purple-700 block mt-1">{stats.outForDeliveryCount}</span>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block">Delivered</span>
-          <span className="text-lg font-black text-emerald-700">{stats.deliveredCount}</span>
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block truncate">Delivered</span>
+          <span className="text-base sm:text-lg font-extrabold text-emerald-700 block mt-1">{stats.deliveredCount}</span>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 block">Cancelled</span>
-          <span className="text-lg font-black text-rose-700">{stats.cancelledCount}</span>
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 block truncate">Cancelled</span>
+          <span className="text-base sm:text-lg font-extrabold text-rose-700 block mt-1">{stats.cancelledCount}</span>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 block">Pending Due</span>
-          <div className="flex items-baseline gap-1">
-            <span className="text-lg font-black text-amber-700">₹{stats.totalDue.toLocaleString()}</span>
+        <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 block truncate">Pending Due</span>
+          <div className="flex items-baseline gap-1 mt-1">
+            <span className="text-base sm:text-lg font-extrabold text-amber-700">₹{stats.totalDue.toLocaleString()}</span>
             <span className="text-[10px] text-slate-400 font-bold">({stats.pendingPaymentCount})</span>
           </div>
         </div>
       </div>
 
       {/* ─── 3. OPERATIONAL TOOLBAR (SEARCH + FILTERS) ──────────────── */}
-      <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center gap-3">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px] sm:min-w-[260px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search order number, customer, phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#1677C8] focus:bg-white transition-all"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+        {/* Mobile View: Search + Filter Sheet Trigger */}
+        <div className="flex md:hidden items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search order #, customer, phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#1677C8] focus:bg-white transition-all"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsMobileFilterOpen(true)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+              activeFilterCount > 0
+                ? 'bg-[#1677C8]/10 text-[#1677C8] border-[#1677C8]/30'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span>Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-[#1677C8] text-white text-[10px] font-black flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Order Status */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Status:</span>
+        {/* Desktop View: Full Inline Filters */}
+        <div className="hidden md:flex flex-wrap items-center gap-2.5">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search order number, customer, phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#1677C8] focus:bg-white transition-all"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Order Status */}
           <select
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
-            className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8]"
+            className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8] cursor-pointer"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="ORDER_PLACED">Order Placed</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+            <option value="DELIVERED">Delivered</option>
+          </select>
+
+          {/* Payment Status */}
+          <select
+            value={paymentStatusFilter}
+            onChange={(e) => {
+              setPaymentStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8] cursor-pointer"
+          >
+            <option value="ALL">All Payments</option>
+            <option value="UNPAID">Unpaid</option>
+            <option value="PARTIALLY_PAID">Partially Paid</option>
+            <option value="PAID">Paid</option>
+            <option value="REFUNDED">Refunded</option>
+          </select>
+
+          {/* Date Presets */}
+          <select
+            value={datePreset}
+            onChange={(e) => {
+              setDatePreset(e.target.value);
+              setPage(1);
+            }}
+            className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8] cursor-pointer"
+          >
+            <option value="ALL">All Dates</option>
+            <option value="TODAY">Today</option>
+            <option value="YESTERDAY">Yesterday</option>
+            <option value="THIS_WEEK">This Week</option>
+            <option value="THIS_MONTH">This Month</option>
+          </select>
+
+          {/* Customer Filter */}
+          {customersList.length > 0 && (
+            <select
+              value={customerFilter}
+              onChange={(e) => {
+                setCustomerFilter(e.target.value);
+                setPage(1);
+              }}
+              className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8] max-w-[140px] truncate cursor-pointer"
+            >
+              <option value="ALL">All Customers</option>
+              {customersList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.user?.firstName} {c.user?.lastName}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Clear Filters button */}
+          {(statusFilter !== 'ALL' || paymentStatusFilter !== 'ALL' || datePreset !== 'ALL' || customerFilter !== 'ALL' || search) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('ALL');
+                setPaymentStatusFilter('ALL');
+                setDatePreset('ALL');
+                setCustomerFilter('ALL');
+                setSearch('');
+                setPage(1);
+              }}
+              className="text-xs font-bold text-[#1677C8] hover:underline px-2 py-1 cursor-pointer shrink-0"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ─── MOBILE FILTER SHEET ────────────────────────────────────── */}
+      <MobileFilterSheet
+        isOpen={isMobileFilterOpen}
+        onClose={() => setIsMobileFilterOpen(false)}
+        activeCount={activeFilterCount}
+        onReset={() => {
+          setStatusFilter('ALL');
+          setPaymentStatusFilter('ALL');
+          setDatePreset('ALL');
+          setCustomerFilter('ALL');
+          setPage(1);
+        }}
+      >
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            Order Status
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
           >
             <option value="ALL">All Statuses</option>
             <option value="ORDER_PLACED">Order Placed</option>
@@ -860,16 +1014,17 @@ export default function Orders() {
           </select>
         </div>
 
-        {/* Payment Status */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Payment:</span>
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            Payment Status
+          </label>
           <select
             value={paymentStatusFilter}
             onChange={(e) => {
               setPaymentStatusFilter(e.target.value);
               setPage(1);
             }}
-            className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8]"
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
           >
             <option value="ALL">All Payments</option>
             <option value="UNPAID">Unpaid</option>
@@ -879,16 +1034,17 @@ export default function Orders() {
           </select>
         </div>
 
-        {/* Date Presets */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Date:</span>
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            Date Range
+          </label>
           <select
             value={datePreset}
             onChange={(e) => {
               setDatePreset(e.target.value);
               setPage(1);
             }}
-            className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8]"
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
           >
             <option value="ALL">All Dates</option>
             <option value="TODAY">Today</option>
@@ -898,17 +1054,18 @@ export default function Orders() {
           </select>
         </div>
 
-        {/* Customer Filter */}
         {customersList.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Customer:</span>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Specific Customer
+            </label>
             <select
               value={customerFilter}
               onChange={(e) => {
                 setCustomerFilter(e.target.value);
                 setPage(1);
               }}
-              className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8] max-w-[140px] truncate"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
             >
               <option value="ALL">All Customers</option>
               {customersList.map((c) => (
@@ -919,25 +1076,7 @@ export default function Orders() {
             </select>
           </div>
         )}
-
-        {/* Clear Filters button */}
-        {(statusFilter !== 'ALL' || paymentStatusFilter !== 'ALL' || datePreset !== 'ALL' || customerFilter !== 'ALL' || search) && (
-          <button
-            type="button"
-            onClick={() => {
-              setStatusFilter('ALL');
-              setPaymentStatusFilter('ALL');
-              setDatePreset('ALL');
-              setCustomerFilter('ALL');
-              setSearch('');
-              setPage(1);
-            }}
-            className="text-xs font-bold text-[#1677C8] hover:underline px-2 py-1 cursor-pointer"
-          >
-            Clear Filters
-          </button>
-        )}
-      </div>
+      </MobileFilterSheet>
 
       {/* ─── 4. DENSE OPERATIONAL ORDER TABLE ───────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">

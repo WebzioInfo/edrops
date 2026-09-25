@@ -94,7 +94,7 @@ interface QueueStats {
 
 export default function NewOrders() {
   const navigate = useNavigate();
-  const { socket, isConnected } = useSocket();
+  const { socket } = useSocket();
 
   const [orders, setOrders] = useState<NewOrderRecord[]>([]);
   const [stats, setStats] = useState<QueueStats>({
@@ -479,109 +479,93 @@ export default function NewOrders() {
         subtitle="Unassigned incoming customer orders available to claim. First distributor to accept gets the order."
         icon={Flame}
         iconVariant="amber"
-        badge={
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
-            Live Assignment
-          </span>
-        }
+        
         actions={
           <>
             {/* Realtime WebSocket Indicator */}
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
-                isConnected
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-amber-50 text-amber-700 border-amber-200'
-              }`}
-              title={isConnected ? 'WebSocket connected: Receiving orders in real-time' : 'Reconnecting to real-time events...'}
-            >
-              <span className="relative flex h-2 w-2">
-                {isConnected && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${
-                    isConnected ? 'bg-emerald-500' : 'bg-amber-500'
-                  }`}
-                ></span>
-              </span>
-              <span className="text-[11px] font-extrabold uppercase tracking-wider">
-                {isConnected ? 'Real-Time Active' : 'Connecting...'}
-              </span>
-            </div>
+            
 
             <button
               onClick={() => fetchQueue(true)}
               disabled={isLoading}
               title="Refresh Queue"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-xs font-bold text-[#16324F] hover:bg-slate-50 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition shadow-2xs disabled:opacity-50 cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
+              <span className="hidden sm:inline ml-1.5">Refresh</span>
             </button>
           </>
         }
       />
 
-      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
+      <div className="w-full p-3.5 sm:p-6 space-y-3.5 sm:space-y-4 flex-1">
         {isLoading && orders.length === 0 ? (
           <EdropsPageLoader minHeight="min-h-[50vh]" />
         ) : (
           <>
-            {/* ─── LIVE METRIC CARDS ────────────────────────────────────────────── */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-3 rounded-xl border border-amber-200/80 bg-amber-50/40 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Queue Available</p>
-              <p className="text-2xl font-black text-amber-700 leading-tight mt-0.5">{stats.queueCount}</p>
-            </div>
-            <div className="h-10 w-10 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold">
-              <Package className="w-5 h-5" />
-            </div>
-          </div>
+            {/* ─── LIVE METRIC CARDS (2-COL RESPONSIVE) ───────────────────────── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+              <div className="p-3 rounded-xl border border-amber-200/80 bg-amber-50/40 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-amber-800 uppercase tracking-wider">Queue Available</p>
+                  <p className="text-xl sm:text-2xl font-black text-amber-700 leading-tight mt-0.5">{stats.queueCount}</p>
+                </div>
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold">
+                  <Package className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+              </div>
 
-          <div className="p-3 rounded-xl border border-sky-200/80 bg-sky-50/40 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-sky-800 uppercase tracking-wider">Incoming Today</p>
-              <p className="text-2xl font-black text-[#0088CC] leading-tight mt-0.5">{stats.todayCount}</p>
-            </div>
-            <div className="h-10 w-10 rounded-lg bg-sky-500/15 text-[#0088CC] flex items-center justify-center font-bold">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </div>
+              <div className="p-3 rounded-xl border border-sky-200/80 bg-sky-50/40 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-sky-800 uppercase tracking-wider">Incoming Today</p>
+                  <p className="text-xl sm:text-2xl font-black text-[#0088CC] leading-tight mt-0.5">{stats.todayCount}</p>
+                </div>
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-sky-500/15 text-[#0088CC] flex items-center justify-center font-bold">
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+              </div>
 
-          <div className="p-3 rounded-xl border border-emerald-200/80 bg-emerald-50/40 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Total Queue Value</p>
-              <p className="text-2xl font-black text-emerald-700 leading-tight mt-0.5">
-                {formatCurrency(stats.totalQueueValue)}
-              </p>
+              <div className="col-span-2 sm:col-span-1 p-3 rounded-xl border border-emerald-200/80 bg-emerald-50/40 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Total Queue Value</p>
+                  <p className="text-xl sm:text-2xl font-black text-emerald-700 leading-tight mt-0.5">
+                    {formatCurrency(stats.totalQueueValue)}
+                  </p>
+                </div>
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold">
+                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+              </div>
             </div>
-            <div className="h-10 w-10 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold">
-              <CreditCard className="w-5 h-5" />
+
+            {/* ─── SEARCH & FILTER TOOLBAR ───────────────────────────────────────── */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+              <div className="relative w-full sm:w-96">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search queue by Order #, Customer, Phone, City..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#1677C8] focus:bg-white text-[#16324F] placeholder-slate-400 transition-all"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="text-xs font-semibold text-slate-500 w-full sm:w-auto flex justify-between sm:justify-end items-center gap-2">
+                <span>
+                  Showing <strong className="text-slate-800">{filteredOrders.length}</strong> available orders
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
-
-        {/* ─── SEARCH & FILTER TOOLBAR ───────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs">
-          <div className="relative w-full sm:w-96">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search queue by Order #, Customer, Phone, City..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1677C8] focus:bg-white text-[#16324F]"
-            />
-          </div>
-
-          <div className="text-xs font-semibold text-[#64748B] w-full sm:w-auto flex justify-between sm:justify-end items-center gap-2">
-            <span>
-              Showing <strong className="text-[#16324F]">{filteredOrders.length}</strong> available orders
-            </span>
-          </div>
-        </div>
 
         {/* ─── QUEUE TABLE / LIST ────────────────────────────────────────────── */}
         <div>

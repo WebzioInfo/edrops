@@ -12,12 +12,14 @@ import {
   Trash2,
   Tag,
   Building2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
+import { MobileFilterSheet } from '../../../components/common/MobileFilterSheet';
 
 export default function CustomerManagement() {
   const navigate = useNavigate();
@@ -37,6 +39,7 @@ export default function CustomerManagement() {
   const [editingSchedule, setEditingSchedule] = useState(false);
   const [rules, setRules] = useState<any[]>([]);
   const [isScheduleActive, setIsScheduleActive] = useState(true);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const loadCustomers = async () => {
     try {
@@ -169,136 +172,235 @@ export default function CustomerManagement() {
     };
   }, [customers]);
 
+  const activeFilterCount = (statusFilter !== 'ALL' ? 1 : 0) + (typeFilter !== 'ALL' ? 1 : 0);
+
   return (
-    <div className="space-y-4 animate-in fade-in duration-150">
-      {/* ─── 1. COMPACT TOOLBAR (SEARCH + FILTERS + ACTIONS) ────────── */}
-      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-[240px]">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[180px] sm:min-w-[260px]">
+    <div className="space-y-3.5 sm:space-y-4 animate-in fade-in duration-150">
+      {/* ─── SEARCH, FILTER & ACTION TOOLBAR (RESPONSIVE) ──────────── */}
+      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+        {/* Mobile View: Search + Filter Trigger + Refresh + Add Customer */}
+        <div className="flex md:hidden items-center gap-1.5 sm:gap-2">
+          <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="Search customers..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#1677C8] focus:bg-white transition-all"
+              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#1677C8] focus:bg-white transition-all"
             />
             {search && (
               <button
+                type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8]"
+          <button
+            type="button"
+            onClick={() => setIsMobileFilterOpen(true)}
+            className={`flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+              activeFilterCount > 0
+                ? 'bg-[#1677C8]/10 text-[#1677C8] border-[#1677C8]/30'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+            }`}
+            title="Filters"
           >
-            <option value="ALL">All Status</option>
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-          </select>
+            <SlidersHorizontal className="w-4 h-4" />
+            {activeFilterCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-[#1677C8] text-white text-[10px] font-black flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
 
-          {/* Customer Type Filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as any)}
-            className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8]"
-          >
-            <option value="ALL">All Types</option>
-            <option value="RESIDENTIAL">Residential</option>
-            <option value="COMMERCIAL">Commercial</option>
-          </select>
-
-          {(search || statusFilter !== 'ALL' || typeFilter !== 'ALL') && (
-            <button
-              onClick={() => {
-                setSearch('');
-                setStatusFilter('ALL');
-                setTypeFilter('ALL');
-              }}
-              className="text-xs font-bold text-[#1677C8] hover:underline px-1.5 py-1 cursor-pointer"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={loadCustomers}
             disabled={loading}
             title="Refresh Directory"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+            className="p-2 text-slate-600 hover:text-[#1677C8] bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors cursor-pointer disabled:opacity-50 shrink-0"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#1677C8]' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#1677C8]' : ''}`} />
           </button>
+
           <button
             type="button"
             onClick={() => navigate('/staff/customers/add')}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
+            className="inline-flex items-center gap-1 p-2 sm:px-3 sm:py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
+            title="Add New Customer"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Customer</span>
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Add</span>
           </button>
+        </div>
+
+        {/* Desktop View: Clean Inline Filters + Actions */}
+        <div className="hidden md:flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-1 max-w-2xl">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search by name, phone, email, company, ID..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#1677C8] focus:bg-white transition-all"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8] cursor-pointer"
+            >
+              <option value="ALL">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+
+            {/* Customer Type Filter */}
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as any)}
+              className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#1677C8] cursor-pointer"
+            >
+              <option value="ALL">All Types</option>
+              <option value="RESIDENTIAL">Residential</option>
+              <option value="COMMERCIAL">Commercial</option>
+            </select>
+
+            {(search || statusFilter !== 'ALL' || typeFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('ALL');
+                  setTypeFilter('ALL');
+                }}
+                className="text-xs font-bold text-[#1677C8] hover:underline px-2 py-1 cursor-pointer shrink-0"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
+          {/* Right Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={loadCustomers}
+              disabled={loading}
+              title="Refresh Directory"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#1677C8]' : ''}`} />
+              <span>Refresh</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/staff/customers/add')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              title="Add New Customer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Customer</span>
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* ─── MOBILE FILTER SHEET ────────────────────────────────────── */}
+      <MobileFilterSheet
+        isOpen={isMobileFilterOpen}
+        onClose={() => setIsMobileFilterOpen(false)}
+        activeCount={activeFilterCount}
+        onReset={() => {
+          setStatusFilter('ALL');
+          setTypeFilter('ALL');
+        }}
+      >
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            Account Status
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
+          >
+            <option value="ALL">All Statuses ({customers.length})</option>
+            <option value="ACTIVE">Active ({summaryMetrics.active})</option>
+            <option value="INACTIVE">Inactive ({summaryMetrics.total - summaryMetrics.active})</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            Customer Type
+          </label>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as any)}
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
+          >
+            <option value="ALL">All Customer Types</option>
+            <option value="RESIDENTIAL">Residential</option>
+            <option value="COMMERCIAL">Commercial</option>
+          </select>
+        </div>
+      </MobileFilterSheet>
+
       {/* ─── 2. COMPACT SUMMARY CARDS (EXACT DISTRIBUTOR DENSITY) ────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+        <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">
             Total Customers
           </span>
-          <span className="text-lg sm:text-xl font-black text-slate-800 leading-tight mt-0.5 block">
+          <span className="text-base sm:text-lg font-extrabold text-[#16324F] leading-tight mt-1 block">
             {summaryMetrics.total}
           </span>
-          <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">
-            Registered accounts
-          </span>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block">
+        <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block truncate">
             Active Customers
           </span>
-          <span className="text-lg sm:text-xl font-black text-emerald-700 leading-tight mt-0.5 block">
+          <span className="text-base sm:text-lg font-extrabold text-emerald-700 leading-tight mt-1 block">
             {summaryMetrics.active}
           </span>
-          <span className="text-[10px] text-emerald-600/80 font-bold mt-0.5 block">
-            {summaryMetrics.total > 0
-              ? `${Math.round((summaryMetrics.active / summaryMetrics.total) * 100)}% operational`
-              : '0% active'}
-          </span>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 block">
+        <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 block truncate">
             Prepaid Balance
           </span>
-          <span className="text-lg sm:text-xl font-black text-sky-700 leading-tight mt-0.5 block">
+          <span className="text-base sm:text-lg font-extrabold text-sky-700 leading-tight mt-1 block">
             ₹{summaryMetrics.totalPrepaidBalance.toLocaleString('en-IN')}
-          </span>
-          <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">
-            Combined wallet funds
           </span>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 block">
+        <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block truncate">
             Deposit Paid / Due
           </span>
-          <div className="flex items-baseline gap-1 mt-0.5">
-            <span className="text-lg sm:text-xl font-black text-emerald-700">
+          <div className="flex items-baseline gap-1 mt-1">
+            <span className="text-base sm:text-lg font-extrabold text-emerald-700">
               ₹{summaryMetrics.totalDepositPaid.toLocaleString('en-IN')}
             </span>
             <span className="text-slate-300 text-xs font-normal">/</span>
@@ -306,9 +408,6 @@ export default function CustomerManagement() {
               ₹{summaryMetrics.totalDepositDue.toLocaleString('en-IN')}
             </span>
           </div>
-          <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">
-            Jar security deposits
-          </span>
         </div>
       </div>
 

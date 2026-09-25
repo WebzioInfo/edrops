@@ -10,6 +10,7 @@ import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
 const CustomerManagement = React.lazy(() => import('./pages/CustomerManagement'));
 const DistributorManagement = React.lazy(() => import('./pages/DistributorManagement'));
+const Drivers = React.lazy(() => import('./pages/Drivers'));
 const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
 const InventoryAudit = React.lazy(() => import('./pages/InventoryAudit'));
 const SupportManagement = React.lazy(() => import('./pages/SupportManagement'));
@@ -40,7 +41,8 @@ export default function StaffPortal() {
     if (path.includes('/customers/') && path.includes('/edit')) return 'Edit Customer';
     if (path.includes('/customers')) return 'Customer Management';
     if (path.includes('/distributors')) return 'Distributor Management';
-    if (path.includes('/packages')) return 'Package Management';
+    if (path.includes('/drivers')) return 'Driver Management';
+    if (path.includes('/packages') || path.includes('/memberships')) return 'Package Management';
     if (path.includes('/inventory')) return 'Inventory Audit';
     if (path.includes('/support')) return 'Support Management';
     if (path.includes('/profile')) return 'Staff Profile';
@@ -165,7 +167,7 @@ export default function StaffPortal() {
 
         {/* Scrollable Content Viewport */}
         <main className="flex-1 min-w-0 overflow-y-auto overscroll-y-contain bg-[#F8FAFC] [-webkit-overflow-scrolling:touch]">
-          <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
+          <div className="w-full p-3.5 sm:p-6 space-y-3.5 sm:space-y-4 flex-1">
             <Suspense fallback={<StaffLoader />}>
               <Routes>
                 <Route path="orders" element={<OrderManagement />} />
@@ -174,6 +176,7 @@ export default function StaffPortal() {
                 <Route path="customers/:id/edit" element={<CustomerForm basePath="/staff/customers" />} />
                 <Route path="customers/*" element={<CustomerManagement />} />
                 <Route path="distributors/*" element={<DistributorManagement />} />
+                <Route path="drivers" element={<Drivers />} />
                 <Route path="packages" element={<PackageManagement />} />
                 <Route path="inventory" element={<InventoryAudit />} />
                 <Route path="support" element={<SupportManagement />} />
