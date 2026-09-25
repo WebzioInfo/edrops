@@ -1,6 +1,73 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navigation from '../../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Features', url: '/features/' },
+  { name: 'Analytics & Reports', url: '/features/analytics/' }
+];
+
+const serviceData = {
+  name: 'eDrops Water Distribution Analytics & Operations Reporting',
+  description: 'Track daily fulfillment rates, driver route efficiency, prepaid cash flow, jar shrinkage, and customer retention metrics.',
+  url: '/features/analytics/',
+  serviceType: 'Business Analytics Software'
+};
 ---
-<BaseLayout title="Water Delivery Analytics Software | Edrops" description="Track revenue, deliveries, subscription health, customer growth, low-balance customers, and branch performance.">
-  <main class="mx-auto max-w-5xl px-5 py-20 text-edrops-ocean"><a href="/features" class="font-black text-edrops-primary">Features</a><h1 class="mt-8 text-5xl font-black tracking-tight sm:text-7xl">Analytics for water delivery growth.</h1><p class="mt-8 text-lg font-medium leading-9 text-edrops-ocean/68">Measure delivery health, active subscriptions, recharge revenue, customer growth, branch performance, and low-balance recovery opportunities.</p><a href="/contact" class="mt-10 inline-flex rounded-full sun-gradient px-7 py-4 text-sm font-black text-white">Book demo</a></main>
+
+<BaseLayout
+  title="Water Plant Analytics & Distribution Reports | eDrops™"
+  description="Gain complete operational clarity: monitor fulfillment rates, empty jar circulation, recharge revenue, and route performance with eDrops."
+  keywords="Water delivery analytics, water plant reports, jar inventory reconciliation, water distribution dashboard"
+  breadcrumbs={breadcrumbs}
+  serviceData={serviceData}
+>
+  <Navigation />
+
+  <main class="mx-auto max-w-5xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Analytics & Reports</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-10 max-w-3xl">
+      <header class="space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Operational Clarity</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
+          Executive analytics for water distribution.
+        </h1>
+        <p class="text-lg text-edrops-slate leading-relaxed">
+          Transform raw daily dispatch into clear financial and inventory intelligence: know your exact jar inventory, pending recharges, and driver completion velocity.
+        </p>
+      </header>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Bottle Shrinkage Audits</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Track bottles in customer possession versus bottles in depot circulation to eliminate unrecovered jar losses.
+          </p>
+        </div>
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Cashflow Forecasts</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Analyze prepaid wallet recharge patterns and identify churn risks before subscribers lapse.
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-6">
+        <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
+          Explore Operational Reports
+        </a>
+      </div>
+    </div>
+  </main>
 </BaseLayout>

@@ -1,38 +1,95 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Navigation from '../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Features', url: '/features/' }
+];
+
+const featureList = [
+  {
+    title: 'Subscription Intelligence',
+    href: '/features/subscription-management/',
+    description: 'Flexible recurring delivery schedules that adapt to customer rhythms. Pause, skip, or change jar quantities with automated recharge forecasting.'
+  },
+  {
+    title: 'Prepaid Jar Wallet Engine',
+    href: '/features/recharge-management/',
+    description: 'Upfront digital recharges via UPI and cards. Completed doorstep deliveries automatically deduct balance in real time with zero payment chasing.'
+  },
+  {
+    title: 'Delivery & Route Dispatch',
+    href: '/features/delivery-management/',
+    description: 'Schedule, assign, and track driver deliveries. Verified doorstep jar swaps with balance-safe completion logs.'
+  },
+  {
+    title: 'Mobile Staff & Driver Workspace',
+    href: '/features/staff-management/',
+    description: 'Give delivery drivers a clean mobile route sheet with customer addresses, quick call triggers, swap counters, and delivery confirmation.'
+  },
+  {
+    title: 'Customer Self-Service CRM',
+    href: '/features/customer-management/',
+    description: 'Empower customers to self-manage recurring orders, track live drops, view billing receipts, and invite neighbors with referral bonuses.'
+  },
+  {
+    title: 'Operational Analytics & Reports',
+    href: '/features/analytics/',
+    description: 'Track daily fulfillment rates, jar shrinkage and losses, outstanding bottles in circulation, driver performance, and recharge revenues.'
+  }
+];
 ---
 
 <BaseLayout
-  title="Features & Capabilities | Edrops — Water Delivery Platform"
-  description="Discover the core capabilities of Edrops: recurring subscription management, prepaid jar wallets, live driver dispatch, automated invoicing, and analytics."
-  keywords="Edrops features, water delivery app features, water jar subscription management tools"
+  title="eDrops™ Features | Water Jar Delivery, Prepaid Wallets & Route Dispatch Software"
+  description="Explore the comprehensive feature suite of eDrops: automated 20L water jar subscriptions, prepaid digital wallets, driver route sheets, and plant analytics."
+  keywords="eDrops features, water delivery app features, 20L water subscription software, water delivery dispatch, prepaid water jar wallet"
+  breadcrumbs={breadcrumbs}
 >
   <Navigation />
 
-  <main id="main-content" class="pt-32 pb-20 px-5 max-w-7xl mx-auto min-h-screen">
-    <div class="max-w-4xl space-y-8">
-      <h1 class="text-4xl sm:text-5xl font-extrabold text-edrops-ocean tracking-tight">Platform Features</h1>
-      <p class="text-lg text-edrops-slate leading-relaxed">
-        Edrops combines customer subscription convenience with powerful water distribution logistics:
-      </p>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h3 class="text-xl font-bold text-edrops-ocean">Prepaid Wallets</h3>
-          <p class="text-sm text-edrops-slate leading-relaxed">Automate jar deductions on delivery with real-time balance tracking and zero payment chasing.</p>
-        </div>
-        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h3 class="text-xl font-bold text-edrops-ocean">Route Optimization</h3>
-          <p class="text-sm text-edrops-slate leading-relaxed">Dispatch delivery routes with live location tracking, doorstep swaps, and bottle inventory reconciliation.</p>
-        </div>
-        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h3 class="text-xl font-bold text-edrops-ocean">Subscription Intelligence</h3>
-          <p class="text-sm text-edrops-slate leading-relaxed">Flexible recurring delivery schedules allowing customers to pause, skip, or modify orders 24/7.</p>
-        </div>
-        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h3 class="text-xl font-bold text-edrops-ocean">Operational Reports</h3>
-          <p class="text-sm text-edrops-slate leading-relaxed">Monitor delivery fulfillment rates, customer retention, recharge revenue, and empty jar returns.</p>
-        </div>
+  <main id="main-content" class="pt-32 pb-24 px-5 max-w-6xl mx-auto min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Features</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-12">
+      <header class="max-w-3xl space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Platform Architecture</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-edrops-ocean tracking-tight">
+          Purpose-Built for 20L Water Operations
+        </h1>
+        <p class="text-lg text-edrops-slate leading-relaxed">
+          Every tool inside eDrops was engineered to eliminate notebook errors, prevent payment defaults, and give delivery fleets total visibility.
+        </p>
+      </header>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+        {featureList.map((feature) => (
+          <article class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs hover:border-edrops-primary/40 hover:shadow-md transition-all flex flex-col justify-between">
+            <div class="space-y-3">
+              <h2 class="text-xl font-bold text-edrops-ocean">
+                <a href={feature.href} class="hover:text-edrops-primary transition-colors">
+                  {feature.title}
+                </a>
+              </h2>
+              <p class="text-sm text-edrops-slate leading-relaxed">
+                {feature.description}
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-edrops-border/40">
+              <a href={feature.href} class="text-xs font-bold text-edrops-primary hover:underline inline-flex items-center gap-1">
+                Explore capability <span>→</span>
+              </a>
+            </div>
+          </article>
+        ))}
       </div>
     </div>
   </main>

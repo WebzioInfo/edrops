@@ -1,15 +1,63 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Navigation from '../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Terms of Service', url: '/terms/' }
+];
 ---
 
 <BaseLayout
-  title="Terms of Service | Edrops — Water Delivery & Subscription Software"
-  description="Read the terms of service and operator agreements for Edrops, the 20L water jar delivery, route dispatch, and subscription management platform."
-  keywords="Edrops terms of service, water subscription terms, water plant software terms"
+  title="Terms of Service | eDrops™ — Platform Usage & Service Agreements"
+  description="Read the terms of service and operator agreements for eDrops, the 20L water jar delivery, route dispatch, and subscription management platform."
+  keywords="eDrops terms of service, water subscription terms, water plant software terms"
+  breadcrumbs={breadcrumbs}
 >
-  <main class="mx-auto max-w-4xl px-5 py-20 text-edrops-ocean">
-    <a href="/" class="font-black text-edrops-primary">Edrops</a>
-    <h1 class="mt-8 text-5xl font-black tracking-tight">Terms</h1>
-    <p class="mt-8 text-lg font-medium leading-9 text-edrops-ocean/66">Edrops provides software for prepaid water subscription operations. Operators remain responsible for customer contracts, pricing, delivery fulfillment, and local compliance.</p>
+  <Navigation />
+
+  <main class="mx-auto max-w-4xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Terms of Service</li>
+      </ol>
+    </nav>
+
+    <header class="space-y-4 mb-8">
+      <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Operating Agreements</span>
+      <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean">
+        Terms of Service
+      </h1>
+      <p class="text-xs text-edrops-muted">Last Updated: September 2026</p>
+    </header>
+
+    <div class="prose max-w-none space-y-6 text-base sm:text-lg leading-relaxed text-edrops-ocean/80">
+      <p>
+        These Terms of Service ("Terms") govern your access to and use of the services, applications, and websites provided by <strong>eDrops Technologies Private Limited</strong> ("eDrops").
+      </p>
+
+      <h2 class="text-2xl font-bold text-edrops-ocean mt-8 mb-3">1. Platform Services</h2>
+      <p>
+        eDrops operates a technology platform facilitating 20L water jar subscriptions, prepaid digital wallets, and route fulfillment. Independent licensed water plants and distributors fulfill the physical bottling, sanitization, and transportation of drinking water in accordance with local safety regulations.
+      </p>
+
+      <h2 class="text-2xl font-bold text-edrops-ocean mt-8 mb-3">2. Prepaid Wallet & Deliveries</h2>
+      <p>
+        Customer wallet balances are consumed on a per-delivery basis upon doorstep completion confirmation. Subscriptions may be paused, rescheduled, or cancelled at any time through the customer dashboard. Refund requests for unused wallet credits are processed according to our standard refund schedule within 5–7 business days.
+      </p>
+
+      <h2 class="text-2xl font-bold text-edrops-ocean mt-8 mb-3">3. Governing Law & Contact</h2>
+      <p>
+        These terms shall be governed by and construed in accordance with the laws of India. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the courts in Ernakulam/Kochi, Kerala.
+      </p>
+      <div class="p-6 rounded-2xl bg-white border border-edrops-border text-sm">
+        <strong>eDrops Technologies Private Limited</strong><br />
+        Kondotty, Malappuram, Kerala 673638, India<br />
+        Support: <a href="mailto:support@edrops.in" class="text-edrops-primary font-bold">support@edrops.in</a> | Phone: +91 7907805620
+      </div>
+    </div>
   </main>
 </BaseLayout>

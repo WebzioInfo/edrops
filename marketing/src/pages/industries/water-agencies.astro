@@ -1,6 +1,73 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navigation from '../../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Industries', url: '/industries/' },
+  { name: 'Water Agencies', url: '/industries/water-agencies/' }
+];
+
+const serviceData = {
+  name: 'eDrops Water Agency Software for Customer Management & Billing',
+  description: 'Water agency software for customer management, water jar tracking, delivery schedules, and automated recharge workflows.',
+  url: '/industries/water-agencies/',
+  serviceType: 'Agency Management Software'
+};
 ---
-<BaseLayout title="Water Agency Software | Edrops" description="Water agency software for customer management, water jar tracking, delivery schedules, and recharge workflows.">
-  <main class="mx-auto max-w-5xl px-5 py-20 text-edrops-ocean"><a href="/" class="font-black text-edrops-primary">Edrops</a><h1 class="mt-8 text-5xl font-black tracking-tight sm:text-7xl">Water agency software for prepaid jar delivery.</h1><p class="mt-8 text-lg font-medium leading-9 text-edrops-ocean/68">Replace notebooks and spreadsheets with subscription schedules, balance intelligence, delivery proof, notifications, offers, and customer retention workflows.</p><a href="/contact" class="mt-10 inline-flex rounded-full sun-gradient px-7 py-4 text-sm font-black text-white">Contact sales</a></main>
+
+<BaseLayout
+  title="Water Agency Software | Prepaid Jar Delivery & Customer Billing | eDrops™"
+  description="Water agency software for customer management, water jar tracking, delivery schedules, and recharge workflows with eDrops."
+  keywords="Water agency software, water jar delivery agency, prepaid water billing system, bottled water agency CRM"
+  breadcrumbs={breadcrumbs}
+  serviceData={serviceData}
+>
+  <Navigation />
+
+  <main class="mx-auto max-w-5xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li><a href="/industries/" class="hover:text-edrops-primary transition-colors">Industries</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Water Agencies</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-10 max-w-3xl">
+      <header class="space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Agency Billing</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
+          Water agency software for prepaid jar delivery.
+        </h1>
+        <p class="text-lg text-edrops-slate leading-relaxed">
+          Replace notebooks and paper billing cards with automated subscription schedules, balance intelligence, doorstep delivery proof, SMS notifications, and customer retention workflows.
+        </p>
+      </header>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Notebook-Free Operations</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Eliminate lost delivery registers and customer disputes with digital timestamps and driver signatures.
+          </p>
+        </div>
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Instant Recharges</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Customers recharge via UPI QR codes or WhatsApp links, ensuring money is collected before water is consumed.
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-6">
+        <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
+          Modernize Your Agency
+        </a>
+      </div>
+    </div>
+  </main>
 </BaseLayout>

@@ -1,6 +1,73 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navigation from '../../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Features', url: '/features/' },
+  { name: 'Staff Management', url: '/features/staff-management/' }
+];
+
+const serviceData = {
+  name: 'eDrops Mobile Delivery Staff & Driver Management System',
+  description: 'Equip delivery drivers with a mobile-first route app for daily drops, one-tap customer calls, doorstep jar swaps, and cash-free reconciliation.',
+  url: '/features/staff-management/',
+  serviceType: 'Driver Management Software'
+};
 ---
-<BaseLayout title="Water Delivery Staff Management Software | Edrops" description="Give delivery staff a mobile-first workspace for today's deliveries, customer calls, proof, and completion.">
-  <main class="mx-auto max-w-5xl px-5 py-20 text-edrops-ocean"><a href="/features" class="font-black text-edrops-primary">Features</a><h1 class="mt-8 text-5xl font-black tracking-tight sm:text-7xl">Mobile-first staff management for water routes.</h1><p class="mt-8 text-lg font-medium leading-9 text-edrops-ocean/68">Staff see today’s route, customer context, low-balance alerts, quick call actions, delivery completion, and failure notes without desktop dashboard friction.</p><a href="/contact" class="mt-10 inline-flex rounded-full sun-gradient px-7 py-4 text-sm font-black text-white">Contact sales</a></main>
+
+<BaseLayout
+  title="Mobile Delivery Partner & Staff Management Software | eDrops™"
+  description="Give delivery staff a mobile-first workspace for daily routes, customer contact, doorstep proof, and real-time jar swap counts."
+  keywords="Water delivery driver app, staff management software, delivery route sheet mobile, delivery fleet management"
+  breadcrumbs={breadcrumbs}
+  serviceData={serviceData}
+>
+  <Navigation />
+
+  <main class="mx-auto max-w-5xl px-5 pt-32 pb-24 text-edrops-ocean min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Staff Management</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-10 max-w-3xl">
+      <header class="space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Driver Mobility</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
+          Mobile-first staff management for water routes.
+        </h1>
+        <p class="text-lg text-edrops-slate leading-relaxed">
+          Staff see today’s route, customer context, low-balance alerts, quick call actions, delivery completion, and failure notes without desktop dashboard friction.
+        </p>
+      </header>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Doorstep Jar Swap Log</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Record empty jars collected versus full jars delivered. Zero end-of-day bottle reconciliation discrepancies.
+          </p>
+        </div>
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
+          <h2 class="text-lg font-bold text-edrops-ocean">Instant Navigation & Dial</h2>
+          <p class="text-sm text-edrops-slate leading-relaxed">
+            Integrated Google Maps directions and masked calling to ensure smooth customer communication on the move.
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-6">
+        <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
+          View Driver Workspace
+        </a>
+      </div>
+    </div>
+  </main>
 </BaseLayout>
