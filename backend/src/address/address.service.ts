@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateAddressDto } from './dto/address.dto';
 
 export interface ServiceabilityResult {
+  deliverable: boolean;
   serviceable: boolean;
   pincode: string;
   city?: string;
@@ -53,6 +54,7 @@ export class AddressService {
     if (match) {
       this.logger.log(`Serviceability: pincode=${normalized} matched active distributor pincode`);
       return {
+        deliverable: true,
         serviceable: true,
         pincode: normalized,
         city: match.location || match.district || undefined,
@@ -62,6 +64,7 @@ export class AddressService {
 
     this.logger.log(`Serviceability: pincode=${normalized} not found under any active distributor`);
     return {
+      deliverable: false,
       serviceable: false,
       pincode: normalized,
     };

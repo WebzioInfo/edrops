@@ -9,6 +9,7 @@ import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PullToRefresh from '../../../components/pwa/PullToRefresh';
 import ProductCard from '../components/ProductCard';
+import DeliveryAvailabilityChecker from '../components/DeliveryAvailabilityChecker';
 
 export default function Shop() {
   const { user } = useAuth();
@@ -91,6 +92,9 @@ export default function Shop() {
           </motion.section>
         )}
       </AnimatePresence>
+
+      {/* Delivery Availability Checker */}
+      <DeliveryAvailabilityChecker />
 
       {/* Categories & Search Toolbar */}
       <section className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center mb-4 sm:mb-6">

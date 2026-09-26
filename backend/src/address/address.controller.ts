@@ -27,6 +27,15 @@ export class AddressController {
     return this.addressService.checkServiceability(pincode);
   }
 
+  /** GET /address/check-delivery?pincode=682001 (Public alias) */
+  @Get('check-delivery')
+  checkDelivery(@Query('pincode') pincode: string) {
+    if (!pincode) {
+      throw new BadRequestException('pincode query parameter is required');
+    }
+    return this.addressService.checkServiceability(pincode);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Req() req, @Body() createAddressDto: CreateAddressDto) {
