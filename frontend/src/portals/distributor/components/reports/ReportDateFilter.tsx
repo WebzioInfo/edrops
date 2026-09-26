@@ -158,11 +158,11 @@ export const ReportDateFilter: React.FC<ReportDateFilterProps> = ({
   };
 
   return (
-    <div className={`relative inline-block ${className}`} ref={dropdownRef}>
+    <div className={`relative ${className.includes('w-full') ? 'w-full block sm:inline-block sm:w-auto' : 'inline-block'} ${className}`} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full sm:w-auto flex items-center justify-between gap-2 sm:gap-2.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-[#16324F] bg-white border border-[#CBD5E1] rounded-lg hover:border-[#1677C8] hover:bg-slate-50 transition-all shadow-2xs whitespace-nowrap cursor-pointer select-none"
+        className="w-full sm:w-auto flex items-center justify-between gap-2 sm:gap-2.5 px-3 py-2 sm:py-1.5 text-xs font-semibold text-[#16324F] bg-white border border-[#CBD5E1] rounded-lg hover:border-[#1677C8] hover:bg-slate-50 transition-all shadow-2xs whitespace-nowrap cursor-pointer select-none"
         aria-haspopup="true"
         aria-expanded={isOpen}
       >
@@ -177,7 +177,7 @@ export const ReportDateFilter: React.FC<ReportDateFilterProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1.5 z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-xs sm:max-w-sm bg-white rounded-xl border border-[#E2E8F0] shadow-xl p-2.5 animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 z-50 w-full sm:w-80 max-w-sm bg-white rounded-xl border border-[#E2E8F0] shadow-xl p-2.5 animate-in fade-in zoom-in-95 duration-100">
           <div className="px-2 py-1.5 border-b border-[#F1F5F9] mb-1.5 flex items-center justify-between">
             <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Select Date Period</p>
             <span className="text-[10px] text-[#94A3B8] font-medium">Local Timezone</span>

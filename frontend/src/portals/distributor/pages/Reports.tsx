@@ -16,6 +16,7 @@ import {
   DollarSign,
   ArrowDownRight,
   ChevronRight,
+  ChevronDown,
   Search,
   CreditCard,
   Building2,
@@ -811,9 +812,9 @@ export default function Reports() {
         icon={BarChart3}
         hideQuickCustomer={true}
         actions={
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap justify-end w-full sm:w-auto">
-            {/* Date filter - wraps to full-width row 2 on mobile as order-3, sits first on desktop as order-1 */}
-            <div className="order-3 sm:order-1 w-full sm:w-auto mt-1 sm:mt-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Desktop Date filter: sits in actions bar on desktop (sm:block) */}
+            <div className="hidden sm:block">
               <ReportDateFilter
                 datePreset={datePreset}
                 customStart={customStart}
@@ -831,7 +832,7 @@ export default function Reports() {
               type="button"
               onClick={loadData}
               disabled={isLoading}
-              className="order-1 sm:order-2 inline-flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 text-xs font-semibold text-[#64748B] border border-[#E2E8F0] bg-white rounded-lg hover:bg-slate-50 hover:text-[#16324F] transition-colors disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 h-8.5 sm:h-8 px-2.5 sm:px-3 text-xs font-semibold text-[#64748B] border border-[#E2E8F0] bg-white rounded-lg hover:bg-slate-50 hover:text-[#16324F] transition-colors disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
               title="Refresh Report Data"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
@@ -843,7 +844,7 @@ export default function Reports() {
               type="button"
               onClick={handleDownloadPDF}
               disabled={isLoading}
-              className="order-2 sm:order-3 inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#125ea0] active:scale-95 rounded-lg transition-all shadow-xs disabled:opacity-50 cursor-pointer shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 h-8.5 sm:h-8 px-3 sm:px-3.5 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#125ea0] active:scale-95 rounded-lg transition-all shadow-xs disabled:opacity-50 cursor-pointer shrink-0"
               title="Export Report PDF"
             >
               <Download className="w-3.5 h-3.5" />
@@ -853,16 +854,31 @@ export default function Reports() {
           </div>
         }
         secondaryRow={
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-            {/* Left: Tab Switcher (compact & horizontally scrollable on mobile) */}
-            <div className="w-full sm:w-auto overflow-x-auto scrollbar-none -mx-0.5 px-0.5 py-0.5">
-              <div className="inline-flex items-center bg-slate-100/90 rounded-lg p-0.5 sm:p-1 border border-[#E2E8F0] min-w-max">
+          <div className="flex flex-col gap-2.5 sm:gap-3 w-full">
+            {/* Mobile-only Date Filter: spans full width cleanly directly below header actions */}
+            <div className="block sm:hidden w-full">
+              <ReportDateFilter
+                className="w-full"
+                datePreset={datePreset}
+                customStart={customStart}
+                customEnd={customEnd}
+                onChangePreset={(p) => setDatePreset(p)}
+                onChangeCustomRange={(s, e) => {
+                  setCustomStart(s);
+                  setCustomEnd(e);
+                }}
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 w-full">
+              {/* Desktop / Tablet Tab Switcher (Horizontal Pill Navigation) */}
+              <div className="hidden sm:inline-flex items-center bg-slate-100/90 rounded-lg p-0.5 sm:p-1 border border-[#E2E8F0] min-w-max">
                 {(['OVERVIEW', 'PURCHASES', 'SUPPLIERS', 'ORDERS'] as ReportType[]).map((tab) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => setReportType(tab)}
-                    className={`px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-xs rounded-md transition-all font-semibold whitespace-nowrap cursor-pointer ${
+                    className={`px-3 sm:px-3.5 py-1.5 text-xs rounded-md transition-all font-semibold whitespace-nowrap cursor-pointer ${
                       reportType === tab
                         ? 'bg-white text-[#1677C8] shadow-xs font-bold'
                         : 'text-[#64748B] hover:text-[#16324F]'
@@ -878,65 +894,93 @@ export default function Reports() {
                   </button>
                 ))}
               </div>
-            </div>
 
-            {/* Right: Secondary Filters */}
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto">
-              {/* Status Filter for Purchases or Orders */}
-              {(reportType === 'PURCHASES' || reportType === 'ORDERS') && (
-                <select
-                  value={paymentStatusFilter}
-                  onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                  className="flex-1 sm:flex-initial text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer shadow-2xs"
-                >
-                  <option value="ALL">All Payment Status</option>
-                  <option value="PAID">Paid in Full</option>
-                  <option value="PARTIAL">Partially Paid</option>
-                  <option value="PENDING">Pending / Unpaid</option>
-                </select>
-              )}
+              {/* Mobile Tab Selector (Full-Width Dropdown Control, Zero Horizontal Scroll) */}
+              <div className="block sm:hidden w-full relative">
+                <label htmlFor="mobile-report-tab-select" className="sr-only">
+                  Select Report Tab
+                </label>
+                <div className="relative w-full">
+                  <select
+                    id="mobile-report-tab-select"
+                    value={reportType}
+                    onChange={(e) => setReportType(e.target.value as ReportType)}
+                    className="w-full h-10 pl-3.5 pr-10 bg-white border border-[#CBD5E1] rounded-lg text-xs font-bold text-[#16324F] shadow-2xs appearance-none focus:outline-none focus:border-[#1677C8] focus:ring-1 focus:ring-[#1677C8] transition-all cursor-pointer"
+                  >
+                    <option value="OVERVIEW">Overview</option>
+                    <option value="PURCHASES">Purchases</option>
+                    <option value="SUPPLIERS">Suppliers</option>
+                    <option value="ORDERS">Customer Orders</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#64748B]">
+                    <ChevronDown className="w-4 h-4 text-[#64748B]" />
+                  </div>
+                </div>
+              </div>
 
-              {/* Order Status Filter */}
-              {reportType === 'ORDERS' && (
-                <select
-                  value={orderStatusFilter}
-                  onChange={(e) => setOrderStatusFilter(e.target.value)}
-                  className="flex-1 sm:flex-initial text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer shadow-2xs"
-                >
-                  <option value="ALL">All Order Status</option>
-                  <option value="DELIVERED">Delivered / Completed</option>
-                  <option value="PENDING">Pending Delivery</option>
-                  <option value="CANCELLED">Cancelled</option>
-                </select>
-              )}
+              {/* Right: Secondary Filters */}
+              {(reportType === 'PURCHASES' ||
+                reportType === 'ORDERS' ||
+                (reportType === 'SUPPLIERS' && suppliers.length > 0) ||
+                hasActiveFilters) && (
+                <div className="grid grid-cols-2 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+                  {/* Status Filter for Purchases or Orders */}
+                  {(reportType === 'PURCHASES' || reportType === 'ORDERS') && (
+                    <select
+                      value={paymentStatusFilter}
+                      onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                      className="w-full sm:w-auto text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer shadow-2xs"
+                    >
+                      <option value="ALL">All Payment Status</option>
+                      <option value="PAID">Paid in Full</option>
+                      <option value="PARTIAL">Partially Paid</option>
+                      <option value="PENDING">Pending / Unpaid</option>
+                    </select>
+                  )}
 
-              {/* Supplier Filter for Purchases or Suppliers */}
-              {(reportType === 'PURCHASES' || reportType === 'SUPPLIERS') && suppliers.length > 0 && (
-                <select
-                  value={supplierFilter}
-                  onChange={(e) => setSupplierFilter(e.target.value)}
-                  className="flex-1 sm:flex-initial text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer max-w-full sm:max-w-[170px] shadow-2xs"
-                >
-                  <option value="ALL">All Suppliers</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              )}
+                  {/* Order Status Filter */}
+                  {reportType === 'ORDERS' && (
+                    <select
+                      value={orderStatusFilter}
+                      onChange={(e) => setOrderStatusFilter(e.target.value)}
+                      className="w-full sm:w-auto text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer shadow-2xs"
+                    >
+                      <option value="ALL">All Order Status</option>
+                      <option value="DELIVERED">Delivered / Completed</option>
+                      <option value="PENDING">Pending Delivery</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  )}
 
-              {/* Clear Filters Button */}
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 border border-rose-200 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors shrink-0 cursor-pointer shadow-2xs"
-                  title="Reset filters"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
+                  {/* Supplier Filter for Purchases or Suppliers */}
+                  {(reportType === 'PURCHASES' || reportType === 'SUPPLIERS') && suppliers.length > 0 && (
+                    <select
+                      value={supplierFilter}
+                      onChange={(e) => setSupplierFilter(e.target.value)}
+                      className="w-full sm:w-auto text-xs font-medium px-2.5 py-1.5 border border-[#E2E8F0] bg-white rounded-lg text-[#374151] focus:outline-none focus:border-[#1677C8] cursor-pointer max-w-full sm:max-w-[170px] shadow-2xs"
+                    >
+                      <option value="ALL">All Suppliers</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {/* Clear Filters Button */}
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 border border-rose-200 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors shrink-0 cursor-pointer shadow-2xs"
+                      title="Reset filters"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -1530,11 +1574,11 @@ export default function Reports() {
                 </div>
 
                 {/* View Mode Toggle: Customer Performance vs Detailed Records */}
-                <div className="flex items-center justify-between flex-wrap gap-2 pb-1">
-                  <div className="flex bg-slate-100 p-0.5 rounded-lg border border-[#E2E8F0]">
+                <div className="flex items-center justify-between flex-wrap gap-2.5 pb-1">
+                  <div className="flex bg-slate-100 p-0.5 rounded-lg border border-[#E2E8F0] w-full sm:w-auto">
                     <button
                       onClick={() => setOrdersViewMode('customers')}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                      className={`flex-1 sm:flex-initial px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                         ordersViewMode === 'customers'
                           ? 'bg-white text-[#1677C8] shadow-xs'
                           : 'text-[#64748B] hover:text-[#16324F]'
@@ -1544,24 +1588,24 @@ export default function Reports() {
                     </button>
                     <button
                       onClick={() => setOrdersViewMode('records')}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                      className={`flex-1 sm:flex-initial px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                         ordersViewMode === 'records'
                           ? 'bg-white text-[#1677C8] shadow-xs'
                           : 'text-[#64748B] hover:text-[#16324F]'
                       }`}
                     >
-                      Detailed Order Records ({filteredOrders.length})
+                      Detailed Records ({filteredOrders.length})
                     </button>
                   </div>
 
-                  <div className="relative">
+                  <div className="relative w-full sm:w-auto">
                     <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                     <input
                       type="text"
                       placeholder="Search customer, phone, order #…"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="text-xs pl-8 pr-3 py-1.5 border border-[#E2E8F0] rounded-lg bg-white text-[#16324F] placeholder-[#94A3B8] focus:outline-none focus:border-[#1677C8] w-48 sm:w-64"
+                      className="text-xs pl-8 pr-3 py-1.5 border border-[#E2E8F0] rounded-lg bg-white text-[#16324F] placeholder-[#94A3B8] focus:outline-none focus:border-[#1677C8] w-full sm:w-64"
                     />
                   </div>
                 </div>
