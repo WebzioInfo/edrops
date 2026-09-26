@@ -46,7 +46,14 @@ export default function Login() {
       const rolePath = response.user.role.toLowerCase();
       navigate(from || `/${rolePath}`, { replace: true });
     } catch (err: any) {
-      setGlobalError(err.message || 'Authentication failed');
+      const errorCode = err?.code || err?.data?.code;
+      if (errorCode === 'USER_NOT_FOUND') {
+        setGlobalError('User not found with this email or username.');
+      } else if (errorCode === 'INCORRECT_PASSWORD') {
+        setGlobalError('Incorrect password. Please try again.');
+      } else {
+        setGlobalError(err.message || 'Authentication failed');
+      }
     } finally {
       setSubmitting(false);
     }

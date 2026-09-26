@@ -80,6 +80,7 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     error.status = response.status;
     error.statusText = response.statusText;
     error.data = errorData;
+    error.code = errorData?.code;
     error.handledToast = response.status >= 500 || response.status === 403;
     throw error;
   }

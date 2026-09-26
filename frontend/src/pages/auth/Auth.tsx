@@ -379,20 +379,20 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
       if (values.rememberMe) localStorage.setItem('edrops_remember', 'true');
       handleSuccessRedirect(response.user);
     } catch (err: any) {
+      if (err?.handledToast) return;
+
+      const errorCode = err?.code || err?.data?.code;
       const errorMsg = (err?.message || '').toLowerCase();
-      if (
-        errorMsg.includes('invalid credentials') ||
-        errorMsg.includes('wrong password') ||
-        errorMsg.includes('user not found') ||
-        errorMsg.includes('unauthorized') ||
-        errorMsg.includes('401')
-      ) {
-        toast.error('Incorrect email or password. Please try again.');
+
+      if (errorCode === 'USER_NOT_FOUND') {
+        toast.error('User not found with this email or username.');
+      } else if (errorCode === 'INCORRECT_PASSWORD') {
+        toast.error('Incorrect password. Please try again.');
       } else if (errorMsg.includes('failed to fetch') || errorMsg.includes('network')) {
         toast.error('Unable to connect to server. Please check your internet connection.');
       } else if (errorMsg.includes('deactivated') || errorMsg.includes('inactive')) {
         toast.error('This account has been deactivated. Please contact support.');
-      } else if (err?.message) {
+      } else if (err?.message && !errorMsg.includes('unauthorized') && !errorMsg.includes('401')) {
         toast.error(err.message);
       } else {
         toast.error('Login failed. Please try again.');

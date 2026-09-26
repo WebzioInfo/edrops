@@ -72,16 +72,53 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const isEmail = loginDto.identifier.includes('@');
+    const rawIdentifier = loginDto.identifier?.trim() || '';
+    if (!rawIdentifier) {
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'USER_NOT_FOUND',
+        message: 'User not found with this email or username.',
+      });
+    }
+
+    const conditions: any[] = [];
+
+    if (rawIdentifier.includes('@')) {
+      // Direct email lookup (case-insensitive)
+      conditions.push({ email: { equals: rawIdentifier, mode: 'insensitive' } });
+    } else {
+      // Username lookup (exact email or email local-part before '@')
+      conditions.push(
+        { email: { equals: rawIdentifier, mode: 'insensitive' } },
+        { email: { startsWith: `${rawIdentifier}@`, mode: 'insensitive' } },
+      );
+
+      // Phone lookup (exact, whitespace-stripped, or standard 10-digit formats)
+      const cleanDigits = rawIdentifier.replace(/\D/g, '');
+      conditions.push(
+        { phone: rawIdentifier },
+        { phone: rawIdentifier.replace(/\s+/g, '') },
+      );
+      if (cleanDigits.length >= 10) {
+        conditions.push(
+          { phone: { endsWith: cleanDigits } },
+          { phone: `+91${cleanDigits.slice(-10)}` },
+        );
+      }
+    }
 
     const user = await this.prisma.user.findFirst({
-      where: isEmail
-        ? { email: loginDto.identifier }
-        : { phone: loginDto.identifier },
+      where: {
+        OR: conditions,
+      },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'USER_NOT_FOUND',
+        message: 'User not found with this email or username.',
+      });
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -90,7 +127,11 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'INCORRECT_PASSWORD',
+        message: 'Incorrect password. Please try again.',
+      });
     }
 
     return this.generateToken(user);
