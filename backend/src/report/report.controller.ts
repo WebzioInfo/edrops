@@ -6,7 +6,12 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { UserRole } from '@prisma/client';
+import { Roles, RolesGuard } from '../auth/roles.guard';
 import { ReportService } from './report.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
@@ -18,6 +23,15 @@ export class ReportController {
   @Post()
   create(@Body() createReportDto: CreateReportDto) {
     return this.reportService.create(createReportDto);
+  }
+
+  // ─── ADMIN ERP ANALYTICS ENDPOINT ──────────────────────────────────────────
+  // Placed BEFORE :id route to prevent NestJS routing collisions
+  @Get('admin/analytics')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  getAdminAnalytics(@Query() query: any) {
+    return this.reportService.getAdminAnalytics(query);
   }
 
   @Get()

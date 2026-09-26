@@ -14,7 +14,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from '@prisma/client';
-import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Roles, RolesGuard, RequirePermissions } from '../auth/roles.guard';
 import { multerOptions } from '../config/multer.config';
 import type { MulterFile } from '../config/cloudinary.service';
 import { CatalogService } from './catalog.service';
@@ -30,6 +30,17 @@ export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 
   // =====================
+  // ACCESS VALIDATION
+  // =====================
+  @Get('access-check')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.view', 'catalog.manage', 'CATALOG:READ', 'CATALOG:MANAGE')
+  async checkAccess() {
+    return { success: true, message: 'Authorized to access catalog' };
+  }
+
+  // =====================
   // BRANDS
   // =====================
   @Get('brands')
@@ -39,7 +50,8 @@ export class CatalogController {
 
   @Post('brands')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.create', 'catalog.manage', 'CATALOG:CREATE', 'CATALOG:MANAGE')
   @UseInterceptors(FileInterceptor('image', multerOptions))
   async createBrand(
     @Body() dto: CreateBrandDto,
@@ -50,7 +62,8 @@ export class CatalogController {
 
   @Patch('brands/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.update', 'catalog.manage', 'CATALOG:UPDATE', 'CATALOG:MANAGE')
   @UseInterceptors(FileInterceptor('image', multerOptions))
   async updateBrand(
     @Param('id') id: string,
@@ -62,7 +75,8 @@ export class CatalogController {
 
   @Delete('brands/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.delete', 'catalog.manage', 'CATALOG:DELETE', 'CATALOG:MANAGE')
   async deleteBrand(@Param('id') id: string) {
     return this.catalogService.deleteBrand(id);
   }
@@ -82,7 +96,8 @@ export class CatalogController {
 
   @Post('categories')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.create', 'catalog.manage', 'CATALOG:CREATE', 'CATALOG:MANAGE')
   @UseInterceptors(FileInterceptor('image', multerOptions))
   async createCategory(
     @Body() dto: CreateCategoryDto,
@@ -93,7 +108,8 @@ export class CatalogController {
 
   @Patch('categories/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.update', 'catalog.manage', 'CATALOG:UPDATE', 'CATALOG:MANAGE')
   @UseInterceptors(FileInterceptor('image', multerOptions))
   async updateCategory(
     @Param('id') id: string,
@@ -105,7 +121,8 @@ export class CatalogController {
 
   @Delete('categories/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.delete', 'catalog.manage', 'CATALOG:DELETE', 'CATALOG:MANAGE')
   async deleteCategory(@Param('id') id: string) {
     return this.catalogService.deleteCategory(id);
   }
@@ -136,7 +153,8 @@ export class CatalogController {
 
   @Post('products')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.create', 'catalog.manage', 'CATALOG:CREATE', 'CATALOG:MANAGE')
   @UseInterceptors(FileInterceptor('image', multerOptions))
   async createProduct(
     @Body() dto: CreateProductDto,
@@ -147,7 +165,8 @@ export class CatalogController {
 
   @Patch('products/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.update', 'catalog.manage', 'CATALOG:UPDATE', 'CATALOG:MANAGE')
   @UseInterceptors(FileInterceptor('image', multerOptions))
   async updateProduct(
     @Param('id') id: string,
@@ -159,7 +178,8 @@ export class CatalogController {
 
   @Delete('products/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
+  @RequirePermissions('catalog.delete', 'catalog.manage', 'CATALOG:DELETE', 'CATALOG:MANAGE')
   async deleteProduct(@Param('id') id: string) {
     return this.catalogService.deleteProduct(id);
   }

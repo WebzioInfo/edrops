@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
+  Truck,
   Plus,
   Search,
   RefreshCw,
@@ -18,6 +19,8 @@ import {
   MapPin,
   Undo2,
   SlidersHorizontal,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { showToast } from '../../../utils/toast';
@@ -109,10 +112,30 @@ export interface CustomerRecord {
   }>;
 }
 
+export interface DistributorDriverRecord {
+  id: string;
+  distributorId?: string;
+  name: string;
+  phone: string;
+  alternatePhone?: string | null;
+  routeOrArea?: string | null;
+  pincode?: string;
+  vehicleType: string;
+  vehicleNumber: string;
+  notes?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  _count?: {
+    orders: number;
+  };
+}
+
 export interface DistributorOrder {
   id: string;
   customerId: string;
   customer?: CustomerRecord;
+  driverId?: string | null;
+  driver?: DistributorDriverRecord | null;
   orderType: string;
   orderSource: string;
   status: string;
@@ -240,6 +263,59 @@ export default function Orders() {
   const [releaseReason, setReleaseReason] = useState<string>('');
   const [isReleasing, setIsReleasing] = useState<boolean>(false);
 
+  // Driver Assignment Modal State
+  const [driverModalOrder, setDriverModalOrder] = useState<DistributorOrder | null>(null);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
+  const [availableDrivers, setAvailableDrivers] = useState<DistributorDriverRecord[]>([]);
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState<boolean>(false);
+  const [isAssigningDriver, setIsAssigningDriver] = useState<boolean>(false);
+  const [driverSearchQuery, setDriverSearchQuery] = useState<string>('');
+  const [isDriverDropdownOpen, setIsDriverDropdownOpen] = useState<boolean>(false);
+  const driverDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (driverDropdownRef.current && !driverDropdownRef.current.contains(event.target as Node)) {
+        setIsDriverDropdownOpen(false);
+      }
+    };
+    if (isDriverDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDriverDropdownOpen]);
+
+  // Efficient client-side filtered drivers for scalable combobox
+  const filteredDrivers = useMemo(() => {
+    if (!driverSearchQuery.trim()) return availableDrivers;
+    const q = driverSearchQuery.trim().toLowerCase();
+    return availableDrivers.filter((d) => {
+      const name = (d.name || '').toLowerCase();
+      const phone = (d.phone || '').toLowerCase();
+      const altPhone = (d.alternatePhone || '').toLowerCase();
+      const vehicle = (d.vehicleNumber || '').toLowerCase();
+      const vehicleType = (d.vehicleType || '').toLowerCase();
+      const pincode = (d.pincode || '').toLowerCase();
+      const route = (d.routeOrArea || '').toLowerCase();
+      return (
+        name.includes(q) ||
+        phone.includes(q) ||
+        altPhone.includes(q) ||
+        vehicle.includes(q) ||
+        vehicleType.includes(q) ||
+        pincode.includes(q) ||
+        route.includes(q)
+      );
+    });
+  }, [availableDrivers, driverSearchQuery]);
+
+  const selectedDriver = useMemo(() => {
+    return availableDrivers.find((d) => d.id === selectedDriverId) || null;
+  }, [availableDrivers, selectedDriverId]);
+
   // Create Order Form State
   const [formCustomerId, setFormCustomerId] = useState<string>('');
   const [formDeliveryAddressId, setFormDeliveryAddressId] = useState<string>('');
@@ -288,12 +364,13 @@ export default function Orders() {
     }
   };
 
-  // Load auxiliary data: Products and Customers
+  // Load auxiliary data: Products, Customers, and Distributor Drivers
   const loadAuxiliaryData = async () => {
     try {
-      const [productsData, customersData] = await Promise.all([
+      const [productsData, customersData, driversData] = await Promise.all([
         fetchWithAuth('/catalog/products').catch(() => []),
         fetchWithAuth('/customer').catch(() => []),
+        fetchWithAuth('/drivers').catch(() => []),
       ]);
 
       if (Array.isArray(productsData)) {
@@ -302,12 +379,109 @@ export default function Orders() {
       if (Array.isArray(customersData)) {
         setCustomersList(customersData);
       }
+      if (driversData && Array.isArray(driversData.drivers)) {
+        setAvailableDrivers(driversData.drivers);
+      } else if (Array.isArray(driversData)) {
+        setAvailableDrivers(driversData);
+      }
     } catch {
       // ignore
     }
   };
 
+  const loadDistributorDrivers = async () => {
+    try {
+      setIsLoadingDrivers(true);
+      const data = await fetchWithAuth('/drivers');
+      if (data && Array.isArray(data.drivers)) {
+        setAvailableDrivers(data.drivers);
+      } else if (Array.isArray(data)) {
+        setAvailableDrivers(data);
+      }
+    } catch (err: any) {
+      console.error('[Orders] Failed to load distributor drivers:', err);
+    } finally {
+      setIsLoadingDrivers(false);
+    }
+  };
+
+  const handleOpenDriverModal = (order: DistributorOrder) => {
+    setDriverModalOrder(order);
+    setSelectedDriverId(order.driverId || '');
+    setDriverSearchQuery('');
+    setIsDriverDropdownOpen(false);
+    if (availableDrivers.length === 0) {
+      loadDistributorDrivers();
+    }
+  };
+
+  const handleConfirmAssignDriver = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!driverModalOrder || !selectedDriverId || isAssigningDriver) return;
+
+    try {
+      setIsAssigningDriver(true);
+      const res = await fetchWithAuth(`/orders/distributor/${driverModalOrder.id}/driver`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          driverId: selectedDriverId,
+        }),
+      });
+
+      showToast.success('Driver assigned successfully.');
+
+      const assignedDriverObj =
+        res?.driver ?? availableDrivers.find((d) => d.id === selectedDriverId) ?? null;
+
+      // Immediately update local orders list without requiring a full page reload
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === driverModalOrder.id
+            ? { ...o, driverId: res?.driverId ?? selectedDriverId, driver: assignedDriverObj }
+            : o
+        )
+      );
+
+      // If details drawer is open with this order, update it too
+      if (selectedOrder && selectedOrder.id === driverModalOrder.id) {
+        setSelectedOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                driverId: res?.driverId ?? selectedDriverId,
+                driver: assignedDriverObj,
+              }
+            : null
+        );
+      }
+
+      setDriverModalOrder(null);
+      setSelectedDriverId('');
+      setIsDriverDropdownOpen(false);
+      setDriverSearchQuery('');
+    } catch (err: any) {
+      showToast.error(err.message || 'Failed to assign driver');
+    } finally {
+      setIsAssigningDriver(false);
+    }
+  };
+
   const { socket } = useSocket();
+
+  // Listen for ?assignDriver=<orderId> URL param to automatically open driver assignment modal
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const targetOrderId = searchParams.get('assignDriver');
+    if (targetOrderId && orders.length > 0) {
+      const matchedOrder = orders.find((o) => o.id === targetOrderId);
+      if (matchedOrder) {
+        handleOpenDriverModal(matchedOrder);
+        const url = new URL(window.location.href);
+        url.searchParams.delete('assignDriver');
+        window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+      }
+    }
+  }, [orders]);
 
   // Listen to WebSocket real-time events to auto-refresh assigned orders (ZERO POLLING)
   useEffect(() => {
@@ -514,10 +688,33 @@ export default function Orders() {
         body: JSON.stringify(payload),
       });
 
-      showToast.success('Order created successfully!');
       setIsCreateModalOpen(false);
       loadOrders();
-      if (res?.id) handleOpenDetails(res);
+      if (res?.id) {
+        handleOpenDetails(res);
+        showToast.success(
+          (t) => (
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-bold">Order #{formatOrderId(res.id)} needs a driver assignment.</p>
+                <p className="text-xs text-slate-200 mt-0.5">Assign a driver to start delivery.</p>
+              </div>
+              <button
+                onClick={() => {
+                  showToast.dismiss(t.id);
+                  handleOpenDriverModal(res);
+                }}
+                className="px-2.5 py-1 bg-white text-[#16324F] hover:bg-slate-100 rounded font-bold text-xs shrink-0 cursor-pointer shadow-xs transition"
+              >
+                Assign Driver
+              </button>
+            </div>
+          ),
+          { id: `assign-driver-needed-${res.id}`, duration: 6000 }
+        );
+      } else {
+        showToast.success('Order created successfully!');
+      }
     } catch (err: any) {
       showToast.error(err.message || 'Failed to create order');
     } finally {
@@ -601,7 +798,30 @@ export default function Orders() {
         body: JSON.stringify(body),
       });
 
-      showToast.success(`Order updated to ${newTargetStatus}`);
+      if (newTargetStatus === 'CONFIRMED' && !statusModalOrder.driverId) {
+        showToast.success(
+          (t) => (
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-bold">Order #{formatOrderId(statusModalOrder.id)} needs a driver assignment.</p>
+                <p className="text-xs text-slate-200 mt-0.5">Assign a driver to start delivery.</p>
+              </div>
+              <button
+                onClick={() => {
+                  showToast.dismiss(t.id);
+                  handleOpenDriverModal(statusModalOrder);
+                }}
+                className="px-2.5 py-1 bg-white text-[#1677C8] hover:bg-slate-100 rounded font-bold text-xs shrink-0 cursor-pointer shadow-xs transition"
+              >
+                Assign Driver
+              </button>
+            </div>
+          ),
+          { id: `assign-driver-needed-${statusModalOrder.id}`, duration: 6000 }
+        );
+      } else {
+        showToast.success(`Order updated to ${newTargetStatus}`);
+      }
       setStatusModalOrder(null);
       loadOrders();
       if (selectedOrder && selectedOrder.id === statusModalOrder.id) {
@@ -1129,6 +1349,7 @@ export default function Orders() {
                     <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
+                <th className="py-3 px-3">Driver</th>
                 <th className="py-3 px-3">Delivery Date</th>
                 <th className="py-3 px-3 text-right">Actions</th>
               </tr>
@@ -1136,7 +1357,7 @@ export default function Orders() {
             <tbody className="divide-y divide-slate-100">
               {isError ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center">
+                  <td colSpan={11} className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                       <AlertCircle className="w-8 h-8 text-rose-500 mb-2" />
                       <p className="font-bold text-slate-800 text-sm">Failed to load orders</p>
@@ -1152,7 +1373,7 @@ export default function Orders() {
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center">
+                  <td colSpan={11} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                       <div className="w-12 h-12 rounded-2xl bg-sky-50 text-[#1677C8] flex items-center justify-center mb-3">
                         <Package className="w-6 h-6" />
@@ -1283,6 +1504,37 @@ export default function Orders() {
                         {getStatusBadge(order.status)}
                       </td>
 
+                      {/* Driver */}
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        {order.driver ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-lg bg-sky-50 text-[#1677C8] flex items-center justify-center shrink-0">
+                              <Truck className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate max-w-[120px]">
+                                {order.driver.name}
+                              </p>
+                              <p className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                                {order.driver.phone || order.driver.vehicleNumber || 'Assigned'}
+                              </p>
+                            </div>
+                          </div>
+                        ) : !isDeliveredOrFinalized && !isCancelled ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDriverModal(order)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer shadow-2xs active:scale-95"
+                            title="Assign a driver to this order"
+                          >
+                            <Truck className="w-3 h-3 text-amber-600" />
+                            <span>Assign Driver</span>
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 text-xs font-medium">—</span>
+                        )}
+                      </td>
+
                       {/* Delivery Date */}
                       <td className="py-2.5 px-3 whitespace-nowrap text-slate-500 font-semibold text-[11px]">
                         {order.deliveredAt
@@ -1304,6 +1556,22 @@ export default function Orders() {
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
+
+                          {/* Assign or Change Driver (if not delivered or cancelled) */}
+                          {!isDeliveredOrFinalized && !isCancelled && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDriverModal(order)}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                order.driver
+                                  ? 'text-slate-400 hover:text-sky-600 hover:bg-sky-50'
+                                  : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                              }`}
+                              title={order.driver ? 'Change Driver' : 'Assign Driver'}
+                            >
+                              <Truck className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
                           {/* Collect Payment — show as Collect ₹X when there's a due amount */}
                           {(() => {
@@ -1418,11 +1686,44 @@ export default function Orders() {
                     </div>
                   </div>
 
+                  {/* Driver Row on Mobile Card */}
+                  <div className="flex items-center justify-between text-xs py-1.5 px-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-1">
+                      <Truck className="w-3.5 h-3.5 text-slate-400" />
+                      Driver:
+                    </span>
+                    {order.driver ? (
+                      <span className="font-bold text-slate-800 truncate max-w-[160px]">{order.driver.name}</span>
+                    ) : !isDeliveredOrFinalized && !isCancelled ? (
+                      <span className="font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded text-[10px] border border-amber-200">
+                        Needs Driver
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </div>
+
                   {/* Third Line: Compact Actions */}
                   <div
-                    className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100"
+                    className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100 flex-wrap"
                     onClick={(e) => e.stopPropagation()}
                   >
+                    {!isDeliveredOrFinalized && !isCancelled && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDriverModal(order)}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                          order.driver
+                            ? 'text-slate-700 bg-slate-100 hover:bg-slate-200'
+                            : 'text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 shadow-2xs'
+                        }`}
+                        title={order.driver ? 'Change Driver' : 'Assign Driver'}
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        <span>{order.driver ? 'Driver' : 'Assign'}</span>
+                      </button>
+                    )}
+
                     {pst.hasDue && (
                       <button
                         type="button"
@@ -1933,6 +2234,79 @@ export default function Orders() {
                 </div>
               </div>
 
+              {/* Assigned Driver Section */}
+              <div className="p-3.5 rounded-2xl border border-slate-200/90 bg-slate-50/60">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-sky-100 text-[#1677C8] flex items-center justify-center shrink-0">
+                      <Truck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                        Delivery Driver
+                      </h5>
+                      <p className="text-[10px] text-slate-500">Responsible for delivery & fulfillment</p>
+                    </div>
+                  </div>
+
+                  {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDriverModal(selectedOrder)}
+                      className="px-2.5 py-1 text-xs font-bold text-[#1677C8] hover:bg-sky-50 rounded-lg transition cursor-pointer flex items-center gap-1"
+                    >
+                      <Truck className="w-3 h-3" />
+                      <span>{selectedOrder.driver ? 'Change Driver' : 'Assign Driver'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {selectedOrder.driver ? (
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-white p-2.5 rounded-xl border border-slate-200/70">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-semibold">Driver Name</span>
+                      <span className="font-bold text-slate-800">{selectedOrder.driver.name}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-semibold">Phone</span>
+                      <a href={`tel:${selectedOrder.driver.phone}`} className="font-bold text-[#1677C8] hover:underline">
+                        {selectedOrder.driver.phone}
+                      </a>
+                    </div>
+                    {selectedOrder.driver.vehicleNumber && (
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-semibold">Vehicle</span>
+                        <span className="font-semibold text-slate-700">
+                          {selectedOrder.driver.vehicleType ? `${selectedOrder.driver.vehicleType} · ` : ''}{selectedOrder.driver.vehicleNumber}
+                        </span>
+                      </div>
+                    )}
+                    {selectedOrder.driver.routeOrArea && (
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-semibold">Route / Area</span>
+                        <span className="font-semibold text-slate-700">{selectedOrder.driver.routeOrArea}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' ? (
+                  <div className="flex items-center justify-between p-2.5 bg-amber-50/80 border border-amber-200/80 rounded-xl text-amber-800 text-xs">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="font-semibold text-[11px]">No driver assigned yet. Assign a driver to start delivery.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDriverModal(selectedOrder)}
+                      className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer"
+                    >
+                      Assign Now
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No driver was assigned to this order.</p>
+                )}
+              </div>
+
               {/* Items List */}
               <div>
                 <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
@@ -2110,7 +2484,22 @@ export default function Orders() {
 
             {/* Footer action bar inside drawer */}
             <div className="px-6 py-3 border-t border-slate-200/80 bg-slate-50/70 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDriverModal(selectedOrder)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 ${
+                      selectedOrder.driver
+                        ? 'bg-slate-200/80 hover:bg-slate-300/80 text-slate-800'
+                        : 'bg-amber-500 hover:bg-amber-600 text-white'
+                    }`}
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>{selectedOrder.driver ? 'Change Driver' : 'Assign Driver'}</span>
+                  </button>
+                )}
+
                 {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' && (
                   <button
                     type="button"
@@ -2507,6 +2896,346 @@ export default function Orders() {
                   className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
                 >
                   {isReleasing ? 'Releasing...' : 'Release Assignment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: ASSIGN / CHANGE DRIVER ────────────────────────── */}
+      {driverModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 max-h-[90vh] flex flex-col overflow-visible">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-50 text-[#1677C8] flex items-center justify-center shrink-0 border border-sky-100">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800 text-base leading-tight">
+                    {driverModalOrder.driver ? 'Change Assigned Driver' : 'Assign Delivery Driver'}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Order #ORD-{formatOrderId(driverModalOrder.id)} ·{' '}
+                    {driverModalOrder.customer?.user
+                      ? `${driverModalOrder.customer.user.firstName} ${driverModalOrder.customer.user.lastName || ''}`.trim()
+                      : 'Customer'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDriverModalOrder(null);
+                  setIsDriverDropdownOpen(false);
+                  setDriverSearchQuery('');
+                }}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleConfirmAssignDriver} className="flex-1 flex flex-col min-h-0 space-y-4">
+              {/* Current assigned driver banner (if order already has a driver) */}
+              {driverModalOrder.driver && (
+                <div className="p-2.5 rounded-xl bg-sky-50/70 border border-sky-100 text-xs flex items-center justify-between shrink-0">
+                  <span className="text-slate-600">Currently assigned:</span>
+                  <span className="font-bold text-[#1677C8]">
+                    {driverModalOrder.driver.name}
+                    {driverModalOrder.driver.phone ? ` (${driverModalOrder.driver.phone})` : ''}
+                  </span>
+                </div>
+              )}
+
+              {/* Searchable Single-Selection Driver Dropdown / Combobox */}
+              <div className="space-y-1.5 relative" ref={driverDropdownRef}>
+                <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>Assign Fleet Driver <span className="text-rose-500">*</span></span>
+                  {availableDrivers.length > 0 && (
+                    <span className="text-[10px] font-semibold text-slate-400">
+                      {availableDrivers.length} driver{availableDrivers.length === 1 ? '' : 's'} in fleet
+                    </span>
+                  )}
+                </label>
+
+                {/* Combobox Trigger */}
+                <div
+                  onClick={() => setIsDriverDropdownOpen(!isDriverDropdownOpen)}
+                  className={`w-full min-h-[44px] px-3 py-2 bg-white border rounded-xl flex items-center justify-between gap-2 cursor-pointer transition shadow-2xs ${
+                    isDriverDropdownOpen
+                      ? 'border-[#1677C8] ring-2 ring-[#1677C8]/10'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <Truck className="w-4 h-4 text-[#1677C8] shrink-0" />
+                    {selectedDriver ? (
+                      <div className="flex items-center gap-2 min-w-0 truncate">
+                        <span className="text-xs font-bold text-slate-800 truncate">
+                          {selectedDriver.name}
+                        </span>
+                        <span className="text-[11px] text-slate-500 hidden sm:inline">
+                          ({selectedDriver.phone})
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 ${
+                            selectedDriver.isActive
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {selectedDriver.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">
+                        {isLoadingDrivers ? 'Loading fleet drivers...' : 'Select driver from your fleet...'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {selectedDriver && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDriverId('');
+                          setDriverSearchQuery('');
+                        }}
+                        className="p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition cursor-pointer"
+                        title="Clear driver selection"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                        isDriverDropdownOpen ? 'rotate-180 text-[#1677C8]' : ''
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Dropdown Options Menu */}
+                {isDriverDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    {/* Search Input Box */}
+                    <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          autoFocus
+                          value={driverSearchQuery}
+                          onChange={(e) => setDriverSearchQuery(e.target.value)}
+                          placeholder="Search by name, phone, vehicle, pincode..."
+                          className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1677C8] focus:border-[#1677C8]"
+                        />
+                        {driverSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setDriverSearchQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Options List */}
+                    <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
+                      {isLoadingDrivers ? (
+                        <div className="py-8 text-center text-xs text-slate-400 flex flex-col items-center justify-center gap-2">
+                          <RefreshCw className="w-4 h-4 animate-spin text-[#1677C8]" />
+                          <span>Loading distributor drivers...</span>
+                        </div>
+                      ) : availableDrivers.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-500 space-y-2">
+                          <p className="font-bold text-slate-700">No drivers available in your fleet</p>
+                          <p className="text-[11px] text-slate-400">
+                            Add drivers to your distributor fleet before assigning orders.
+                          </p>
+                          <a
+                            href="/distributor/drivers"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1677C8] text-white rounded-lg text-xs font-bold hover:bg-[#1264A8] transition shadow-2xs mt-1"
+                          >
+                            <span>Manage Fleet Drivers</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </a>
+                        </div>
+                      ) : filteredDrivers.length === 0 ? (
+                        <div className="p-6 text-center text-xs text-slate-500">
+                          <p className="font-semibold text-slate-700">No drivers found</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            No fleet driver matches &ldquo;{driverSearchQuery}&rdquo;
+                          </p>
+                        </div>
+                      ) : (
+                        filteredDrivers.slice(0, 50).map((driver) => {
+                          const isSelected = selectedDriverId === driver.id;
+                          return (
+                            <div
+                              key={driver.id}
+                              onClick={() => {
+                                if (!driver.isActive) return;
+                                setSelectedDriverId(driver.id);
+                                setIsDriverDropdownOpen(false);
+                                setDriverSearchQuery('');
+                              }}
+                              className={`p-2.5 text-xs transition cursor-pointer flex items-center justify-between gap-3 ${
+                                isSelected
+                                  ? 'bg-sky-50/80 font-bold text-[#1677C8]'
+                                  : driver.isActive
+                                  ? 'hover:bg-slate-50 text-slate-800'
+                                  : 'bg-slate-50/50 opacity-50 cursor-not-allowed text-slate-400'
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1 space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold truncate">{driver.name}</span>
+                                  <span
+                                    className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                      driver.isActive
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-slate-100 text-slate-500'
+                                    }`}
+                                  >
+                                    {driver.isActive ? 'Active' : 'Inactive'}
+                                  </span>
+                                  {driverModalOrder.driverId === driver.id && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-sky-100 text-[#1677C8]">
+                                      Current
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 font-normal">
+                                  <span className="flex items-center gap-1">
+                                    <Phone className="w-3 h-3 text-slate-400" />
+                                    {driver.phone}
+                                  </span>
+                                  {driver.vehicleNumber && (
+                                    <>
+                                      <span>•</span>
+                                      <span>{driver.vehicleType ? `${driver.vehicleType} ` : ''}{driver.vehicleNumber}</span>
+                                    </>
+                                  )}
+                                  {driver.pincode && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="flex items-center gap-1">
+                                        <MapPin className="w-3 h-3 text-slate-400" />
+                                        PIN: {driver.pincode}
+                                      </span>
+                                    </>
+                                  )}
+                                  {driver.routeOrArea && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="truncate max-w-[120px]">{driver.routeOrArea}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              {isSelected && (
+                                <div className="w-5 h-5 rounded-full bg-[#1677C8] text-white flex items-center justify-center shrink-0">
+                                  <Check className="w-3.5 h-3.5" />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {filteredDrivers.length > 50 && (
+                      <div className="p-1.5 text-center text-[10px] text-slate-400 bg-slate-50 border-t border-slate-100 font-medium">
+                        Showing first 50 of {filteredDrivers.length} matching drivers. Type to refine search.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Driver Summary Card */}
+              {selectedDriver && (
+                <div className="p-3 rounded-2xl bg-sky-50/60 border border-sky-100 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[#1677C8] text-white flex items-center justify-center font-bold text-xs">
+                        {selectedDriver.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800 text-xs">{selectedDriver.name}</div>
+                        <div className="text-[11px] text-slate-500">{selectedDriver.phone}</div>
+                      </div>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                        selectedDriver.isActive
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {selectedDriver.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-sky-100/80 text-[11px] text-slate-600">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Vehicle</span>
+                      <span className="font-semibold text-slate-700">
+                        {selectedDriver.vehicleNumber
+                          ? `${selectedDriver.vehicleType ? `${selectedDriver.vehicleType} · ` : ''}${selectedDriver.vehicleNumber}`
+                          : 'Not assigned'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Location / Pincode</span>
+                      <span className="font-semibold text-slate-700">
+                        {selectedDriver.pincode || selectedDriver.routeOrArea
+                          ? `${selectedDriver.routeOrArea || ''} ${selectedDriver.pincode ? `(${selectedDriver.pincode})` : ''}`
+                          : 'Standard Coverage'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDriverModalOrder(null);
+                    setIsDriverDropdownOpen(false);
+                    setDriverSearchQuery('');
+                  }}
+                  disabled={isAssigningDriver}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAssigningDriver || !selectedDriverId}
+                  className="px-4 py-2 bg-[#1677C8] hover:bg-[#1264A8] active:scale-98 text-white rounded-xl text-xs font-bold transition shadow-xs disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isAssigningDriver ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Assigning...</span>
+                    </>
+                  ) : (
+                    <span>Confirm Assignment</span>
+                  )}
                 </button>
               </div>
             </form>

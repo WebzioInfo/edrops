@@ -11,6 +11,7 @@ model User {
   email                String?              @unique
   passwordHash         String
   role                 UserRole             @default(CUSTOMER)
+  permissions          String[]             @default([])
   firstName            String
   lastName             String
   phone                String               @unique

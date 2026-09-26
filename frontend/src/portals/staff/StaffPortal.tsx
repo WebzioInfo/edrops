@@ -12,8 +12,10 @@ const CustomerManagement = React.lazy(() => import('./pages/CustomerManagement')
 const DistributorManagement = React.lazy(() => import('./pages/DistributorManagement'));
 const Drivers = React.lazy(() => import('./pages/Drivers'));
 const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
+const Catalog = React.lazy(() => import('./pages/Catalog'));
 const InventoryAudit = React.lazy(() => import('./pages/InventoryAudit'));
 const SupportManagement = React.lazy(() => import('./pages/SupportManagement'));
+const StaffReports = React.lazy(() => import('./pages/Reports'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 const CustomerForm = React.lazy(() => import('../../pages/CustomerManagement/CustomerForm'));
 
@@ -32,7 +34,7 @@ export default function StaffPortal() {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  const portalConfig = getPortalSidebarConfig(user?.role || 'STAFF');
+  const portalConfig = getPortalSidebarConfig(user?.role || 'STAFF', undefined, user);
 
   const getPageTitle = () => {
     const path = location.pathname;
@@ -42,8 +44,10 @@ export default function StaffPortal() {
     if (path.includes('/customers')) return 'Customer Management';
     if (path.includes('/distributors')) return 'Distributor Management';
     if (path.includes('/drivers')) return 'Driver Management';
-    if (path.includes('/packages') || path.includes('/memberships')) return 'Package Management';
+    if (path.includes('/catalog')) return 'Catalog Management';
+    if (path.includes('/packages') || path.includes('/memberships')) return 'Membership Management';
     if (path.includes('/inventory')) return 'Inventory Audit';
+    if (path.includes('/reports')) return 'Reports';
     if (path.includes('/support')) return 'Support Management';
     if (path.includes('/profile')) return 'Staff Profile';
     return 'Staff Operations';
@@ -177,8 +181,11 @@ export default function StaffPortal() {
                 <Route path="customers/*" element={<CustomerManagement />} />
                 <Route path="distributors/*" element={<DistributorManagement />} />
                 <Route path="drivers" element={<Drivers />} />
-                <Route path="packages" element={<PackageManagement />} />
+                <Route path="memberships" element={<PackageManagement />} />
+                <Route path="packages" element={<Navigate to="/staff/memberships" replace />} />
+                <Route path="catalog/*" element={<Catalog />} />
                 <Route path="inventory" element={<InventoryAudit />} />
+                <Route path="reports" element={<StaffReports />} />
                 <Route path="support" element={<SupportManagement />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="" element={<Navigate to="/staff/orders" replace />} />

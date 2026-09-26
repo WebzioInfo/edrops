@@ -40,6 +40,28 @@ export class StaffController {
     return this.staffService.create(createStaffDto);
   }
 
+  // --- STAFF REPORTS ENDPOINT ---
+
+  @Get('reports/summary')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  getStaffReports(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('preset') preset?: string,
+  ) {
+    return this.staffService.getStaffReports({ startDate, endDate, preset });
+  }
+
+  @Get('reports')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  getStaffReportsAlias(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('preset') preset?: string,
+  ) {
+    return this.staffService.getStaffReports({ startDate, endDate, preset });
+  }
+
   // --- DISTRIBUTOR MANAGEMENT ENDPOINTS ---
 
   @Get('distributors/summary')

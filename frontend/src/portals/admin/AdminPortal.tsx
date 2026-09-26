@@ -9,9 +9,7 @@ import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const CatalogManager = React.lazy(() => import('./pages/CatalogManager'));
-const OperationsManager = React.lazy(() => import('./pages/OperationsManager'));
 const OrdersDashboard = React.lazy(() => import('./pages/OrdersDashboard'));
-const FinanceLedger = React.lazy(() => import('./pages/FinanceLedger'));
 const CustomersList = React.lazy(() => import('./pages/CustomersList'));
 const DeliveryPartnersList = React.lazy(() => import('./pages/DeliveryPartnersList'));
 const UsersList = React.lazy(() => import('./pages/UsersList'));
@@ -128,11 +126,9 @@ export default function AdminPortal() {
               <Routes>
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="catalog/*" element={<CatalogManager />} />
-                <Route path="operations/*" element={<OperationsManager />} />
                 <Route path="orders/new" element={<CreateOrderPOS />} />
                 <Route path="orders/management" element={<OrderManagement />} />
                 <Route path="orders/*" element={<OrdersDashboard />} />
-                <Route path="finance/*" element={<FinanceLedger />} />
                 <Route path="customers/add" element={<CustomerForm basePath="/admin/customers" />} />
                 <Route path="customers" element={<CustomersList />} />
                 <Route path="customers/:id" element={<CustomerDetail />} />

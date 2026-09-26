@@ -11,7 +11,6 @@ import {
   Inbox,
   BarChart3,
   Truck,
-  DollarSign,
   Tag,
   FileText,
   LifeBuoy,
@@ -20,6 +19,7 @@ import {
   Gift,
   ShoppingBag,
   MapPin,
+  Award,
 } from 'lucide-react';
 
 export interface SidebarNavItem {
@@ -53,7 +53,8 @@ export interface DynamicBadges {
  */
 export function getPortalSidebarConfig(
   roleOrKey?: string,
-  badges?: DynamicBadges
+  badges?: DynamicBadges,
+  userOrPermissions?: any
 ): PortalSidebarConfig {
   const normalizedKey = (roleOrKey || '').toUpperCase().replace(/[- ]/g, '_');
 
@@ -215,19 +216,9 @@ export function getPortalSidebarConfig(
                 icon: Package,
               },
               {
-                to: '/admin/operations',
-                label: 'Operations',
-                icon: Truck,
-              },
-              {
                 to: '/admin/orders',
                 label: 'Orders',
                 icon: ShoppingCart,
-              },
-              {
-                to: '/admin/finance',
-                label: 'Finance',
-                icon: DollarSign,
               },
             ],
           },
@@ -286,7 +277,63 @@ export function getPortalSidebarConfig(
 
     case 'STAFF':
     case 'MANAGER':
-    case 'OPERATOR':
+    case 'OPERATOR': {
+      // Catalog is a standard Staff module (visible by default)
+      let canAccessCatalog = true;
+      if (userOrPermissions) {
+        if (typeof userOrPermissions === 'object') {
+          if (userOrPermissions.role === 'ADMIN' || userOrPermissions.role === 'MANAGER') {
+            canAccessCatalog = true;
+          } else if (Array.isArray(userOrPermissions.permissions) && userOrPermissions.permissions.length > 0) {
+            const perms = userOrPermissions.permissions;
+            canAccessCatalog = perms.some((p: string) => {
+              const low = String(p).toLowerCase().trim();
+              return (
+                low === '*' ||
+                low === 'all' ||
+                low === 'all:manage' ||
+                low === 'catalog' ||
+                low === 'catalog.*' ||
+                low === 'catalog.manage' ||
+                low === 'catalog:manage' ||
+                low === 'catalog.view' ||
+                low === 'catalog:read' ||
+                low.startsWith('catalog.') ||
+                low.startsWith('catalog:')
+              );
+            });
+          }
+        }
+      }
+
+      const managementItems: SidebarNavItem[] = [
+        {
+          to: '/staff/memberships',
+          label: 'Memberships',
+          icon: Award,
+        },
+      ];
+
+      if (canAccessCatalog) {
+        managementItems.push({
+          to: '/staff/catalog',
+          label: 'Catalog',
+          icon: Package,
+        });
+      }
+
+      managementItems.push({
+        to: '/staff/inventory',
+        label: 'Inventory',
+        icon: ClipboardList,
+      });
+
+      managementItems.push({
+        to: '/staff/reports',
+        label: 'Reports',
+        icon: BarChart3,
+      });
+
       return {
         portalKey: 'staff',
         portalLabel: normalizedKey === 'MANAGER' ? 'MANAGER' : normalizedKey === 'OPERATOR' ? 'OPERATOR' : 'STAFF',
@@ -319,19 +366,8 @@ export function getPortalSidebarConfig(
             ],
           },
           {
-            title: 'INVENTORY',
-            items: [
-              {
-                to: '/staff/packages',
-                label: 'Packages',
-                icon: Package,
-              },
-              {
-                to: '/staff/inventory',
-                label: 'Inventory',
-                icon: ClipboardList,
-              },
-            ],
+            title: 'MANAGEMENT',
+            items: managementItems,
           },
           {
             title: 'ACCOUNT',
@@ -350,6 +386,7 @@ export function getPortalSidebarConfig(
           },
         ],
       };
+    }
 
     case 'CUSTOMER':
       return {

@@ -11,6 +11,7 @@ type User = {
   lastName: string;
   phone?: string;
   role: 'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER' | 'DISTRIBUTOR' | string;
+  permissions?: string[];
   isActive?: boolean;
   createdAt?: string;
   deliveryPartner?: {
@@ -24,12 +25,38 @@ type User = {
   };
 };
 
+export function hasCatalogPermission(user: User | null): boolean {
+  if (!user) return false;
+  if (user.role === 'ADMIN' || user.role === 'MANAGER' || user.role === 'STAFF') {
+    const perms = Array.isArray(user.permissions) ? user.permissions : [];
+    if (perms.length === 0) return true;
+    return perms.some((p) => {
+      const low = String(p).toLowerCase().trim();
+      return (
+        low === '*' ||
+        low === 'all' ||
+        low === 'all:manage' ||
+        low === 'catalog' ||
+        low === 'catalog.*' ||
+        low === 'catalog.manage' ||
+        low === 'catalog:manage' ||
+        low === 'catalog.view' ||
+        low === 'catalog:read' ||
+        low.startsWith('catalog.') ||
+        low.startsWith('catalog:')
+      );
+    });
+  }
+  return false;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   authStatus: AuthStatus;
   isLoading: boolean;
   isAuthenticated: boolean;
+  hasPermission: (perm: string) => boolean;
   login: (token: string, user: User) => void;
   updateUser: (updatedUser: Partial<User>) => void;
   logout: () => void;
@@ -49,6 +76,21 @@ const getInitialSession = (): { user: User | null; token: string | null; status:
     if (storedToken && storedUser) {
       const parsed = JSON.parse(storedUser);
       if (parsed && typeof parsed === 'object' && parsed.id && parsed.role) {
+        if (
+          (parsed.role === 'STAFF' || parsed.role === 'MANAGER') &&
+          (!parsed.permissions || parsed.permissions.length === 0)
+        ) {
+          parsed.permissions = [
+            'catalog.view',
+            'catalog.create',
+            'catalog.update',
+            'catalog.delete',
+            'catalog.manage',
+          ];
+          try {
+            localStorage.setItem(USER_KEY, JSON.stringify(parsed));
+          } catch {}
+        }
         return { token: storedToken, user: parsed, status: 'authenticated' };
       }
     }
@@ -75,6 +117,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (storedToken && storedUser) {
         const parsed = JSON.parse(storedUser);
         if (parsed && parsed.id && parsed.role) {
+          if (
+            (parsed.role === 'STAFF' || parsed.role === 'MANAGER') &&
+            (!parsed.permissions || parsed.permissions.length === 0)
+          ) {
+            parsed.permissions = [
+              'catalog.view',
+              'catalog.create',
+              'catalog.update',
+              'catalog.delete',
+              'catalog.manage',
+            ];
+            try {
+              localStorage.setItem(USER_KEY, JSON.stringify(parsed));
+            } catch {}
+          }
           setToken(storedToken);
           setUser(parsed);
           setAuthStatus('authenticated');
@@ -132,6 +189,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isAuthenticated = authStatus === 'authenticated' && Boolean(token && user);
 
+  const hasPermission = (perm: string): boolean => {
+    if (!user) return false;
+    if (user.role === 'ADMIN') return true;
+    const perms = Array.isArray(user.permissions) ? user.permissions : [];
+    const target = perm.toLowerCase().trim();
+    return perms.some((p) => {
+      const u = String(p).toLowerCase().trim();
+      return (
+        u === '*' ||
+        u === 'all' ||
+        u === 'all:manage' ||
+        u === target ||
+        (u.startsWith('catalog') && target.startsWith('catalog'))
+      );
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -140,6 +214,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         authStatus,
         isLoading,
         isAuthenticated,
+        hasPermission,
         login,
         updateUser,
         logout,

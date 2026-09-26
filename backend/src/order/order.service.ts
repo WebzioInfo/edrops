@@ -109,6 +109,18 @@ export class OrderService {
           distributor: {
             select: { id: true, firstName: true, lastName: true, phone: true, email: true },
           },
+          driver: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              vehicleNumber: true,
+              vehicleType: true,
+              isActive: true,
+              routeOrArea: true,
+              pincode: true,
+            },
+          },
           items: {
             include: {
               product: {
@@ -253,6 +265,18 @@ export class OrderService {
             distributor: { select: { id: true, firstName: true, lastName: true, phone: true } },
           },
           orderBy: { acceptedAt: 'asc' },
+        },
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            vehicleNumber: true,
+            vehicleType: true,
+            isActive: true,
+            routeOrArea: true,
+            pincode: true,
+          },
         },
       },
     });
@@ -1457,6 +1481,7 @@ export class OrderService {
               user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
             },
           },
+          driver: true,
           address: true,
           items: {
             include: {
@@ -1611,6 +1636,7 @@ export class OrderService {
             addresses: true,
           },
         },
+        driver: true,
         address: true,
         items: {
           include: {
@@ -1806,6 +1832,7 @@ export class OrderService {
               user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
             },
           },
+          driver: true,
           address: true,
           items: {
             include: {
@@ -2257,6 +2284,7 @@ export class OrderService {
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
+      include: { driver: true },
     });
     if (!order) {
       throw new NotFoundException('Order not found');
@@ -2265,30 +2293,104 @@ export class OrderService {
       throw new ForbiddenException('You do not own this order');
     }
 
+    // BUSINESS RULES:
+    // - Driver assignment is allowed only after the Distributor has accepted/confirmed the order.
+    // - Do not allow assignment to pending/unaccepted orders.
+    // - Do not allow assignment to cancelled orders.
+    // - Do not allow assignment to already completed/delivered orders.
+    if (
+      order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.DELIVERED ||
+      order.status === OrderStatus.COMPLETED
+    ) {
+      throw new BadRequestException(
+        `Cannot assign driver to an order with status "${order.status}".`,
+      );
+    }
+
+    if (order.assignmentStatus !== 'ASSIGNED' || !order.acceptedAt) {
+      throw new BadRequestException(
+        'Driver assignment is only allowed after the order has been accepted.',
+      );
+    }
+
+    let assignedDriver: any = null;
     if (driverId) {
-      const driver = await this.prisma.driver.findFirst({
+      assignedDriver = await this.prisma.driver.findFirst({
         where: { id: driverId, distributorId: distributorUserId },
       });
-      if (!driver) {
+      if (!assignedDriver) {
         throw new NotFoundException('Driver not found');
       }
-      if (!driver.isActive) {
+      if (!assignedDriver.isActive) {
         throw new BadRequestException('Cannot assign an inactive driver to an order');
       }
     }
 
-    return this.prisma.order.update({
-      where: { id: orderId },
-      data: { driverId: driverId || null },
-      include: {
-        driver: true,
-        customer: {
-          include: {
-            user: { select: { firstName: true, lastName: true, phone: true } },
+    const previousDriverId = order.driverId;
+
+    // Transactionally update the driver and record audit trail
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: { driverId: driverId || null },
+        include: {
+          driver: true,
+          customer: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+            },
+          },
+          address: true,
+          items: {
+            include: {
+              product: {
+                select: { id: true, name: true, price: true, isJar: true },
+              },
+            },
+          },
+          payments: {
+            select: { id: true, amount: true, status: true, provider: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+          },
+          distributorAssignments: {
+            include: {
+              distributor: { select: { id: true, firstName: true, lastName: true, phone: true } },
+            },
+            orderBy: { acceptedAt: 'asc' },
           },
         },
-      },
+      });
+
+      if (previousDriverId !== (driverId || null)) {
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId,
+            previousStatus: order.status,
+            newStatus: order.status,
+            changedByUserId: distributorUserId,
+            reason: assignedDriver
+              ? `Driver "${assignedDriver.name}" assigned by Distributor`
+              : 'Driver unassigned by Distributor',
+          },
+        });
+      }
+
+      return updated;
     });
+
+    const totalQty = updatedOrder.items.reduce((sum, item) => sum + item.quantity, 0);
+    const paidAmount = updatedOrder.payments
+      .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const dueAmount = Math.max(0, Number((updatedOrder.totalAmount - paidAmount).toFixed(2)));
+
+    return {
+      ...updatedOrder,
+      totalQuantity: totalQty,
+      amountPaid: paidAmount,
+      amountDue: dueAmount,
+    };
   }
 
   // =========================================================================
@@ -2521,6 +2623,7 @@ export class OrderService {
             user: { select: { firstName: true, lastName: true, phone: true, email: true, id: true } },
           },
         },
+        driver: true,
         address: true,
         items: {
           include: {

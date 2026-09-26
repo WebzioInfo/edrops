@@ -398,12 +398,12 @@ export default function AdminDashboard() {
               </Link>
 
               <Link
-                to="/admin/finance"
+                to="/admin/customers"
                 className="flex items-center gap-2 p-2 rounded-lg bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/60 transition-colors group"
               >
-                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="font-semibold text-[#16324F] group-hover:text-emerald-600 transition-colors truncate">
-                  Ledger
+                <Users className="w-3.5 h-3.5 text-[#1E88E5]" />
+                <span className="font-semibold text-[#16324F] group-hover:text-[#1E88E5] transition-colors truncate">
+                  Customers
                 </span>
               </Link>
 

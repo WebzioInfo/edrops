@@ -40,7 +40,7 @@ export class RechargeController {
   }
 
   @Post('package')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
   createPackage(@Body() body: any) {
     return this.rechargeService.createPackage(body);
   }
@@ -51,18 +51,24 @@ export class RechargeController {
   }
 
   @Get('packages/all')
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
   getAllPackages() {
     return this.rechargeService.getAllPackages();
   }
 
+  @Get('package/:id')
+  getPackageById(@Param('id') id: string) {
+    return this.rechargeService.getPackageById(id);
+  }
+
   @Patch('package/:id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
   updatePackage(@Param('id') id: string, @Body() body: any) {
     return this.rechargeService.updatePackage(id, body);
   }
 
   @Delete('package/:id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER)
   removePackage(@Param('id') id: string) {
     return this.rechargeService.removePackage(id);
   }

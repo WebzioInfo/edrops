@@ -680,6 +680,7 @@ export class AuthService {
       role: user.role,
       email: user.email,
       phone: user.phone,
+      permissions: user.permissions || [],
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -690,6 +691,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        permissions: user.permissions || [],
       },
     };
   }

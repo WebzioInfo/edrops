@@ -298,26 +298,26 @@ export default function NewOrders() {
         method: 'POST',
       });
 
-      // Successfully claimed!
+      // Successfully claimed! Prompt driver assignment immediately
       showToast.success(
         (t) => (
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="font-bold">Order #{formatOrderId(orderId)} Accepted!</p>
-              <p className="text-xs text-slate-200 mt-0.5">Assigned to your operational orders.</p>
+              <p className="font-bold">Order #{formatOrderId(orderId)} needs a driver assignment.</p>
+              <p className="text-xs text-slate-200 mt-0.5">Assign a driver to start delivery.</p>
             </div>
             <button
               onClick={() => {
                 showToast.dismiss(t.id);
-                navigate('/distributor/orders');
+                navigate(`/distributor/orders?assignDriver=${orderId}`);
               }}
-              className="px-2.5 py-1 bg-white/20 hover:bg-white/30 text-white rounded font-bold text-xs shrink-0 cursor-pointer"
+              className="px-2.5 py-1 bg-white text-[#16324F] hover:bg-slate-100 rounded font-bold text-xs shrink-0 cursor-pointer shadow-xs transition"
             >
-              View Orders
+              Assign Driver
             </button>
           </div>
         ),
-        { id: `accept-order-${orderId}`, duration: 5000 },
+        { id: `accept-order-${orderId}`, duration: 6000 },
       );
 
       // Remove from queue

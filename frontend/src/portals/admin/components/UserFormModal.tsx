@@ -23,6 +23,7 @@ export interface UserRecord {
   phone?: string;
   email?: string;
   role?: string;
+  permissions?: string[];
   isActive?: boolean;
   deliveryPartner?: {
     id?: string;
@@ -59,6 +60,7 @@ export default function UserFormModal({
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [jarUnitPrice, setJarUnitPrice] = useState('12.00');
   const [isActive, setIsActive] = useState(true);
+  const [hasCatalogAccess, setHasCatalogAccess] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +81,14 @@ export default function UserFormModal({
         const p = userToEdit.deliveryPartner?.jarUnitPrice ?? userToEdit.jarUnitPrice ?? 12;
         setJarUnitPrice(Number(p).toFixed(2));
         setIsActive(userToEdit.isActive !== false);
+
+        const perms = Array.isArray(userToEdit.permissions) ? userToEdit.permissions : [];
+        setHasCatalogAccess(
+          perms.some((perm: string) => {
+            const low = String(perm).toLowerCase().trim();
+            return low === '*' || low.startsWith('catalog');
+          })
+        );
       } else {
         setFirstName('');
         setLastName('');
@@ -90,6 +100,7 @@ export default function UserFormModal({
         setVehiclePlate('');
         setJarUnitPrice('12.00');
         setIsActive(true);
+        setHasCatalogAccess(false);
       }
       setError(null);
       setLoading(false);
@@ -153,6 +164,18 @@ export default function UserFormModal({
         payload.vehicleType = vehicleType;
         payload.vehiclePlate = vehiclePlate.trim() || undefined;
         payload.jarUnitPrice = parsedPrice;
+      }
+
+      if (role === 'STAFF' || role === 'MANAGER') {
+        payload.permissions = hasCatalogAccess
+          ? [
+              'catalog.view',
+              'catalog.create',
+              'catalog.update',
+              'catalog.delete',
+              'catalog.manage',
+            ]
+          : [];
       }
 
       if (isEdit && userToEdit?.id) {
@@ -345,6 +368,29 @@ export default function UserFormModal({
               ))}
             </div>
           </div>
+
+          {/* Staff Permissions (Catalog access) */}
+          {(role === 'STAFF' || role === 'MANAGER') && (
+            <div className="p-3.5 bg-sky-50/60 rounded-xl border border-sky-100 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-[#16324F] block">
+                  Catalog Management Access
+                </span>
+                <span className="text-[11px] text-[#64748B] block">
+                  Allows staff to view, create, edit and delete products, categories, and brands.
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
+                <input
+                  type="checkbox"
+                  checked={hasCatalogAccess}
+                  onChange={(e) => setHasCatalogAccess(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1677C8]"></div>
+              </label>
+            </div>
+          )}
 
           {/* Delivery Partner Specific Details */}
           {role === 'DELIVERY_PARTNER' && (

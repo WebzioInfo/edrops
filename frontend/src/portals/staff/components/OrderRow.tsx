@@ -236,6 +236,12 @@ export default function OrderRow({
                   <span>{assignedDistributor.firstName || 'Distributor'} {assignedDistributor.lastName || ''}</span>
                 </span>
               )}
+              {order.driver && (
+                <span className="text-[11px] font-medium text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-md flex items-center gap-1 hidden sm:inline-flex" title={`Driver: ${order.driver.name}`}>
+                  <Truck className="w-3 h-3 text-[#1677C8]" />
+                  <span>Driver: {order.driver.name}</span>
+                </span>
+              )}
             </div>
 
             {/* Bottom line: Condensed Items Summary */}
@@ -413,30 +419,98 @@ export default function OrderRow({
                   </div>
                 </div>
 
-                {/* Column 2: Items Breakdown */}
-                <div className="p-4 bg-white rounded-2xl border border-[#E2E8F0] space-y-2.5 text-xs">
-                  <div className="font-bold text-[#0F172A] uppercase tracking-wider text-[11px] flex items-center gap-1.5 pb-1 border-b border-[#F1F5F9]">
-                    <Package className="w-3.5 h-3.5 text-[#1E88E5]" /> Ordered Products ({order.items?.length || 0})
-                  </div>
-                  <div className="space-y-1.5 md:max-h-[140px] md:overflow-y-auto pr-1">
-                    {order.items?.map((item: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between py-1 border-b border-[#F8FAFC] last:border-0 text-xs">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-bold text-[#1E88E5] bg-[#EBF5FB] px-1.5 py-0.5 rounded text-[11px]">
-                            {item.quantity}x
+                {/* Column 2: Items Breakdown & Assigned Driver */}
+                <div className="space-y-4 flex flex-col">
+                  {/* Ordered Products Card */}
+                  <div className="p-4 bg-white rounded-2xl border border-[#E2E8F0] space-y-2.5 text-xs">
+                    <div className="font-bold text-[#0F172A] uppercase tracking-wider text-[11px] flex items-center gap-1.5 pb-1 border-b border-[#F1F5F9]">
+                      <Package className="w-3.5 h-3.5 text-[#1E88E5]" /> Ordered Products ({order.items?.length || 0})
+                    </div>
+                    <div className="space-y-1.5 md:max-h-[140px] md:overflow-y-auto pr-1">
+                      {order.items?.map((item: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between py-1 border-b border-[#F8FAFC] last:border-0 text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-bold text-[#1E88E5] bg-[#EBF5FB] px-1.5 py-0.5 rounded text-[11px]">
+                              {item.quantity}x
+                            </span>
+                            <span className="text-[#0F172A] font-medium truncate">{item.product?.name}</span>
+                          </div>
+                          <span className="text-[#64748B] font-semibold shrink-0 ml-2">
+                            ₹{Number(item.total || (item.quantity * item.unitPrice) || 0).toLocaleString('en-IN')}
                           </span>
-                          <span className="text-[#0F172A] font-medium truncate">{item.product?.name}</span>
                         </div>
-                        <span className="text-[#64748B] font-semibold shrink-0 ml-2">
-                          ₹{Number(item.total || (item.quantity * item.unitPrice) || 0).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    <div className="pt-2 border-t border-[#F1F5F9] flex justify-between items-center text-xs font-bold text-[#0F172A]">
+                      <span>Total Amount</span>
+                      <span className="text-sm text-[#1E88E5]">₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
                   </div>
 
-                  <div className="pt-2 border-t border-[#F1F5F9] flex justify-between items-center text-xs font-bold text-[#0F172A]">
-                    <span>Total Amount</span>
-                    <span className="text-sm text-[#1E88E5]">₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</span>
+                  {/* Assigned Driver Section (Assigned by Distributor — Display-Only for Staff) */}
+                  <div className="p-4 bg-white rounded-2xl border border-[#E2E8F0] space-y-2 text-xs flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-xs pb-1.5 mb-2 border-b border-[#F1F5F9]">
+                        <span className="font-bold text-[#0F172A] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                          <Truck className="w-3.5 h-3.5 text-[#1677C8]" /> Assigned Driver
+                        </span>
+                        {order.driver ? (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                            Assigned
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                            Not Assigned
+                          </span>
+                        )}
+                      </div>
+
+                      {order.driver ? (
+                        <div className="p-3 bg-sky-50/70 border border-sky-100 rounded-xl space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-[#0F172A] truncate">
+                              {order.driver.name}
+                            </span>
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[10px] font-bold shrink-0 ${
+                                order.driver.isActive !== false
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}
+                            >
+                              {order.driver.isActive !== false ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+
+                          {order.driver.phone && (
+                            <div className="text-[11px] text-[#64748B] flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>{order.driver.phone}</span>
+                            </div>
+                          )}
+
+                          {order.driver.vehicleNumber && (
+                            <div className="text-[11px] text-[#64748B] flex items-center gap-1">
+                              <Truck className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>
+                                {order.driver.vehicleType ? `${order.driver.vehicleType} · ` : ''}
+                                {order.driver.vehicleNumber}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="pt-1 border-t border-sky-100/60 text-[10px] text-slate-400 font-medium">
+                            Assigned by distributor for delivery
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center justify-between">
+                          <span>Driver not assigned</span>
+                          <span className="text-[10px] text-slate-400">Awaiting distributor</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

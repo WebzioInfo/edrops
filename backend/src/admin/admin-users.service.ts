@@ -55,6 +55,7 @@ export class AdminUsersService {
         phone: true,
         email: true,
         role: true,
+        permissions: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -153,6 +154,7 @@ export class AdminUsersService {
     vehiclePlate?: string;
     jarUnitPrice?: number | string;
     isActive?: boolean;
+    permissions?: string[];
   }) {
     // Validate phone unique
     const existingPhone = await this.prisma.user.findUnique({
@@ -192,6 +194,7 @@ export class AdminUsersService {
           phone: data.phone,
           email: data.email || null,
           role: data.role || UserRole.STAFF,
+          permissions: Array.isArray(data.permissions) ? data.permissions : [],
           passwordHash,
           isActive: data.isActive !== false,
         },
@@ -243,6 +246,7 @@ export class AdminUsersService {
       vehicleType?: string;
       vehiclePlate?: string;
       jarUnitPrice?: number | string;
+      permissions?: string[];
     },
   ) {
     const existing = await this.prisma.user.findFirst({
@@ -286,6 +290,9 @@ export class AdminUsersService {
     if (data.email !== undefined) updateData.email = data.email || null;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.role !== undefined) updateData.role = data.role;
+    if (data.permissions !== undefined) {
+      updateData.permissions = Array.isArray(data.permissions) ? data.permissions : [];
+    }
 
     if (data.password) {
       const salt = await bcrypt.genSalt(10);
@@ -448,6 +455,7 @@ export class AdminUsersService {
       phone: user.phone,
       email: user.email,
       role: user.role,
+      permissions: user.permissions || [],
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
