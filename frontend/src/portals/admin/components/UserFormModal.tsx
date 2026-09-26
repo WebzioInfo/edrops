@@ -2,15 +2,18 @@ import { useState, useEffect } from 'react';
 import { 
   X, 
   User, 
-  Loader2, 
   AlertCircle, 
   Truck, 
   Phone, 
   Mail, 
-  Lock,
-  Eye,
-  EyeOff,
-  IndianRupee
+  Lock, 
+  Eye, 
+  EyeOff, 
+  IndianRupee,
+  Tag,
+  MapPin,
+  Building2,
+  Loader2
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -21,17 +24,75 @@ export interface UserRecord {
   lastName?: string;
   fullName?: string;
   phone?: string;
+  alternatePhone?: string | null;
   email?: string;
+  avatarUrl?: string | null;
   role?: string;
   permissions?: string[];
   isActive?: boolean;
+  referralCode?: string | null;
+  pincode?: string | null;
+  servicePincodes?: string[];
+  agencyName?: string | null;
+  routeOrArea?: string | null;
+  vehicleType?: string | null;
+  vehiclePlate?: string | null;
   deliveryPartner?: {
     id?: string;
-    vehicleType?: string;
-    vehiclePlate?: string;
+    vehicleType?: string | null;
+    vehiclePlate?: string | null;
     jarUnitPrice?: number;
+    pincode?: string | null;
+    routeOrArea?: string | null;
+    totalDeliveries?: number;
+    completedDeliveries?: number;
+    todayDeliveries?: number;
+    availability?: string;
+    recentAssignments?: any[];
+    matchedDriver?: any;
+  } | null;
+  distributor?: {
+    id?: string;
+    referralCode?: string;
+    agencyName?: string | null;
+    address?: string | null;
+    routeOrArea?: string | null;
+    vehicleType?: string | null;
+    vehiclePlate?: string | null;
+    jarOwnership?: string | null;
+    companyOwnedJars?: number;
+    distributorOwnedJars?: number;
+    totalJars?: number;
+    servicePincodes?: any[];
+    pincodesList?: string[];
+    driversCount?: number;
+    drivers?: any[];
+    createdBy?: any;
+  } | null;
+  staff?: {
+    id?: string;
+    branchId?: string | null;
+    branch?: {
+      id?: string;
+      name?: string;
+      location?: string;
+      contactInfo?: string | null;
+    } | null;
+    vehicleType?: string | null;
+    vehiclePlate?: string | null;
+  } | null;
+  admin?: {
+    id?: string;
+    level?: number;
+  } | null;
+  customer?: {
+    referralCode?: string | null;
+    customerType?: string | null;
+    companyName?: string | null;
   } | null;
   jarUnitPrice?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface UserFormModalProps {
@@ -52,6 +113,7 @@ export default function UserFormModal({
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [alternatePhone, setAlternatePhone] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<string>(defaultRole);
   const [password, setPassword] = useState('');
@@ -59,6 +121,11 @@ export default function UserFormModal({
   const [vehicleType, setVehicleType] = useState('Motorcycle');
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [jarUnitPrice, setJarUnitPrice] = useState('12.00');
+  const [pincode, setPincode] = useState('');
+  const [servicePincodes, setServicePincodes] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+  const [agencyName, setAgencyName] = useState('');
+  const [routeOrArea, setRouteOrArea] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [hasCatalogAccess, setHasCatalogAccess] = useState(false);
 
@@ -73,13 +140,40 @@ export default function UserFormModal({
         setFirstName(userToEdit.firstName || '');
         setLastName(userToEdit.lastName || '');
         setPhone(userToEdit.phone || '');
+        setAlternatePhone(userToEdit.alternatePhone || '');
         setEmail(userToEdit.email || '');
         setRole(userToEdit.role || defaultRole);
         setPassword('');
-        setVehicleType(userToEdit.deliveryPartner?.vehicleType || 'Motorcycle');
-        setVehiclePlate(userToEdit.deliveryPartner?.vehiclePlate || '');
-        const p = userToEdit.deliveryPartner?.jarUnitPrice ?? userToEdit.jarUnitPrice ?? 12;
+        setVehicleType(
+          userToEdit.deliveryPartner?.vehicleType ||
+            userToEdit.distributor?.vehicleType ||
+            userToEdit.vehicleType ||
+            'Motorcycle'
+        );
+        setVehiclePlate(
+          userToEdit.deliveryPartner?.vehiclePlate ||
+            userToEdit.distributor?.vehiclePlate ||
+            userToEdit.vehiclePlate ||
+            ''
+        );
+        const p =
+          userToEdit.deliveryPartner?.jarUnitPrice ?? userToEdit.jarUnitPrice ?? 12;
         setJarUnitPrice(Number(p).toFixed(2));
+        setPincode(userToEdit.deliveryPartner?.pincode || userToEdit.pincode || '');
+        setReferralCode(
+          userToEdit.distributor?.referralCode || userToEdit.referralCode || ''
+        );
+        const pins =
+          userToEdit.distributor?.pincodesList ||
+          userToEdit.servicePincodes ||
+          [];
+        setServicePincodes(pins.join(', '));
+        setAgencyName(
+          userToEdit.distributor?.agencyName || userToEdit.agencyName || ''
+        );
+        setRouteOrArea(
+          userToEdit.distributor?.routeOrArea || userToEdit.routeOrArea || ''
+        );
         setIsActive(userToEdit.isActive !== false);
 
         const perms = Array.isArray(userToEdit.permissions) ? userToEdit.permissions : [];
@@ -93,12 +187,18 @@ export default function UserFormModal({
         setFirstName('');
         setLastName('');
         setPhone('');
+        setAlternatePhone('');
         setEmail('');
         setRole(defaultRole);
         setPassword('');
         setVehicleType('Motorcycle');
         setVehiclePlate('');
         setJarUnitPrice('12.00');
+        setPincode('');
+        setReferralCode('');
+        setServicePincodes('');
+        setAgencyName('');
+        setRouteOrArea('');
         setIsActive(true);
         setHasCatalogAccess(false);
       }
@@ -151,6 +251,7 @@ export default function UserFormModal({
         firstName: trimmedFirst,
         lastName: trimmedLast,
         phone: trimmedPhone,
+        alternatePhone: alternatePhone.trim() || undefined,
         email: trimmedEmail || undefined,
         role,
         isActive,
@@ -164,6 +265,25 @@ export default function UserFormModal({
         payload.vehicleType = vehicleType;
         payload.vehiclePlate = vehiclePlate.trim() || undefined;
         payload.jarUnitPrice = parsedPrice;
+        if (pincode.trim()) {
+          payload.pincode = pincode.trim();
+        }
+      }
+
+      if (role === 'DISTRIBUTOR') {
+        if (referralCode.trim()) payload.referralCode = referralCode.trim().toUpperCase();
+        if (agencyName.trim()) payload.agencyName = agencyName.trim();
+        if (routeOrArea.trim()) payload.routeOrArea = routeOrArea.trim();
+        payload.vehicleType = vehicleType;
+        payload.vehiclePlate = vehiclePlate.trim() || undefined;
+
+        const rawPins = servicePincodes
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean);
+        if (rawPins.length > 0) {
+          payload.servicePincodes = rawPins;
+        }
       }
 
       if (role === 'STAFF' || role === 'MANAGER') {
@@ -192,6 +312,8 @@ export default function UserFormModal({
         toast.success(
           role === 'DELIVERY_PARTNER'
             ? 'Delivery Partner added successfully'
+            : role === 'DISTRIBUTOR'
+            ? 'Distributor account added successfully'
             : 'Application user created successfully'
         );
       }
@@ -224,6 +346,8 @@ export default function UserFormModal({
             <div className="w-8 h-8 rounded-lg bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center">
               {role === 'DELIVERY_PARTNER' ? (
                 <Truck className="w-4 h-4" />
+              ) : role === 'DISTRIBUTOR' ? (
+                <Building2 className="w-4 h-4" />
               ) : (
                 <User className="w-4 h-4" />
               )}
@@ -231,8 +355,20 @@ export default function UserFormModal({
             <div>
               <h3 className="text-sm font-bold text-[#16324F]">
                 {isEdit
-                  ? `Edit ${role === 'DELIVERY_PARTNER' ? 'Delivery Partner' : 'User'}`
-                  : `Add New ${role === 'DELIVERY_PARTNER' ? 'Delivery Partner' : 'User'}`}
+                  ? `Edit ${
+                      role === 'DELIVERY_PARTNER'
+                        ? 'Delivery Partner'
+                        : role === 'DISTRIBUTOR'
+                        ? 'Distributor'
+                        : 'User'
+                    }`
+                  : `Add New ${
+                      role === 'DELIVERY_PARTNER'
+                        ? 'Delivery Partner'
+                        : role === 'DISTRIBUTOR'
+                        ? 'Distributor'
+                        : 'User'
+                    }`}
               </h3>
               <p className="text-[11px] text-[#64748B]">
                 {isEdit
@@ -337,6 +473,19 @@ export default function UserFormModal({
             </div>
           </div>
 
+          {/* Alternate Phone */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-[#16324F]">Alternate Phone (Optional)</label>
+            <input
+              type="tel"
+              disabled={loading}
+              value={alternatePhone}
+              onChange={(e) => setAlternatePhone(e.target.value)}
+              placeholder="e.g. +91 98765 00000"
+              className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1677C8] focus:ring-2 focus:ring-[#1677C8]/10 transition-all text-[#16324F]"
+            />
+          </div>
+
           {/* Role Selection */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-[#16324F]">
@@ -392,6 +541,101 @@ export default function UserFormModal({
             </div>
           )}
 
+          {/* Distributor Specific Details */}
+          {role === 'DISTRIBUTOR' && (
+            <div className="p-3.5 bg-emerald-50/40 rounded-xl border border-emerald-100 space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                <Building2 className="w-4 h-4 text-emerald-600" />
+                <span>Distributor Operational Profile</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-[#16324F]">
+                    Referral Code
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. EDR-8881 (Auto if blank)"
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg outline-none font-mono font-bold text-[#16324F]"
+                    />
+                    <Tag className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-[#16324F]">
+                    Service Pincode(s)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={servicePincodes}
+                      onChange={(e) => setServicePincodes(e.target.value)}
+                      placeholder="e.g. 673638, 673639"
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg outline-none text-[#16324F]"
+                    />
+                    <MapPin className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-[#16324F]">Agency Name (Optional)</label>
+                  <input
+                    type="text"
+                    value={agencyName}
+                    onChange={(e) => setAgencyName(e.target.value)}
+                    placeholder="e.g. Malabar Water Agency"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg outline-none text-[#16324F]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-[#16324F]">Route or Area (Optional)</label>
+                  <input
+                    type="text"
+                    value={routeOrArea}
+                    onChange={(e) => setRouteOrArea(e.target.value)}
+                    placeholder="e.g. Kondotty Town Route"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg outline-none text-[#16324F]"
+                  />
+                </div>
+              </div>
+
+              {/* Vehicle info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-[#16324F]">Vehicle Type</label>
+                  <select
+                    value={vehicleType}
+                    onChange={(e) => setVehicleType(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg outline-none text-[#16324F] font-medium"
+                  >
+                    <option value="Three-Wheeler">Three-Wheeler (Auto)</option>
+                    <option value="Mini Truck">Mini Truck / Pickup</option>
+                    <option value="Motorcycle">Motorcycle</option>
+                    <option value="Van">Van</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-[#16324F]">Vehicle Plate / Reg No</label>
+                  <input
+                    type="text"
+                    value={vehiclePlate}
+                    onChange={(e) => setVehiclePlate(e.target.value)}
+                    placeholder="e.g. KL 10 AZ 4521"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg outline-none text-[#16324F] font-medium"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Delivery Partner Specific Details */}
           {role === 'DELIVERY_PARTNER' && (
             <div className="p-3.5 bg-blue-50/40 rounded-xl border border-blue-100/80 space-y-3">
@@ -429,6 +673,23 @@ export default function UserFormModal({
                 </p>
               </div>
 
+              {/* Driver Pincode */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-semibold text-[#16324F]">
+                  Service Area Pincode (Optional)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value)}
+                    placeholder="e.g. 682001"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg outline-none text-[#16324F]"
+                  />
+                  <MapPin className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
               {/* Vehicle info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div className="space-y-1">
@@ -441,6 +702,7 @@ export default function UserFormModal({
                     <option value="Motorcycle">Motorcycle</option>
                     <option value="Three Wheeler (Auto)">Three Wheeler (Auto)</option>
                     <option value="Van / Small Truck">Van / Small Truck</option>
+                    <option value="Mini Truck">Mini Truck</option>
                     <option value="Bicycle">Bicycle</option>
                   </select>
                 </div>

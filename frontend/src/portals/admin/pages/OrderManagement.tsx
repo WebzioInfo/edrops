@@ -6,6 +6,7 @@ import LoadingSpinner from '../../../components/LoadingSpinner';
 import { formatOrderId, formatOrderStatus, getOrderStatusBadgeClass } from '../../../utils/orderFormatters';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { useSocket } from '../../../contexts/SocketContext';
+import { AdminTopbar } from '../components/AdminTopbar';
 
 export default function OrderManagement() {
   const queryClient = useQueryClient();
@@ -37,8 +38,7 @@ export default function OrderManagement() {
   const { data: orders = [], isLoading: isLoadingOrders, isError: isOrdersError, error: ordersError, refetch: refetchOrders } = useQuery({
     queryKey: ['adminOrdersPending'],
     queryFn: () => fetchWithAuth('/order'),
-    // Canonical active orders for management
-    select: (data) => data.filter((o: any) => ['ORDER_PLACED', 'CONFIRMED', 'PENDING_ASSIGNMENT', 'ASSIGNED'].includes(o.status))
+    select: (data: any) => (Array.isArray(data) ? data : data?.data || []).filter((o: any) => ['ORDER_PLACED', 'CONFIRMED', 'PENDING_ASSIGNMENT', 'ASSIGNED'].includes(o.status))
   });
 
   const { data: partners = [] } = useQuery({
@@ -74,13 +74,15 @@ export default function OrderManagement() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Bulk Management</h1>
-          <p className="text-slate-500 font-semibold mt-1">Assign deliveries or override statuses in bulk.</p>
-        </div>
-      </div>
+    <div className="max-w-7xl mx-auto space-y-4 animate-fade-in">
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Bulk Order Management"
+        subtitle="Assign deliveries or override statuses in bulk."
+        icon={Truck}
+        iconVariant="blue"
+        backLink={{ label: 'Back to Orders', to: '/admin/orders' }}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         

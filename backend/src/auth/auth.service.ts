@@ -13,6 +13,7 @@ import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
+import { CloudinaryService, type MulterFile } from '../config/cloudinary.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -271,6 +273,7 @@ export class AuthService {
         lastName: true,
         phone: true,
         role: true,
+        avatarUrl: true,
         customer: {
           include: {
             wallet: true,
@@ -399,6 +402,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        avatarUrl: user.avatarUrl,
       },
     };
   }
@@ -692,7 +696,92 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         permissions: user.permissions || [],
+        avatarUrl: user.avatarUrl || null,
       },
+    };
+  }
+
+  async uploadAvatar(userId: string, file: MulterFile) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('No image file provided for profile picture.');
+    }
+
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, avatarUrl: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Upload to Cloudinary under 'edrops/avatars'
+    const upload = await this.cloudinaryService.uploadImage(file, 'edrops/avatars');
+
+    // Clean up previous image if it was hosted on Cloudinary
+    if (existing.avatarUrl && existing.avatarUrl !== upload.secure_url) {
+      this.cloudinaryService.deleteImage(existing.avatarUrl).catch((err) => {
+        this.logger.warn(`Failed to delete previous avatar (${existing.avatarUrl}): ${err.message}`);
+      });
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: upload.secure_url },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        avatarUrl: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Profile picture updated successfully',
+      avatarUrl: updated.avatarUrl,
+      user: updated,
+    };
+  }
+
+  async removeAvatar(userId: string) {
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, avatarUrl: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (existing.avatarUrl) {
+      this.cloudinaryService.deleteImage(existing.avatarUrl).catch((err) => {
+        this.logger.warn(`Failed to delete avatar from storage (${existing.avatarUrl}): ${err.message}`);
+      });
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: null },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        avatarUrl: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Profile picture removed successfully',
+      avatarUrl: null,
+      user: updated,
     };
   }
 }

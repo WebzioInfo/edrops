@@ -7,7 +7,11 @@ import {
   Edit3, 
   Hash, 
   Truck,
-  Coins
+  Coins,
+  Tag,
+  MapPin,
+  Building2,
+  Users
 } from 'lucide-react';
 import type { UserRecord } from './UserFormModal';
 
@@ -32,10 +36,12 @@ export default function UserDetailModal({
   const initials = `${firstName[0] || 'U'}${lastName[0] || ''}`.toUpperCase();
   const userId = user.id ? `#USR-${user.id.slice(0, 8).toUpperCase()}` : '#USR-00000';
   const phone = user.phone || '—';
+  const alternatePhone = user.alternatePhone || null;
   const email = user.email || '—';
   const role = user.role || 'STAFF';
   const isActive = user.isActive !== false;
   const isDeliveryPartner = role === 'DELIVERY_PARTNER';
+  const isDistributor = role === 'DISTRIBUTOR';
   const rawJarPrice = user.deliveryPartner?.jarUnitPrice ?? user.jarUnitPrice ?? 0;
   const hasJarPrice = Number(rawJarPrice) > 0;
   const jarUnitPrice = hasJarPrice ? Number(rawJarPrice).toFixed(2) : '0.00';
@@ -47,6 +53,8 @@ export default function UserDetailModal({
       })
     : '—';
 
+  const referralCode = user.referralCode || user.distributor?.referralCode || user.customer?.referralCode || null;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs animate-in fade-in"
@@ -56,18 +64,39 @@ export default function UserDetailModal({
         }
       }}
     >
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95">
         {/* Header Hero */}
         <div className="p-5 border-b border-gray-100 bg-slate-50/80 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold text-base shadow-xs shrink-0">
-              {initials}
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold text-base shadow-xs shrink-0 overflow-hidden">
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={fullName}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                    if (e.currentTarget.parentElement) {
+                      e.currentTarget.parentElement.innerText = initials;
+                    }
+                  }}
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-[#16324F]">{fullName}</h3>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-[#1677C8] border border-blue-100">
-                  {isDeliveryPartner ? <Truck className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
+                  {isDeliveryPartner ? (
+                    <Truck className="w-3 h-3" />
+                  ) : isDistributor ? (
+                    <Building2 className="w-3 h-3" />
+                  ) : (
+                    <Shield className="w-3 h-3" />
+                  )}
                   <span>{role.replace('_', ' ')}</span>
                 </span>
               </div>
@@ -111,6 +140,23 @@ export default function UserDetailModal({
             </div>
           </div>
 
+          {/* Referral Code (if available) */}
+          {referralCode && (
+            <div className="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200/80 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
+                  Referral Code
+                </span>
+                <span className="text-base font-mono font-black text-amber-900 mt-0.5 block">
+                  {referralCode}
+                </span>
+              </div>
+              <div className="w-9 h-9 rounded-xl bg-amber-100/80 border border-amber-300/60 flex items-center justify-center text-amber-800">
+                <Tag className="w-4 h-4" />
+              </div>
+            </div>
+          )}
+
           {/* Contact Details */}
           <div className="space-y-1.5">
             <h4 className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider px-1">Contact Info</h4>
@@ -122,6 +168,15 @@ export default function UserDetailModal({
                   <a href={`tel:${phone}`} className="hover:underline">{phone}</a>
                 </div>
               </div>
+              {alternatePhone && (
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-[#64748B]">Alternate Phone:</span>
+                  <div className="flex items-center gap-1.5 font-medium text-[#16324F]">
+                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>{alternatePhone}</span>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                 <span className="text-[#64748B]">Email:</span>
                 <div className="flex items-center gap-1.5 font-medium text-[#16324F]">
@@ -132,30 +187,94 @@ export default function UserDetailModal({
             </div>
           </div>
 
-          {/* Staff Permissions Summary */}
-          {(role === 'STAFF' || role === 'MANAGER') && (
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 space-y-2 text-xs">
-              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">
-                Operational Permissions
-              </span>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600">Catalog Management:</span>
-                {Array.isArray(user.permissions) &&
-                user.permissions.some((p: string) => String(p).toLowerCase().startsWith('catalog') || p === '*') ? (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Granted (Full Access)
-                  </span>
+          {/* Distributor Specific Operational Profile */}
+          {isDistributor && (
+            <div className="p-3.5 bg-emerald-50/40 rounded-xl border border-emerald-100 space-y-3 text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                <Building2 className="w-4 h-4 text-emerald-600" />
+                <span>Distributor Operational Profile</span>
+              </div>
+
+              {user.distributor?.agencyName && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#64748B]">Agency Name:</span>
+                  <span className="font-bold text-[#16324F]">{user.distributor.agencyName}</span>
+                </div>
+              )}
+
+              {user.distributor?.routeOrArea && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#64748B]">Route / Area:</span>
+                  <span className="font-medium text-[#16324F]">{user.distributor.routeOrArea}</span>
+                </div>
+              )}
+
+              {/* Service Pincodes */}
+              <div className="space-y-1 pt-1 border-t border-emerald-100/60">
+                <span className="text-[#64748B] block">Service Pincodes:</span>
+                {user.servicePincodes && user.servicePincodes.length > 0 ? (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {user.servicePincodes.map((pin: string) => (
+                      <span
+                        key={pin}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white text-emerald-800 border border-emerald-200 text-[11px] font-bold shadow-2xs"
+                      >
+                        <MapPin className="w-3 h-3 text-emerald-600" />
+                        <span>{pin}</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : user.pincode ? (
+                  <span className="font-bold text-[#16324F]">{user.pincode}</span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                    Not Granted
-                  </span>
+                  <span className="text-gray-400 italic">No service pincodes registered</span>
                 )}
               </div>
+
+              {/* Vehicle info */}
+              {(user.distributor?.vehicleType || user.distributor?.vehiclePlate) && (
+                <div className="flex items-center justify-between pt-1 border-t border-emerald-100/60">
+                  <span className="text-[#64748B]">Vehicle:</span>
+                  <span className="font-medium text-[#16324F]">
+                    {user.distributor.vehicleType || 'Vehicle'}
+                    {user.distributor.vehiclePlate ? ` • ${user.distributor.vehiclePlate}` : ''}
+                  </span>
+                </div>
+              )}
+
+              {/* Jar Inventory */}
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-100/60">
+                <div className="p-2 bg-white rounded-lg border border-emerald-100">
+                  <span className="text-[10px] text-[#64748B] block">Company Jars</span>
+                  <span className="text-sm font-bold text-[#16324F]">
+                    {user.distributor?.companyOwnedJars ?? 0}
+                  </span>
+                </div>
+                <div className="p-2 bg-white rounded-lg border border-emerald-100">
+                  <span className="text-[10px] text-[#64748B] block">Distributor Jars</span>
+                  <span className="text-sm font-bold text-[#16324F]">
+                    {user.distributor?.distributorOwnedJars ?? 0}
+                  </span>
+                </div>
+              </div>
+
+              {/* Drivers Count */}
+              {(user.distributor?.driversCount ?? 0) > 0 && (
+                <div className="flex items-center justify-between pt-1 border-t border-emerald-100/60">
+                  <span className="text-[#64748B] flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Assigned Drivers:</span>
+                  </span>
+                  <span className="font-bold text-emerald-700">
+                    {user.distributor.driversCount} {user.distributor.driversCount === 1 ? 'Driver' : 'Drivers'}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Delivery Partner Summary (Vehicle & Performance) */}
-          {isDeliveryPartner && user.deliveryPartner && (
+          {/* Delivery Partner Summary (Vehicle, Pincode & Performance) */}
+          {isDeliveryPartner && (
             <div className="p-3.5 bg-blue-50/40 rounded-xl border border-blue-100/80 space-y-2 text-xs">
               <div className="flex items-center gap-1.5 font-bold text-[#1677C8]">
                 <Truck className="w-4 h-4" />
@@ -163,15 +282,35 @@ export default function UserDetailModal({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#64748B]">Vehicle:</span>
-                <span className="font-bold text-[#16324F]">{user.deliveryPartner.vehicleType}</span>
+                <span className="font-bold text-[#16324F]">
+                  {user.deliveryPartner?.vehicleType || user.vehicleType || 'Standard Vehicle'}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#64748B]">Registration Plate:</span>
-                <span className="font-mono font-semibold text-[#16324F]">{user.deliveryPartner.vehiclePlate || '—'}</span>
+                <span className="font-mono font-semibold text-[#16324F]">
+                  {user.deliveryPartner?.vehiclePlate || user.vehiclePlate || '—'}
+                </span>
               </div>
-              <div className="flex items-center justify-between">
+              {user.deliveryPartner?.pincode && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#64748B]">Service Area Pincode:</span>
+                  <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                    {user.deliveryPartner.pincode}
+                  </span>
+                </div>
+              )}
+              {user.deliveryPartner?.routeOrArea && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#64748B]">Assigned Route:</span>
+                  <span className="font-medium text-[#16324F]">{user.deliveryPartner.routeOrArea}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1 border-t border-blue-100/60">
                 <span className="text-[#64748B]">Total Completed:</span>
-                <span className="font-bold text-emerald-700">{user.deliveryPartner.completedDeliveries ?? 0} deliveries</span>
+                <span className="font-bold text-emerald-700">
+                  {user.deliveryPartner?.completedDeliveries ?? 0} deliveries
+                </span>
               </div>
             </div>
           )}
@@ -216,6 +355,38 @@ export default function UserDetailModal({
                   <span>{hasJarPrice ? 'Edit Price' : 'Set Price'}</span>
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Staff Branch & Permissions Summary */}
+          {(role === 'STAFF' || role === 'MANAGER') && (
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 space-y-2 text-xs">
+              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">
+                Staff Operational Details
+              </span>
+
+              {user.staff?.branch && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Assigned Branch:</span>
+                  <span className="font-bold text-[#16324F]">
+                    {user.staff.branch.name} {user.staff.branch.location ? `(${user.staff.branch.location})` : ''}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600">Catalog Management:</span>
+                {Array.isArray(user.permissions) &&
+                user.permissions.some((p: string) => String(p).toLowerCase().startsWith('catalog') || p === '*') ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Granted (Full Access)
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                    Not Granted
+                  </span>
+                )}
+              </div>
             </div>
           )}
 

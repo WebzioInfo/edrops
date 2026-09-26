@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   Phone, 
   Mail, 
-  Shield, 
   CheckCircle2, 
   Lock, 
   LogOut, 
@@ -19,6 +18,7 @@ import { toast } from 'react-hot-toast';
 import EditProfileModal from '../components/EditProfileModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import ProfileAvatarSection from '../../../components/common/ProfileAvatarSection';
 
 export default function Profile() {
   const { user: authUser, updateUser, logout } = useAuth();
@@ -57,7 +57,6 @@ export default function Profile() {
   const firstName = activeUser?.firstName || '';
   const lastName = activeUser?.lastName || '';
   const fullName = `${firstName} ${lastName}`.trim() || 'Delivery Partner';
-  const initials = `${firstName[0] || 'D'}${lastName[0] || 'P'}`.toUpperCase();
   const phone = activeUser?.phone || '—';
   const email = activeUser?.email || '—';
   const partnerId = activeUser?.id ? `DP-${activeUser.id.slice(0, 8).toUpperCase()}` : 'DP-00000';
@@ -115,59 +114,37 @@ export default function Profile() {
             Manage your delivery partner account and personal information.
           </p>
         </div>
-        <button
-          onClick={loadProfile}
-          disabled={loading}
-          className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#64748B] hover:text-[#16324F] bg-white border border-[#E2E8F0] rounded-xl hover:bg-gray-50 transition cursor-pointer disabled:opacity-50"
-          title="Refresh Profile"
-        >
-          <RotateCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#1677C8]' : ''}`} />
-          <span>Refresh</span>
-        </button>
-      </div>
-
-      {/* ─── HERO PROFILE CARD ──────────────────────────────────── */}
-      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 sm:p-6 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            {/* Initials Avatar */}
-            <div className="h-16 w-16 sm:h-18 sm:w-18 rounded-2xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-black text-xl sm:text-2xl tracking-tight shadow-xs shrink-0">
-              {initials}
-            </div>
-
-            {/* Identity Info */}
-            <div className="min-w-0 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg sm:text-xl font-bold text-[#16324F] tracking-tight truncate">
-                  {fullName}
-                </h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-[#1677C8] border border-blue-100 shrink-0">
-                  <Shield className="w-3 h-3" />
-                  <span>Delivery Partner</span>
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs">
-                <div className="inline-flex items-center gap-1.5 text-emerald-600 font-semibold">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>Online</span>
-                </div>
-                <span className="text-gray-300">•</span>
-                <span className="text-[#64748B] font-mono text-[11px]">{partnerId}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Edit Profile CTA */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setEditModalOpen(true)}
-            className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#1362a4] rounded-xl shadow-2xs transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#1362a4] rounded-xl shadow-2xs transition cursor-pointer"
           >
             <Edit3 className="w-3.5 h-3.5" />
             <span>Edit Profile</span>
           </button>
+          <button
+            onClick={loadProfile}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#64748B] hover:text-[#16324F] bg-white border border-[#E2E8F0] rounded-xl hover:bg-gray-50 transition cursor-pointer disabled:opacity-50"
+            title="Refresh Profile"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#1677C8]' : ''}`} />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
+
+      {/* ─── Profile Picture & Identity Management ─── */}
+      <ProfileAvatarSection
+        currentAvatarUrl={profile?.avatarUrl}
+        firstName={profile?.firstName}
+        lastName={profile?.lastName}
+        email={profile?.email}
+        role="DELIVERY_PARTNER"
+        onAvatarUpdated={(newAvatarUrl) => {
+          setProfile((prev: any) => (prev ? { ...prev, avatarUrl: newAvatarUrl } : null));
+        }}
+      />
 
       {/* ─── SECTION 1: ACCOUNT INFORMATION ──────────────────────── */}
       <div className="space-y-2">

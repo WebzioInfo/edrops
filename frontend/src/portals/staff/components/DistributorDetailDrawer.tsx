@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
-  Building2,
   Phone,
   Mail,
   MapPin,
@@ -69,8 +68,23 @@ export default function DistributorDetailDrawer({
             {/* ─── COMPACT DRAWER HEADER ──────────────────────── */}
             <div className="p-4 sm:p-5 bg-slate-50/90 border-b border-[#E2E8F0] flex items-center justify-between shrink-0 gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-[#1677C8] text-white flex items-center justify-center font-bold text-base shadow-sm shrink-0">
-                  <Building2 className="w-5 h-5" />
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-sky-100 text-[#1677C8] flex items-center justify-center font-bold text-base shadow-sm shrink-0 overflow-hidden">
+                  {distributor.avatarUrl ? (
+                    <img
+                      src={distributor.avatarUrl}
+                      alt={fullName}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                        if (e.currentTarget.parentElement) {
+                          e.currentTarget.parentElement.innerText = fullName.charAt(0).toUpperCase() || 'D';
+                        }
+                      }}
+                    />
+                  ) : (
+                    fullName.charAt(0).toUpperCase() || 'D'
+                  )}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { fetchWithAuth } from '../api/client';
 import { motion } from 'framer-motion';
 import { Shield, Wallet, ShoppingBag, Truck } from 'lucide-react';
@@ -6,6 +7,8 @@ import { toast } from 'react-hot-toast';
 import AccountDetailsForm from './profile/AccountDetailsForm';
 import ChangePasswordForm from './profile/ChangePasswordForm';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { AdminTopbar } from '../portals/admin/components/AdminTopbar';
+import ProfileAvatarSection from '../components/common/ProfileAvatarSection';
 
 interface ProfileData {
   id: string;
@@ -13,6 +16,7 @@ interface ProfileData {
   phone: string;
   firstName: string;
   lastName: string;
+  avatarUrl?: string | null;
   role: 'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER' | 'DISTRIBUTOR';
   customer?: {
     id: string;
@@ -36,8 +40,11 @@ interface ProfileData {
 }
 
 export default function Profile() {
+  const location = useLocation();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const isAdmin = location.pathname.startsWith('/admin');
 
   const loadProfile = async () => {
     try {
@@ -67,28 +74,39 @@ export default function Profile() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mx-auto max-w-6xl space-y-4 sm:space-y-5 bg-[#F8FAFC]"
-    >
-      {/* User Quick Info Summary & Role Badge */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#1677C8] to-[#22C55E] text-white text-xl font-bold shadow-md shrink-0">
-            {profile.firstName[0]?.toUpperCase()}{profile.lastName[0]?.toUpperCase()}
-          </div>
-          <div className="text-left min-w-0 flex-1">
-            <h2 className="text-base sm:text-lg font-bold text-[#16324F] truncate">{profile.firstName} {profile.lastName}</h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">{profile.email || 'No email set'}</p>
-          </div>
-        </div>
+    <>
+      {isAdmin && (
+        /* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */
+        <AdminTopbar
+          title="Admin Profile"
+          subtitle="Manage your personal details, credentials and security settings"
+          icon={Shield}
+          iconVariant="blue"
+          badge={
+            <div className="flex items-center gap-1.5 bg-[#1677C8]/10 border border-[#1677C8]/20 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#1677C8]">
+              <Shield className="h-3 w-3" />
+              <span>{profile.role.replace('_', ' ')}</span>
+            </div>
+          }
+        />
+      )}
 
-        <div className="flex items-center gap-2 bg-[#1677C8]/10 border border-[#1677C8]/20 rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#1677C8] shrink-0 self-start sm:self-auto">
-          <Shield className="h-3.5 w-3.5" />
-          <span>{profile.role.replace('_', ' ')}</span>
-        </div>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mx-auto max-w-6xl space-y-4 sm:space-y-5 bg-[#F8FAFC]"
+      >
+      {/* User Quick Info Summary & Profile Picture Management */}
+      <ProfileAvatarSection
+        currentAvatarUrl={profile.avatarUrl}
+        firstName={profile.firstName}
+        lastName={profile.lastName}
+        email={profile.email}
+        role={profile.role}
+        onAvatarUpdated={(newAvatarUrl) => {
+          setProfile((prev) => (prev ? { ...prev, avatarUrl: newAvatarUrl } : null));
+        }}
+      />
 
       <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1.6fr_1fr] items-start pt-2">
         {/* Left Column: Forms - Order 2 on mobile (stacked), Order 1 on desktop */}
@@ -196,5 +214,6 @@ export default function Profile() {
         </div>
       </div>
     </motion.div>
+    </>
   );
 }

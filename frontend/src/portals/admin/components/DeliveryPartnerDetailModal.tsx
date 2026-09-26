@@ -62,8 +62,23 @@ export default function DeliveryPartnerDetailModal({
         {/* Header Hero */}
         <div className="p-5 border-b border-gray-100 bg-slate-50/80 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold text-base shadow-xs shrink-0">
-              {initials}
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold text-base shadow-xs shrink-0 overflow-hidden">
+              {partner.avatarUrl ? (
+                <img
+                  src={partner.avatarUrl}
+                  alt={fullName}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                    if (e.currentTarget.parentElement) {
+                      e.currentTarget.parentElement.innerText = initials;
+                    }
+                  }}
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">

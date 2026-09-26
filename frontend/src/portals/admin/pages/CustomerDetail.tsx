@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wallet, Package, ShoppingBag, Clock, ShieldCheck, LifeBuoy } from 'lucide-react';
+import { Wallet, Package, ShoppingBag, Clock, ShieldCheck, LifeBuoy, User } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { AdminTopbar } from '../components/AdminTopbar';
 import { formatOrderId, formatOrderStatus } from '../../../utils/orderFormatters';
 
 export default function CustomerDetail() {
@@ -19,30 +20,32 @@ export default function CustomerDetail() {
   if (!customer) return <div className="text-center p-20 font-black text-2xl text-slate-500">Customer not found.</div>;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-12">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/50 pb-6">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate('/admin/customers')}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-black text-slate-800 tracking-tight">{customer.user.firstName} {customer.user.lastName}</h1>
-              {customer.isWalkIn && <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] uppercase font-black">Walk-In</span>}
-              {!customer.user.isActive && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] uppercase font-black">Inactive</span>}
-            </div>
-            <p className="text-sm font-semibold text-slate-500">{customer.user.phone} • {customer.user.email}</p>
+    <div className="max-w-7xl mx-auto space-y-4 animate-fade-in pb-12">
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title={`${customer.user.firstName} ${customer.user.lastName}`}
+        subtitle={`${customer.user.phone} • ${customer.user.email || 'No email'}`}
+        icon={User}
+        iconVariant="blue"
+        backLink={{ label: 'Back to Customers', to: '/admin/customers' }}
+        badge={
+          <div className="flex items-center gap-1.5">
+            {customer.isWalkIn && <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] uppercase font-bold">Walk-In</span>}
+            {!customer.user.isActive && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] uppercase font-bold">Inactive</span>}
           </div>
-        </div>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors">Edit Customer</button>
-          <button className="px-4 py-2 bg-[#2D79A8] hover:bg-[#245361] text-white font-bold rounded-xl text-sm transition-colors shadow-md shadow-[#2D79A8]/20">Place Order</button>
-        </div>
-      </div>
+        }
+        actions={
+          <div className="flex gap-2">
+            <button 
+              type="button"
+              onClick={() => navigate('/admin/orders/new')}
+              className="px-3.5 py-1.5 bg-[#1677C8] hover:bg-[#1262A5] text-white font-bold rounded-xl text-xs transition-colors shadow-2xs cursor-pointer"
+            >
+              Place Order
+            </button>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         

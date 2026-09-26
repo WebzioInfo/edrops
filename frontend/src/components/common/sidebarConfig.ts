@@ -11,10 +11,8 @@ import {
   Inbox,
   BarChart3,
   Truck,
-  Tag,
   FileText,
   LifeBuoy,
-  Settings,
   Plus,
   Gift,
   ShoppingBag,
@@ -240,11 +238,11 @@ export function getPortalSidebarConfig(
                 label: 'Users & Staff',
                 icon: Users,
               },
-              {
-                to: '/admin/promos',
-                label: 'Promo Codes',
-                icon: Tag,
-              },
+              // {
+              //   to: '/admin/promos',
+              //   label: 'Promo Codes',
+              //   icon: Tag,
+              // },
               {
                 to: '/admin/reports',
                 label: 'Reports',
@@ -260,11 +258,7 @@ export function getPortalSidebarConfig(
                 label: 'Support',
                 icon: LifeBuoy,
               },
-              {
-                to: '/admin/settings',
-                label: 'Settings',
-                icon: Settings,
-              },
+
               {
                 to: '/admin/profile',
                 label: 'Profile',

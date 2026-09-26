@@ -16,6 +16,7 @@ model User {
   lastName             String
   phone                String               @unique
   alternatePhone       String?
+  avatarUrl            String?
   gender               String?
   dateOfBirth          DateTime?            @db.Date
   phoneVerified        Boolean              @default(false)

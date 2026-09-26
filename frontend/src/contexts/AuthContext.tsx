@@ -10,6 +10,7 @@ type User = {
   firstName: string;
   lastName: string;
   phone?: string;
+  avatarUrl?: string | null;
   role: 'CUSTOMER' | 'STAFF' | 'ADMIN' | 'DELIVERY_PARTNER' | 'DISTRIBUTOR' | string;
   permissions?: string[];
   isActive?: boolean;

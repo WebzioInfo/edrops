@@ -28,6 +28,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { toast } from 'react-hot-toast';
+import { AdminTopbar } from '../components/AdminTopbar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -554,130 +555,119 @@ export default function ReportsCenter() {
 
   return (
     <div className="space-y-4 text-slate-800">
-      {/* ─── 1. GLOBAL ERP REPORT HEADER ────────────────────────────── */}
-      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-[#1677C8]/10 text-[#1677C8]">
-              <FileSpreadsheet className="w-5 h-5" />
-            </span>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black text-[#0F172A] tracking-tight">
-                Reports & Analytics
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                Complete business, operations, customers, delivery and financial reporting
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Reports & Analytics"
+        subtitle="Complete business, operations, customers, delivery and financial reporting"
+        icon={FileSpreadsheet}
+        iconVariant="blue"
+        actions={
+          <>
+            {/* Global Date-Range Selector */}
+            <div className="relative" ref={dateDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs transition-colors cursor-pointer"
+              >
+                <Calendar className="w-3.5 h-3.5 text-[#1677C8]" />
+                <span>{presetLabels[preset]}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              </button>
 
-        {/* Global Toolbar: Date Selector + Refresh + Export */}
-        <div className="flex items-center flex-wrap gap-2.5">
-          {/* Global Date-Range Selector */}
-          <div className="relative" ref={dateDropdownRef}>
+              {showDatePicker && (
+                <div className="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-30 space-y-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+                    Preset Date Ranges
+                  </div>
+                  <div className="grid grid-cols-1 gap-1">
+                    {(Object.keys(presetLabels) as DatePreset[]).map((key) => {
+                      if (key === 'CUSTOM') return null;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            setPreset(key);
+                            setShowDatePicker(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg font-medium transition-colors flex items-center justify-between cursor-pointer ${
+                            preset === key
+                              ? 'bg-[#1677C8] text-white font-bold'
+                              : 'hover:bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          <span>{presetLabels[key]}</span>
+                          {preset === key && <Check className="w-3.5 h-3.5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+                      Custom Date Range
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500">From</label>
+                        <input
+                          type="date"
+                          value={customStart}
+                          onChange={(e) => setCustomStart(e.target.value)}
+                          className="w-full text-xs p-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1677C8]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500">To</label>
+                        <input
+                          type="date"
+                          value={customEnd}
+                          onChange={(e) => setCustomEnd(e.target.value)}
+                          className="w-full text-xs p-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1677C8]"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={applyCustomRange}
+                        className="w-full mt-1 px-3 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white text-xs font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
+                      >
+                        Apply Custom Range
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Refresh Button */}
             <button
               type="button"
-              onClick={() => setShowDatePicker(!showDatePicker)}
-              className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs transition-colors cursor-pointer"
+              onClick={() => loadReports(true)}
+              disabled={refreshing || loading}
+              className="p-2 text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+              title="Refresh ERP Report Data"
             >
-              <Calendar className="w-3.5 h-3.5 text-[#1677C8]" />
-              <span>{presetLabels[preset]}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <RotateCw className={`w-3.5 h-3.5 ${refreshing || loading ? 'animate-spin text-[#1677C8]' : ''}`} />
             </button>
 
-            {showDatePicker && (
-              <div className="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-30 space-y-2">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
-                  Preset Date Ranges
-                </div>
-                <div className="grid grid-cols-1 gap-1">
-                  {(Object.keys(presetLabels) as DatePreset[]).map((key) => {
-                    if (key === 'CUSTOM') return null;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => {
-                          setPreset(key);
-                          setShowDatePicker(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg font-medium transition-colors flex items-center justify-between cursor-pointer ${
-                          preset === key
-                            ? 'bg-[#1677C8] text-white font-bold'
-                            : 'hover:bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <span>{presetLabels[key]}</span>
-                        {preset === key && <Check className="w-3.5 h-3.5" />}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
-                    Custom Date Range
-                  </div>
-                  <div className="space-y-1.5 text-xs">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500">From</label>
-                      <input
-                        type="date"
-                        value={customStart}
-                        onChange={(e) => setCustomStart(e.target.value)}
-                        className="w-full text-xs p-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1677C8]"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500">To</label>
-                      <input
-                        type="date"
-                        value={customEnd}
-                        onChange={(e) => setCustomEnd(e.target.value)}
-                        className="w-full text-xs p-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1677C8]"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={applyCustomRange}
-                      className="w-full mt-1 px-3 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white text-xs font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
-                    >
-                      Apply Custom Range
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Refresh Button */}
-          <button
-            type="button"
-            onClick={() => loadReports(true)}
-            disabled={refreshing || loading}
-            className="p-2 text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-            title="Refresh ERP Report Data"
-          >
-            <RotateCw className={`w-3.5 h-3.5 ${refreshing || loading ? 'animate-spin text-[#1677C8]' : ''}`} />
-          </button>
-
-          {/* Export Report CSV */}
-          <button
-            type="button"
-            onClick={exportCurrentReport}
-            disabled={loading || !data}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-2xs transition-all ${
-              loading || !data
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-[#1677C8] hover:bg-[#125ea0] text-white cursor-pointer'
-            }`}
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Report</span>
-          </button>
-        </div>
-      </div>
+            {/* Export Report CSV */}
+            <button
+              type="button"
+              onClick={exportCurrentReport}
+              disabled={loading || !data}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-2xs transition-all ${
+                loading || !data
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-[#1677C8] hover:bg-[#125ea0] text-white cursor-pointer'
+              }`}
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export Report</span>
+            </button>
+          </>
+        }
+      />
 
       {/* ─── 2. ERP REPORTING NAVIGATION TABS ───────────────────────── */}
       <div className="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto scrollbar-none">

@@ -25,6 +25,7 @@ export interface DistributorRecord {
   fullName?: string;
   phone?: string;
   email?: string;
+  avatarUrl?: string | null;
   role?: string;
   isActive?: boolean;
   referralCode?: string;

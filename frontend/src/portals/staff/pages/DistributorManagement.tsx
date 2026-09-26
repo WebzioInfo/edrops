@@ -22,6 +22,37 @@ import { MobileFilterSheet } from '../../../components/common/MobileFilterSheet'
 import DistributorFormModal, { type DistributorRecord } from '../components/DistributorFormModal';
 import DistributorDetailDrawer from '../components/DistributorDetailDrawer';
 
+function DistributorAvatar({
+  avatarUrl,
+  fullName,
+  sizeClasses = 'w-7 h-7 rounded-lg text-xs',
+}: {
+  avatarUrl?: string | null;
+  fullName: string;
+  sizeClasses?: string;
+}) {
+  const [imageError, setImageError] = useState(false);
+  const initial = fullName.charAt(0).toUpperCase() || 'D';
+
+  return (
+    <div
+      className={`${sizeClasses} bg-sky-100 text-[#1677C8] flex items-center justify-center font-bold shrink-0 overflow-hidden`}
+    >
+      {avatarUrl && !imageError ? (
+        <img
+          src={avatarUrl}
+          alt={fullName}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        initial
+      )}
+    </div>
+  );
+}
+
 export default function DistributorManagement() {
   const [distributors, setDistributors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +118,7 @@ export default function DistributorManagement() {
       routeOrArea: dist.routeOrArea,
       vehicleType: dist.vehicleType,
       vehiclePlate: dist.vehiclePlate,
+      avatarUrl: dist.avatarUrl,
       jarOwnership: dist.jarOwnership,
       companyOwnedJars: dist.companyOwnedJars,
       distributorOwnedJars: dist.distributorOwnedJars,
@@ -458,9 +490,11 @@ export default function DistributorManagement() {
                       {/* Distributor Name */}
                       <td className="py-2.5 px-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-sky-100 text-[#1677C8] flex items-center justify-center font-bold text-xs shrink-0">
-                            {fullName.charAt(0).toUpperCase()}
-                          </div>
+                          <DistributorAvatar
+                            avatarUrl={dist.avatarUrl}
+                            fullName={fullName}
+                            sizeClasses="w-7 h-7 rounded-lg text-xs"
+                          />
                           <div className="min-w-0">
                             <span className="font-bold text-slate-800 hover:text-[#1677C8] transition truncate block">
                               {fullName}
@@ -624,9 +658,11 @@ export default function DistributorManagement() {
                   className="p-3 bg-white hover:bg-slate-50 transition cursor-pointer flex items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center font-bold text-xs shrink-0">
-                      <Building2 className="w-4 h-4" />
-                    </div>
+                    <DistributorAvatar
+                      avatarUrl={dist.avatarUrl}
+                      fullName={distName}
+                      sizeClasses="w-8 h-8 rounded-lg text-xs"
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-bold text-xs text-slate-800 truncate">

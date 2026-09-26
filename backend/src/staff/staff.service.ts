@@ -459,6 +459,7 @@ export class StaffService {
       fullName,
       phone: u.phone,
       email: u.email,
+      avatarUrl: u.avatarUrl || null,
       role: u.role,
       isActive: u.isActive,
       referralCode: u.distributor?.referralCode || 'NOT_ASSIGNED',

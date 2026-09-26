@@ -21,7 +21,40 @@ import { DataErrorState } from '../../../components/common/DataErrorState';
 import UserFormModal, { type UserRecord } from '../components/UserFormModal';
 import DeliveryPartnerDetailModal from '../components/DeliveryPartnerDetailModal';
 import QuickJarPriceEditModal from '../components/QuickJarPriceEditModal';
+import { AdminTopbar } from '../components/AdminTopbar';
 import { toast } from 'react-hot-toast';
+
+function PartnerAvatar({
+  avatarUrl,
+  initials,
+  fullName,
+  sizeClasses = 'h-9 w-9 text-xs',
+}: {
+  avatarUrl?: string | null;
+  initials: string;
+  fullName: string;
+  sizeClasses?: string;
+}) {
+  const [imageError, setImageError] = useState(false);
+
+  return (
+    <div
+      className={`${sizeClasses} rounded-xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold shrink-0 shadow-2xs group-hover:border-[#1677C8]/40 transition-colors overflow-hidden`}
+    >
+      {avatarUrl && !imageError ? (
+        <img
+          src={avatarUrl}
+          alt={fullName}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        initials
+      )}
+    </div>
+  );
+}
 
 export default function DeliveryPartnersList() {
   const [search, setSearch] = useState('');
@@ -97,42 +130,39 @@ export default function DeliveryPartnersList() {
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
+    <div className="space-y-4 animate-in fade-in duration-200">
       
-      {/* ─── PAGE HEADER ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#16324F] tracking-tight">
-            Delivery Partners
-          </h1>
-          <p className="text-xs text-[#64748B] mt-0.5">
-            Manage drivers, delivery partners, their availability, contact information and delivery activity.
-          </p>
-        </div>
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Delivery Partners"
+        subtitle="Manage drivers, delivery partners, vehicle information and assignments."
+        icon={Truck}
+        iconVariant="blue"
+        actions={
+          <>
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="p-2 text-[#64748B] hover:text-[#1677C8] bg-white hover:bg-slate-50 border border-[#E2E8F0] rounded-xl transition cursor-pointer disabled:opacity-50"
+              title="Refresh Delivery Partners"
+            >
+              <RotateCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#1677C8]' : ''}`} />
+            </button>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          {/* Refresh Button */}
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="p-2 text-[#64748B] hover:text-[#1677C8] bg-white hover:bg-slate-50 border border-[#E2E8F0] rounded-xl transition cursor-pointer disabled:opacity-50"
-            title="Refresh Delivery Partners"
-          >
-            <RotateCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#1677C8]' : ''}`} />
-          </button>
-
-          {/* Add Delivery Partner CTA */}
-          <button 
-            type="button"
-            onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 bg-[#1677C8] hover:bg-[#1362a4] text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xs transition-all active:scale-[0.98] cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Delivery Partner</span>
-          </button>
-        </div>
-      </div>
+            {/* Add Delivery Partner CTA */}
+            <button 
+              type="button"
+              onClick={handleOpenCreate}
+              className="inline-flex items-center gap-2 bg-[#1677C8] hover:bg-[#1362a4] text-white px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold shadow-2xs transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Delivery Partner</span>
+            </button>
+          </>
+        }
+      />
 
       {/* ─── TOOLBAR & SEARCH / FILTERS ─────────────────────────── */}
       <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3 sm:p-4 shadow-2xs space-y-3">
@@ -342,9 +372,12 @@ export default function DeliveryPartnersList() {
                         {/* Partner Info */}
                         <td className="py-3.5 px-5 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs group-hover:border-[#1677C8]/40 transition-colors">
-                              {initials}
-                            </div>
+                            <PartnerAvatar
+                              avatarUrl={partner.avatarUrl}
+                              initials={initials}
+                              fullName={fullName}
+                              sizeClasses="h-9 w-9 text-xs"
+                            />
                             <div className="min-w-0">
                               <p className="font-bold text-[#16324F] group-hover:text-[#1677C8] transition-colors truncate">
                                 {fullName}
@@ -505,9 +538,12 @@ export default function DeliveryPartnersList() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold text-xs shrink-0">
-                          {initials}
-                        </div>
+                        <PartnerAvatar
+                          avatarUrl={partner.avatarUrl}
+                          initials={initials}
+                          fullName={fullName}
+                          sizeClasses="h-10 w-10 text-xs"
+                        />
                         <div className="min-w-0">
                           <p className="font-bold text-sm text-[#16324F] truncate">{fullName}</p>
                           <p className="text-[10px] font-mono text-[#64748B]">{partnerId}</p>

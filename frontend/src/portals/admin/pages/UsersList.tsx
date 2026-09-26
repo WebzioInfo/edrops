@@ -8,14 +8,17 @@ import {
   Phone, 
   Mail, 
   ChevronRight, 
-  RotateCw,
-  Edit2,
-  Edit3,
-  Shield,
-  Truck,
-  UserCheck,
-  UserX,
-  User
+  RotateCw, 
+  Edit2, 
+  Edit3, 
+  Shield, 
+  Truck, 
+  UserCheck, 
+  UserX, 
+  User,
+  Tag,
+  MapPin,
+  Building2
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
@@ -23,7 +26,40 @@ import { DataErrorState } from '../../../components/common/DataErrorState';
 import UserFormModal, { type UserRecord } from '../components/UserFormModal';
 import UserDetailModal from '../components/UserDetailModal';
 import QuickJarPriceEditModal from '../components/QuickJarPriceEditModal';
+import { AdminTopbar } from '../components/AdminTopbar';
 import { toast } from 'react-hot-toast';
+
+function UserAvatar({
+  avatarUrl,
+  initials,
+  fullName,
+  sizeClasses = 'h-9 w-9 text-xs',
+}: {
+  avatarUrl?: string | null;
+  initials: string;
+  fullName: string;
+  sizeClasses?: string;
+}) {
+  const [imageError, setImageError] = useState(false);
+
+  return (
+    <div
+      className={`${sizeClasses} rounded-xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold shrink-0 shadow-2xs group-hover:border-[#1677C8]/40 transition-colors overflow-hidden`}
+    >
+      {avatarUrl && !imageError ? (
+        <img
+          src={avatarUrl}
+          alt={fullName}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        initials
+      )}
+    </div>
+  );
+}
 
 export default function UsersList() {
   const [search, setSearch] = useState('');
@@ -47,16 +83,26 @@ export default function UsersList() {
     return users.filter((u: any) => {
       const fullName = (u.fullName || `${u.firstName || ''} ${u.lastName || ''}`).toLowerCase();
       const phone = u.phone || '';
+      const altPhone = u.alternatePhone || '';
       const email = (u.email || '').toLowerCase();
       const id = (u.id || '').toLowerCase();
       const role = u.role || '';
+      const referralCode = (u.referralCode || u.distributor?.referralCode || u.customer?.referralCode || '').toLowerCase();
+      const pincode = (u.pincode || (u.servicePincodes || []).join(' ') || '').toLowerCase();
+      const agencyName = (u.agencyName || u.distributor?.agencyName || '').toLowerCase();
+      const vehiclePlate = (u.vehiclePlate || u.deliveryPartner?.vehiclePlate || '').toLowerCase();
 
       const matchesSearch = 
         !term ||
         fullName.includes(term) ||
         phone.includes(term) ||
+        altPhone.includes(term) ||
         email.includes(term) ||
-        id.includes(term);
+        id.includes(term) ||
+        referralCode.includes(term) ||
+        pincode.includes(term) ||
+        agencyName.includes(term) ||
+        vehiclePlate.includes(term);
 
       if (!matchesSearch) return false;
 
@@ -122,7 +168,7 @@ export default function UsersList() {
       case 'DISTRIBUTOR':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <Shield className="w-3 h-3" />
+            <Building2 className="w-3 h-3" />
             <span>Distributor</span>
           </span>
         );
@@ -137,42 +183,39 @@ export default function UsersList() {
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
+    <div className="space-y-4 animate-in fade-in duration-200">
       
-      {/* ─── PAGE HEADER ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#16324F] tracking-tight">
-            Users & Staff
-          </h1>
-          <p className="text-xs text-[#64748B] mt-0.5">
-            Manage application user accounts, system roles, permissions and staff operational access.
-          </p>
-        </div>
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Users & Staff"
+        subtitle="Manage application user accounts, system roles, permissions and staff operational access."
+        icon={Users}
+        iconVariant="blue"
+        actions={
+          <>
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="p-2 text-[#64748B] hover:text-[#1677C8] bg-white hover:bg-slate-50 border border-[#E2E8F0] rounded-xl transition cursor-pointer disabled:opacity-50"
+              title="Refresh Users"
+            >
+              <RotateCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#1677C8]' : ''}`} />
+            </button>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          {/* Refresh Button */}
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="p-2 text-[#64748B] hover:text-[#1677C8] bg-white hover:bg-slate-50 border border-[#E2E8F0] rounded-xl transition cursor-pointer disabled:opacity-50"
-            title="Refresh Users"
-          >
-            <RotateCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#1677C8]' : ''}`} />
-          </button>
-
-          {/* Add User CTA */}
-          <button 
-            type="button"
-            onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 bg-[#1677C8] hover:bg-[#1362a4] text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xs transition-all active:scale-[0.98] cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add User</span>
-          </button>
-        </div>
-      </div>
+            {/* Add User CTA */}
+            <button 
+              type="button"
+              onClick={handleOpenCreate}
+              className="inline-flex items-center gap-2 bg-[#1677C8] hover:bg-[#1362a4] text-white px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold shadow-2xs transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add User</span>
+            </button>
+          </>
+        }
+      />
 
       {/* ─── TOOLBAR & SEARCH / FILTERS ─────────────────────────── */}
       <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3 sm:p-4 shadow-2xs space-y-3">
@@ -185,7 +228,7 @@ export default function UsersList() {
             </div>
             <input
               type="text"
-              placeholder="Search by name, email or phone..."
+              placeholder="Search by name, phone, email, referral code or PIN..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl outline-none focus:bg-white focus:border-[#1677C8] focus:ring-2 focus:ring-[#1677C8]/10 transition-all text-[#16324F] placeholder:text-gray-400 font-medium"
@@ -333,7 +376,8 @@ export default function UsersList() {
                     <th className="py-3 px-5">USER</th>
                     <th className="py-3 px-5">EMAIL / CONTACT</th>
                     <th className="py-3 px-5">ROLE</th>
-                    <th className="py-3 px-5">JAR UNIT PRICE</th>
+                    <th className="py-3 px-5">REFERRAL CODE</th>
+                    <th className="py-3 px-5">OPERATIONAL DATA</th>
                     <th className="py-3 px-5">STATUS</th>
                     <th className="py-3 px-5">JOINED</th>
                     <th className="py-3 px-5 text-right">ACTIONS</th>
@@ -370,16 +414,31 @@ export default function UsersList() {
                         {/* User Identity */}
                         <td className="py-3.5 px-5 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs group-hover:border-[#1677C8]/40 transition-colors">
-                              {initials}
-                            </div>
+                            <UserAvatar
+                              avatarUrl={u.avatarUrl}
+                              initials={initials}
+                              fullName={fullName}
+                              sizeClasses="h-9 w-9 text-xs"
+                            />
                             <div className="min-w-0">
                               <p className="font-bold text-[#16324F] group-hover:text-[#1677C8] transition-colors truncate">
                                 {fullName}
                               </p>
-                              <p className="text-[10px] font-mono text-[#64748B] truncate">
-                                {shortId}
-                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[10px] font-mono text-[#64748B]">
+                                  {shortId}
+                                </span>
+                                {u.distributor?.agencyName && (
+                                  <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100 truncate max-w-[120px]">
+                                    {u.distributor.agencyName}
+                                  </span>
+                                )}
+                                {u.staff?.branch?.name && (
+                                  <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 truncate max-w-[120px]">
+                                    {u.staff.branch.name}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -391,6 +450,11 @@ export default function UsersList() {
                               <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
                               <span>{phone}</span>
                             </div>
+                            {u.alternatePhone && (
+                              <div className="text-[10px] text-[#64748B] pl-4">
+                                Alt: {u.alternatePhone}
+                              </div>
+                            )}
                             <div className="flex items-center gap-1.5 text-[11px] text-[#64748B]">
                               <Mail className="w-3 h-3 text-[#1677C8] shrink-0" />
                               <span className="truncate max-w-[180px]">{email}</span>
@@ -403,46 +467,161 @@ export default function UsersList() {
                           {getRoleBadge(u.role)}
                         </td>
 
-                        {/* Jar Unit Price Column with Quick Edit (Delivery Partners only) */}
+                        {/* Referral Code (Requirement 1) */}
                         <td className="py-3.5 px-5 whitespace-nowrap">
-                          {isDeliveryPartner ? (
-                            hasJarPrice ? (
-                              <div className="inline-flex items-center gap-2 bg-slate-50/80 hover:bg-blue-50/80 px-2.5 py-1 rounded-xl border border-slate-200/60 transition group/price">
-                                <span className="font-black text-[#16324F] text-xs">
-                                  ₹{jarUnitPrice} <span className="text-[10px] font-normal text-[#64748B]">/ jar</span>
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setPriceEditUser(u);
-                                  }}
-                                  aria-label="Edit jar unit price"
-                                  title="Edit jar unit price"
-                                  className="p-1 text-gray-400 hover:text-[#1677C8] rounded-md transition cursor-pointer"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="inline-flex items-center gap-1.5">
-                                <span className="text-gray-400 font-medium text-xs">Not Set</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setPriceEditUser(u);
-                                  }}
-                                  aria-label="Set jar unit price"
-                                  title="Set jar unit price"
-                                  className="p-1 text-[#1677C8] hover:bg-blue-50 rounded-md transition cursor-pointer"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            )
+                          {u.referralCode ? (
+                            <span className="inline-flex items-center gap-1.5 font-mono font-bold text-[11px] px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs">
+                              <Tag className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>{u.referralCode}</span>
+                            </span>
                           ) : (
-                            <span className="text-gray-400 text-xs font-semibold pl-2">—</span>
+                            <span className="text-gray-400 font-semibold text-xs pl-2">—</span>
+                          )}
+                        </td>
+
+                        {/* Operational Data: Role-Aware (Requirements 2 & 3) */}
+                        <td className="py-3.5 px-5 whitespace-nowrap">
+                          {/* DISTRIBUTOR */}
+                          {u.role === 'DISTRIBUTOR' && (
+                            <div className="space-y-1">
+                              {(u.servicePincodes && u.servicePincodes.length > 0) || u.pincode ? (
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
+                                    <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <span>
+                                      {u.servicePincodes && u.servicePincodes.length > 0
+                                        ? u.servicePincodes.slice(0, 2).join(', ')
+                                        : u.pincode}
+                                    </span>
+                                    {u.servicePincodes && u.servicePincodes.length > 2 && (
+                                      <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 rounded font-bold">
+                                        +{u.servicePincodes.length - 2}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-xs font-semibold">—</span>
+                              )}
+
+                              {(u.distributor?.vehicleType || u.vehicleType || (u.distributor?.driversCount ?? 0) > 0) && (
+                                <div className="flex items-center gap-2 text-[10px] text-[#64748B]">
+                                  {(u.distributor?.vehicleType || u.vehicleType) && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <Truck className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                      <span className="truncate max-w-[120px]">
+                                        {u.distributor?.vehicleType || u.vehicleType}
+                                        {u.distributor?.vehiclePlate || u.vehiclePlate
+                                          ? ` • ${u.distributor?.vehiclePlate || u.vehiclePlate}`
+                                          : ''}
+                                      </span>
+                                    </span>
+                                  )}
+                                  {(u.distributor?.driversCount ?? 0) > 0 && (
+                                    <span className="font-semibold text-slate-600">
+                                      {u.distributor.driversCount} {u.distributor.driversCount === 1 ? 'driver' : 'drivers'}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* DELIVERY PARTNER */}
+                          {isDeliveryPartner && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                {hasJarPrice ? (
+                                  <div className="inline-flex items-center gap-1.5 bg-slate-50/90 hover:bg-blue-50/80 px-2 py-0.5 rounded-lg border border-slate-200/60 transition group/price">
+                                    <span className="font-bold text-[#16324F] text-xs">
+                                      ₹{jarUnitPrice} <span className="text-[10px] font-normal text-[#64748B]">/ jar</span>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPriceEditUser(u);
+                                      }}
+                                      aria-label="Edit jar unit price"
+                                      title="Edit jar unit price"
+                                      className="p-0.5 text-gray-400 hover:text-[#1677C8] rounded transition cursor-pointer"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="inline-flex items-center gap-1">
+                                    <span className="text-gray-400 font-medium text-xs">Rate: Not Set</span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPriceEditUser(u);
+                                      }}
+                                      aria-label="Set jar unit price"
+                                      title="Set jar unit price"
+                                      className="p-0.5 text-[#1677C8] hover:bg-blue-50 rounded transition cursor-pointer"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {(u.deliveryPartner?.vehiclePlate || u.deliveryPartner?.vehicleType || u.vehicleType) && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200/80">
+                                    <Truck className="w-2.5 h-2.5 text-slate-500 shrink-0" />
+                                    <span>
+                                      {u.deliveryPartner?.vehiclePlate
+                                        ? u.deliveryPartner.vehiclePlate
+                                        : u.deliveryPartner?.vehicleType || u.vehicleType}
+                                    </span>
+                                  </span>
+                                )}
+                                {u.deliveryPartner?.pincode && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/70">
+                                    <MapPin className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+                                    <span>PIN: {u.deliveryPartner.pincode}</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* STAFF / MANAGER */}
+                          {(u.role === 'STAFF' || u.role === 'MANAGER') && (
+                            <div className="space-y-1">
+                              {u.staff?.branch?.name ? (
+                                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-medium">
+                                  <Building2 className="w-3 h-3 text-slate-500 shrink-0" />
+                                  <span>{u.staff.branch.name}</span>
+                                </div>
+                              ) : null}
+                              {Array.isArray(u.permissions) &&
+                              u.permissions.some((p: string) => String(p).toLowerCase().startsWith('catalog') || p === '*') ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+                                  Catalog Access
+                                </span>
+                              ) : !u.staff?.branch?.name ? (
+                                <span className="text-gray-400 text-xs font-semibold pl-2">—</span>
+                              ) : null}
+                            </div>
+                          )}
+
+                          {/* ADMIN */}
+                          {u.role === 'ADMIN' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/70 text-[10px] font-bold">
+                              Full System Access
+                            </span>
+                          )}
+
+                          {/* CUSTOMER */}
+                          {u.role === 'CUSTOMER' && (
+                            <div className="space-y-0.5">
+                              <span className="text-xs font-medium text-[#16324F]">{u.customer?.customerType || 'Residential'}</span>
+                              {u.pincode && <span className="text-[10px] text-[#64748B] block">PIN: {u.pincode}</span>}
+                            </div>
                           )}
                         </td>
 
@@ -525,6 +704,7 @@ export default function UsersList() {
                 const email = u.email || '—';
                 const isActive = u.isActive !== false;
                 const isDeliveryPartner = u.role === 'DELIVERY_PARTNER';
+                const isDistributor = u.role === 'DISTRIBUTOR';
                 const rawJarPrice = u.deliveryPartner?.jarUnitPrice ?? u.jarUnitPrice ?? 0;
                 const hasJarPrice = Number(rawJarPrice) > 0;
                 const jarUnitPrice = hasJarPrice ? Number(rawJarPrice).toFixed(2) : '0.00';
@@ -537,9 +717,12 @@ export default function UsersList() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#1677C8]/15 to-[#1677C8]/5 text-[#1677C8] border border-[#1677C8]/20 flex items-center justify-center font-bold text-xs shrink-0">
-                          {initials}
-                        </div>
+                        <UserAvatar
+                          avatarUrl={u.avatarUrl}
+                          initials={initials}
+                          fullName={fullName}
+                          sizeClasses="h-10 w-10 text-xs"
+                        />
                         <div className="min-w-0">
                           <p className="font-bold text-sm text-[#16324F] truncate">{fullName}</p>
                           <p className="text-[10px] font-mono text-[#64748B]">{shortId}</p>
@@ -549,35 +732,98 @@ export default function UsersList() {
                       {getRoleBadge(u.role)}
                     </div>
 
-                    {/* Jar Unit Rate in Mobile Card for Delivery Partners */}
+                    {/* Referral Code (Mobile) */}
+                    {u.referralCode && (
+                      <div className="flex items-center justify-between text-xs bg-amber-50/70 px-3 py-1.5 rounded-xl border border-amber-200/80">
+                        <span className="text-amber-800 text-[11px] font-semibold flex items-center gap-1">
+                          <Tag className="w-3 h-3 text-amber-600" />
+                          <span>Referral Code:</span>
+                        </span>
+                        <span className="font-mono font-bold text-amber-900 text-xs">{u.referralCode}</span>
+                      </div>
+                    )}
+
+                    {/* Role Specific Details (Mobile) */}
                     {isDeliveryPartner && (
-                      <div className="flex items-center justify-between text-xs bg-blue-50/40 px-3 py-2 rounded-xl border border-blue-100/60">
-                        <span className="text-[#64748B] text-[11px] font-medium">Jar Unit Rate:</span>
-                        <div className="flex items-center gap-1.5">
-                          {hasJarPrice ? (
-                            <span className="font-black text-[#16324F] text-xs">₹{jarUnitPrice} / jar</span>
-                          ) : (
-                            <span className="text-gray-400 font-medium text-xs">Not Set</span>
+                      <div className="space-y-1.5 bg-blue-50/40 p-2.5 rounded-xl border border-blue-100/60 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#64748B] text-[11px] font-medium">Jar Unit Rate:</span>
+                          <div className="flex items-center gap-1.5">
+                            {hasJarPrice ? (
+                              <span className="font-black text-[#16324F] text-xs">₹{jarUnitPrice} / jar</span>
+                            ) : (
+                              <span className="text-gray-400 font-medium text-xs">Not Set</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPriceEditUser(u);
+                              }}
+                              aria-label="Edit jar unit price"
+                              className="p-1 text-[#1677C8] hover:bg-blue-100/60 rounded-md transition"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-blue-100/40">
+                          {(u.deliveryPartner?.vehiclePlate || u.deliveryPartner?.vehicleType) && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-white text-slate-700 border border-slate-200">
+                              <Truck className="w-2.5 h-2.5 text-slate-500" />
+                              <span>{u.deliveryPartner.vehiclePlate || u.deliveryPartner.vehicleType}</span>
+                            </span>
                           )}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPriceEditUser(u);
-                            }}
-                            aria-label="Edit jar unit price"
-                            className="p-1 text-[#1677C8] hover:bg-blue-100/60 rounded-md transition"
-                          >
-                            <Edit3 className="w-3 h-3" />
-                          </button>
+                          {u.deliveryPartner?.pincode && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-white text-blue-700 border border-blue-200">
+                              <MapPin className="w-2.5 h-2.5 text-blue-600" />
+                              <span>PIN: {u.deliveryPartner.pincode}</span>
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
 
+                    {isDistributor && (
+                      <div className="space-y-1.5 bg-emerald-50/40 p-2.5 rounded-xl border border-emerald-100 text-xs">
+                        {((u.servicePincodes && u.servicePincodes.length > 0) || u.pincode) && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#64748B] text-[11px]">Service Pincodes:</span>
+                            <span className="font-bold text-emerald-800 text-xs">
+                              {u.servicePincodes && u.servicePincodes.length > 0
+                                ? u.servicePincodes.join(', ')
+                                : u.pincode}
+                            </span>
+                          </div>
+                        )}
+                        {(u.distributor?.agencyName || u.agencyName) && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#64748B] text-[11px]">Agency:</span>
+                            <span className="font-medium text-[#16324F] text-xs">
+                              {u.distributor?.agencyName || u.agencyName}
+                            </span>
+                          </div>
+                        )}
+                        {(u.distributor?.vehicleType || (u.distributor?.driversCount ?? 0) > 0) && (
+                          <div className="flex items-center justify-between pt-1 border-t border-emerald-100/50 text-[11px] text-[#64748B]">
+                            <span>Fleet:</span>
+                            <span>
+                              {u.distributor?.vehicleType || 'Standard'} • {u.distributor?.driversCount ?? 0} driver(s)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Contact Info (Mobile) */}
                     <div className="text-xs text-[#64748B] space-y-1 pt-1 border-t border-gray-100">
                       <div className="flex items-center gap-2">
                         <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         <span className="text-[#16324F] font-medium">{phone}</span>
+                        {u.alternatePhone && (
+                          <span className="text-[10px] text-slate-400">({u.alternatePhone})</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Mail className="w-3.5 h-3.5 text-[#1677C8] shrink-0" />
@@ -585,6 +831,7 @@ export default function UsersList() {
                       </div>
                     </div>
 
+                    {/* Footer Status & Actions (Mobile) */}
                     <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
                       {isActive ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">

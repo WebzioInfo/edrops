@@ -16,6 +16,7 @@ import {
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { DataErrorState } from '../../../components/common/DataErrorState';
+import { AdminTopbar } from '../components/AdminTopbar';
 
 export default function CustomersList() {
   const navigate = useNavigate();
@@ -64,42 +65,39 @@ export default function CustomersList() {
   }, [customers, search, statusFilter, typeFilter]);
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
+    <div className="space-y-4 animate-in fade-in duration-200">
       
-      {/* ─── PAGE HEADER ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#16324F] tracking-tight">
-            Customers
-          </h1>
-          <p className="text-xs text-[#64748B] mt-0.5">
-            Manage users, view their balances, and support tickets.
-          </p>
-        </div>
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Customers"
+        subtitle="Manage customer accounts, wallet balances, jar deposits and support"
+        icon={Users}
+        iconVariant="blue"
+        actions={
+          <>
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="p-2 text-[#64748B] hover:text-[#1677C8] bg-white hover:bg-slate-50 border border-[#E2E8F0] rounded-xl transition cursor-pointer disabled:opacity-50"
+              title="Refresh Customers"
+            >
+              <RotateCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#1677C8]' : ''}`} />
+            </button>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          {/* Refresh Button */}
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="p-2 text-[#64748B] hover:text-[#1677C8] bg-white hover:bg-slate-50 border border-[#E2E8F0] rounded-xl transition cursor-pointer disabled:opacity-50"
-            title="Refresh Customers"
-          >
-            <RotateCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#1677C8]' : ''}`} />
-          </button>
-
-          {/* Add Customer CTA */}
-          <button 
-            type="button"
-            onClick={() => navigate('/admin/customers/add')}
-            className="inline-flex items-center gap-2 bg-[#1677C8] hover:bg-[#1362a4] text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xs transition-all active:scale-[0.98] cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Customer</span>
-          </button>
-        </div>
-      </div>
+            {/* Add Customer CTA */}
+            <button 
+              type="button"
+              onClick={() => navigate('/admin/customers/add')}
+              className="inline-flex items-center gap-2 bg-[#1677C8] hover:bg-[#1362a4] text-white px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold shadow-2xs transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Customer</span>
+            </button>
+          </>
+        }
+      />
 
       {/* ─── TOOLBAR & SEARCH / FILTERS ─────────────────────────── */}
       <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3 sm:p-4 shadow-2xs space-y-3">

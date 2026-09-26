@@ -24,7 +24,15 @@ export class AdminUsersService {
       where.role = query.role as UserRole;
     } else {
       // By default for application users & staff, exclude customers unless explicitly requested
-      where.role = { in: [UserRole.ADMIN, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.MANAGER, UserRole.DISTRIBUTOR] };
+      where.role = {
+        in: [
+          UserRole.ADMIN,
+          UserRole.STAFF,
+          UserRole.DELIVERY_PARTNER,
+          UserRole.MANAGER,
+          UserRole.DISTRIBUTOR,
+        ],
+      };
     }
 
     // Status filtering
@@ -43,6 +51,10 @@ export class AdminUsersService {
         { phone: { contains: term, mode: 'insensitive' } },
         { email: { contains: term, mode: 'insensitive' } },
         { id: { contains: term, mode: 'insensitive' } },
+        { distributor: { referralCode: { contains: term, mode: 'insensitive' } } },
+        { distributor: { agencyName: { contains: term, mode: 'insensitive' } } },
+        { customer: { referralCode: { contains: term, mode: 'insensitive' } } },
+        { distributorPincodes: { some: { pincode: { contains: term } } } },
       ];
     }
 
@@ -53,7 +65,9 @@ export class AdminUsersService {
         firstName: true,
         lastName: true,
         phone: true,
+        alternatePhone: true,
         email: true,
+        avatarUrl: true,
         role: true,
         permissions: true,
         isActive: true,
@@ -68,10 +82,59 @@ export class AdminUsersService {
                     id: true,
                     status: true,
                     scheduledFor: true,
+                    address: {
+                      select: {
+                        zipCode: true,
+                        city: true,
+                        area: true,
+                      },
+                    },
                   },
                 },
               },
             },
+          },
+        },
+        distributor: {
+          include: {
+            createdBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        distributorPincodes: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            pincode: true,
+            location: true,
+            district: true,
+            state: true,
+            isActive: true,
+          },
+        },
+        drivers: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            pincode: true,
+            vehicleType: true,
+            vehicleNumber: true,
+            routeOrArea: true,
+            isActive: true,
+          },
+        },
+        customer: {
+          select: {
+            referralCode: true,
+            customerType: true,
+            companyName: true,
           },
         },
         staff: {
@@ -84,7 +147,29 @@ export class AdminUsersService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return users.map((u) => this.formatUser(u));
+    // Lookup matching driver records for delivery partners
+    const dpPhones = users
+      .filter((u) => u.role === UserRole.DELIVERY_PARTNER && u.phone)
+      .map((u) => u.phone);
+    const dpCleanPhones = dpPhones.map((p) => p.replace(/^\+91/, '').trim());
+    const dpPlates = users
+      .filter((u) => u.role === UserRole.DELIVERY_PARTNER && u.deliveryPartner?.vehiclePlate)
+      .map((u) => u.deliveryPartner!.vehiclePlate!)
+      .filter(Boolean);
+
+    const matchingDrivers =
+      dpPhones.length > 0 || dpPlates.length > 0
+        ? await this.prisma.driver.findMany({
+            where: {
+              OR: [
+                { phone: { in: [...dpPhones, ...dpCleanPhones] } },
+                ...(dpPlates.length > 0 ? [{ vehicleNumber: { in: dpPlates } }] : []),
+              ],
+            },
+          })
+        : [];
+
+    return users.map((u) => this.formatUser(u, matchingDrivers));
   }
 
   async findDeliveryPartners(query: {
@@ -107,6 +192,7 @@ export class AdminUsersService {
         OR: [
           { id },
           { deliveryPartner: { id } },
+          { distributor: { id } },
         ],
       },
       include: {
@@ -119,12 +205,61 @@ export class AdminUsersService {
                     id: true,
                     status: true,
                     scheduledFor: true,
+                    address: {
+                      select: {
+                        zipCode: true,
+                        city: true,
+                        area: true,
+                      },
+                    },
                   },
                 },
               },
               orderBy: { assignedAt: 'desc' },
               take: 20,
             },
+          },
+        },
+        distributor: {
+          include: {
+            createdBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        distributorPincodes: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            pincode: true,
+            location: true,
+            district: true,
+            state: true,
+            isActive: true,
+          },
+        },
+        drivers: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            pincode: true,
+            vehicleType: true,
+            vehicleNumber: true,
+            routeOrArea: true,
+            isActive: true,
+          },
+        },
+        customer: {
+          select: {
+            referralCode: true,
+            customerType: true,
+            companyName: true,
           },
         },
         staff: {
@@ -137,16 +272,33 @@ export class AdminUsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User or Delivery Partner with ID ${id} not found`);
+      throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    return this.formatUser(user);
+    let matchingDrivers: any[] = [];
+    if (user.role === UserRole.DELIVERY_PARTNER) {
+      const cleanPhone = user.phone ? user.phone.replace(/^\+91/, '').trim() : '';
+      matchingDrivers = await this.prisma.driver.findMany({
+        where: {
+          OR: [
+            { phone: user.phone },
+            ...(cleanPhone ? [{ phone: cleanPhone }] : []),
+            ...(user.deliveryPartner?.vehiclePlate
+              ? [{ vehicleNumber: user.deliveryPartner.vehiclePlate }]
+              : []),
+          ],
+        },
+      });
+    }
+
+    return this.formatUser(user, matchingDrivers);
   }
 
   async create(data: {
     firstName: string;
     lastName: string;
     phone: string;
+    alternatePhone?: string;
     email?: string;
     role: UserRole;
     password?: string;
@@ -155,6 +307,11 @@ export class AdminUsersService {
     jarUnitPrice?: number | string;
     isActive?: boolean;
     permissions?: string[];
+    referralCode?: string;
+    agencyName?: string;
+    routeOrArea?: string;
+    pincode?: string;
+    servicePincodes?: string[];
   }) {
     // Validate phone unique
     const existingPhone = await this.prisma.user.findUnique({
@@ -178,9 +335,10 @@ export class AdminUsersService {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(rawPassword, salt);
 
-    const priceNum = data.jarUnitPrice !== undefined && data.jarUnitPrice !== ''
-      ? Number(data.jarUnitPrice)
-      : 0;
+    const priceNum =
+      data.jarUnitPrice !== undefined && data.jarUnitPrice !== ''
+        ? Number(data.jarUnitPrice)
+        : 0;
 
     if (isNaN(priceNum) || priceNum < 0) {
       throw new BadRequestException('Jar unit price must be a valid non-negative number');
@@ -189,10 +347,11 @@ export class AdminUsersService {
     const user = await this.prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          phone: data.phone,
-          email: data.email || null,
+          firstName: data.firstName.trim(),
+          lastName: data.lastName.trim(),
+          phone: data.phone.trim(),
+          alternatePhone: data.alternatePhone?.trim() || null,
+          email: data.email?.trim() || null,
           role: data.role || UserRole.STAFF,
           permissions: Array.isArray(data.permissions) ? data.permissions : [],
           passwordHash,
@@ -205,17 +364,50 @@ export class AdminUsersService {
         await tx.deliveryPartner.create({
           data: {
             userId: newUser.id,
-            vehicleType: data.vehicleType || 'Motorcycle',
-            vehiclePlate: data.vehiclePlate || null,
+            vehicleType: data.vehicleType?.trim() || 'Motorcycle',
+            vehiclePlate: data.vehiclePlate?.trim() || null,
             jarUnitPrice: new Prisma.Decimal(priceNum),
           },
         });
+      } else if (newUser.role === UserRole.DISTRIBUTOR) {
+        const cleanRef = data.referralCode?.trim()
+          ? data.referralCode.trim().toUpperCase()
+          : `EDR-${(newUser.phone || '').replace(/\D/g, '').slice(-4) || 'DIST'}`;
+
+        await tx.distributor.create({
+          data: {
+            userId: newUser.id,
+            referralCode: cleanRef,
+            agencyName: data.agencyName?.trim() || null,
+            routeOrArea: data.routeOrArea?.trim() || null,
+            vehicleType: data.vehicleType?.trim() || null,
+            vehiclePlate: data.vehiclePlate?.trim() || null,
+          },
+        });
+
+        const rawPins = data.servicePincodes || (data.pincode ? data.pincode.split(',') : []);
+        const cleanPins = Array.from(
+          new Set(
+            rawPins
+              .map((p: string) => String(p).trim())
+              .filter((p: string) => /^\d{6}$/.test(p)),
+          ),
+        );
+        for (const pin of cleanPins) {
+          await tx.distributorPincode.create({
+            data: {
+              distributorId: newUser.id,
+              pincode: pin,
+              isActive: true,
+            },
+          });
+        }
       } else if (newUser.role === UserRole.STAFF || newUser.role === UserRole.MANAGER) {
         await tx.staff.create({
           data: {
             userId: newUser.id,
-            vehicleType: data.vehicleType || null,
-            vehiclePlate: data.vehiclePlate || null,
+            vehicleType: data.vehicleType?.trim() || null,
+            vehiclePlate: data.vehiclePlate?.trim() || null,
           },
         });
       } else if (newUser.role === UserRole.ADMIN) {
@@ -239,6 +431,7 @@ export class AdminUsersService {
       firstName?: string;
       lastName?: string;
       phone?: string;
+      alternatePhone?: string;
       email?: string;
       role?: UserRole;
       isActive?: boolean;
@@ -247,6 +440,11 @@ export class AdminUsersService {
       vehiclePlate?: string;
       jarUnitPrice?: number | string;
       permissions?: string[];
+      referralCode?: string;
+      agencyName?: string;
+      routeOrArea?: string;
+      pincode?: string;
+      servicePincodes?: string[];
     },
   ) {
     const existing = await this.prisma.user.findFirst({
@@ -254,6 +452,7 @@ export class AdminUsersService {
         OR: [
           { id },
           { deliveryPartner: { id } },
+          { distributor: { id } },
         ],
       },
     });
@@ -284,10 +483,11 @@ export class AdminUsersService {
     }
 
     const updateData: any = {};
-    if (data.firstName !== undefined) updateData.firstName = data.firstName;
-    if (data.lastName !== undefined) updateData.lastName = data.lastName;
-    if (data.phone !== undefined) updateData.phone = data.phone;
-    if (data.email !== undefined) updateData.email = data.email || null;
+    if (data.firstName !== undefined) updateData.firstName = data.firstName.trim();
+    if (data.lastName !== undefined) updateData.lastName = data.lastName.trim();
+    if (data.phone !== undefined) updateData.phone = data.phone.trim();
+    if (data.alternatePhone !== undefined) updateData.alternatePhone = data.alternatePhone?.trim() || null;
+    if (data.email !== undefined) updateData.email = data.email?.trim() || null;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.role !== undefined) updateData.role = data.role;
     if (data.permissions !== undefined) {
@@ -311,11 +511,13 @@ export class AdminUsersService {
       if (targetRole === UserRole.DELIVERY_PARTNER) {
         const dp = await tx.deliveryPartner.findUnique({ where: { userId } });
         const dpUpdate: any = {};
-        if (data.vehicleType !== undefined) dpUpdate.vehicleType = data.vehicleType;
-        if (data.vehiclePlate !== undefined) dpUpdate.vehiclePlate = data.vehiclePlate;
+        if (data.vehicleType !== undefined) dpUpdate.vehicleType = data.vehicleType?.trim() || null;
+        if (data.vehiclePlate !== undefined) dpUpdate.vehiclePlate = data.vehiclePlate?.trim() || null;
         if (data.jarUnitPrice !== undefined && data.jarUnitPrice !== '') {
           const p = Number(data.jarUnitPrice);
-          if (isNaN(p) || p < 0) throw new BadRequestException('Jar unit price must be a valid non-negative number');
+          if (isNaN(p) || p < 0) {
+            throw new BadRequestException('Jar unit price must be a valid non-negative number');
+          }
           dpUpdate.jarUnitPrice = new Prisma.Decimal(p);
         }
 
@@ -323,8 +525,8 @@ export class AdminUsersService {
           await tx.deliveryPartner.create({
             data: {
               userId,
-              vehicleType: data.vehicleType || 'Motorcycle',
-              vehiclePlate: data.vehiclePlate || null,
+              vehicleType: data.vehicleType?.trim() || 'Motorcycle',
+              vehiclePlate: data.vehiclePlate?.trim() || null,
               jarUnitPrice: dpUpdate.jarUnitPrice || new Prisma.Decimal(0),
             },
           });
@@ -334,14 +536,92 @@ export class AdminUsersService {
             data: dpUpdate,
           });
         }
+      } else if (targetRole === UserRole.DISTRIBUTOR) {
+        const dist = await tx.distributor.findUnique({ where: { userId } });
+        const cleanRef = data.referralCode?.trim()
+          ? data.referralCode.trim().toUpperCase()
+          : `EDR-${(updatedUser.phone || '').replace(/\D/g, '').slice(-4) || 'DIST'}`;
+
+        const distData: any = {};
+        if (data.agencyName !== undefined) distData.agencyName = data.agencyName?.trim() || null;
+        if (data.routeOrArea !== undefined) distData.routeOrArea = data.routeOrArea?.trim() || null;
+        if (data.vehicleType !== undefined) distData.vehicleType = data.vehicleType?.trim() || null;
+        if (data.vehiclePlate !== undefined) distData.vehiclePlate = data.vehiclePlate?.trim() || null;
+        if (data.referralCode !== undefined && data.referralCode?.trim()) {
+          distData.referralCode = data.referralCode.trim().toUpperCase();
+        }
+
+        if (!dist) {
+          await tx.distributor.create({
+            data: {
+              userId,
+              referralCode: cleanRef,
+              agencyName: distData.agencyName || null,
+              routeOrArea: distData.routeOrArea || null,
+              vehicleType: distData.vehicleType || null,
+              vehiclePlate: distData.vehiclePlate || null,
+            },
+          });
+        } else if (Object.keys(distData).length > 0) {
+          await tx.distributor.update({
+            where: { userId },
+            data: distData,
+          });
+        }
+
+        // Handle service pincodes if provided
+        if (data.servicePincodes !== undefined || data.pincode !== undefined) {
+          const rawPins = data.servicePincodes || (data.pincode ? data.pincode.split(',') : []);
+          const cleanPins = Array.from(
+            new Set(
+              rawPins
+                .map((p: string) => String(p).trim())
+                .filter((p: string) => /^\d{6}$/.test(p)),
+            ),
+          );
+          if (cleanPins.length > 0) {
+            await tx.distributorPincode.deleteMany({
+              where: {
+                distributorId: userId,
+                pincode: { notIn: cleanPins },
+              },
+            });
+            for (const pin of cleanPins) {
+              await tx.distributorPincode.upsert({
+                where: {
+                  distributorId_pincode: {
+                    distributorId: userId,
+                    pincode: pin,
+                  },
+                },
+                create: {
+                  distributorId: userId,
+                  pincode: pin,
+                  isActive: true,
+                },
+                update: {
+                  isActive: true,
+                },
+              });
+            }
+          }
+        }
       } else if (targetRole === UserRole.STAFF || targetRole === UserRole.MANAGER) {
         const staff = await tx.staff.findUnique({ where: { userId } });
         if (!staff) {
           await tx.staff.create({
             data: {
               userId,
-              vehicleType: data.vehicleType || null,
-              vehiclePlate: data.vehiclePlate || null,
+              vehicleType: data.vehicleType?.trim() || null,
+              vehiclePlate: data.vehiclePlate?.trim() || null,
+            },
+          });
+        } else if (data.vehicleType !== undefined || data.vehiclePlate !== undefined) {
+          await tx.staff.update({
+            where: { userId },
+            data: {
+              vehicleType: data.vehicleType?.trim() || null,
+              vehiclePlate: data.vehiclePlate?.trim() || null,
             },
           });
         }
@@ -428,7 +708,7 @@ export class AdminUsersService {
     return { success: true, message: 'User deactivated successfully' };
   }
 
-  private formatUser(user: any) {
+  private formatUser(user: any, matchingDrivers: any[] = []) {
     const assignments = user.deliveryPartner?.assignments || [];
     const totalDeliveries = assignments.length;
     const completedDeliveries = assignments.filter(
@@ -443,9 +723,59 @@ export class AdminUsersService {
     }).length;
 
     const rawJarPrice = user.deliveryPartner?.jarUnitPrice;
-    const jarUnitPrice = rawJarPrice !== undefined && rawJarPrice !== null
-      ? Number(rawJarPrice)
-      : 0;
+    const jarUnitPrice =
+      rawJarPrice !== undefined && rawJarPrice !== null ? Number(rawJarPrice) : 0;
+
+    // Driver matching for Delivery Partner
+    const userPhoneClean = user.phone ? user.phone.replace(/^\+91/, '').trim() : '';
+    const matchedDriver =
+      user.role === UserRole.DELIVERY_PARTNER && matchingDrivers.length > 0
+        ? matchingDrivers.find(
+            (d: any) =>
+              (user.phone && d.phone === user.phone) ||
+              (userPhoneClean && d.phone === userPhoneClean) ||
+              (user.deliveryPartner?.vehiclePlate &&
+                d.vehicleNumber &&
+                d.vehicleNumber.toLowerCase() === user.deliveryPartner.vehiclePlate.toLowerCase()),
+          )
+        : null;
+
+    // Referral code (Distributor or Customer)
+    const rawReferralCode = user.distributor?.referralCode || user.customer?.referralCode || null;
+    const referralCode =
+      rawReferralCode && String(rawReferralCode).trim() !== ''
+        ? String(rawReferralCode).trim()
+        : null;
+
+    // Pincodes logic
+    const distributorPincodesList = (user.distributorPincodes || []).map((p: any) => p.pincode);
+    const deliveryPartnerFallbackPin =
+      assignments.find((a: any) => a.delivery?.address?.zipCode)?.delivery?.address?.zipCode ||
+      null;
+    const driverPincode = matchedDriver?.pincode || deliveryPartnerFallbackPin || null;
+
+    let pincode: string | null = null;
+    if (user.role === UserRole.DISTRIBUTOR) {
+      pincode = distributorPincodesList.length > 0 ? distributorPincodesList.join(', ') : null;
+    } else if (user.role === UserRole.DELIVERY_PARTNER) {
+      pincode = driverPincode || null;
+    } else if (user.role === UserRole.CUSTOMER) {
+      pincode = user.customer?.addresses?.[0]?.zipCode || null;
+    }
+
+    // Vehicle details
+    const vehicleType =
+      user.deliveryPartner?.vehicleType ||
+      user.distributor?.vehicleType ||
+      user.staff?.vehicleType ||
+      matchedDriver?.vehicleType ||
+      null;
+    const vehiclePlate =
+      user.deliveryPartner?.vehiclePlate ||
+      user.distributor?.vehiclePlate ||
+      user.staff?.vehiclePlate ||
+      matchedDriver?.vehicleNumber ||
+      null;
 
     return {
       id: user.id,
@@ -453,27 +783,106 @@ export class AdminUsersService {
       lastName: user.lastName,
       fullName: `${user.firstName} ${user.lastName}`.trim(),
       phone: user.phone,
+      alternatePhone: user.alternatePhone || null,
       email: user.email,
+      avatarUrl: user.avatarUrl || null,
       role: user.role,
       permissions: user.permissions || [],
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      referralCode,
+      pincode,
+      servicePincodes: distributorPincodesList,
+      vehicleType,
+      vehiclePlate,
+      agencyName: user.distributor?.agencyName || null,
+      routeOrArea: user.distributor?.routeOrArea || matchedDriver?.routeOrArea || null,
       deliveryPartner: user.deliveryPartner
         ? {
             id: user.deliveryPartner.id,
-            vehicleType: user.deliveryPartner.vehicleType || 'Standard Vehicle',
-            vehiclePlate: user.deliveryPartner.vehiclePlate || '—',
+            vehicleType:
+              user.deliveryPartner.vehicleType || matchedDriver?.vehicleType || 'Standard Vehicle',
+            vehiclePlate: user.deliveryPartner.vehiclePlate || matchedDriver?.vehicleNumber || null,
+            pincode: driverPincode,
+            routeOrArea: matchedDriver?.routeOrArea || null,
             jarUnitPrice,
             totalDeliveries,
             completedDeliveries,
             todayDeliveries,
             availability: user.isActive ? 'Online' : 'Offline',
             recentAssignments: user.deliveryPartner.assignments || [],
+            matchedDriver: matchedDriver
+              ? {
+                  id: matchedDriver.id,
+                  name: matchedDriver.name,
+                  phone: matchedDriver.phone,
+                  pincode: matchedDriver.pincode,
+                  vehicleNumber: matchedDriver.vehicleNumber,
+                  vehicleType: matchedDriver.vehicleType,
+                  routeOrArea: matchedDriver.routeOrArea,
+                }
+              : null,
           }
         : null,
-      staff: user.staff,
+      distributor: user.distributor
+        ? {
+            id: user.distributor.id,
+            referralCode: user.distributor.referralCode,
+            agencyName: user.distributor.agencyName || null,
+            address: user.distributor.address || null,
+            routeOrArea: user.distributor.routeOrArea || null,
+            vehicleType: user.distributor.vehicleType || null,
+            vehiclePlate: user.distributor.vehiclePlate || null,
+            jarOwnership: user.distributor.jarOwnership || 'COMPANY_OWNED',
+            companyOwnedJars: user.distributor.companyOwnedJars ?? 0,
+            distributorOwnedJars: user.distributor.distributorOwnedJars ?? 0,
+            totalJars:
+              (user.distributor.companyOwnedJars ?? 0) +
+              (user.distributor.distributorOwnedJars ?? 0),
+            servicePincodes: (user.distributorPincodes || []).map((p: any) => ({
+              id: p.id,
+              pincode: p.pincode,
+              location: p.location || null,
+              district: p.district || null,
+              state: p.state || null,
+            })),
+            pincodesList: distributorPincodesList,
+            driversCount: user.drivers?.length ?? 0,
+            drivers: user.drivers || [],
+            createdBy: user.distributor.createdBy
+              ? {
+                  id: user.distributor.createdBy.id,
+                  name: `${user.distributor.createdBy.firstName} ${user.distributor.createdBy.lastName}`.trim(),
+                  email: user.distributor.createdBy.email,
+                }
+              : null,
+          }
+        : null,
+      staff: user.staff
+        ? {
+            id: user.staff.id,
+            branchId: user.staff.branchId || null,
+            branch: user.staff.branch
+              ? {
+                  id: user.staff.branch.id,
+                  name: user.staff.branch.name,
+                  location: user.staff.branch.location,
+                  contactInfo: user.staff.branch.contactInfo || null,
+                }
+              : null,
+            vehicleType: user.staff.vehicleType || null,
+            vehiclePlate: user.staff.vehiclePlate || null,
+          }
+        : null,
       admin: user.admin,
+      customer: user.customer
+        ? {
+            referralCode: user.customer.referralCode || null,
+            customerType: user.customer.customerType || null,
+            companyName: user.customer.companyName || null,
+          }
+        : null,
     };
   }
 }

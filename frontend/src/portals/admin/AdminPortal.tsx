@@ -112,12 +112,19 @@ export default function AdminPortal() {
 
           <NavLink
             to="/admin/profile"
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs overflow-hidden"
             title="Profile"
           >
-            {adminInitials}
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+              adminInitials
+            )}
           </NavLink>
         </header>
+
+        {/* ─── STANDARDIZED SHARED ADMIN TOPBAR MOUNT ────────────── */}
+        <div id="admin-topbar-mount" className="w-full shrink-0 bg-white" />
 
         {/* Scrollable Page Content Area */}
         <main className="flex-1 overflow-y-auto p-3.5 sm:p-4 lg:p-5 bg-[#F8F9FA]">

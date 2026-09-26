@@ -16,6 +16,7 @@ import { fetchWithAuth } from '../../api/client';
 import { toast } from 'react-hot-toast';
 import LocationPicker from '../../features/location/components/LocationPicker';
 import type { GeocodedAddress } from '../../features/location/hooks/useReverseGeocoding';
+import { AdminTopbar } from '../../portals/admin/components/AdminTopbar';
 
 export default function CustomerForm({ basePath }: { basePath: string }) {
   const navigate = useNavigate();
@@ -243,50 +244,90 @@ export default function CustomerForm({ basePath }: { basePath: string }) {
 
   return (
     <div className="space-y-3 animate-in fade-in duration-150">
-      {/* ─── COMPACT TOP ACTION TOOLBAR ─────────────────────────────── */}
-      <div className="bg-white px-3.5 py-2.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(basePath)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
-            <span>Back to Customers</span>
-          </button>
-          <span className="text-xs font-bold text-slate-800 hidden sm:inline">
-            {isEdit ? 'Editing Customer Account' : 'New Customer Registration'}
-          </span>
-        </div>
+      {basePath.startsWith('/admin') ? (
+        /* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */
+        <AdminTopbar
+          title={isEdit ? 'Editing Customer Account' : 'New Customer Registration'}
+          subtitle="Register customer account, address details, and initial balances"
+          icon={User}
+          iconVariant="blue"
+          backLink={{ label: 'Back to Customers', to: basePath }}
+          actions={
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(basePath)}
+                className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-600 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="customer-onboarding-form"
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>{isEdit ? 'Saving...' : 'Creating...'}</span>
+                  </>
+                ) : (
+                  <>
+                    {isEdit ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                    <span>{isEdit ? 'Save Changes' : 'Create Customer'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          }
+        />
+      ) : (
+        /* ─── COMPACT TOP ACTION TOOLBAR (STAFF) ─────────────────────── */
+        <div className="bg-white px-3.5 py-2.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(basePath)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
+              <span>Back to Customers</span>
+            </button>
+            <span className="text-xs font-bold text-slate-800 hidden sm:inline">
+              {isEdit ? 'Editing Customer Account' : 'New Customer Registration'}
+            </span>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(basePath)}
-            className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-600 transition cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="customer-onboarding-form"
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>{isEdit ? 'Saving...' : 'Creating...'}</span>
-              </>
-            ) : (
-              <>
-                {isEdit ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                <span>{isEdit ? 'Save Changes' : 'Create Customer'}</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(basePath)}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-600 transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="customer-onboarding-form"
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>{isEdit ? 'Saving...' : 'Creating...'}</span>
+                </>
+              ) : (
+                <>
+                  {isEdit ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                  <span>{isEdit ? 'Save Changes' : 'Create Customer'}</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ─── ERROR BANNER ───────────────────────────────────────────── */}
       {error && (

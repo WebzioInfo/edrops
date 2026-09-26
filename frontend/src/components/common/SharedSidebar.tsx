@@ -182,9 +182,13 @@ export function SharedSidebar({
             <NavLink
               to={defaultProfileLink}
               title={userName}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs hover:bg-[#1677C8]/20 transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs hover:bg-[#1677C8]/20 transition-colors overflow-hidden"
             >
-              {userInitials}
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={userName} className="h-full w-full object-cover" />
+              ) : (
+                userInitials
+              )}
             </NavLink>
             <button
               onClick={logout}
@@ -201,8 +205,12 @@ export function SharedSidebar({
               className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-85 transition group cursor-pointer"
               title="View & Manage Profile"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors">
-                {userInitials}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors overflow-hidden">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={userName} className="h-full w-full object-cover" />
+                ) : (
+                  userInitials
+                )}
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-[#16324F] truncate group-hover:text-[#1677C8] transition-colors">
@@ -343,8 +351,12 @@ export function SharedMobileDrawer({
               onClick={onClose}
               className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-85 transition group"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors">
-                {userInitials}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs group-hover:bg-[#1677C8]/20 transition-colors overflow-hidden">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={userName} className="h-full w-full object-cover" />
+                ) : (
+                  userInitials
+                )}
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-[#16324F] truncate group-hover:text-[#1677C8] transition-colors">

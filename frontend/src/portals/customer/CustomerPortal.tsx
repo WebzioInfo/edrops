@@ -154,8 +154,12 @@ export default function CustomerPortal() {
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                   className="flex items-center gap-2 pl-2 pr-2 py-1 rounded-full border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EBF5FB] text-[#2D79A8]">
-                    <User className="h-4 w-4" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EBF5FB] text-[#2D79A8] overflow-hidden">
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-4 w-4" />
+                    )}
                   </div>
                   <span className="text-xs font-semibold text-slate-700 max-w-[80px] truncate">{user.firstName}</span>
                   <ChevronDown className="h-4 w-4 text-[#64748B]" />

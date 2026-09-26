@@ -276,10 +276,14 @@ export default function DeliveryPartnerPortal() {
             <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
               <NavLink
                 to="/delivery-partner/profile"
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs hover:bg-[#1677C8]/20 transition-colors cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs hover:bg-[#1677C8]/20 transition-colors cursor-pointer overflow-hidden"
                 title="View Profile"
               >
-                {user?.firstName?.[0] || 'D'}{user?.lastName?.[0] || 'P'}
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <>{user?.firstName?.[0] || 'D'}{user?.lastName?.[0] || 'P'}</>
+                )}
               </NavLink>
               <button
                 onClick={logout}

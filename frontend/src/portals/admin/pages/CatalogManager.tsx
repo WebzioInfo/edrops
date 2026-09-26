@@ -15,6 +15,7 @@ import {
   Boxes
 } from 'lucide-react';
 import CatalogItemModal from '../components/CatalogItemModal';
+import { AdminTopbar } from '../components/AdminTopbar';
 import { useDialog } from '../../../hooks/useDialog';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
@@ -226,6 +227,26 @@ export default function CatalogManager() {
 
   return (
     <div className="space-y-3.5 sm:space-y-4">
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Catalog Manager"
+        subtitle="Manage products, pricing, categories and brand directory"
+        icon={Package}
+        iconVariant="blue"
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              setEditingItem(null);
+              setIsModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 bg-[#1677C8] hover:bg-[#1262A5] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-2xs cursor-pointer active:scale-98 whitespace-nowrap"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add New {activeTab === 'products' ? 'Product' : activeTab === 'categories' ? 'Category' : 'Brand'}</span>
+          </button>
+        }
+      />
 
       {/* ─── MAIN CARD: TABS + TOOLBAR + DATA TABLE ───────────── */}
       <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden flex flex-col">
@@ -285,21 +306,6 @@ export default function CatalogManager() {
                   {brands.length}
                 </span>
               )}
-            </button>
-          </div>
-
-          {/* Right: Add Item Action Button */}
-          <div className="flex items-center gap-2 shrink-0 py-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                setEditingItem(null);
-                setIsModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 bg-[#1677C8] hover:bg-[#1262A5] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-2xs cursor-pointer active:scale-98 whitespace-nowrap"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add New {activeTab === 'products' ? 'Product' : activeTab === 'categories' ? 'Category' : 'Brand'}</span>
             </button>
           </div>
         </div>

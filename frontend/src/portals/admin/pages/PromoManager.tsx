@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import { useDialog } from '../../../hooks/useDialog';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { AdminTopbar } from '../components/AdminTopbar';
 
 interface PromoCodeForm {
   id?: string;
@@ -221,23 +222,24 @@ export default function PromoManager() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-            <Tag className="w-8 h-8 text-[#2D79A8]" /> Promo Codes & Campaigns
-          </h1>
-          <p className="text-slate-500 font-semibold mt-1">Create, configure, and monitor promo discounts and marketing campaigns.</p>
-        </div>
-        <button 
-          onClick={handleOpenCreateModal}
-          className="flex items-center gap-2 bg-[#2D79A8] hover:bg-[#2D79A8]/90 text-white px-6 py-3 rounded-full font-black shadow-lg shadow-[#2D79A8]/20 transition-all active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-5 h-5" />
-          Create Promo Code
-        </button>
-      </div>
+    <div className="space-y-4 animate-fade-in">
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Promo Codes & Campaigns"
+        subtitle="Create, configure, and monitor promo discounts and marketing campaigns."
+        icon={Tag}
+        iconVariant="blue"
+        actions={
+          <button 
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center gap-1.5 bg-[#1677C8] hover:bg-[#1262A5] text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition-colors shadow-2xs cursor-pointer active:scale-98"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create Promo Code</span>
+          </button>
+        }
+      />
 
       {/* Stats Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

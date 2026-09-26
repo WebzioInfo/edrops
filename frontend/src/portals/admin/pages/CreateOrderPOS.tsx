@@ -4,6 +4,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { Search, UserPlus, ShoppingCart, Plus, Minus, CreditCard, Wallet, Banknote, CheckCircle, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { AdminTopbar } from '../components/AdminTopbar';
 
 export default function CreateOrderPOS() {
   const navigate = useNavigate();
@@ -129,18 +130,25 @@ export default function CreateOrderPOS() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto p-6 animate-fade-in">
-      <div className="mb-6 flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Rapid POS Terminal</h1>
-          <p className="text-slate-500 font-semibold mt-1">Create phone orders or walk-in orders in seconds.</p>
-        </div>
-        <div className="flex gap-2">
-          <div className={`w-8 h-2 rounded-full ${step >= 1 ? 'bg-[#2D79A8]' : 'bg-slate-200'}`} />
-          <div className={`w-8 h-2 rounded-full ${step >= 2 ? 'bg-[#2D79A8]' : 'bg-slate-200'}`} />
-          <div className={`w-8 h-2 rounded-full ${step >= 3 ? 'bg-[#2D79A8]' : 'bg-slate-200'}`} />
-        </div>
-      </div>
+    <div className="max-w-6xl mx-auto space-y-4 animate-fade-in">
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Rapid POS Terminal"
+        subtitle="Create phone orders or walk-in orders in seconds."
+        icon={ShoppingCart}
+        iconVariant="blue"
+        backLink={{ label: 'Back to Orders', to: '/admin/orders' }}
+        actions={
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500">Step {step} of 3</span>
+            <div className="flex gap-1.5">
+              <div className={`w-6 h-2 rounded-full ${step >= 1 ? 'bg-[#1677C8]' : 'bg-slate-200'}`} />
+              <div className={`w-6 h-2 rounded-full ${step >= 2 ? 'bg-[#1677C8]' : 'bg-slate-200'}`} />
+              <div className={`w-6 h-2 rounded-full ${step >= 3 ? 'bg-[#1677C8]' : 'bg-slate-200'}`} />
+            </div>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Work Area */}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   User,
   Phone,
@@ -17,16 +17,29 @@ import {
   X,
   Eye,
   EyeOff,
+  Camera,
+  UploadCloud,
+  Trash2,
+  RotateCw,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
+import { useAuth } from '../../../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { DistributorTopbar } from '../components/DistributorTopbar';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 
 export default function DistributorProfile() {
+  const { updateUser } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
+
+  // Avatar Management State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [isRemoving, setIsRemoving] = useState<boolean>(false);
 
   // Edit Profile Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -72,6 +85,89 @@ export default function DistributorProfile() {
       setCopiedCode(true);
       toast.success(`Distributor referral code ${code} copied to clipboard!`);
       setTimeout(() => setCopiedCode(false), 2500);
+    }
+  };
+
+  const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+  const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+  const handleTriggerPicker = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_TYPES.includes(file.type.toLowerCase())) {
+      toast.error('Invalid image type. Please select a JPEG, PNG, or WEBP image.');
+      return;
+    }
+
+    if (file.size > MAX_SIZE_BYTES) {
+      toast.error('Image size exceeds 5MB. Please choose a smaller image.');
+      return;
+    }
+
+    setSelectedFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+  };
+
+  const handleCancelPreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleUploadAvatar = async () => {
+    if (!selectedFile) return;
+
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const res = await fetchWithAuth('/auth/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const newAvatarUrl = res.avatarUrl || null;
+      setProfile((prev: any) => (prev ? { ...prev, avatarUrl: newAvatarUrl } : null));
+      updateUser({ avatarUrl: newAvatarUrl });
+      toast.success('Profile picture updated successfully!');
+      handleCancelPreview();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload profile picture.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    try {
+      setIsRemoving(true);
+      await fetchWithAuth('/auth/avatar', {
+        method: 'DELETE',
+      });
+
+      setProfile((prev: any) => (prev ? { ...prev, avatarUrl: null } : null));
+      updateUser({ avatarUrl: null });
+      toast.success('Profile picture removed.');
+      handleCancelPreview();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove profile picture.');
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -199,14 +295,50 @@ export default function DistributorProfile() {
           </div>
         ) : (
           <>
-            {/* ─── 1. OVERVIEW & REFERRAL ID CARD ───────────────── */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#1677C8] to-sky-400 text-white flex items-center justify-center font-extrabold text-xl shadow-md shadow-sky-500/15 shrink-0">
-                  {profile.firstName?.[0]?.toUpperCase() || 'D'}
-                  {profile.lastName?.[0]?.toUpperCase() || 'P'}
+            {/* ─── 1. OVERVIEW, PROFILE PICTURE & REFERRAL ID CARD ─── */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-5">
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
+              {/* Left Side: Avatar + Details + Change Picture Actions */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 min-w-0 flex-1">
+                {/* Avatar with Camera Overlay */}
+                <div className="relative group shrink-0">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-gradient-to-tr from-[#1677C8] to-sky-400 text-white flex items-center justify-center font-extrabold text-xl sm:text-2xl shadow-md shadow-sky-500/15 border-2 border-white ring-2 ring-slate-100">
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="Preview" className="h-full w-full object-cover" />
+                    ) : profile.avatarUrl ? (
+                      <img src={profile.avatarUrl} alt={fullName} className="h-full w-full object-cover" />
+                    ) : (
+                      <>
+                        {profile.firstName?.[0]?.toUpperCase() || 'D'}
+                        {profile.lastName?.[0]?.toUpperCase() || 'P'}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Camera icon button overlay */}
+                  <button
+                    type="button"
+                    onClick={handleTriggerPicker}
+                    disabled={isUploading || isRemoving}
+                    className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 hover:text-[#1677C8] hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
+                    title="Change profile picture"
+                    aria-label="Change profile picture"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <div className="min-w-0">
+
+                {/* Profile Information & Actions */}
+                <div className="min-w-0 flex-1 space-y-1">
+                  {/* Name + Status Pill */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-lg sm:text-xl font-bold text-[#16324F] truncate">{fullName}</h2>
                     <span
@@ -219,14 +351,89 @@ export default function DistributorProfile() {
                       <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
                       {isActive ? 'Authorized & Active' : 'Account Inactive'}
                     </span>
+                    {previewUrl && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                        <span>New Preview</span>
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs font-semibold text-[#1677C8] truncate mt-0.5">
-                    {profile.distributor?.agencyName || 'Independent Distributor Partner'}
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+
+                  {/* Email & Agency */}
+                  <div className="flex items-center gap-2.5 text-xs flex-wrap">
+                    <span className="text-slate-500 font-medium flex items-center gap-1 truncate">
+                      <Mail className="w-3.5 h-3.5 text-[#1677C8] shrink-0" />
+                      <span>{profile.email || 'No email registered'}</span>
+                    </span>
+                    <span className="text-slate-300 hidden sm:inline">•</span>
+                    <span className="text-[#1677C8] font-semibold truncate">
+                      {profile.distributor?.agencyName || 'Independent Distributor Partner'}
+                    </span>
+                  </div>
+
+                  {/* Membership Info */}
+                  <p className="text-[11px] text-slate-400 flex items-center gap-1">
                     <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
                     <span>Member since {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '2026'}</span>
                   </p>
+
+                  {/* Picture Actions Row directly beside/under profile information */}
+                  <div className="pt-1.5 flex items-center gap-2 flex-wrap">
+                    {previewUrl ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleUploadAvatar}
+                          disabled={isUploading}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#1677C8] hover:bg-[#1262a5] text-white rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
+                        >
+                          {isUploading ? (
+                            <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5" />
+                          )}
+                          <span>{isUploading ? 'Saving...' : 'Save Picture'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelPreview}
+                          disabled={isUploading}
+                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Cancel</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleTriggerPicker}
+                          disabled={isUploading || isRemoving}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100/80 text-[#1677C8] border border-blue-200/60 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                        >
+                          <UploadCloud className="w-3.5 h-3.5" />
+                          <span>{profile.avatarUrl ? 'Change Picture' : 'Upload Picture'}</span>
+                        </button>
+                        {profile.avatarUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveAvatar}
+                            disabled={isUploading || isRemoving}
+                            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-medium transition cursor-pointer disabled:opacity-50"
+                            title="Remove profile picture"
+                            aria-label="Remove profile picture"
+                          >
+                            {isRemoving ? (
+                              <RotateCw className="w-3.5 h-3.5 animate-spin text-rose-600" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                            <span className="hidden sm:inline">Remove</span>
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 

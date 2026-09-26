@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import { AdminTopbar } from '../components/AdminTopbar';
 
 const AdminLoader = () => (
   <div className="flex min-h-[60vh] items-center justify-center">
@@ -60,16 +61,26 @@ export default function BusinessSettings() {
   if (loading) return <AdminLoader />;
 
   return (
-    <main className="space-y-6">
-      <section className="clay-card p-6 sm:p-8">
-        <span className="inline-flex items-center gap-2 rounded-full bg-background px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-primary">
-          <SettingsIcon className="h-4 w-4" /> Operations Control
-        </span>
-        <h1 className="mt-5 text-4xl font-black sm:text-5xl text-[#245361]">Global Business Settings</h1>
-        <p className="mt-2 text-muted-foreground text-sm">Control pricing matrix, slot availability, and security deposits without modifying code.</p>
-      </section>
+    <div className="space-y-4">
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Global Business Settings"
+        subtitle="Control pricing matrix, slot availability, and security deposits"
+        icon={SettingsIcon}
+        iconVariant="slate"
+        actions={
+          <button
+            type="submit"
+            form="business-settings-form"
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 bg-[#1677C8] hover:bg-[#1262A5] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors shadow-2xs cursor-pointer active:scale-98 disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save Settings'}
+          </button>
+        }
+      />
 
-      <form onSubmit={handleSaveAll} className="clay-card p-6 sm:p-8 space-y-6 font-semibold">
+      <form id="business-settings-form" onSubmit={handleSaveAll} className="clay-card p-6 sm:p-8 space-y-6 font-semibold">
         <div className="grid gap-6 sm:grid-cols-2">
           
           {/* Pricing parameters */}
@@ -186,6 +197,6 @@ export default function BusinessSettings() {
           </button>
         </div>
       </form>
-    </main>
+    </div>
   );
 }

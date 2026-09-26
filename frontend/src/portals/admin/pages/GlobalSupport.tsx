@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
-import { LayoutDashboard, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { LayoutDashboard, AlertCircle, CheckCircle, Clock, LifeBuoy } from 'lucide-react';
 import SupportManagement from '../../staff/pages/SupportManagement';
+import { AdminTopbar } from '../components/AdminTopbar';
 
 export default function GlobalSupport() {
   const [analytics, setAnalytics] = useState<any>(null);
@@ -27,14 +28,17 @@ export default function GlobalSupport() {
   }
 
   return (
-    <div className="space-y-6 max-w-full">
-      <div className="p-4 sm:p-6 pb-0">
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">Global Support Dashboard</h1>
-        <p className="text-sm text-slate-500">Analytics and full system management for all support tickets</p>
-      </div>
+    <div className="space-y-4 max-w-full">
+      {/* ─── STANDARDIZED SHARED ADMIN TOPBAR ─────────────────────── */}
+      <AdminTopbar
+        title="Global Support"
+        subtitle="Analytics and full system management for all support tickets"
+        icon={LifeBuoy}
+        iconVariant="blue"
+      />
 
       {/* Analytics Cards */}
-      <div className="px-4 sm:px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
             <LayoutDashboard className="w-6 h-6" />

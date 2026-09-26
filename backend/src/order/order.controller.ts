@@ -199,7 +199,15 @@ export class OrderController {
   // =========================================================================
 
   @Get()
-  findAll(@Req() req) {
+  async findAll(@Req() req: any, @Query() query: any) {
+    const role = req.user?.role;
+    if (role === UserRole.ADMIN || role === UserRole.MANAGER || role === UserRole.STAFF) {
+      if (query?.page || query?.paginated === 'true') {
+        return this.orderService.findStaffAll(query);
+      }
+      const res = await this.orderService.findStaffAll({ limit: 1000, ...query });
+      return res.data;
+    }
     return this.orderService.findAll(req.user.customerId || req.user.sub || req.user.id);
   }
 
@@ -211,8 +219,22 @@ export class OrderController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('type') type?: string,
   ) {
-    return this.orderService.findStaffAll({ page, limit, search, status });
+    return this.orderService.findStaffAll({ page, limit, search, status, type });
+  }
+
+  @Get('admin/all')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  findAdminAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('type') type?: string,
+  ) {
+    return this.orderService.findStaffAll({ page, limit, search, status, type });
   }
 
   @Get('partner/all')

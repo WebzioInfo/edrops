@@ -58,18 +58,41 @@ export class OrderService {
   }
 
 
-  async findStaffAll(query?: { page?: number | string; limit?: number | string; search?: string; status?: string }) {
+  async findStaffAll(query?: {
+    page?: number | string;
+    limit?: number | string;
+    search?: string;
+    status?: string;
+    type?: string;
+    paymentStatus?: string;
+  }) {
     const page = Math.max(1, parseInt(String(query?.page || 1), 10) || 1);
-    const limit = Math.max(1, Math.min(100, parseInt(String(query?.limit || 15), 10) || 15));
+    const limit = Math.max(1, Math.min(1000, parseInt(String(query?.limit || 15), 10) || 15));
     const skip = (page - 1) * limit;
 
     const where: any = {};
 
     if (query?.status && query.status !== 'ALL') {
-      if (query.status === 'PENDING') {
-        where.status = { in: [OrderStatus.NEW, OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ASSIGNMENT] };
+      if (query.status === 'PENDING' || query.status === 'NEW' || query.status === 'ORDER_PLACED') {
+        where.status = {
+          in: [
+            OrderStatus.NEW,
+            OrderStatus.ORDER_PLACED,
+            OrderStatus.PENDING_PAYMENT,
+            OrderStatus.PENDING_ASSIGNMENT,
+          ],
+        };
       } else if (query.status === 'ACTIVE') {
-        where.status = { in: [OrderStatus.ASSIGNED, OrderStatus.ACCEPTED_BY_PARTNER, OrderStatus.OUT_FOR_DELIVERY] };
+        where.status = {
+          in: [
+            OrderStatus.CONFIRMED,
+            OrderStatus.PROCESSING,
+            OrderStatus.READY,
+            OrderStatus.ASSIGNED,
+            OrderStatus.ACCEPTED_BY_PARTNER,
+            OrderStatus.OUT_FOR_DELIVERY,
+          ],
+        };
       } else if (query.status === 'DELIVERED') {
         where.status = { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] };
       } else if (query.status === 'CANCELLED') {
@@ -77,6 +100,10 @@ export class OrderService {
       } else {
         where.status = query.status as OrderStatus;
       }
+    }
+
+    if (query?.type && query.type !== 'ALL') {
+      where.orderType = query.type as OrderType;
     }
 
     if (query?.search?.trim()) {
@@ -87,6 +114,10 @@ export class OrderService {
         { customer: { user: { lastName: { contains: q, mode: 'insensitive' } } } },
         { customer: { user: { phone: { contains: q, mode: 'insensitive' } } } },
         { customer: { companyName: { contains: q, mode: 'insensitive' } } },
+        { distributor: { firstName: { contains: q, mode: 'insensitive' } } },
+        { distributor: { lastName: { contains: q, mode: 'insensitive' } } },
+        { driver: { name: { contains: q, mode: 'insensitive' } } },
+        { driver: { phone: { contains: q, mode: 'insensitive' } } },
         { address: { city: { contains: q, mode: 'insensitive' } } },
         { address: { street: { contains: q, mode: 'insensitive' } } },
       ];
@@ -167,22 +198,45 @@ export class OrderService {
         this.prisma.order.count(),
         this.prisma.order.count({
           where: {
-            status: { in: [OrderStatus.NEW, OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ASSIGNMENT] },
+            status: {
+              in: [
+                OrderStatus.NEW,
+                OrderStatus.ORDER_PLACED,
+                OrderStatus.PENDING_PAYMENT,
+                OrderStatus.PENDING_ASSIGNMENT,
+              ],
+            },
           },
         }),
         this.prisma.order.count({
           where: {
-            status: { in: [OrderStatus.ASSIGNED, OrderStatus.ACCEPTED_BY_PARTNER, OrderStatus.OUT_FOR_DELIVERY] },
+            status: {
+              in: [
+                OrderStatus.CONFIRMED,
+                OrderStatus.PROCESSING,
+                OrderStatus.READY,
+                OrderStatus.ASSIGNED,
+                OrderStatus.ACCEPTED_BY_PARTNER,
+                OrderStatus.OUT_FOR_DELIVERY,
+              ],
+            },
           },
         }),
         this.prisma.order.count({
           where: { createdAt: { gte: todayStart } },
+        }),
+        this.prisma.order.count({
+          where: { status: { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] } },
+        }),
+        this.prisma.order.count({
+          where: { status: OrderStatus.CANCELLED },
         }),
         this.prisma.order.aggregate({
           _sum: { totalAmount: true },
           where: {
             OR: [
               { paymentStatus: PaymentStatus.SUCCESS },
+              { paymentStatus: PaymentStatus.PAID },
               { status: { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] } },
             ],
           },
@@ -190,7 +244,15 @@ export class OrderService {
       ]),
     ]);
 
-    const [totalOrders, pendingCount, activeCount, todayCount, revenueAggregate] = allStats;
+    const [
+      totalOrders,
+      pendingCount,
+      activeCount,
+      todayCount,
+      deliveredCount,
+      cancelledCount,
+      revenueAggregate,
+    ] = allStats;
 
     const transformedOrders = (orders as any[]).map((o) => {
       const paidAmount = (o.payments || [])
@@ -213,6 +275,8 @@ export class OrderService {
         pendingCount,
         activeCount,
         todayCount,
+        deliveredCount,
+        cancelledCount,
         totalRevenue: Number(revenueAggregate._sum.totalAmount || 0),
       },
     };

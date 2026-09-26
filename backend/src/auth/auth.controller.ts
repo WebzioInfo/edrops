@@ -3,9 +3,15 @@ import {
   Post,
   Body,
   Get,
+  Delete,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { multerOptions } from '../config/multer.config';
+import type { MulterFile } from '../config/cloudinary.service';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -38,13 +44,40 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   getProfile(@Request() req) {
-    return this.authService.getProfile(req.user.id);
+    const userId = req.user?.id || req.user?.sub;
+    return this.authService.getProfile(userId);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Post('update-profile')
   updateProfile(@Request() req, @Body() body: any) {
-    return this.authService.updateProfile(req.user.id, body);
+    const userId = req.user?.id || req.user?.sub;
+    return this.authService.updateProfile(userId, body);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(['avatar', 'profile-picture'])
+  @UseInterceptors(FileInterceptor('file', multerOptions))
+  uploadAvatar(
+    @Request() req: any,
+    @UploadedFile() file: MulterFile,
+  ) {
+    const userId = req.user?.id || req.user?.sub;
+    return this.authService.uploadAvatar(userId, file);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete(['avatar', 'profile-picture'])
+  removeAvatar(@Request() req: any) {
+    const userId = req.user?.id || req.user?.sub;
+    return this.authService.removeAvatar(userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('remove-avatar')
+  removeAvatarPost(@Request() req: any) {
+    const userId = req.user?.id || req.user?.sub;
+    return this.authService.removeAvatar(userId);
   }
 
   @UseGuards(AuthGuard('jwt'))
