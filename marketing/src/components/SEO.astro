@@ -51,7 +51,7 @@ export interface Props {
 const {
   title,
   description,
-  keywords = 'eDrops, 20L water jar delivery, order water jar online, water can subscription, water jar delivery app, doorstep water delivery, prepaid water wallet',
+  keywords = 'eDrops, 20L water jar delivery, order water jar online, purified water delivery, water jar delivery app, doorstep water delivery, prepaid water wallet',
   image = '/og-image.jpg',
   canonicalURL,
   noindex = false,
@@ -72,7 +72,15 @@ const webSiteSchema = buildWebSiteSchema();
 const siteNavigationSchema = buildSiteNavigationSchema();
 const webAppSchema = buildWebApplicationSchema(description);
 const localBusinessSchema = isHome ? buildLocalBusinessSchema() : null;
-const breadcrumbSchema = breadcrumbs.length > 0 ? buildBreadcrumbSchema(breadcrumbs) : null;
+let effectiveBreadcrumbs = breadcrumbs;
+if (!isHome && (!effectiveBreadcrumbs || effectiveBreadcrumbs.length === 0)) {
+  const pageName = title.split('|')[0].replace('– eDrops', '').trim();
+  effectiveBreadcrumbs = [
+    { name: 'Home', url: `${SITE_URL}/` },
+    { name: pageName, url: fullCanonicalURL }
+  ];
+}
+const breadcrumbSchema = effectiveBreadcrumbs && effectiveBreadcrumbs.length > 0 ? buildBreadcrumbSchema(effectiveBreadcrumbs) : null;
 const faqSchema = buildFaqSchema(faqItems, fullCanonicalURL);
 const howToSchema = howToData ? buildHowToSchema(howToData.title, howToData.description, howToData.steps) : null;
 const articleSchema = articleData ? buildBlogPostingSchema(articleData) : null;

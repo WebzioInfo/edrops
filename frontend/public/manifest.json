@@ -1,7 +1,7 @@
 {
-  "name": "E Drops - Pure Hydration Delivered",
-  "short_name": "E Drops",
-  "description": "Enterprise logistics, delivery scheduling, and order tracking application for E Drops.",
+  "name": "eDrops",
+  "short_name": "eDrops",
+  "description": "Order purified 20L water jars with eDrops. Doorstep delivery, easy jar swap, and bulk orders with membership benefits. Serving Kondotty and Malappuram, Kerala.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F8FAFC",

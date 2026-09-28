@@ -1,0 +1,79 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Navigation from '../components/Navigation.astro';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Membership', url: '/membership/' }
+];
+---
+
+<BaseLayout
+  title="Membership | Purified Water Jar Delivery – eDrops"
+  description="Enjoy eDrops membership benefits for regular purified 20L water jar delivery. Automated repeat deliveries and priority doorstep drops."
+  keywords="eDrops membership, water jar membership, repeat water delivery, priority water delivery"
+  breadcrumbs={breadcrumbs}
+  noindex={true}
+>
+  <Navigation />
+
+  <main id="main-content" class="pt-32 pb-24 px-5 max-w-4xl mx-auto min-h-screen">
+    <!-- Breadcrumb visual navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
+        <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
+        <li class="text-edrops-muted">/</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Membership</li>
+      </ol>
+    </nav>
+
+    <div class="space-y-8">
+      <header class="space-y-4">
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Customer Benefits</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-edrops-ocean tracking-tight">
+          eDrops Membership
+        </h1>
+        <p class="text-xl text-edrops-slate leading-relaxed font-normal">
+          Convenient ordering benefits for regular drinking water deliveries at home and work.
+        </p>
+      </header>
+
+      {/* Confirmed features and TODO markers */}
+      <div class="space-y-6 text-base sm:text-lg text-edrops-ocean/80 leading-relaxed pt-2">
+        <p>
+          eDrops membership gives regular customers prioritized doorstep deliveries, easy repeat scheduling, and simple jar swaps.
+        </p>
+
+        {/* TODO: Add finalized membership tiers, discount percentages, and pricing structure once confirmed by business. */}
+        <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-3">
+          <h2 class="text-xl font-bold text-edrops-ocean">Membership Advantages</h2>
+          <ul class="space-y-2 text-sm text-edrops-slate list-disc list-inside">
+            <li>Priority morning and evening delivery slots</li>
+            <li>Automated repeat jar deliveries without manual reordering</li>
+            <li>Fast doorstep jar swap with clean, sanitized jars</li>
+            <li>Dedicated delivery support for homes and workplaces</li>
+          </ul>
+        </div>
+
+        <p class="text-sm text-edrops-slate">
+          Interested in membership delivery benefits for your home or workplace in Kondotty and Malappuram? Contact our customer support team or check the eDrops app.
+        </p>
+
+        <div class="pt-4 flex gap-4">
+          <a
+            href="https://app.edrops.in"
+            class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-sm font-bold px-7 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors"
+          >
+            Open eDrops App
+          </a>
+          <a
+            href="/contact/"
+            class="inline-flex items-center justify-center rounded-full bg-white border border-edrops-border text-edrops-ocean text-sm font-bold px-7 py-3.5 hover:border-edrops-primary/40 transition-colors"
+          >
+            Contact Support
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</BaseLayout>

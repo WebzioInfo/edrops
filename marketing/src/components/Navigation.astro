@@ -9,19 +9,12 @@ const { currentPath = Astro.url.pathname } = Astro.props;
 
 const isHome = currentPath === '/' || currentPath === '';
 
-const navLinks = isHome
-  ? [
-      { href: '/how-it-works/', label: 'How it Works', anchor: 'how-to-order' },
-      { href: '/features/', label: 'Features', anchor: 'why-edrops' },
-      { href: '/faq/', label: 'FAQ', anchor: 'faq' },
-      { href: '/contact/', label: 'Contact', anchor: 'for-business' },
-    ]
-  : [
-      { href: '/features/', label: 'Features' },
-      { href: '/how-it-works/', label: 'How it Works' },
-      { href: '/faq/', label: 'FAQ' },
-      { href: '/contact/', label: 'Contact' },
-    ];
+const navLinks = [
+  { href: '/how-it-works/', label: 'How It Works' },
+  { href: '/bulk-orders/', label: 'Bulk Orders' },
+  { href: '/faq/', label: 'FAQ' },
+  { href: '/contact/', label: 'Contact' },
+];
 ---
 
 <!-- Skip to content link (accessibility) -->
@@ -39,17 +32,20 @@ const navLinks = isHome
 
     <!-- Desktop Navigation Links -->
     <ul class="nav-island__links" role="list">
-      {navLinks.map(({ href, label }) => (
-        <li>
-          <a
-            href={href}
-            class="nav-island__link"
-            data-nav-anchor={href.replace('#', '')}
-          >
-            {label}
-          </a>
-        </li>
-      ))}
+      {navLinks.map(({ href, label }) => {
+        const isActive = currentPath === href || (href !== '/' && currentPath.startsWith(href));
+        return (
+          <li>
+            <a
+              href={href}
+              class={`nav-island__link ${isActive ? 'nav-island__link--active' : ''}`}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              {label}
+            </a>
+          </li>
+        );
+      })}
     </ul>
 
     <!-- CTA Group -->
@@ -82,17 +78,20 @@ const navLinks = isHome
   <div class="nav-island__mobile-backdrop" id="nav-mobile-backdrop"></div>
   <div class="nav-island__mobile-panel">
     <ul class="nav-island__mobile-links" role="list">
-      {navLinks.map(({ href, label }) => (
-        <li>
-          <a
-            href={href}
-            class="nav-island__mobile-link"
-            data-nav-anchor={href.replace('#', '')}
-          >
-            {label}
-          </a>
-        </li>
-      ))}
+      {navLinks.map(({ href, label }) => {
+        const isActive = currentPath === href || (href !== '/' && currentPath.startsWith(href));
+        return (
+          <li>
+            <a
+              href={href}
+              class={`nav-island__mobile-link ${isActive ? 'nav-island__mobile-link--active' : ''}`}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              {label}
+            </a>
+          </li>
+        );
+      })}
     </ul>
     <div class="nav-island__mobile-divider"></div>
     <div class="nav-island__mobile-cta-group">

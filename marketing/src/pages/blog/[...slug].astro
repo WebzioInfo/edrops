@@ -29,10 +29,12 @@ const articleData = {
   image: '/og-image.jpg',
   authorName: 'eDrops Editorial Team'
 };
+
+const metaTitle = post.data.metaTitle || `${post.data.title} | 20L Water Jar Delivery – eDrops`;
 ---
 
 <BaseLayout
-  title={`${post.data.title} – eDrops`}
+  title={metaTitle}
   description={post.data.description}
   breadcrumbs={breadcrumbs}
   articleData={articleData}
@@ -74,11 +76,11 @@ const articleData = {
 
     <div class="mt-14 pt-8 border-t border-edrops-border/60 flex flex-col sm:flex-row items-center justify-between gap-6">
       <div>
-        <p class="text-xs font-bold uppercase tracking-wider text-edrops-primary">About eDrops Platform</p>
-        <p class="text-sm text-edrops-slate mt-1 max-w-md">Automate your 20L water delivery operations, driver routes, and prepaid balances.</p>
+        <p class="text-xs font-bold uppercase tracking-wider text-edrops-primary">About eDrops</p>
+        <p class="text-sm text-edrops-slate mt-1 max-w-md">Order purified 20L water jars online with doorstep delivery, easy jar swap, and live order tracking.</p>
       </div>
       <a href="https://app.edrops.in" class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-sm font-bold px-7 py-3 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-        Try eDrops Free
+        Order Water Jars
       </a>
     </div>
   </main>

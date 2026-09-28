@@ -5,65 +5,65 @@ import '../styles/capabilities.css';
 
 const faqItems = [
   {
+    question: "Is eDrops a software or subscription service?",
+    answer: "No. eDrops is a delivery app for purified 20L water jars. You order online and the jar is delivered to your doorstep. Bulk orders and memberships are available for homes and offices."
+  },
+  {
     question: "What is eDrops?",
-    answer: "eDrops is a 20L water jar delivery app. Customers order jars online, subscribe to recurring deliveries, top up a prepaid wallet, and get doorstep jar swaps — all from one app. No phone calls needed."
+    answer: "eDrops is a delivery app for purified 20L drinking water jars. Customers order online, get doorstep jar swap, track deliveries live, and access bulk ordering with membership benefits."
   },
   {
     question: "How do I order a 20L water jar?",
-    answer: "Open eDrops at app.edrops.in, choose a one-time order or set up a recurring subscription, select how many jars you need, and pay via UPI, card, or your prepaid wallet. Your jars are delivered to your doorstep on the scheduled date."
+    answer: "Open eDrops at app.edrops.in, choose how many 20L purified water jars you need, select one-time order or repeat delivery, and pay securely online. Your jars are delivered to your doorstep on the scheduled date."
   },
   {
     question: "How does the jar swap work?",
     answer: "Our delivery partner brings full 20L jars to your door and takes the empty ones back. You don't need to carry or return anything yourself — the swap happens right at your doorstep during every delivery."
   },
   {
-    question: "How does the prepaid wallet work?",
-    answer: "You top up your eDrops wallet in advance using UPI, credit/debit card, or net banking. Each time a delivery is completed, the jar cost deducts automatically from your balance. You get an instant digital receipt with every delivery."
+    question: "How does payment work?",
+    answer: "You can pay securely online via UPI, debit/credit cards, and net banking, or top up your account balance for seamless, automated doorstep checkout."
   },
   {
-    question: "Can I pause, skip, or change my subscription?",
-    answer: "Yes. You can pause your subscription during vacations, skip an upcoming delivery, change the number of jars, or reschedule a delivery date — all from your eDrops dashboard, any time, without calling anyone."
+    question: "Can I pause or reschedule repeat deliveries?",
+    answer: "Yes. You can pause repeat deliveries during vacations, skip an upcoming delivery, change the number of jars, or reschedule a delivery date anytime from your eDrops dashboard."
   },
   {
     question: "Which areas do you deliver to?",
-    answer: "eDrops currently delivers in Kondotty and Malappuram, Kerala. We are expanding to more areas. Check the app for the latest delivery availability in your pincode."
-  },
-  {
-    question: "What payment methods are accepted?",
-    answer: "eDrops accepts UPI, credit cards, debit cards, and net banking. You can also pay from your prepaid eDrops wallet balance."
+    answer: "eDrops currently delivers in Kondotty and Malappuram, Kerala. We are expanding to more areas. Check the app for delivery availability in your location."
   },
   {
     question: "How do I track my order?",
     answer: "After placing an order, you can track its status live from your eDrops dashboard. You'll see when your jars are out for delivery and when they've been delivered."
   },
   {
-    question: "Can offices and businesses order in bulk?",
-    answer: "Yes. eDrops offers bulk water jar delivery for offices, cafes, clinics, and other workplaces. Businesses get volume-based pricing, flexible scheduling, and a single dashboard to manage all orders."
+    question: "Can homes and offices order in bulk or get membership benefits?",
+    answer: "Yes. eDrops supports bulk orders and memberships for homes, offices, cafes, clinics, and shops, with priority scheduling and dedicated delivery management."
   }
 ];
 
 const howToData = {
   title: 'How to Order 20L Water Jars with eDrops',
-  description: 'Order 20L water jars online in a few simple steps: choose your plan, top up your wallet, and get doorstep delivery with jar swap.',
+  description: 'Order purified 20L water jars online in simple steps: choose your jar quantity, set your delivery schedule, and get doorstep jar swap.',
   steps: [
     {
-      name: 'Choose your plan',
-      text: 'Open eDrops and select a recurring subscription or place a one-time order. Pick how many 20L jars you need.',
+      name: 'Order online in seconds',
+      text: 'Open eDrops, choose how many purified 20L water jars you need, and select one-time or repeat delivery.',
       url: '/#how-to-order'
     },
     {
-      name: 'Top up your wallet',
-      text: 'Add money to your prepaid eDrops wallet using UPI, card, or net banking. Your balance is used automatically for each delivery.',
+      name: 'Seamless digital payment',
+      text: 'Pay securely via UPI, cards, or account balance for cashless doorstep transactions.',
       url: '/#how-to-order'
     },
     {
-      name: 'Get doorstep delivery',
-      text: 'Our delivery partner brings full jars to your door and swaps out the empties. Track the delivery live from your dashboard.',
+      name: 'Doorstep jar swap',
+      text: 'Our delivery partner delivers fresh, sealed 20L water jars to your door and collects empty jars.',
       url: '/#how-to-order'
     },
     {
-      name: 'Manage anytime',
-      text: 'Pause, skip, reschedule, or adjust jar quantities from your dashboard whenever you need to. No phone calls required.',
+      name: 'Live tracking & control',
+      text: 'Track your delivery partner live and manage repeat deliveries anytime from your dashboard.',
       url: '/#how-to-order'
     }
   ]
@@ -71,9 +71,9 @@ const howToData = {
 ---
 
 <BaseLayout
-  title="20L Water Jar Delivery App – eDrops"
-  description="Order 20L water jars online with eDrops. Subscribe or order once, top up a prepaid wallet, and get doorstep jar swaps on time. Start ordering today."
-  keywords="20L water jar delivery, water jar delivery app, order water jar online, water can subscription, eDrops, doorstep water delivery, water jar Kondotty, water jar Malappuram"
+  title="20L Purified Water Jar Delivery App | Order Online – eDrops"
+  description="Order purified 20L water jars online with eDrops. Doorstep delivery, easy jar swap, and bulk orders with membership benefits for homes and offices."
+  keywords="20L water jar delivery, purified water jar delivery, order water jars online, doorstep jar swap, water jar delivery app, bulk water orders, eDrops, Kondotty, Malappuram"
   faqItems={faqItems}
   howToData={howToData}
   isHome={true}
@@ -123,7 +123,7 @@ const howToData = {
 
           {/* Answer-first definition for AEO / GEO */}
           <p class="animate-fade-up-delay-2 text-base sm:text-lg lg:text-xl text-edrops-slate font-normal leading-relaxed max-w-xl">
-            eDrops (edrops.in) is a 20L water jar delivery app serving Kondotty and Malappuram, Kerala. Order jars online, subscribe to recurring deliveries, and pay from a prepaid wallet — with doorstep jar swap, every time.
+            eDrops (edrops.in) is a delivery app for purified 20L water jars serving Kondotty and Malappuram, Kerala. Customers order online and get jars delivered to the doorstep, with easy jar swap, plus bulk orders and membership benefits for homes and offices.
           </p>
 
           {/* CTA */}
@@ -168,7 +168,7 @@ const howToData = {
             </span>
           </div>
           <h2 class="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.08]">
-            Subscribe, or just order once.<br>
+            Order once, or schedule repeat deliveries.<br>
             <span class="text-gradient-water">Either way, it arrives on time.</span>
           </h2>
         </div>
@@ -183,10 +183,10 @@ const howToData = {
                 01
               </span>
               <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
-                Choose how you buy
+                Order online in seconds
               </h3>
               <p class="text-base text-edrops-slate leading-relaxed font-normal">
-                Set up a recurring subscription or place a one-time order. No commitment required either way.
+                Place a one-time order or set up repeat deliveries for purified 20L water jars with zero commitment.
               </p>
             </div>
 
@@ -213,10 +213,10 @@ const howToData = {
                 02
               </span>
               <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
-                We deliver on schedule
+                Doorstep jar swap
               </h3>
               <p class="text-base text-edrops-slate leading-relaxed font-normal">
-                Subscribers get automatic recurring deliveries. One-time orders arrive on your chosen date. Both tracked live.
+                Our delivery partner delivers clean, sealed 20L jars directly to your door and collects empty jars on the spot.
               </p>
             </div>
 
@@ -243,10 +243,10 @@ const howToData = {
                 03
               </span>
               <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
-                Stay in control
+                Live tracking & control
               </h3>
               <p class="text-base text-edrops-slate leading-relaxed font-normal">
-                Pause, skip, or switch between subscription and one-time anytime from your dashboard.
+                Track your delivery partner live, pause deliveries while away, or reorder in one tap straight from your account.
               </p>
             </div>
           </li>
@@ -289,22 +289,22 @@ const howToData = {
           {/* Feature 1 */}
           <article class="capability-card" data-capability="0">
             <span class="capability-card__number" aria-hidden="true">01</span>
-            <h3 class="capability-card__title">Flexible subscriptions</h3>
-            <p class="capability-card__text">Set your own delivery schedule. Get jars weekly, every few days, or whenever you need them. Pause, skip, or reschedule without calling anyone.</p>
+            <h3 class="capability-card__title">Scheduled repeat deliveries</h3>
+            <p class="capability-card__text">Set your delivery routine. Get jars weekly, every few days, or on demand. Pause or reschedule anytime right from the app.</p>
           </article>
 
           {/* Feature 2 */}
           <article class="capability-card capability-card--delay-1" data-capability="1">
             <span class="capability-card__number" aria-hidden="true">02</span>
-            <h3 class="capability-card__title">Prepaid wallet</h3>
-            <p class="capability-card__text">Top up your wallet once, and every delivery deducts automatically. No cash at the door, no chasing payments. You always know your balance.</p>
+            <h3 class="capability-card__title">Cashless convenience</h3>
+            <p class="capability-card__text">Pay seamlessly with UPI, cards, or account balance. No searching for cash or change at the door.</p>
           </article>
 
           {/* Feature 3 */}
           <article class="capability-card capability-card--delay-2" data-capability="2">
             <span class="capability-card__number" aria-hidden="true">03</span>
-            <h3 class="capability-card__title">Complete visibility</h3>
-            <p class="capability-card__text">Track your delivery live, see your jar count, check payment history, and get instant digital receipts — all from your dashboard.</p>
+            <h3 class="capability-card__title">Live order tracking</h3>
+            <p class="capability-card__text">Track your delivery partner in real time, view order history, and receive digital confirmation upon jar delivery.</p>
           </article>
 
         </div>
@@ -465,7 +465,7 @@ const howToData = {
     </section>
 
     {/* ═══════════════════════════════════════
-        FOR BUSINESSES — BULK WORKPLACE WATER
+        FOR HOMES & BUSINESSES — BULK ORDERS & MEMBERSHIP
         ═══════════════════════════════════════ */}
     <section class="py-24 sm:py-32 lg:py-36 px-6 border-t border-edrops-border/50 bg-[#f9fcfe] scroll-mt-24 sm:scroll-mt-28" id="for-business">
       <div class="mx-auto max-w-6xl space-y-16 sm:space-y-20 text-center">
@@ -474,16 +474,16 @@ const howToData = {
         <div class="max-w-3xl mx-auto space-y-4">
           <div class="capabilities-eyebrow justify-center">
             <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
-              Bulk orders for offices
+              Bulk orders & membership benefits
             </span>
           </div>
           
           <h2 class="text-3xl sm:text-4xl lg:text-[3rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.12]">
-            Your office shouldn't run dry. We make sure it doesn't.
+            Dependable water jar delivery for homes and workplaces.
           </h2>
           
           <p class="text-base sm:text-lg text-edrops-slate font-normal leading-relaxed max-w-2xl mx-auto">
-            Bulk 20L water jar delivery for offices, cafes, clinics, and stores — better rates the more you order, and one dashboard to manage it all.
+            Bulk 20L water jar delivery for offices, cafes, clinics, and homes — scheduled drops, membership ordering perks, and reliable supply.
           </p>
         </div>
 
@@ -492,33 +492,34 @@ const howToData = {
           
           {/* Item 1 */}
           <div class="space-y-2.5 flex flex-col items-center">
-            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Bulk pricing</h3>
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Bulk ordering</h3>
             <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
-              Order more, pay less per jar. Rates scale automatically with your volume.
+              Order multiple purified 20L jars for your workplace or home with scheduled drops and volume benefits.
             </p>
           </div>
 
           {/* Item 2 */}
           <div class="space-y-2.5 flex flex-col items-center">
-            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Flexible scheduling</h3>
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Membership benefits</h3>
+            {/* TODO: Add confirmed membership tiers, pricing discounts, and specific promotional perks once finalized by the business. */}
             <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
-              Set your own delivery days. Change, pause, or adjust anytime — no lock-in.
+              Priority delivery slots and member ordering privileges for regular home and office deliveries.
             </p>
           </div>
 
           {/* Item 3 */}
           <div class="space-y-2.5 flex flex-col items-center">
-            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Single point of contact</h3>
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Flexible schedules</h3>
             <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
-              One person who knows your account. Not a call centre queue.
+              Set delivery days that fit your operating hours or home routine. Pause or reschedule anytime.
             </p>
           </div>
 
           {/* Item 4 */}
           <div class="space-y-2.5 flex flex-col items-center">
-            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Usage reports</h3>
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Order history & receipts</h3>
             <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
-              See exactly how much water your office is using, whenever you need to check.
+              Track water jar counts, view past deliveries, and download digital invoices whenever you need.
             </p>
           </div>
 
@@ -530,7 +531,7 @@ const howToData = {
             href="/contact/"
             class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-[15px] font-bold px-9 py-4 btn-glow"
           >
-            Enquire for Your Office
+            Enquire for Bulk Water Delivery
           </a>
         </div>
 
@@ -555,7 +556,7 @@ const howToData = {
             Frequently Asked Questions
           </h2>
           <p class="text-base sm:text-lg text-edrops-slate font-normal leading-relaxed max-w-2xl mx-auto">
-            Everything you need to know about ordering 20L water jars, subscriptions, prepaid wallet, and delivery.
+            Everything you need to know about ordering 20L water jars, jar swaps, payments, and delivery.
           </p>
         </div>
 
@@ -586,10 +587,58 @@ const howToData = {
             About eDrops
           </p>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            eDrops is a 20L water jar delivery app that lets customers order jars online, subscribe to recurring deliveries, and pay from a prepaid wallet, with doorstep jar swap. Currently delivering in Kondotty and Malappuram, Kerala.
+            eDrops (edrops.in) is a delivery app for purified 20L water jars serving Kondotty and Malappuram, Kerala. Customers order online and get jars delivered to the doorstep, with easy jar swap, plus bulk orders and memberships for homes and offices.
           </p>
         </div>
 
+      </div>
+    </section>
+
+    {/* ═══════════════════════════════════════
+        MAIN PAGES DIRECTORY / SITELINKS SECTION
+        ═══════════════════════════════════════ */}
+    <section class="py-16 sm:py-24 px-6 border-t border-edrops-border/40 bg-white" id="explore-edrops">
+      <div class="mx-auto max-w-6xl space-y-10">
+        <div class="text-center space-y-3">
+          <div class="capabilities-eyebrow justify-center">
+            <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
+              Directory
+            </span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-edrops-ocean tracking-tight">
+            Explore 20L Water Jar Delivery with eDrops
+          </h2>
+          <p class="text-sm sm:text-base text-edrops-slate max-w-xl mx-auto">
+            eDrops (edrops.in) is a delivery app for purified 20L water jars serving Kondotty and Malappuram, Kerala.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <a href="/how-it-works/" class="p-6 rounded-2xl border border-edrops-border/70 hover:border-edrops-primary/40 hover:shadow-md transition-all group">
+            <h3 class="text-lg font-bold text-edrops-ocean group-hover:text-edrops-primary transition-colors">How 20L Water Jar Delivery Works</h3>
+            <p class="text-sm text-edrops-slate mt-2">Learn how to order online, schedule doorstep drops, and enjoy easy jar swaps.</p>
+          </a>
+          <a href="/bulk-orders/" class="p-6 rounded-2xl border border-edrops-border/70 hover:border-edrops-primary/40 hover:shadow-md transition-all group">
+            <h3 class="text-lg font-bold text-edrops-ocean group-hover:text-edrops-primary transition-colors">Bulk Water Jar Orders for Offices & Homes</h3>
+            <p class="text-sm text-edrops-slate mt-2">Scheduled multi-can deliveries and volume ordering benefits for workplaces and cafes.</p>
+          </a>
+          <a href="/faq/" class="p-6 rounded-2xl border border-edrops-border/70 hover:border-edrops-primary/40 hover:shadow-md transition-all group">
+            <h3 class="text-lg font-bold text-edrops-ocean group-hover:text-edrops-primary transition-colors">Water Jar Delivery Frequently Asked Questions</h3>
+            <p class="text-sm text-edrops-slate mt-2">Answers on delivery areas, jar swap process, digital payments, and repeat orders.</p>
+          </a>
+          <a href="/about/" class="p-6 rounded-2xl border border-edrops-border/70 hover:border-edrops-primary/40 hover:shadow-md transition-all group">
+            <h3 class="text-lg font-bold text-edrops-ocean group-hover:text-edrops-primary transition-colors">About Our Water Jar Delivery Service</h3>
+            <p class="text-sm text-edrops-slate mt-2">Our mission to deliver clean, purified drinking water reliably across Kerala.</p>
+          </a>
+          <a href="/contact/" class="p-6 rounded-2xl border border-edrops-border/70 hover:border-edrops-primary/40 hover:shadow-md transition-all group">
+            <h3 class="text-lg font-bold text-edrops-ocean group-hover:text-edrops-primary transition-colors">Contact eDrops Customer Support</h3>
+            <p class="text-sm text-edrops-slate mt-2">Reach our Kondotty and Malappuram support team for order assistance and inquiries.</p>
+          </a>
+          <a href="https://app.edrops.in" class="p-6 rounded-2xl border border-edrops-primary/40 bg-edrops-primary/5 hover:bg-edrops-primary/10 hover:shadow-md transition-all group">
+            <h3 class="text-lg font-bold text-edrops-primary group-hover:underline">Order 20L water jars on the eDrops app</h3>
+            <p class="text-sm text-edrops-slate mt-2">Open the app, select your jars, and receive quick doorstep delivery with jar swap.</p>
+          </a>
+        </div>
       </div>
     </section>
 

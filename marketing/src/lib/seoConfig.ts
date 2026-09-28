@@ -18,10 +18,10 @@ export const ENTITY_CONFIG = {
     'eDrops water jar delivery app'
   ],
   disambiguatingDescription:
-    'eDrops is a 20L water jar delivery app that lets customers order jars online, subscribe to recurring deliveries, and pay from a prepaid wallet, with doorstep jar swap.',
-  slogan: 'Order 20L water jars online — subscribe, recharge, get doorstep delivery.',
+    'eDrops is a delivery app for purified 20L water jars, serving Kondotty and Malappuram, Kerala.',
+  slogan: 'Delivery app for purified 20L drinking water jars with doorstep jar swap.',
   description:
-    'eDrops is a 20L water jar delivery app in Kerala, India',
+    'eDrops is a delivery app for purified 20L water jars, serving Kondotty and Malappuram, Kerala.',
   url: SITE_URL,
   appUrl: APP_URL,
   logo: `${SITE_URL}/logo.png`,
@@ -96,34 +96,22 @@ export function getCanonicalUrl(input?: string): string {
  */
 export const CORE_SITELINKS_NAV = [
   {
-    name: 'Features',
-    url: `${SITE_URL}/features/`,
-    description:
-      'Explore eDrops features: subscriptions, prepaid wallet, doorstep jar swap, live order tracking, and flexible scheduling.'
-  },
-  {
     name: 'How It Works',
     url: `${SITE_URL}/how-it-works/`,
     description:
-      'Learn how to order 20L water jars with eDrops: choose a plan, top up your wallet, and get doorstep delivery.'
+      'Learn how to order 20L water jars with eDrops: order online, get doorstep jar swap, and track deliveries.'
   },
   {
-    name: 'Bulk Orders for Offices',
-    url: `${SITE_URL}/industries/`,
+    name: 'Bulk Orders',
+    url: `${SITE_URL}/bulk-orders/`,
     description:
-      'Bulk 20L water jar delivery for offices, cafes, clinics, and commercial spaces with volume-based pricing.'
+      'Bulk 20L water jar delivery for homes, offices, cafes, clinics, and shops with volume benefits.'
   },
   {
-    name: 'Blog',
-    url: `${SITE_URL}/blog/`,
+    name: 'FAQ',
+    url: `${SITE_URL}/faq/`,
     description:
-      'Tips on staying hydrated, managing your water subscription, and getting the most out of eDrops.'
-  },
-  {
-    name: 'About eDrops',
-    url: `${SITE_URL}/about/`,
-    description:
-      'The story behind eDrops — making 20L water jar delivery simple, reliable, and fully digital.'
+      'Frequently asked questions about ordering 20L water jars, jar swaps, payments, and delivery areas.'
   },
   {
     name: 'Contact & Support',
@@ -132,10 +120,16 @@ export const CORE_SITELINKS_NAV = [
       'Get in touch with eDrops customer support for orders, delivery queries, or account help.'
   },
   {
-    name: 'FAQ',
-    url: `${SITE_URL}/faq/`,
+    name: 'About eDrops',
+    url: `${SITE_URL}/about/`,
     description:
-      'Frequently asked questions about ordering water jars, subscriptions, wallet top-ups, and delivery areas.'
+      'The story behind eDrops — making 20L water jar delivery simple, reliable, and fully digital.'
+  },
+  {
+    name: 'Blog',
+    url: `${SITE_URL}/blog/`,
+    description:
+      'Helpful guides and tips on 20L water jar delivery, doorstep jar swaps, and drinking water hydration.'
   }
 ];
 
@@ -188,7 +182,7 @@ export function buildWebSiteSchema() {
     url: SITE_URL,
     name: ENTITY_CONFIG.brandName,
     alternateName: ENTITY_CONFIG.alternateNames,
-    description: ENTITY_CONFIG.slogan,
+    description: ENTITY_CONFIG.description,
     publisher: {
       '@id': `${SITE_URL}/#organization`
     },
@@ -221,6 +215,7 @@ export function buildLocalBusinessSchema() {
     name: ENTITY_CONFIG.brandName,
     alternateName: ENTITY_CONFIG.alternateNames,
     legalName: ENTITY_CONFIG.legalName,
+    description: ENTITY_CONFIG.description,
     url: SITE_URL,
     telephone: ENTITY_CONFIG.telephone,
     email: ENTITY_CONFIG.email,
@@ -246,10 +241,9 @@ export function buildWebApplicationSchema(pageDescription?: string) {
     '@id': `${SITE_URL}/#app`,
     name: ENTITY_CONFIG.brandName,
     alternateName: ENTITY_CONFIG.alternateNames,
-    operatingSystem: 'All (Web, Android, iOS, PWA)',
     applicationCategory: 'LifestyleApplication',
     applicationSubCategory: 'Food & Drink Delivery',
-    description: pageDescription || ENTITY_CONFIG.description,
+    description: ENTITY_CONFIG.description,
     url: APP_URL,
     author: {
       '@id': `${SITE_URL}/#organization`
@@ -258,13 +252,11 @@ export function buildWebApplicationSchema(pageDescription?: string) {
       '@id': `${SITE_URL}/#organization`
     },
     featureList: [
-      'Order 20L water jars online',
-      'Recurring subscription deliveries',
-      'Prepaid wallet top-up via UPI and cards',
-      'Doorstep jar swap — full jar in, empty jar out',
-      'Pause, skip, or reschedule deliveries',
-      'Live order tracking',
-      'Bulk ordering for offices and businesses'
+      'Order purified 20L water jars online',
+      'Doorstep delivery with easy jar swap',
+      'Live order tracking from dispatch to delivery',
+      'Bulk water jar ordering for homes and offices',
+      'Membership benefits and repeat deliveries'
     ]
   };
 }
