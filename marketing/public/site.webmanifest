@@ -1,7 +1,7 @@
 {
   "name": "Edrops",
   "short_name": "Edrops",
-  "description": "Intelligent 20L Water Jar Delivery & Subscription Software",
+  "description": "Order 20L water jars online — subscribe, prepaid wallet, doorstep jar swap",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

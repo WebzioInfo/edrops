@@ -1,0 +1,46 @@
+# eDrops
+
+> eDrops is a 20L water jar delivery app for customers in India.
+
+## What eDrops does
+
+eDrops lets customers order 20-litre packaged drinking water jars online. Customers can:
+
+- Place a one-time order or subscribe to recurring deliveries
+- Top up a prepaid wallet (UPI, card, net banking) — no cash at the door
+- Get doorstep jar swap: delivery partner brings full jars and takes empties
+- Pause, skip, or reschedule deliveries anytime from their dashboard
+- Track orders live and view delivery history
+
+## Who it's for
+
+- Households ordering 20L water jars for home use
+- Offices, cafes, clinics, and workplaces ordering in bulk with volume pricing
+
+## Where it operates
+
+eDrops currently delivers in Kondotty and Malappuram, Kerala, India. Expansion to more areas is ongoing.
+
+## Company
+
+- **Legal name**: eDrops Technologies Private Limited
+- **Website**: https://www.edrops.in
+- **App**: https://app.edrops.in
+- **Support email**: support@edrops.in
+- **Support phone**: +91 7907805626 (Mon–Sat, 7 AM – 8 PM IST)
+- **Address**: Kondotty, Malappuram, Kerala 673638, India
+- **Founded**: 2024
+
+## Key pages
+
+- Homepage: https://www.edrops.in/
+- Features: https://www.edrops.in/features/
+- How it works: https://www.edrops.in/how-it-works/
+- Pricing: https://www.edrops.in/pricing/
+- FAQ: https://www.edrops.in/faq/
+- Contact: https://www.edrops.in/contact/
+- About: https://www.edrops.in/about/
+- Bulk orders: https://www.edrops.in/industries/
+- Blog: https://www.edrops.in/blog/
+- Privacy policy: https://www.edrops.in/privacy/
+- Terms of service: https://www.edrops.in/terms/

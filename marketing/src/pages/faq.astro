@@ -9,44 +9,48 @@ const breadcrumbs = [
 
 const faqItems = [
   {
-    question: "What is eDrops and how does the 20L water jar delivery platform work?",
-    answer: "eDrops is an all-in-one software platform and doorstep delivery service built specifically for 20L packaged drinking water jars. It connects water manufacturing plants, licensed distributors, delivery drivers, and consumers. Customers set up flexible recurring deliveries or place one-time orders, manage balances digitally, and receive doorstep deliveries with automatic empty bottle return."
+    question: "What is eDrops?",
+    answer: "eDrops is a 20L water jar delivery app. Customers order jars online, subscribe to recurring deliveries, top up a prepaid wallet, and get doorstep jar swaps — all from one app. No phone calls needed."
   },
   {
-    question: "How does the prepaid digital jar wallet work?",
-    answer: "Customers recharge their digital water jar wallet in advance using UPI, credit/debit cards, or net banking. Whenever a verified delivery partner completes a doorstep delivery and swaps an empty jar, the exact jar amount deducts automatically in real time. Customers receive an instant digital receipt without paper invoices or cash handling."
+    question: "How do I order a 20L water jar?",
+    answer: "Open eDrops at app.edrops.in, choose a one-time order or set up a recurring subscription, select how many jars you need, and pay via UPI, card, or your prepaid wallet. Your jars are delivered to your doorstep on the scheduled date."
   },
   {
-    question: "Can commercial businesses, offices, and cafes place bulk water orders?",
-    answer: "Yes. eDrops features a dedicated commercial portal for offices, co-working spaces, restaurants, clinics, and manufacturing facilities. Businesses receive volume-discounted jar rates, customizable delivery schedules, monthly consolidated GST tax invoices, and dedicated account support."
+    question: "How does the jar swap work?",
+    answer: "Our delivery partner brings full 20L jars to your door and takes the empty ones back. You don't need to carry or return anything yourself — the swap happens right at your doorstep during every delivery."
   },
   {
-    question: "How can I pause, skip, or modify my water subscription?",
-    answer: "You have 24/7 self-service control via the eDrops web app or mobile portal. If you are traveling or on vacation, you can pause your subscription with one tap, skip an upcoming delivery, or adjust the number of jars required without penalty."
+    question: "How does the prepaid wallet work?",
+    answer: "You top up your eDrops wallet in advance using UPI, credit/debit card, or net banking. Each time a delivery is completed, the jar cost deducts automatically from your balance. You get an instant digital receipt with every delivery."
   },
   {
-    question: "How are 20L water jars sanitized and handled?",
-    answer: "All water jars distributed through eDrops are sourced directly from licensed, certified water bottling plants that follow strict BIS and FSSAI filtration and multi-stage sanitization protocols before being sealed and dispatched."
+    question: "Can I pause, skip, or change my subscription?",
+    answer: "Yes. You can pause your subscription during vacations, skip an upcoming delivery, change the number of jars, or reschedule a delivery date — all from your eDrops dashboard, any time, without calling anyone."
   },
   {
-    question: "How do water plants and distributors use eDrops to manage their operations?",
-    answer: "Water plants and distributors use eDrops's multi-tenant cloud software to manage delivery fleets, automate driver route sheets, track bottle inventory and shrinkage, collect prepaid customer payments, and analyze branch revenues."
+    question: "Which areas do you deliver to?",
+    answer: "eDrops currently delivers in Kondotty and Malappuram, Kerala. We are expanding to more areas. Check the app for the latest delivery availability in your pincode."
   },
   {
-    question: "What happens if a customer has a broken jar or an incorrect delivery count?",
-    answer: "Delivery partners log jar conditions and counts upon doorstep dropoff. If there is a damaged bottle or count discrepancy, customers can instantly flag the drop in their portal for rapid customer support resolution and immediate wallet adjustments."
+    question: "What payment methods are accepted?",
+    answer: "eDrops accepts UPI, credit cards, debit cards, and net banking. You can also pay from your prepaid eDrops wallet balance."
   },
   {
-    question: "Is there a long-term contract or security deposit required?",
-    answer: "No long-term contracts are required. Consumers and businesses can start with flexible jar packs and cancel, pause, or adjust anytime. Standard bottle deposit policies apply only to physical jars where required by the local distributor."
+    question: "How do I track my order?",
+    answer: "After placing an order, you can track its status live from your eDrops dashboard. You'll see when your jars are out for delivery and when they've been delivered."
+  },
+  {
+    question: "Is there a minimum order?",
+    answer: "No minimum order is required for individual customers. You can order as few as one 20L water jar at a time. Bulk orders for offices may have separate volume-based pricing."
   }
 ];
 ---
 
 <BaseLayout
-  title="Frequently Asked Questions | eDrops™ — Water Delivery & Subscription Platform"
-  description="Clear answers about eDrops 20L water jar delivery, prepaid wallet balances, recurring subscriptions, bulk corporate water, and distribution software."
-  keywords="eDrops FAQ, 20L water jar delivery questions, water subscription software guide, prepaid water wallet FAQ, mineral water delivery India"
+  title="FAQ | 20L Water Jar Delivery Questions – eDrops"
+  description="Answers to common questions about eDrops: how to order 20L water jars, prepaid wallet, jar swap, subscriptions, delivery areas, and payments."
+  keywords="eDrops FAQ, water jar delivery questions, 20L water order help, water subscription FAQ, prepaid wallet FAQ"
   faqItems={faqItems}
   breadcrumbs={breadcrumbs}
 >
@@ -69,7 +73,7 @@ const faqItems = [
           Frequently Asked Questions
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          Everything you need to know about 20L drinking water subscriptions, prepaid wallet recharge, commercial bulk deliveries, and plant logistics.
+          Everything you need to know about ordering 20L water jars, subscriptions, the prepaid wallet, and delivery.
         </p>
       </header>
 
@@ -96,14 +100,14 @@ const faqItems = [
       <div class="p-8 rounded-2xl bg-edrops-light/60 border border-edrops-border text-center space-y-4">
         <h2 class="text-xl font-bold text-edrops-ocean">Still have questions?</h2>
         <p class="text-sm text-edrops-slate max-w-md mx-auto">
-          Our team is available to assist you with doorstep deliveries, office plans, or onboarding your water plant.
+          Our team is here to help with orders, deliveries, or account questions.
         </p>
         <div class="flex items-center justify-center gap-4 pt-2">
           <a href="/contact/" class="inline-flex items-center justify-center rounded-full bg-edrops-primary text-white text-sm font-bold px-7 py-3 shadow-xs hover:bg-edrops-primary-hover transition-colors">
             Contact Support
           </a>
-          <a href="tel:+917907805620" class="inline-flex items-center justify-center rounded-full bg-white text-edrops-ocean text-sm font-bold px-7 py-3 border border-edrops-border hover:bg-edrops-light transition-colors">
-            +91 7907805620
+          <a href="tel:+917907805626" class="inline-flex items-center justify-center rounded-full bg-white text-edrops-ocean text-sm font-bold px-7 py-3 border border-edrops-border hover:bg-edrops-light transition-colors">
+            +91 7907805626
           </a>
         </div>
       </div>

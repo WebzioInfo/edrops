@@ -3,42 +3,79 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Navigation from '../components/Navigation.astro';
 import '../styles/capabilities.css';
 
-const metrics = [
-  ['99.4%', 'On-time delivery rate'],
-  ['3×', 'Faster route planning'],
-  ['100%', 'Prepaid cashflow'],
-  ['100+', 'Outstanding invoices'],
-];
-
 const faqItems = [
   {
-    question: "What is Edrops and how does 20L water jar subscription software work?",
-    answer: "Edrops is an all-in-one software platform built specifically for 20L water jar delivery businesses, water plants, and distributors. It automates recurring delivery schedules, prepaid digital balances, driver route dispatch, and customer accounts in one unified interface."
+    question: "What is eDrops?",
+    answer: "eDrops is a 20L water jar delivery app. Customers order jars online, subscribe to recurring deliveries, top up a prepaid wallet, and get doorstep jar swaps — all from one app. No phone calls needed."
   },
   {
-    question: "How does the prepaid wallet and jar recharge system work?",
-    answer: "Customers top up their digital jar wallet upfront. When a delivery partner completes a doorstep delivery, jar counts automatically deduct from the customer's prepaid balance in real time. Customers receive instant verification receipts without paper invoices."
+    question: "How do I order a 20L water jar?",
+    answer: "Open eDrops at app.edrops.in, choose a one-time order or set up a recurring subscription, select how many jars you need, and pay via UPI, card, or your prepaid wallet. Your jars are delivered to your doorstep on the scheduled date."
   },
   {
-    question: "Can offices and businesses order water jars in bulk?",
-    answer: "Yes, Edrops offers dedicated bulk ordering for offices, cafes, clinics, and commercial facilities with volume-scaled rates, customized delivery calendars, monthly consumption reports, and single-point-of-contact support."
+    question: "How does the jar swap work?",
+    answer: "Our delivery partner brings full 20L jars to your door and takes the empty ones back. You don't need to carry or return anything yourself — the swap happens right at your doorstep during every delivery."
   },
   {
-    question: "Can customers pause, skip, or modify delivery days?",
-    answer: "Yes. Customers have 24/7 access to their self-service portal to pause deliveries during vacations, skip a drop, adjust jar quantities, or place one-time ad-hoc orders anytime without phone calls."
+    question: "How does the prepaid wallet work?",
+    answer: "You top up your eDrops wallet in advance using UPI, credit/debit card, or net banking. Each time a delivery is completed, the jar cost deducts automatically from your balance. You get an instant digital receipt with every delivery."
   },
   {
-    question: "How do delivery partners track routes and verify jar swaps?",
-    answer: "Delivery partners use mobile-first route sheets with customer address details, jar counts, and doorstep swap confirmations, ensuring zero missed deliveries and full jar inventory reconciliation."
+    question: "Can I pause, skip, or change my subscription?",
+    answer: "Yes. You can pause your subscription during vacations, skip an upcoming delivery, change the number of jars, or reschedule a delivery date — all from your eDrops dashboard, any time, without calling anyone."
+  },
+  {
+    question: "Which areas do you deliver to?",
+    answer: "eDrops currently delivers in Kondotty and Malappuram, Kerala. We are expanding to more areas. Check the app for the latest delivery availability in your pincode."
+  },
+  {
+    question: "What payment methods are accepted?",
+    answer: "eDrops accepts UPI, credit cards, debit cards, and net banking. You can also pay from your prepaid eDrops wallet balance."
+  },
+  {
+    question: "How do I track my order?",
+    answer: "After placing an order, you can track its status live from your eDrops dashboard. You'll see when your jars are out for delivery and when they've been delivered."
+  },
+  {
+    question: "Can offices and businesses order in bulk?",
+    answer: "Yes. eDrops offers bulk water jar delivery for offices, cafes, clinics, and other workplaces. Businesses get volume-based pricing, flexible scheduling, and a single dashboard to manage all orders."
   }
 ];
+
+const howToData = {
+  title: 'How to Order 20L Water Jars with eDrops',
+  description: 'Order 20L water jars online in a few simple steps: choose your plan, top up your wallet, and get doorstep delivery with jar swap.',
+  steps: [
+    {
+      name: 'Choose your plan',
+      text: 'Open eDrops and select a recurring subscription or place a one-time order. Pick how many 20L jars you need.',
+      url: '/#how-to-order'
+    },
+    {
+      name: 'Top up your wallet',
+      text: 'Add money to your prepaid eDrops wallet using UPI, card, or net banking. Your balance is used automatically for each delivery.',
+      url: '/#how-to-order'
+    },
+    {
+      name: 'Get doorstep delivery',
+      text: 'Our delivery partner brings full jars to your door and swaps out the empties. Track the delivery live from your dashboard.',
+      url: '/#how-to-order'
+    },
+    {
+      name: 'Manage anytime',
+      text: 'Pause, skip, reschedule, or adjust jar quantities from your dashboard whenever you need to. No phone calls required.',
+      url: '/#how-to-order'
+    }
+  ]
+};
 ---
 
 <BaseLayout
-  title="eDrops™ Official Website | 20L Water Jar Delivery & Subscription Software India"
-  description="eDrops is the modern operating system for 20L water jar delivery businesses, water plants, and distributors. Automate prepaid digital wallets, recurring deliveries, live driver route dispatch, and customer accounts."
-  keywords="eDrops, water jar delivery app, 20L water jar subscription software, water delivery business software, bulk water delivery platform, mineral water delivery app, packaged drinking water distribution, water plant software India"
+  title="20L Water Jar Delivery App | Order Online – eDrops"
+  description="Order 20L water jars online with eDrops. Subscribe or order once, top up a prepaid wallet, and get doorstep jar swaps on time. Start ordering today."
+  keywords="20L water jar delivery, water jar delivery app, order water jar online, water can subscription, eDrops, doorstep water delivery, water jar Kondotty, water jar Malappuram"
   faqItems={faqItems}
+  howToData={howToData}
   isHome={true}
 >
 
@@ -55,7 +92,7 @@ const faqItems = [
       <div class="hero-photo-container">
         <img
           src="/hero-delivery.jpg"
-          alt="Edrops delivery partner handing a 20L water jar to a customer at their doorstep"
+          alt="eDrops delivery partner handing a 20L water jar to a customer at their doorstep"
           class="hero-photo"
           loading="eager"
           fetchpriority="high"
@@ -64,32 +101,29 @@ const faqItems = [
           decoding="async"
         />
         {/* Desktop Horizontal Fade (Solid white on left fading to transparent by ~60%) */}
-        <div class="hero-photo-fade-desktop hidden lg:block absolute inset-0"></div>
+        <div class="hero-photo-fade-desktop hidden lg:block absolute inset-0" aria-hidden="true"></div>
         {/* Mobile & Tablet Wash (High legibility white gradient overlay) */}
-        <div class="hero-photo-fade-mobile block lg:hidden absolute inset-0"></div>
+        <div class="hero-photo-fade-mobile block lg:hidden absolute inset-0" aria-hidden="true"></div>
       </div>
 
       {/* Ambient subtle lighting */}
-      <div class="hero-glow-1 opacity-60"></div>
-      <div class="hero-glow-2 opacity-50"></div>
+      <div class="hero-glow-1 opacity-60" aria-hidden="true"></div>
+      <div class="hero-glow-2 opacity-50" aria-hidden="true"></div>
 
       <div class="relative z-10 w-full max-w-6xl mx-auto pt-28 pb-20 sm:pt-36 sm:pb-28">
         <div class="max-w-xl lg:max-w-2xl text-left space-y-8 sm:space-y-9">
           
-          {/* Eyebrow */}
-          
-          
           {/* Headline — The Hero */}
           <div class="animate-fade-up-delay-1 space-y-4">
             <h1 class="text-[clamp(2.5rem,5.5vw,4.75rem)] font-extrabold leading-[1.06] tracking-[-0.035em] text-edrops-ocean">
-              eDrops 20L water jars,<br>
-              <span class="text-[clamp(2.1rem,4.5vw,3.9rem)] text-gradient-water">delivered to your door.</span>
+              20L water jar delivery,<br>
+              <span class="text-[clamp(2.1rem,4.5vw,3.9rem)] text-gradient-water">ordered in seconds.</span>
             </h1>
           </div>
 
-          {/* Subline */}
+          {/* Answer-first definition for AEO / GEO */}
           <p class="animate-fade-up-delay-2 text-base sm:text-lg lg:text-xl text-edrops-slate font-normal leading-relaxed max-w-xl">
-            Edrops is the calm, intelligent platform where prepaid wallets, recurring deliveries, and customer trust come together — built specifically for 20L water jar businesses.
+            eDrops is a 20L water jar delivery app that lets you order jars online, subscribe to recurring deliveries, and pay from a prepaid wallet — with doorstep jar swap, every time.
           </p>
 
           {/* CTA */}
@@ -98,18 +132,15 @@ const faqItems = [
               href="https://app.edrops.in"
               class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-[15px] font-bold px-9 py-4 btn-glow"
             >
-              Start Free
+              Order Water Jars
             </a>
           </div>
-
-          {/* Trust Indicators */}
-          
 
         </div>
       </div>
 
       {/* Scroll indicator */}
-      <div class="hidden lg:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-fade-up-delay-5">
+      <div class="hidden lg:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-fade-up-delay-5" aria-hidden="true">
         <div class="w-6 h-10 rounded-full border-2 border-edrops-muted/40 flex items-start justify-center pt-2 bg-white/40 backdrop-blur-xs">
           <div class="w-1 h-2.5 rounded-full bg-edrops-muted/50 animate-bounce"></div>
         </div>
@@ -118,33 +149,43 @@ const faqItems = [
 
 
     {/* ═══════════════════════════════════════
-        METRICS — IMMEDIATE PROOF
+        BENEFITS STRIP — REPLACES UNVERIFIED METRICS
         ═══════════════════════════════════════ */}
-    <section class="py-20 px-6">
+    <section class="py-20 px-6" aria-label="Key benefits">
       <div class="mx-auto max-w-5xl">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {metrics.map(([value, label]) => (
-            <div class="text-center space-y-2 py-6">
-              <p class="text-3xl sm:text-4xl font-extrabold tracking-tight text-edrops-ocean">{value}</p>
-              <p class="text-sm font-medium text-edrops-slate">{label}</p>
-            </div>
-          ))}
+          <div class="text-center space-y-2 py-6">
+            <p class="text-3xl sm:text-4xl font-extrabold tracking-tight text-edrops-ocean" aria-hidden="true">💧</p>
+            <p class="text-sm font-medium text-edrops-slate">On-time doorstep delivery</p>
+          </div>
+          <div class="text-center space-y-2 py-6">
+            <p class="text-3xl sm:text-4xl font-extrabold tracking-tight text-edrops-ocean" aria-hidden="true">🔄</p>
+            <p class="text-sm font-medium text-edrops-slate">Jar swap at your door</p>
+          </div>
+          <div class="text-center space-y-2 py-6">
+            <p class="text-3xl sm:text-4xl font-extrabold tracking-tight text-edrops-ocean" aria-hidden="true">💳</p>
+            <p class="text-sm font-medium text-edrops-slate">Prepaid wallet — no cash</p>
+          </div>
+          <div class="text-center space-y-2 py-6">
+            <p class="text-3xl sm:text-4xl font-extrabold tracking-tight text-edrops-ocean" aria-hidden="true">⏸️</p>
+            <p class="text-sm font-medium text-edrops-slate">Pause or skip anytime</p>
+          </div>
         </div>
       </div>
     </section>
 
 
     {/* ═══════════════════════════════════════
-        HOW IT WORKS — EDITORIAL NUMBERED STEPS
+        HOW TO ORDER — STRUCTURED OL STEPS
         ═══════════════════════════════════════ */}
-    <section class="py-24 sm:py-32 px-6 border-t border-edrops-border/40 scroll-mt-24 sm:scroll-mt-28" id="how-it-works">
+    <section class="py-24 sm:py-32 px-6 border-t border-edrops-border/40 scroll-mt-24 sm:scroll-mt-28" id="how-to-order">
       <div class="mx-auto max-w-6xl space-y-16 sm:space-y-20">
         
         {/* Editorial Header */}
         <div class="max-w-3xl">
           <div class="capabilities-eyebrow">
             <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
-              How it works
+              How to order
             </span>
           </div>
           <h2 class="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.08]">
@@ -153,102 +194,100 @@ const faqItems = [
           </h2>
         </div>
 
-        {/* Numbered Steps: Responsive cards with soft tinted panels & flow progression */}
-        <div class="relative">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 relative z-10">
-            
-            {/* Step 01 */}
-            <div class="group relative rounded-[20px] bg-edrops-aqua/[0.045] border border-edrops-aqua/20 p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:shadow-edrops-primary/[0.05] hover:border-edrops-aqua/35 flex flex-col justify-between">
-              <div class="relative z-10">
-                <span class="text-5xl sm:text-6xl font-extrabold text-edrops-primary/[0.12] select-none tracking-tight block mb-5 leading-none">
-                  01
-                </span>
-                <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
-                  Choose how you buy
-                </h3>
-                <p class="text-base text-edrops-slate leading-relaxed font-normal">
-                  Set up a recurring plan, or place a one-time order. No commitment required either way.
-                </p>
-              </div>
-
-              {/* Desktop flow connector chevron to Step 02 */}
-              <div class="hidden md:flex absolute -right-3.5 lg:-right-4.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-white border border-edrops-border/80 text-edrops-primary/60 items-center justify-center shadow-xs pointer-events-none">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
+        {/* Ordered steps in semantic HTML */}
+        <ol class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 relative z-10 list-none p-0 m-0">
+          
+          {/* Step 01 */}
+          <li class="group relative rounded-[20px] bg-edrops-aqua/[0.045] border border-edrops-aqua/20 p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:shadow-edrops-primary/[0.05] hover:border-edrops-aqua/35 flex flex-col justify-between">
+            <div class="relative z-10">
+              <span class="text-5xl sm:text-6xl font-extrabold text-edrops-primary/[0.12] select-none tracking-tight block mb-5 leading-none" aria-hidden="true">
+                01
+              </span>
+              <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
+                Choose how you buy
+              </h3>
+              <p class="text-base text-edrops-slate leading-relaxed font-normal">
+                Set up a recurring subscription or place a one-time order. No commitment required either way.
+              </p>
             </div>
 
-            {/* Mobile vertical flow connector 1 -> 2 */}
-            <div class="md:hidden flex flex-col items-center justify-center -my-2 z-10 text-edrops-primary/40">
-              <div class="w-px h-5 bg-gradient-to-b from-edrops-aqua/30 to-edrops-primary/40"></div>
-              <svg class="w-3.5 h-3.5 text-edrops-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            {/* Desktop flow connector chevron to Step 02 */}
+            <div class="hidden md:flex absolute -right-3.5 lg:-right-4.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-white border border-edrops-border/80 text-edrops-primary/60 items-center justify-center shadow-xs pointer-events-none" aria-hidden="true">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </div>
+          </li>
 
-            {/* Step 02 */}
-            <div class="group relative rounded-[20px] bg-edrops-aqua/[0.045] border border-edrops-aqua/20 p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:shadow-edrops-primary/[0.05] hover:border-edrops-aqua/35 flex flex-col justify-between">
-              <div class="relative z-10">
-                <span class="text-5xl sm:text-6xl font-extrabold text-edrops-primary/[0.12] select-none tracking-tight block mb-5 leading-none">
-                  02
-                </span>
-                <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
-                  We deliver on schedule
-                </h3>
-                <p class="text-base text-edrops-slate leading-relaxed font-normal">
-                  Subscribers get automatic recurring drops. One-time orders arrive on your chosen date. Both tracked live.
-                </p>
-              </div>
+          {/* Mobile vertical flow connector 1 -> 2 */}
+          <li class="md:hidden flex flex-col items-center justify-center -my-2 z-10 text-edrops-primary/40 list-none" aria-hidden="true">
+            <div class="w-px h-5 bg-gradient-to-b from-edrops-aqua/30 to-edrops-primary/40"></div>
+            <svg class="w-3.5 h-3.5 text-edrops-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </li>
 
-              {/* Desktop flow connector chevron to Step 03 */}
-              <div class="hidden md:flex absolute -right-3.5 lg:-right-4.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-white border border-edrops-border/80 text-edrops-primary/60 items-center justify-center shadow-xs pointer-events-none">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
+          {/* Step 02 */}
+          <li class="group relative rounded-[20px] bg-edrops-aqua/[0.045] border border-edrops-aqua/20 p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:shadow-edrops-primary/[0.05] hover:border-edrops-aqua/35 flex flex-col justify-between">
+            <div class="relative z-10">
+              <span class="text-5xl sm:text-6xl font-extrabold text-edrops-primary/[0.12] select-none tracking-tight block mb-5 leading-none" aria-hidden="true">
+                02
+              </span>
+              <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
+                We deliver on schedule
+              </h3>
+              <p class="text-base text-edrops-slate leading-relaxed font-normal">
+                Subscribers get automatic recurring deliveries. One-time orders arrive on your chosen date. Both tracked live.
+              </p>
             </div>
 
-            {/* Mobile vertical flow connector 2 -> 3 */}
-            <div class="md:hidden flex flex-col items-center justify-center -my-2 z-10 text-edrops-primary/40">
-              <div class="w-px h-5 bg-gradient-to-b from-edrops-aqua/30 to-edrops-primary/40"></div>
-              <svg class="w-3.5 h-3.5 text-edrops-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            {/* Desktop flow connector chevron to Step 03 */}
+            <div class="hidden md:flex absolute -right-3.5 lg:-right-4.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-white border border-edrops-border/80 text-edrops-primary/60 items-center justify-center shadow-xs pointer-events-none" aria-hidden="true">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </div>
+          </li>
 
-            {/* Step 03 */}
-            <div class="group relative rounded-[20px] bg-edrops-aqua/[0.045] border border-edrops-aqua/20 p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:shadow-edrops-primary/[0.05] hover:border-edrops-aqua/35 flex flex-col justify-between">
-              <div class="relative z-10">
-                <span class="text-5xl sm:text-6xl font-extrabold text-edrops-primary/[0.12] select-none tracking-tight block mb-5 leading-none">
-                  03
-                </span>
-                <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
-                  Stay in control
-                </h3>
-                <p class="text-base text-edrops-slate leading-relaxed font-normal">
-                  Pause, skip, or switch between subscription and one-time anytime from your dashboard.
-                </p>
-              </div>
+          {/* Mobile vertical flow connector 2 -> 3 */}
+          <li class="md:hidden flex flex-col items-center justify-center -my-2 z-10 text-edrops-primary/40 list-none" aria-hidden="true">
+            <div class="w-px h-5 bg-gradient-to-b from-edrops-aqua/30 to-edrops-primary/40"></div>
+            <svg class="w-3.5 h-3.5 text-edrops-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </li>
+
+          {/* Step 03 */}
+          <li class="group relative rounded-[20px] bg-edrops-aqua/[0.045] border border-edrops-aqua/20 p-8 sm:p-9 lg:p-10 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:shadow-edrops-primary/[0.05] hover:border-edrops-aqua/35 flex flex-col justify-between">
+            <div class="relative z-10">
+              <span class="text-5xl sm:text-6xl font-extrabold text-edrops-primary/[0.12] select-none tracking-tight block mb-5 leading-none" aria-hidden="true">
+                03
+              </span>
+              <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
+                Stay in control
+              </h3>
+              <p class="text-base text-edrops-slate leading-relaxed font-normal">
+                Pause, skip, or switch between subscription and one-time anytime from your dashboard.
+              </p>
             </div>
+          </li>
 
-          </div>
-        </div>
+        </ol>
 
       </div>
     </section>
 
 
     {/* ═══════════════════════════════════════
-        CAPABILITIES — WHY EDROPS / PURPOSE BUILT
+        CAPABILITIES — WHY EDROPS
         ═══════════════════════════════════════ */}
-    <section class="capabilities-section py-28 sm:py-36 px-6 scroll-mt-24 sm:scroll-mt-28" id="purpose-built">
+    <section class="capabilities-section py-28 sm:py-36 px-6 scroll-mt-24 sm:scroll-mt-28" id="why-edrops">
       
       {/* Ambient background elements */}
-      <div class="capabilities-caustic"></div>
-      <div class="capabilities-shape capabilities-shape--1"></div>
-      <div class="capabilities-shape capabilities-shape--2"></div>
-      <div class="capabilities-shape capabilities-shape--3"></div>
+      <div class="capabilities-caustic" aria-hidden="true"></div>
+      <div class="capabilities-shape capabilities-shape--1" aria-hidden="true"></div>
+      <div class="capabilities-shape capabilities-shape--2" aria-hidden="true"></div>
+      <div class="capabilities-shape capabilities-shape--3" aria-hidden="true"></div>
 
       <div class="mx-auto max-w-6xl space-y-20 sm:space-y-28">
         
@@ -256,12 +295,12 @@ const faqItems = [
         <div class="capabilities-header">
           <div class="capabilities-eyebrow">
             <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
-              Purpose-built
+              Made for water jar delivery
             </span>
           </div>
           <h2 class="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.08]">
-            Built for managing<br />
-            <span class="text-gradient-water">water jar deliveries.</span>
+            Built for how you<br />
+            <span class="text-gradient-water">actually order water.</span>
           </h2>
         </div>
 
@@ -271,22 +310,22 @@ const faqItems = [
           {/* Feature 1 */}
           <article class="capability-card" data-capability="0">
             <span class="capability-card__number" aria-hidden="true">01</span>
-            <h3 class="capability-card__title">Subscription Intelligence</h3>
-            <p class="capability-card__text">Recurring delivery schedules that adapt to customer rhythms. Pause, skip, reschedule — without losing a single subscription.</p>
+            <h3 class="capability-card__title">Flexible subscriptions</h3>
+            <p class="capability-card__text">Set your own delivery schedule. Get jars weekly, every few days, or whenever you need them. Pause, skip, or reschedule without calling anyone.</p>
           </article>
 
           {/* Feature 2 */}
           <article class="capability-card capability-card--delay-1" data-capability="1">
             <span class="capability-card__number" aria-hidden="true">02</span>
-            <h3 class="capability-card__title">Prepaid Wallet Engine</h3>
-            <p class="capability-card__text">Customers recharge their jar balance upfront. Every delivery consumes balance automatically. Zero chasing. Zero invoices.</p>
+            <h3 class="capability-card__title">Prepaid wallet</h3>
+            <p class="capability-card__text">Top up your wallet once, and every delivery deducts automatically. No cash at the door, no chasing payments. You always know your balance.</p>
           </article>
 
           {/* Feature 3 */}
           <article class="capability-card capability-card--delay-2" data-capability="2">
             <span class="capability-card__number" aria-hidden="true">03</span>
-            <h3 class="capability-card__title">Operational Clarity</h3>
-            <p class="capability-card__text">Routes optimized. Drivers dispatched. Exceptions flagged. Low-balance customers notified — before they run out.</p>
+            <h3 class="capability-card__title">Complete visibility</h3>
+            <p class="capability-card__text">Track your delivery live, see your jar count, check payment history, and get instant digital receipts — all from your dashboard.</p>
           </article>
 
         </div>
@@ -296,7 +335,7 @@ const faqItems = [
     <script>
       // ─── Capabilities: Scroll Reveal ───
       {
-        const section = document.getElementById('purpose-built') || document.getElementById('capabilities-section');
+        const section = document.getElementById('why-edrops') || document.getElementById('capabilities-section');
         if (section) {
           const observer = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
@@ -344,14 +383,14 @@ const faqItems = [
         <div class="max-w-3xl space-y-4">
           <div class="capabilities-eyebrow">
             <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
-              Why it works
+              Why customers trust eDrops
             </span>
           </div>
           <h2 class="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold tracking-tight text-edrops-ocean leading-[1.08]">
-            Water delivery your customers actually trust.
+            Water delivery you can actually rely on.
           </h2>
           <p class="text-lg sm:text-xl text-edrops-slate font-normal leading-relaxed">
-            Every order tracked. Every jar accounted for. Every customer kept in the loop.
+            Every order tracked. Every jar accounted for. Every delivery confirmed.
           </p>
         </div>
 
@@ -401,7 +440,7 @@ const faqItems = [
                   <svg class="w-4 h-4 text-edrops-aqua shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>Driver details</span>
+                  <span>Delivery partner details</span>
                 </div>
               </div>
             </div>
@@ -420,7 +459,7 @@ const faqItems = [
               Reorder in one tap
             </h3>
             <p class="text-base text-edrops-slate leading-relaxed font-normal">
-              No phone calls, no waiting on hold. Customers top up their wallet or place an order straight from the app, any time.
+              No phone calls, no waiting on hold. Top up your wallet or place an order straight from the app, any time.
             </p>
           </div>
 
@@ -434,10 +473,10 @@ const faqItems = [
             </div>
 
             <h3 class="text-xl sm:text-2xl font-bold text-edrops-ocean tracking-tight mb-3">
-              Doorstep swap, zero hassle
+              Doorstep jar swap, zero hassle
             </h3>
             <p class="text-base text-edrops-slate leading-relaxed font-normal">
-              Your delivery partner brings the full jar in and takes the empty one out. Customers never have to lift a thing.
+              Our delivery partner brings the full jar and takes the empty one. You never have to carry or return anything.
             </p>
           </div>
 
@@ -456,7 +495,7 @@ const faqItems = [
         <div class="max-w-3xl mx-auto space-y-4">
           <div class="capabilities-eyebrow justify-center">
             <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">
-              For Businesses
+              Bulk orders for offices
             </span>
           </div>
           
@@ -465,7 +504,7 @@ const faqItems = [
           </h2>
           
           <p class="text-base sm:text-lg text-edrops-slate font-normal leading-relaxed max-w-2xl mx-auto">
-            Bulk water jar delivery for offices, cafes, clinics, and stores — better rates the more you order, and one dashboard to manage it all.
+            Bulk 20L water jar delivery for offices, cafes, clinics, and stores — better rates the more you order, and one dashboard to manage it all.
           </p>
         </div>
 
@@ -474,7 +513,7 @@ const faqItems = [
           
           {/* Item 1 */}
           <div class="space-y-2.5 flex flex-col items-center">
-            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Bulk Pricing</h3>
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Bulk pricing</h3>
             <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
               Order more, pay less per jar. Rates scale automatically with your volume.
             </p>
@@ -482,7 +521,7 @@ const faqItems = [
 
           {/* Item 2 */}
           <div class="space-y-2.5 flex flex-col items-center">
-            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Flexible Scheduling</h3>
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Flexible scheduling</h3>
             <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
               Set your own delivery days. Change, pause, or adjust anytime — no lock-in.
             </p>
@@ -490,7 +529,7 @@ const faqItems = [
 
           {/* Item 3 */}
           <div class="space-y-2.5 flex flex-col items-center">
-            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Single Point of Contact</h3>
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Single point of contact</h3>
             <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
               One person who knows your account. Not a call centre queue.
             </p>
@@ -498,7 +537,7 @@ const faqItems = [
 
           {/* Item 4 */}
           <div class="space-y-2.5 flex flex-col items-center">
-            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Usage Reports</h3>
+            <h3 class="text-lg font-bold text-edrops-ocean tracking-tight">Usage reports</h3>
             <p class="text-sm text-edrops-slate leading-relaxed font-normal max-w-xs">
               See exactly how much water your office is using, whenever you need to check.
             </p>
@@ -509,10 +548,10 @@ const faqItems = [
         {/* Centered CTA Button */}
         <div class="pt-4 flex justify-center">
           <a
-            href="tel:+917907805620"
+            href="/contact/"
             class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-[15px] font-bold px-9 py-4 btn-glow"
           >
-            Enquire for Your Business
+            Enquire for Your Office
           </a>
         </div>
 
@@ -537,7 +576,7 @@ const faqItems = [
             Frequently Asked Questions
           </h2>
           <p class="text-base sm:text-lg text-edrops-slate font-normal leading-relaxed max-w-2xl mx-auto">
-            Everything you need to know about 20L water jar subscriptions, prepaid recharge balances, and delivery logistics.
+            Everything you need to know about ordering 20L water jars, subscriptions, prepaid wallet, and delivery.
           </p>
         </div>
 
@@ -562,13 +601,13 @@ const faqItems = [
           ))}
         </div>
 
-        {/* Plain Language Topical Summary Block for Search Crawlers & Users */}
+        {/* About summary block */}
         <div class="pt-8 border-t border-edrops-border/50 text-center max-w-2xl mx-auto space-y-2">
           <p class="text-xs font-bold uppercase tracking-wider text-edrops-primary">
-            About Edrops Water Platform
+            About eDrops
           </p>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Edrops is the modern operating system for 20L water jar deliveries, recurring subscription management, prepaid digital balances, and plant distribution routes. Built to replace paper notebooks with an automated, customer-first experience.
+            eDrops is a 20L water jar delivery app that lets customers order jars online, subscribe to recurring deliveries, and pay from a prepaid wallet, with doorstep jar swap. Currently delivering in Kondotty and Malappuram, Kerala.
           </p>
         </div>
 

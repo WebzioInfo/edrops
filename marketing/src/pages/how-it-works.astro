@@ -9,38 +9,38 @@ const breadcrumbs = [
 
 const howToSteps = [
   {
-    name: 'Choose Your Plan or Order Type',
-    text: 'Select flexible weekly recurring delivery schedules or place an instant on-demand jar order through the eDrops platform without long contracts.',
+    name: 'Choose your plan',
+    text: 'Open eDrops and select a recurring subscription or place a one-time order. Pick how many 20L jars you need — no long-term commitment required.',
     url: '/how-it-works/#step-1'
   },
   {
-    name: 'Top Up Digital Jar Wallet',
-    text: 'Recharge your prepaid water jar balance securely via UPI, cards, or net banking. Enjoy automatic volume discounts on bulk packs.',
+    name: 'Top up your wallet',
+    text: 'Add money to your prepaid eDrops wallet using UPI, credit/debit card, or net banking. Your balance is used automatically for each delivery.',
     url: '/how-it-works/#step-2'
   },
   {
-    name: 'Dependable Doorstep Delivery & Jar Swap',
-    text: 'Our verified delivery partners arrive at your scheduled slot, swap sanitized full 20L jars for empty bottles, and automatically log the drop with zero paperwork.',
+    name: 'Get doorstep delivery with jar swap',
+    text: 'Our delivery partner brings full 20L jars to your door and swaps out the empties. Every delivery is tracked live and confirmed automatically.',
     url: '/how-it-works/#step-3'
   },
   {
-    name: 'Manage & Track 24/7',
-    text: 'Pause during vacations, change bottle quantities, check remaining wallet balance, and download monthly statements directly from your smartphone.',
+    name: 'Manage anytime from your dashboard',
+    text: 'Pause during vacations, change jar quantities, check wallet balance, skip a delivery, or reschedule — all from your phone, no calls needed.',
     url: '/how-it-works/#step-4'
   }
 ];
 
 const howToData = {
-  title: 'How to Order & Subscribe to 20L Water Jars with eDrops',
-  description: 'A step-by-step walkthrough on subscribing, prepaid digital wallet recharging, and receiving dependable doorstep 20L drinking water delivery.',
+  title: 'How to Order 20L Water Jars with eDrops',
+  description: 'A step-by-step guide to ordering 20L water jars online: choose a plan, top up your wallet, and get doorstep delivery with jar swap.',
   steps: howToSteps
 };
 ---
 
 <BaseLayout
-  title="How It Works | eDrops™ — 20L Water Jar Subscriptions & Doorstep Delivery"
-  description="Discover how eDrops automates 20L drinking water delivery: set up recurring subscriptions, top up prepaid digital wallets, and enjoy reliable doorstep jar swaps."
-  keywords="How eDrops works, water jar delivery process, 20L water subscription steps, prepaid water delivery app, doorstep water delivery"
+  title="How It Works | Order 20L Water Jars – eDrops"
+  description="See how easy it is to order 20L water jars with eDrops: pick a plan, top up your wallet, and get doorstep delivery with jar swap."
+  keywords="how eDrops works, order water jar online, 20L water delivery steps, water jar subscription, doorstep water delivery"
   breadcrumbs={breadcrumbs}
   howToData={howToData}
 >
@@ -58,20 +58,20 @@ const howToData = {
 
     <div class="space-y-12">
       <header class="space-y-4 max-w-3xl">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Process & Logistics</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Simple ordering</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold text-edrops-ocean tracking-tight">
-          How eDrops Works
+          How to order 20L water jars with eDrops
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          We engineered eDrops to replace chaotic phone calls and lost paper cards with an automated, stress-free water subscription platform.
+          No phone calls, no waiting. Order water jars online in a few taps and get reliable doorstep delivery.
         </p>
       </header>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+      <ol class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 list-none p-0 m-0">
         {howToSteps.map((step, idx) => (
-          <div id={`step-${idx + 1}`} class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs hover:border-edrops-primary/40 hover:shadow-md transition-all flex flex-col justify-between">
+          <li id={`step-${idx + 1}`} class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs hover:border-edrops-primary/40 hover:shadow-md transition-all flex flex-col justify-between">
             <div>
-              <span class="text-4xl font-extrabold text-edrops-primary/20 block mb-4">
+              <span class="text-4xl font-extrabold text-edrops-primary/20 block mb-4" aria-hidden="true">
                 0{idx + 1}
               </span>
               <h2 class="text-xl font-bold text-edrops-ocean mb-3">
@@ -81,18 +81,18 @@ const howToData = {
                 {step.text}
               </p>
             </div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ol>
 
       <div class="p-8 rounded-2xl bg-gradient-to-r from-edrops-light to-white border border-edrops-border text-center space-y-4">
-        <h2 class="text-2xl font-bold text-edrops-ocean">Ready to streamline your drinking water?</h2>
+        <h2 class="text-2xl font-bold text-edrops-ocean">Ready to order your water jars?</h2>
         <p class="text-sm text-edrops-slate max-w-lg mx-auto">
-          Start ordering 20L water jars with automated prepaid convenience today.
+          Start ordering 20L water jars with prepaid wallet convenience today.
         </p>
         <div class="pt-2">
           <a href="https://app.edrops.in" class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-            Get Started with eDrops
+            Order Now on eDrops
           </a>
         </div>
       </div>

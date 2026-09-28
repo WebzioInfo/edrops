@@ -4,8 +4,8 @@
  * Google Sitelinks navigation map, and Schema.org JSON-LD builders.
  */
 
-export const CANONICAL_DOMAIN = 'edrops.in';
-export const SITE_URL = 'https://edrops.in';
+export const CANONICAL_DOMAIN = 'www.edrops.in';
+export const SITE_URL = 'https://www.edrops.in';
 export const APP_URL = 'https://app.edrops.in';
 
 export const ENTITY_CONFIG = {
@@ -15,23 +15,23 @@ export const ENTITY_CONFIG = {
   alternateNames: [
     'eDrops Water',
     'eDrops App',
-    'eDrops 20L Water Jar Software',
+    'eDrops 20L Water Jar Delivery',
     'eDrops Technologies',
     'Edrops'
   ],
   disambiguatingDescription:
-    'eDrops is an Indian water distribution software platform and operating system for 20-litre packaged drinking water jar deliveries, recurring customer subscriptions, prepaid digital wallets, and route dispatch logistics.',
-  slogan: 'The Operating System for Modern 20L Water Delivery Businesses',
+    'eDrops is a 20L water jar delivery app that lets customers order jars online, subscribe to recurring deliveries, and pay from a prepaid wallet, with doorstep jar swap.',
+  slogan: 'Order 20L water jars online — subscribe, recharge, get doorstep delivery.',
   description:
-    'eDrops is the dedicated water jar delivery & subscription software. Automate prepaid digital wallets, recurring deliveries, route dispatch, and customer accounts in one unified platform.',
+    'eDrops is a 20L water jar delivery app. Order jars online, subscribe to recurring deliveries, top up a prepaid wallet, and get doorstep jar swaps on time.',
   url: SITE_URL,
   appUrl: APP_URL,
   logo: `${SITE_URL}/logo.png`,
   logoIcon: `${SITE_URL}/icon-512.png`,
   ogImage: `${SITE_URL}/og-image.jpg`,
   foundingDate: '2024',
-  telephone: '+91-7907805620',
-  telephoneFormatted: '+91 7907805620',
+  telephone: '+91-7907805626',
+  telephoneFormatted: '+91 7907805626',
   email: 'support@edrops.in',
   address: {
     '@type': 'PostalAddress',
@@ -46,22 +46,18 @@ export const ENTITY_CONFIG = {
     latitude: 11.1485,
     longitude: 75.9616
   },
+  /* TODO: Verify all service areas. Confirm whether Kozhikode, Kochi, Bangalore are actually served. */
   areaServed: [
-    { '@type': 'Country', name: 'India' },
-    { '@type': 'State', name: 'Kerala' },
     { '@type': 'City', name: 'Kondotty' },
-    { '@type': 'City', name: 'Malappuram' },
-    { '@type': 'City', name: 'Kozhikode' },
-    { '@type': 'City', name: 'Kochi' },
-    { '@type': 'City', name: 'Bangalore' }
+    { '@type': 'City', name: 'Malappuram' }
   ],
   currenciesAccepted: 'INR',
   paymentAccepted: 'UPI, Credit Card, Debit Card, Net Banking, Wallet',
   priceRange: '₹₹',
+  /* TODO: Add real social profile URLs. Verify Twitter and LinkedIn exist. */
   sameAs: [
     'https://twitter.com/edrops_in',
-    'https://www.linkedin.com/company/edrops-in',
-    'https://github.com/WebzioInfo/edrops'
+    'https://www.linkedin.com/company/edrops-in'
   ],
   openingHours: 'Mo-Sa 07:00-20:00'
 };
@@ -69,7 +65,7 @@ export const ENTITY_CONFIG = {
 /**
  * Normalizes any incoming pathname or URL to the canonical URL format.
  * Prevents 301/308 redirect hops by enforcing:
- * - https://edrops.in protocol and canonical domain
+ * - https://www.edrops.in protocol and canonical domain
  * - Strict lowercase pathname
  * - Clean trailing slash matching Astro static output
  * - Strips query parameters and URL hashes
@@ -105,52 +101,52 @@ export function getCanonicalUrl(input?: string): string {
  */
 export const CORE_SITELINKS_NAV = [
   {
-    name: 'Features & Capabilities',
+    name: 'Features',
     url: `${SITE_URL}/features/`,
     description:
-      'Automated water jar delivery scheduling, prepaid wallets, route dispatch, and customer management.'
+      'Explore eDrops features: subscriptions, prepaid wallet, doorstep jar swap, live order tracking, and flexible scheduling.'
   },
   {
-    name: 'Pricing & Plans',
+    name: 'Pricing',
     url: `${SITE_URL}/pricing/`,
     description:
-      'Transparent pricing for 20L water delivery businesses and plants with flexible volume scaling.'
+      'See eDrops delivery pricing — transparent per-jar rates with no hidden fees.'
   },
   {
     name: 'How It Works',
     url: `${SITE_URL}/how-it-works/`,
     description:
-      'Learn how eDrops automates recurring subscriptions, doorstep jar drops, and prepaid balances.'
+      'Learn how to order 20L water jars with eDrops: choose a plan, top up your wallet, and get doorstep delivery.'
   },
   {
-    name: 'Industry Solutions',
+    name: 'Bulk Orders for Offices',
     url: `${SITE_URL}/industries/`,
     description:
-      'Tailored software solutions for water manufacturing plants, distributors, and delivery agencies.'
+      'Bulk 20L water jar delivery for offices, cafes, clinics, and commercial spaces with volume-based pricing.'
   },
   {
-    name: 'Knowledge Hub & Blog',
+    name: 'Blog',
     url: `${SITE_URL}/blog/`,
     description:
-      'Actionable guides on scaling water delivery operations, customer retention, and prepaid cash flow.'
+      'Tips on staying hydrated, managing your water subscription, and getting the most out of eDrops.'
   },
   {
     name: 'About eDrops',
     url: `${SITE_URL}/about/`,
     description:
-      'The story and mission behind eDrops: transforming 20L packaged drinking water distribution.'
+      'The story behind eDrops — making 20L water jar delivery simple, reliable, and fully digital.'
   },
   {
     name: 'Contact & Support',
     url: `${SITE_URL}/contact/`,
     description:
-      'Get in touch with sales, customer support, or schedule an onboarding demo.'
+      'Get in touch with eDrops customer support for orders, delivery queries, or account help.'
   },
   {
     name: 'FAQ',
     url: `${SITE_URL}/faq/`,
     description:
-      'Frequently asked questions regarding water jar delivery subscriptions and prepaid balances.'
+      'Frequently asked questions about ordering water jars, subscriptions, wallet top-ups, and delivery areas.'
   }
 ];
 
@@ -161,7 +157,7 @@ export const CORE_SITELINKS_NAV = [
 export function buildOrganizationSchema() {
   return {
     '@context': 'https://schema.org',
-    '@type': ['Organization', 'Corporation'],
+    '@type': 'Organization',
     '@id': `${SITE_URL}/#organization`,
     name: ENTITY_CONFIG.brandName,
     legalName: ENTITY_CONFIG.legalName,
@@ -189,14 +185,6 @@ export function buildOrganizationSchema() {
         email: ENTITY_CONFIG.email,
         areaServed: 'IN',
         availableLanguage: ['English', 'Hindi', 'Malayalam']
-      },
-      {
-        '@type': 'ContactPoint',
-        telephone: ENTITY_CONFIG.telephone,
-        contactType: 'sales',
-        email: ENTITY_CONFIG.email,
-        areaServed: 'IN',
-        availableLanguage: ['English', 'Hindi']
       }
     ]
   };
@@ -209,20 +197,12 @@ export function buildWebSiteSchema() {
     '@id': `${SITE_URL}/#website`,
     url: SITE_URL,
     name: ENTITY_CONFIG.brandName,
-    alternateName: 'eDrops Official Website',
+    alternateName: 'eDrops — 20L Water Jar Delivery App',
     description: ENTITY_CONFIG.slogan,
     publisher: {
       '@id': `${SITE_URL}/#organization`
     },
-    inLanguage: 'en-IN',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: `${SITE_URL}/?q={search_term_string}`
-      },
-      'query-input': 'required name=search_term_string'
-    }
+    inLanguage: 'en-IN'
   };
 }
 
@@ -231,8 +211,8 @@ export function buildSiteNavigationSchema() {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     '@id': `${SITE_URL}/#sitenavigation`,
-    name: 'eDrops Core Navigation',
-    description: 'Main navigation routes and expanded sitelinks for eDrops platform',
+    name: 'eDrops Navigation',
+    description: 'Main navigation links for the eDrops water jar delivery website',
     itemListElement: CORE_SITELINKS_NAV.map((item, idx) => ({
       '@type': 'SiteNavigationElement',
       position: idx + 1,
@@ -246,7 +226,7 @@ export function buildSiteNavigationSchema() {
 export function buildLocalBusinessSchema() {
   return {
     '@context': 'https://schema.org',
-    '@type': ['LocalBusiness', 'ProfessionalService'],
+    '@type': 'LocalBusiness',
     '@id': `${SITE_URL}/#localbusiness`,
     name: ENTITY_CONFIG.brandName,
     legalName: ENTITY_CONFIG.legalName,
@@ -268,73 +248,31 @@ export function buildLocalBusinessSchema() {
   };
 }
 
-export function buildSoftwareApplicationSchema(pageDescription?: string) {
+export function buildWebApplicationSchema(pageDescription?: string) {
   return {
     '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    '@id': `${SITE_URL}/#software`,
-    name: `${ENTITY_CONFIG.brandName} — 20L Water Jar Delivery & Subscription Software`,
+    '@type': 'WebApplication',
+    '@id': `${SITE_URL}/#app`,
+    name: 'eDrops — 20L Water Jar Delivery App',
     operatingSystem: 'All (Web, Android, iOS, PWA)',
-    applicationCategory: 'BusinessApplication',
-    applicationSubCategory: 'Logistics, Supply Chain & Subscription Management',
+    applicationCategory: 'LifestyleApplication',
+    applicationSubCategory: 'Food & Drink Delivery',
     description: pageDescription || ENTITY_CONFIG.description,
-    url: SITE_URL,
+    url: APP_URL,
     author: {
       '@id': `${SITE_URL}/#organization`
     },
     publisher: {
       '@id': `${SITE_URL}/#organization`
     },
-    offers: {
-      '@type': 'AggregateOffer',
-      priceCurrency: 'INR',
-      lowPrice: '0',
-      highPrice: '4999',
-      offerCount: '3',
-      offers: [
-        {
-          '@type': 'Offer',
-          name: 'Starter Plan',
-          price: '0',
-          priceCurrency: 'INR',
-          availability: 'https://schema.org/InStock',
-          description: 'Free starter tier for local water jar routes and growing distributors'
-        },
-        {
-          '@type': 'Offer',
-          name: 'Pro Route Plan',
-          price: '999',
-          priceCurrency: 'INR',
-          availability: 'https://schema.org/InStock',
-          description: 'Full dispatch automation, unlimited jar subscriptions, and driver app access'
-        },
-        {
-          '@type': 'Offer',
-          name: 'Enterprise Plant Plan',
-          price: '4999',
-          priceCurrency: 'INR',
-          availability: 'https://schema.org/InStock',
-          description: 'Multi-branch water plants, distributor network hierarchy, and custom ERP integration'
-        }
-      ]
-    },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      ratingCount: '128',
-      reviewCount: '128',
-      bestRating: '5',
-      worstRating: '1'
-    },
     featureList: [
-      'Prepaid Jar Wallet Engine',
-      'Recurring Water Subscription Schedules',
-      'Real-Time Driver Route Dispatch',
-      'Doorstep Bottle Swap & Reconciliation',
-      'Customer Self-Service Web Portal & PWA',
-      'Automated Low-Balance Recharge Reminders',
-      'Commercial Bulk Delivery Management',
-      'Water Plant Multi-Distributor Hierarchy'
+      'Order 20L water jars online',
+      'Recurring subscription deliveries',
+      'Prepaid wallet top-up via UPI and cards',
+      'Doorstep jar swap — full jar in, empty jar out',
+      'Pause, skip, or reschedule deliveries',
+      'Live order tracking',
+      'Bulk ordering for offices and businesses'
     ]
   };
 }
@@ -413,7 +351,7 @@ export function buildBlogPostingSchema(post: {
     isPartOf: {
       '@type': 'Blog',
       '@id': `${SITE_URL}/blog/#blog`,
-      name: 'eDrops Water Delivery & Logistics Blog',
+      name: 'eDrops Blog',
       publisher: {
         '@id': `${SITE_URL}/#organization`
       }
@@ -427,12 +365,12 @@ export function buildBlogPostingSchema(post: {
     },
     datePublished: post.datePublished,
     dateModified: post.dateModified || post.datePublished,
-    articleSection: post.category || 'Water Delivery Logistics',
+    articleSection: post.category || 'Water Delivery',
     image: post.image ? (post.image.startsWith('http') ? post.image : `${SITE_URL}${post.image}`) : `${SITE_URL}/og-image.jpg`,
     inLanguage: 'en-IN',
     author: {
       '@type': 'Organization',
-      name: post.authorName || 'eDrops Editorial Team',
+      name: post.authorName || 'eDrops Team',
       url: SITE_URL
     },
     publisher: {
@@ -453,25 +391,12 @@ export function buildServiceSchema(service: {
     '@type': 'Service',
     '@id': `${serviceUrl}#service`,
     name: service.name,
-    serviceType: service.serviceType || 'Water Jar Delivery Management Software',
+    serviceType: service.serviceType || '20L Water Jar Delivery',
     description: service.description,
     url: serviceUrl,
     provider: {
       '@id': `${SITE_URL}/#organization`
     },
-    areaServed: ENTITY_CONFIG.areaServed,
-    hasOfferCatalog: {
-      '@type': 'OfferCatalog',
-      name: 'eDrops Subscription & Dispatch Services',
-      itemListElement: [
-        {
-          '@type': 'Offer',
-          itemOffered: {
-            '@type': 'Service',
-            name: service.name
-          }
-        }
-      ]
-    }
+    areaServed: ENTITY_CONFIG.areaServed
   };
 }

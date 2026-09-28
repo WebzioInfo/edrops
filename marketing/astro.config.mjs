@@ -6,7 +6,7 @@ import react from '@astrojs/react';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://edrops.in',
+  site: 'https://www.edrops.in',
   trailingSlash: 'always',
   vite: {
     plugins: [tailwindcss()]

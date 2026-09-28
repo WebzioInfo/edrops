@@ -6,35 +6,12 @@ const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Industries', url: '/industries/' }
 ];
-
-const industrySolutions = [
-  {
-    title: 'Water Bottling Plants & RO Units',
-    href: '/industries/water-plants/',
-    description: 'Manage daily bottling batches, distributor allocations, route dispatches, and empty jar tracking.'
-  },
-  {
-    title: 'Water Distributors',
-    href: '/industries/water-distributors/',
-    description: 'Multi-route fleet coordination, branch-ready data models, driver workspaces, and operational analytics.'
-  },
-  {
-    title: 'Water Agencies',
-    href: '/industries/water-agencies/',
-    description: 'Replace paper notebooks with digital subscription schedules, balance intelligence, and delivery proof.'
-  },
-  {
-    title: 'Water Subscription Companies',
-    href: '/industries/water-subscription-companies/',
-    description: 'Deliver modern customer experiences with scheduled deliveries, prepaid wallets, and zero invoice friction.'
-  }
-];
 ---
 
 <BaseLayout
-  title="eDrops™ Industry Solutions | Software for Water Plants, Distributors & Agencies"
-  description="Discover how eDrops powers water packaging plants, distribution agencies, bulk suppliers, and subscription water delivery fleets across India."
-  keywords="Water distribution software, water plant management software, water agency delivery software, commercial bottled water platform"
+  title="Bulk Water Jar Delivery for Offices – eDrops"
+  description="Bulk 20L water jar delivery for offices, cafes, clinics, and commercial spaces. Volume pricing, flexible schedules, and one dashboard."
+  keywords="bulk water jar delivery, office water delivery, commercial water jars, workplace water supply, 20L water for offices"
   breadcrumbs={breadcrumbs}
 >
   <Navigation />
@@ -45,41 +22,69 @@ const industrySolutions = [
       <ol class="flex items-center space-x-2 text-xs font-semibold text-edrops-slate">
         <li><a href="/" class="hover:text-edrops-primary transition-colors">Home</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Industries</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Bulk Orders</li>
       </ol>
     </nav>
 
     <div class="space-y-12">
       <header class="max-w-3xl space-y-4">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Vertical Solutions</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">For offices & businesses</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold text-edrops-ocean tracking-tight">
-          Industries We Serve
+          Bulk 20L water jar delivery for your workplace
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          Tailored software architectures designed for every tier of the packaged drinking water supply chain.
+          Keep your office, cafe, clinic, or store stocked with 20L water jars. Order in bulk for better rates, set your own delivery schedule, and manage everything from one dashboard.
         </p>
       </header>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-        {industrySolutions.map((sol) => (
-          <article class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs hover:border-edrops-primary/40 hover:shadow-md transition-all flex flex-col justify-between">
-            <div class="space-y-3">
-              <h2 class="text-xl font-bold text-edrops-ocean">
-                <a href={sol.href} class="hover:text-edrops-primary transition-colors">
-                  {sol.title}
-                </a>
-              </h2>
-              <p class="text-sm text-edrops-slate leading-relaxed">
-                {sol.description}
-              </p>
-            </div>
-            <div class="mt-6 pt-4 border-t border-edrops-border/40">
-              <a href={sol.href} class="text-xs font-bold text-edrops-primary hover:underline inline-flex items-center gap-1">
-                Explore industry solution <span>→</span>
-              </a>
-            </div>
-          </article>
-        ))}
+        <article class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs hover:border-edrops-primary/40 hover:shadow-md transition-all">
+          <div class="space-y-3">
+            <h2 class="text-xl font-bold text-edrops-ocean">Offices & co-working spaces</h2>
+            <p class="text-sm text-edrops-slate leading-relaxed">
+              Regular water jar delivery on your schedule. Volume discounts, one invoice, and a dedicated contact for your account.
+            </p>
+          </div>
+        </article>
+
+        <article class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs hover:border-edrops-primary/40 hover:shadow-md transition-all">
+          <div class="space-y-3">
+            <h2 class="text-xl font-bold text-edrops-ocean">Cafes & restaurants</h2>
+            <p class="text-sm text-edrops-slate leading-relaxed">
+              Keep your kitchen stocked without worrying about reordering. Automatic deliveries, adjusted to your busy periods.
+            </p>
+          </div>
+        </article>
+
+        <article class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs hover:border-edrops-primary/40 hover:shadow-md transition-all">
+          <div class="space-y-3">
+            <h2 class="text-xl font-bold text-edrops-ocean">Clinics & hospitals</h2>
+            <p class="text-sm text-edrops-slate leading-relaxed">
+              Reliable water supply for healthcare facilities. Consistent deliveries and easy usage tracking for admin teams.
+            </p>
+          </div>
+        </article>
+
+        <article class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs hover:border-edrops-primary/40 hover:shadow-md transition-all">
+          <div class="space-y-3">
+            <h2 class="text-xl font-bold text-edrops-ocean">Retail stores & showrooms</h2>
+            <p class="text-sm text-edrops-slate leading-relaxed">
+              Water for your staff and customers, delivered on time. Manage orders from the eDrops dashboard without phone calls.
+            </p>
+          </div>
+        </article>
+      </div>
+
+      <div class="p-8 rounded-2xl bg-gradient-to-r from-edrops-light to-white border border-edrops-border text-center space-y-4">
+        <h2 class="text-2xl font-bold text-edrops-ocean">Need bulk water delivery for your business?</h2>
+        <p class="text-sm text-edrops-slate max-w-lg mx-auto">
+          Contact us for volume-based pricing and a delivery schedule tailored to your workplace.
+        </p>
+        <div class="pt-2">
+          <a href="/contact/" class="inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
+            Get a Bulk Quote
+          </a>
+        </div>
       </div>
     </div>
   </main>

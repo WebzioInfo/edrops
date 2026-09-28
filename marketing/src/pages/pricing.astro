@@ -9,9 +9,9 @@ const breadcrumbs = [
 ---
 
 <BaseLayout
-  title="eDrops™ Pricing | Transparent Software & Route Plans for Water Businesses"
-  description="Transparent pricing for 20L water delivery businesses, water plants, and distributors. Free starter tier with volume scaling as your routes expand."
-  keywords="eDrops pricing, water delivery software price, water jar subscription software cost, water plant ERP pricing"
+  title="Pricing | 20L Water Jar Delivery – eDrops"
+  description="See eDrops water jar delivery pricing. Transparent per-jar rates, prepaid wallet top-ups, and bulk discounts for offices. No hidden fees."
+  keywords="eDrops pricing, water jar delivery price, 20L water jar cost, water delivery rates, bulk water jar pricing"
   breadcrumbs={breadcrumbs}
 >
   <Navigation />
@@ -28,82 +28,56 @@ const breadcrumbs = [
 
     <div class="space-y-12">
       <header class="max-w-3xl space-y-4">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Predictable Economics</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Transparent pricing</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold text-edrops-ocean tracking-tight">
-          Simple, Transparent Pricing
+          Simple, fair water jar pricing
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          Whether you are launching your first water delivery route or operating high-capacity regional water bottling plants, eDrops scales seamlessly with zero lock-in contracts.
+          <!-- TODO: Add actual per-jar pricing once confirmed. Pricing below is from existing codebase and needs verification. -->
+          Pay per jar or subscribe for regular deliveries. Top up your prepaid wallet and never worry about cash at the door. Bulk orders for offices get volume discounts.
         </p>
       </header>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-        <!-- Starter Plan -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+        <!-- Individual / Home -->
         <div class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs flex flex-col justify-between">
           <div class="space-y-4">
-            <span class="text-xs font-bold uppercase tracking-wider text-edrops-primary">Starter Tier</span>
-            <h2 class="text-2xl font-bold text-edrops-ocean">Free</h2>
-            <p class="text-sm text-edrops-slate">Ideal for local single-vehicle operators and small distributors getting started.</p>
+            <span class="text-xs font-bold uppercase tracking-wider text-edrops-primary">For homes</span>
+            <h2 class="text-2xl font-bold text-edrops-ocean">Individual orders</h2>
+            <p class="text-sm text-edrops-slate">Order one jar or subscribe for weekly delivery. Pay from your prepaid wallet — no minimum order required.</p>
             <ul class="space-y-2.5 pt-4 text-xs font-semibold text-edrops-ocean">
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Up to 50 active subscribers</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Digital prepaid jar wallet</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Mobile route delivery sheets</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Doorstep jar swap verification</li>
-            </ul>
-          </div>
-          <div class="pt-8">
-            <a href="https://app.edrops.in" class="w-full inline-flex items-center justify-center rounded-full bg-edrops-light text-edrops-ocean text-xs font-bold py-3 hover:bg-edrops-primary hover:text-white transition-colors">
-              Get Started Free
-            </a>
-          </div>
-        </div>
-
-        <!-- Pro Route Plan -->
-        <div class="p-8 rounded-2xl bg-white border-2 border-edrops-primary shadow-lg relative flex flex-col justify-between">
-          <div class="absolute -top-3.5 right-6 px-3 py-1 rounded-full bg-edrops-primary text-white text-[11px] font-black tracking-wider uppercase">
-            Most Popular
-          </div>
-          <div class="space-y-4">
-            <span class="text-xs font-bold uppercase tracking-wider text-edrops-primary">Pro Fleet</span>
-            <div class="flex items-baseline gap-1">
-              <h2 class="text-3xl font-extrabold text-edrops-ocean">₹999</h2>
-              <span class="text-xs text-edrops-slate">/ month</span>
-            </div>
-            <p class="text-sm text-edrops-slate">Built for growing water delivery businesses managing multiple drivers and routes.</p>
-            <ul class="space-y-2.5 pt-4 text-xs font-semibold text-edrops-ocean">
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Unlimited active customers</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Automated route optimization</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Driver delivery staff app</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Automated low-balance SMS / WhatsApp alerts</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Live jar inventory & shrinkage audit</li>
+              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> One-time or recurring delivery</li>
+              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Prepaid wallet — no cash needed</li>
+              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Doorstep jar swap</li>
+              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Pause or skip anytime</li>
             </ul>
           </div>
           <div class="pt-8">
             <a href="https://app.edrops.in" class="w-full inline-flex items-center justify-center rounded-full bg-edrops-secondary text-white text-xs font-bold py-3 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-              Start 14-Day Free Trial
+              Start Ordering
             </a>
           </div>
         </div>
 
-        <!-- Enterprise Plant Plan -->
-        <div class="p-8 rounded-2xl bg-white border border-edrops-border shadow-xs flex flex-col justify-between">
+        <!-- Bulk / Office -->
+        <div class="p-8 rounded-2xl bg-white border-2 border-edrops-primary shadow-lg relative flex flex-col justify-between">
+          <div class="absolute -top-3.5 right-6 px-3 py-1 rounded-full bg-edrops-primary text-white text-[11px] font-black tracking-wider uppercase">
+            Best for offices
+          </div>
           <div class="space-y-4">
-            <span class="text-xs font-bold uppercase tracking-wider text-edrops-primary">Enterprise</span>
-            <div class="flex items-baseline gap-1">
-              <h2 class="text-3xl font-extrabold text-edrops-ocean">₹4,999</h2>
-              <span class="text-xs text-edrops-slate">/ month</span>
-            </div>
-            <p class="text-sm text-edrops-slate">Designed for water manufacturing plants and multi-branch distribution franchises.</p>
+            <span class="text-xs font-bold uppercase tracking-wider text-edrops-primary">For offices & businesses</span>
+            <h2 class="text-2xl font-bold text-edrops-ocean">Bulk orders</h2>
+            <p class="text-sm text-edrops-slate">Volume-based pricing for offices, cafes, clinics, and workplaces. Flexible schedules and dedicated support.</p>
             <ul class="space-y-2.5 pt-4 text-xs font-semibold text-edrops-ocean">
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Multi-branch distributor network</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Plant dispatch & bottling line ledger</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Custom GST invoicing & ERP sync</li>
-              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Dedicated account manager & SLA</li>
+              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Volume discounts on bulk orders</li>
+              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Custom delivery schedule</li>
+              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Single point of contact</li>
+              <li class="flex items-center gap-2"><span class="text-edrops-primary">✓</span> Usage reports & billing</li>
             </ul>
           </div>
           <div class="pt-8">
             <a href="/contact/" class="w-full inline-flex items-center justify-center rounded-full bg-edrops-light text-edrops-ocean text-xs font-bold py-3 hover:bg-edrops-primary hover:text-white transition-colors">
-              Speak with Sales
+              Contact for Bulk Pricing
             </a>
           </div>
         </div>

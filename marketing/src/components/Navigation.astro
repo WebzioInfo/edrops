@@ -11,17 +11,17 @@ const isHome = currentPath === '/' || currentPath === '';
 
 const navLinks = isHome
   ? [
-      { href: '#how-it-works', label: 'How it Works' },
-      { href: '#purpose-built', label: 'Purpose Built' },
-      { href: '#why-it-works', label: 'Why it Works' },
-      { href: '#for-business', label: 'For Business' },
+      { href: '/how-it-works/', label: 'How it Works', anchor: 'how-to-order' },
+      { href: '/features/', label: 'Features', anchor: 'why-edrops' },
+      { href: '/faq/', label: 'FAQ', anchor: 'faq' },
+      { href: '/contact/', label: 'Contact', anchor: 'for-business' },
     ]
   : [
       { href: '/features/', label: 'Features' },
       { href: '/how-it-works/', label: 'How it Works' },
       { href: '/pricing/', label: 'Pricing' },
-      { href: '/industries/', label: 'Industries' },
-      { href: '/blog/', label: 'Blog' },
+      { href: '/faq/', label: 'FAQ' },
+      { href: '/contact/', label: 'Contact' },
     ];
 ---
 

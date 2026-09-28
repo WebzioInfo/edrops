@@ -7,7 +7,7 @@ import {
   buildWebSiteSchema,
   buildSiteNavigationSchema,
   buildLocalBusinessSchema,
-  buildSoftwareApplicationSchema,
+  buildWebApplicationSchema,
   buildBreadcrumbSchema,
   buildFaqSchema,
   buildHowToSchema,
@@ -51,7 +51,7 @@ export interface Props {
 const {
   title,
   description,
-  keywords = 'eDrops, water jar delivery app, 20L water jar subscription software, water delivery business software, bulk water delivery platform, mineral water delivery app, packaged drinking water distribution, water plant management software',
+  keywords = 'eDrops, 20L water jar delivery, order water jar online, water can subscription, water jar delivery app, doorstep water delivery, prepaid water wallet',
   image = '/og-image.jpg',
   canonicalURL,
   noindex = false,
@@ -70,7 +70,7 @@ const absoluteImageUrl = image.startsWith('http') ? image : `${SITE_URL}${image.
 const organizationSchema = buildOrganizationSchema();
 const webSiteSchema = buildWebSiteSchema();
 const siteNavigationSchema = buildSiteNavigationSchema();
-const softwareSchema = buildSoftwareApplicationSchema(description);
+const webAppSchema = buildWebApplicationSchema(description);
 const localBusinessSchema = isHome ? buildLocalBusinessSchema() : null;
 const breadcrumbSchema = breadcrumbs.length > 0 ? buildBreadcrumbSchema(breadcrumbs) : null;
 const faqSchema = buildFaqSchema(faqItems, fullCanonicalURL);
@@ -85,6 +85,10 @@ const serviceSchema = serviceData ? buildServiceSchema(serviceData) : null;
 <meta name="description" content={description} />
 <meta name="keywords" content={keywords} />
 <link rel="canonical" href={fullCanonicalURL} />
+
+<!-- Language & Locale -->
+<link rel="alternate" hreflang="en-IN" href={fullCanonicalURL} />
+<link rel="alternate" hreflang="x-default" href={fullCanonicalURL} />
 
 <!-- Robots / Crawlers Directives -->
 {noindex ? (
@@ -119,7 +123,7 @@ const serviceSchema = serviceData ? buildServiceSchema(serviceData) : null;
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta property="og:image:type" content="image/jpeg" />
-<meta property="og:image:alt" content="eDrops™ — 20L Water Jar Delivery & Subscription Software" />
+<meta property="og:image:alt" content="A 20L water jar being delivered to a customer's doorstep by eDrops" />
 <meta property="og:locale" content="en_IN" />
 
 <!-- Twitter / X Cards -->
@@ -130,13 +134,13 @@ const serviceSchema = serviceData ? buildServiceSchema(serviceData) : null;
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={absoluteImageUrl} />
-<meta name="twitter:image:alt" content="eDrops™ — 20L Water Jar Delivery & Subscription Software" />
+<meta name="twitter:image:alt" content="A 20L water jar being delivered to a customer's doorstep by eDrops" />
 
 <!-- JSON-LD Structured Data for Rich Search Results -->
 <script type="application/ld+json" set:html={JSON.stringify(organizationSchema)} />
 <script type="application/ld+json" set:html={JSON.stringify(webSiteSchema)} />
 <script type="application/ld+json" set:html={JSON.stringify(siteNavigationSchema)} />
-<script type="application/ld+json" set:html={JSON.stringify(softwareSchema)} />
+<script type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
 
 {localBusinessSchema && (
   <script type="application/ld+json" set:html={JSON.stringify(localBusinessSchema)} />
