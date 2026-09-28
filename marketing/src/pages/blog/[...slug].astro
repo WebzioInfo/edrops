@@ -27,12 +27,12 @@ const articleData = {
   datePublished: post.data.publishDate ? new Date(post.data.publishDate).toISOString() : new Date('2026-05-31').toISOString(),
   category: post.data.category,
   image: '/og-image.jpg',
-  authorName: 'eDrops Logistics & Editorial Team'
+  authorName: 'eDrops Editorial Team'
 };
 ---
 
 <BaseLayout
-  title={`${post.data.title} | eDrops™ Knowledge Hub`}
+  title={`${post.data.title} – eDrops`}
   description={post.data.description}
   breadcrumbs={breadcrumbs}
   articleData={articleData}

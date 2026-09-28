@@ -5,21 +5,21 @@ import Navigation from '../../components/Navigation.astro';
 const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Features', url: '/features/' },
-  { name: 'Analytics & Reports', url: '/features/analytics/' }
+  { name: 'Delivery History', url: '/features/analytics/' }
 ];
 
 const serviceData = {
-  name: 'eDrops Water Distribution Analytics & Operations Reporting',
-  description: 'Track daily fulfillment rates, driver route efficiency, prepaid cash flow, jar shrinkage, and customer retention metrics.',
+  name: 'eDrops Water Jar Delivery History & Reports',
+  description: 'Track your water jar deliveries, consumption history, and prepaid wallet transaction statements.',
   url: '/features/analytics/',
-  serviceType: 'Business Analytics Software'
+  serviceType: 'Water Delivery Reporting Service'
 };
 ---
 
 <BaseLayout
-  title="Water Plant Analytics & Distribution Reports | eDrops™"
-  description="Gain complete operational clarity: monitor fulfillment rates, empty jar circulation, recharge revenue, and route performance with eDrops."
-  keywords="Water delivery analytics, water plant reports, jar inventory reconciliation, water distribution dashboard"
+  title="Delivery History – 20L Water Jar Delivery – eDrops"
+  description="View your 20L water jar delivery history, track monthly water consumption, and check wallet transaction statements in the eDrops app."
+  keywords="water delivery history, water jar consumption reports, wallet transaction history, eDrops delivery reports"
   breadcrumbs={breadcrumbs}
   serviceData={serviceData}
 >
@@ -33,39 +33,39 @@ const serviceData = {
         <li class="text-edrops-muted">/</li>
         <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Analytics & Reports</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Delivery History</li>
       </ol>
     </nav>
 
     <div class="space-y-10 max-w-3xl">
       <header class="space-y-4">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Operational Clarity</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Usage Clarity</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
-          Executive analytics for water distribution.
+          Delivery history and consumption reports
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          Transform raw daily dispatch into clear financial and inventory intelligence: know your exact jar inventory, pending recharges, and driver completion velocity.
+          Stay on top of your water consumption with clear history logs. Track jar drop timestamps, view monthly consumption trends, and review every wallet deduction.
         </p>
       </header>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Bottle Shrinkage Audits</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Monthly Consumption Overview</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Track bottles in customer possession versus bottles in depot circulation to eliminate unrecovered jar losses.
+            Monitor how many 20L jars your household or workplace uses each month to easily fine-tune your delivery schedule.
           </p>
         </div>
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Cashflow Forecasts</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Detailed Wallet Statements</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Analyze prepaid wallet recharge patterns and identify churn risks before subscribers lapse.
+            Review every recharge and per-delivery deduction with complete digital records and instant invoice downloads.
           </p>
         </div>
       </div>
 
       <div class="pt-6">
         <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-          Explore Operational Reports
+          View Your Delivery History
         </a>
       </div>
     </div>

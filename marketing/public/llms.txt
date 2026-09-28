@@ -1,6 +1,6 @@
 # eDrops
 
-> eDrops is a 20L water jar delivery app for customers in India.
+> eDrops (edrops.in) is a 20L water jar delivery app serving Kondotty and Malappuram, Kerala.
 
 ## What eDrops does
 
@@ -36,7 +36,6 @@ eDrops currently delivers in Kondotty and Malappuram, Kerala, India. Expansion t
 - Homepage: https://www.edrops.in/
 - Features: https://www.edrops.in/features/
 - How it works: https://www.edrops.in/how-it-works/
-- Pricing: https://www.edrops.in/pricing/
 - FAQ: https://www.edrops.in/faq/
 - Contact: https://www.edrops.in/contact/
 - About: https://www.edrops.in/about/

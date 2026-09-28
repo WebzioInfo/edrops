@@ -10,20 +10,18 @@ export const APP_URL = 'https://app.edrops.in';
 
 export const ENTITY_CONFIG = {
   brandName: 'eDrops',
-  brandNameFull: 'eDrops™',
+  brandNameFull: 'eDrops',
   legalName: 'eDrops Technologies Private Limited',
   alternateNames: [
-    'eDrops Water',
-    'eDrops App',
-    'eDrops 20L Water Jar Delivery',
-    'eDrops Technologies',
-    'Edrops'
+    'Edrops',
+    'edrops.in',
+    'eDrops water jar delivery app'
   ],
   disambiguatingDescription:
     'eDrops is a 20L water jar delivery app that lets customers order jars online, subscribe to recurring deliveries, and pay from a prepaid wallet, with doorstep jar swap.',
   slogan: 'Order 20L water jars online — subscribe, recharge, get doorstep delivery.',
   description:
-    'eDrops is a 20L water jar delivery app. Order jars online, subscribe to recurring deliveries, top up a prepaid wallet, and get doorstep jar swaps on time.',
+    'eDrops is a 20L water jar delivery app in Kerala, India',
   url: SITE_URL,
   appUrl: APP_URL,
   logo: `${SITE_URL}/logo.png`,
@@ -46,7 +44,7 @@ export const ENTITY_CONFIG = {
     latitude: 11.1485,
     longitude: 75.9616
   },
-  /* TODO: Verify all service areas. Confirm whether Kozhikode, Kochi, Bangalore are actually served. */
+  /* TODO: Verify all service areas. Currently confirmed: Kondotty and Malappuram, Kerala. */
   areaServed: [
     { '@type': 'City', name: 'Kondotty' },
     { '@type': 'City', name: 'Malappuram' }
@@ -54,11 +52,8 @@ export const ENTITY_CONFIG = {
   currenciesAccepted: 'INR',
   paymentAccepted: 'UPI, Credit Card, Debit Card, Net Banking, Wallet',
   priceRange: '₹₹',
-  /* TODO: Add real social profile URLs. Verify Twitter and LinkedIn exist. */
-  sameAs: [
-    'https://twitter.com/edrops_in',
-    'https://www.linkedin.com/company/edrops-in'
-  ],
+  /* TODO: Add verified social profiles once available. No external profiles verified yet. */
+  sameAs: [] as string[],
   openingHours: 'Mo-Sa 07:00-20:00'
 };
 
@@ -105,12 +100,6 @@ export const CORE_SITELINKS_NAV = [
     url: `${SITE_URL}/features/`,
     description:
       'Explore eDrops features: subscriptions, prepaid wallet, doorstep jar swap, live order tracking, and flexible scheduling.'
-  },
-  {
-    name: 'Pricing',
-    url: `${SITE_URL}/pricing/`,
-    description:
-      'See eDrops delivery pricing — transparent per-jar rates with no hidden fees.'
   },
   {
     name: 'How It Works',
@@ -167,6 +156,7 @@ export function buildOrganizationSchema() {
     url: SITE_URL,
     logo: {
       '@type': 'ImageObject',
+      '@id': `${SITE_URL}/#logo`,
       url: ENTITY_CONFIG.logo,
       caption: `${ENTITY_CONFIG.brandName} Logo`,
       width: 516,
@@ -197,7 +187,7 @@ export function buildWebSiteSchema() {
     '@id': `${SITE_URL}/#website`,
     url: SITE_URL,
     name: ENTITY_CONFIG.brandName,
-    alternateName: 'eDrops — 20L Water Jar Delivery App',
+    alternateName: ENTITY_CONFIG.alternateNames,
     description: ENTITY_CONFIG.slogan,
     publisher: {
       '@id': `${SITE_URL}/#organization`
@@ -229,6 +219,7 @@ export function buildLocalBusinessSchema() {
     '@type': 'LocalBusiness',
     '@id': `${SITE_URL}/#localbusiness`,
     name: ENTITY_CONFIG.brandName,
+    alternateName: ENTITY_CONFIG.alternateNames,
     legalName: ENTITY_CONFIG.legalName,
     url: SITE_URL,
     telephone: ENTITY_CONFIG.telephone,
@@ -253,7 +244,8 @@ export function buildWebApplicationSchema(pageDescription?: string) {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
     '@id': `${SITE_URL}/#app`,
-    name: 'eDrops — 20L Water Jar Delivery App',
+    name: ENTITY_CONFIG.brandName,
+    alternateName: ENTITY_CONFIG.alternateNames,
     operatingSystem: 'All (Web, Android, iOS, PWA)',
     applicationCategory: 'LifestyleApplication',
     applicationSubCategory: 'Food & Drink Delivery',

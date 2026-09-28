@@ -5,21 +5,21 @@ import Navigation from '../../components/Navigation.astro';
 const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Features', url: '/features/' },
-  { name: 'Staff Management', url: '/features/staff-management/' }
+  { name: 'Order Tracking', url: '/features/staff-management/' }
 ];
 
 const serviceData = {
-  name: 'eDrops Mobile Delivery Staff & Driver Management System',
-  description: 'Equip delivery drivers with a mobile-first route app for daily drops, one-tap customer calls, doorstep jar swaps, and cash-free reconciliation.',
+  name: 'eDrops Live Water Jar Order Tracking',
+  description: 'Track water jar deliveries in real-time with out-for-delivery status alerts and arrival updates.',
   url: '/features/staff-management/',
-  serviceType: 'Driver Management Software'
+  serviceType: 'Water Delivery Tracking Service'
 };
 ---
 
 <BaseLayout
-  title="Mobile Delivery Partner & Staff Management Software | eDrops™"
-  description="Give delivery staff a mobile-first workspace for daily routes, customer contact, doorstep proof, and real-time jar swap counts."
-  keywords="Water delivery driver app, staff management software, delivery route sheet mobile, delivery fleet management"
+  title="Order Tracking – 20L Water Jar Delivery – eDrops"
+  description="Track your 20L water jar delivery in real-time with eDrops. Get out-for-delivery alerts, know your delivery partner, and confirm doorstep jar swaps."
+  keywords="water jar delivery tracking, live water delivery status, order tracking eDrops, doorstep water delivery alert"
   breadcrumbs={breadcrumbs}
   serviceData={serviceData}
 >
@@ -33,39 +33,39 @@ const serviceData = {
         <li class="text-edrops-muted">/</li>
         <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Staff Management</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Order Tracking</li>
       </ol>
     </nav>
 
     <div class="space-y-10 max-w-3xl">
       <header class="space-y-4">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Driver Mobility</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Delivery Visibility</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
-          Mobile-first staff management for water routes.
+          Live order tracking for 20L water jar deliveries
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          Staff see today’s route, customer context, low-balance alerts, quick call actions, delivery completion, and failure notes without desktop dashboard friction.
+          See exactly when your water jars are scheduled, dispatched, and out for delivery. Receive real-time updates directly on your phone.
         </p>
       </header>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Doorstep Jar Swap Log</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Real-Time Delivery Status</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Record empty jars collected versus full jars delivered. Zero end-of-day bottle reconciliation discrepancies.
+            Follow your order from loading to your doorstep. Know when the delivery partner is on their way with your water jars.
           </p>
         </div>
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Instant Navigation & Dial</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Doorstep Drop Instructions</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Integrated Google Maps directions and masked calling to ensure smooth customer communication on the move.
+            Specify gate codes, apartment floor details, or doorstep drop notes so deliveries happen smoothly every time.
           </p>
         </div>
       </div>
 
       <div class="pt-6">
         <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-          View Driver Workspace
+          Track Your Water Order
         </a>
       </div>
     </div>

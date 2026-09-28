@@ -5,23 +5,15 @@ import Navigation from '../../components/Navigation.astro';
 const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Industries', url: '/industries/' },
-  { name: 'Water Agencies', url: '/industries/water-agencies/' }
+  { name: 'Local Delivery', url: '/industries/water-agencies/' }
 ];
-
-const serviceData = {
-  name: 'eDrops Water Agency Software for Customer Management & Billing',
-  description: 'Water agency software for customer management, water jar tracking, delivery schedules, and automated recharge workflows.',
-  url: '/industries/water-agencies/',
-  serviceType: 'Agency Management Software'
-};
 ---
 
 <BaseLayout
-  title="Water Agency Software | Prepaid Jar Delivery & Customer Billing | eDrops™"
-  description="Water agency software for customer management, water jar tracking, delivery schedules, and recharge workflows with eDrops."
-  keywords="Water agency software, water jar delivery agency, prepaid water billing system, bottled water agency CRM"
+  title="Local Delivery – 20L Water Jar Delivery – eDrops"
+  description="Experience hassle-free local 20L water jar delivery with eDrops. Digital subscriptions, prepaid wallet, and doorstep jar swaps in Kondotty and Malappuram."
   breadcrumbs={breadcrumbs}
-  serviceData={serviceData}
+  noindex={true}
 >
   <Navigation />
 
@@ -33,39 +25,39 @@ const serviceData = {
         <li class="text-edrops-muted">/</li>
         <li><a href="/industries/" class="hover:text-edrops-primary transition-colors">Industries</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Water Agencies</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Local Delivery</li>
       </ol>
     </nav>
 
     <div class="space-y-10 max-w-3xl">
       <header class="space-y-4">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Agency Billing</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Modern Ordering</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
-          Water agency software for prepaid jar delivery.
+          Convenient local water jar delivery
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          Replace notebooks and paper billing cards with automated subscription schedules, balance intelligence, doorstep delivery proof, SMS notifications, and customer retention workflows.
+          Say goodbye to manual phone calls and paper cards. eDrops gives you a seamless mobile app to order 20L water jars, top up your wallet, and track doorstep deliveries.
         </p>
       </header>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Notebook-Free Operations</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Digital Account & Wallet</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Eliminate lost delivery registers and customer disputes with digital timestamps and driver signatures.
+            Eliminate cash disputes with clear digital delivery timestamps and instant wallet balance deductions.
           </p>
         </div>
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Instant Recharges</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Instant UPI Top-Up</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Customers recharge via UPI QR codes or WhatsApp links, ensuring money is collected before water is consumed.
+            Recharge your prepaid wallet with UPI or cards anytime so you always have pure drinking water on hand.
           </p>
         </div>
       </div>
 
       <div class="pt-6">
         <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-          Modernize Your Agency
+          Order 20L Water Jars
         </a>
       </div>
     </div>

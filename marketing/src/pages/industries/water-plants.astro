@@ -5,23 +5,15 @@ import Navigation from '../../components/Navigation.astro';
 const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Industries', url: '/industries/' },
-  { name: 'Water Plants', url: '/industries/water-plants/' }
+  { name: 'Bottling Facilities', url: '/industries/water-plants/' }
 ];
-
-const serviceData = {
-  name: 'eDrops Water Bottling Plant Management Software',
-  description: 'Manage 20L water jar production lines, distributor vehicle dispatches, jar shrinkage reconciliation, and plant revenue accounting.',
-  url: '/industries/water-plants/',
-  serviceType: 'Manufacturing & Distribution Software'
-};
 ---
 
 <BaseLayout
-  title="Water Plant Management Software | 20L Jar Production & Dispatch | eDrops™"
-  description="Manage jar dispatch, delivery subscriptions, prepaid balances, staff, and reports for water plants with eDrops software."
-  keywords="Water plant management software, 20L water bottling ERP, jar dispatch software, water factory management"
+  title="Bottling Facilities – 20L Water Jar Delivery – eDrops"
+  description="Learn how eDrops coordinates with certified bottling facilities to deliver pure, sealed 20L drinking water jars to homes and offices."
   breadcrumbs={breadcrumbs}
-  serviceData={serviceData}
+  noindex={true}
 >
   <Navigation />
 
@@ -33,39 +25,39 @@ const serviceData = {
         <li class="text-edrops-muted">/</li>
         <li><a href="/industries/" class="hover:text-edrops-primary transition-colors">Industries</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Water Plants</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Bottling Facilities</li>
       </ol>
     </nav>
 
     <div class="space-y-10 max-w-3xl">
       <header class="space-y-4">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Production & Dispatch</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Certified Sourcing</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
-          Water plant management built for 20L jar operations.
+          Quality 20L water from licensed facilities
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          eDrops helps water plants manage prepaid jar balances, customer subscriptions, route dispatch, staff actions, reports, and low-balance recharge opportunities from one unified platform.
+          eDrops partners with licensed, food-safety compliant bottling facilities to deliver pure 20L water jars directly to customer doorsteps in Kerala.
         </p>
       </header>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Distributor Network Sync</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Strict Quality Standards</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Manage allocations to downstream distributors and track outstanding bottle inventory across regions.
+            Every 20L jar meets stringent purification and hygiene standards before being loaded for doorstep delivery.
           </p>
         </div>
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Batch & Route Dispatch</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Direct Doorstep Delivery</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Plan vehicle loading and delivery routes to ensure maximum truck capacity utilization and minimal empty miles.
+            Enjoy convenient delivery to your home or office without dealing with middlemen or carrying heavy water cans.
           </p>
         </div>
       </div>
 
       <div class="pt-6">
         <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-          Schedule Plant Demo
+          Order 20L Water Jars
         </a>
       </div>
     </div>

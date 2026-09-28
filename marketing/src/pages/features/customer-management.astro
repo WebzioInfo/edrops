@@ -5,21 +5,21 @@ import Navigation from '../../components/Navigation.astro';
 const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Features', url: '/features/' },
-  { name: 'Customer Management', url: '/features/customer-management/' }
+  { name: 'Customer Portal', url: '/features/customer-management/' }
 ];
 
 const serviceData = {
-  name: 'eDrops Water Delivery Customer Management & CRM Portal',
-  description: 'Self-service customer portal, address management, automated delivery notifications, referral incentives, and instant support chat.',
+  name: 'eDrops Self-Service Customer Portal',
+  description: 'Manage water jar deliveries, subscriptions, delivery addresses, and prepaid wallet balance from one easy dashboard.',
   url: '/features/customer-management/',
-  serviceType: 'Customer Relationship Management Software'
+  serviceType: 'Customer Portal Service'
 };
 ---
 
 <BaseLayout
-  title="Water Delivery Customer Management & CRM Portal | eDrops™"
-  description="Manage customer accounts, delivery addresses, recurring orders, balance history, and referral incentives with eDrops CRM."
-  keywords="Water delivery customer portal, water CRM software, subscription customer management, delivery address manager"
+  title="Customer Portal – 20L Water Jar Delivery – eDrops"
+  description="Manage your 20L water jar orders, subscription schedules, delivery addresses, and wallet balance in one self-service customer dashboard with eDrops."
+  keywords="water delivery customer dashboard, water jar account portal, delivery address manager, eDrops customer portal"
   breadcrumbs={breadcrumbs}
   serviceData={serviceData}
 >
@@ -33,7 +33,7 @@ const serviceData = {
         <li class="text-edrops-muted">/</li>
         <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Customer Management</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Customer Portal</li>
       </ol>
     </nav>
 
@@ -41,31 +41,31 @@ const serviceData = {
       <header class="space-y-4">
         <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Customer Experience</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
-          Delight customers with transparent self-service.
+          Self-service customer portal for water jar delivery
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          Give consumers and businesses total transparency into their orders, delivery timestamps, driver details, and prepaid balances without support ticket delays.
+          Manage your drinking water supply effortlessly. Check delivery dates, update addresses, track wallet balances, and review past orders without phone calls.
         </p>
       </header>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Multi-Address Profiles</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Multi-Address Management</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Customers manage delivery preferences across apartments, villas, and commercial offices with dedicated drop instructions.
+            Manage deliveries across apartments, villas, and commercial spaces with dedicated doorstep drop instructions.
           </p>
         </div>
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Growth & Referrals</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Complete Order History</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Built-in referral rewards credit extra jars to advocates when their invited neighbors subscribe.
+            View every completed delivery, verify jar counts, monitor wallet transactions, and download digital receipts anytime.
           </p>
         </div>
       </div>
 
       <div class="pt-6">
         <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-          View Customer Portal
+          Open Customer Portal
         </a>
       </div>
     </div>

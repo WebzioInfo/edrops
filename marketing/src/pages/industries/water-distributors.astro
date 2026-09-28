@@ -5,23 +5,15 @@ import Navigation from '../../components/Navigation.astro';
 const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Industries', url: '/industries/' },
-  { name: 'Water Distributors', url: '/industries/water-distributors/' }
+  { name: 'Delivery Network', url: '/industries/water-distributors/' }
 ];
-
-const serviceData = {
-  name: 'eDrops Water Distribution Software for Multi-Route Operations',
-  description: 'Water distribution software for multi-route branch operations, driver tracking, customer subscriptions, and financial audit logs.',
-  url: '/industries/water-distributors/',
-  serviceType: 'Water Distribution Management Software'
-};
 ---
 
 <BaseLayout
-  title="Water Distribution Software | Multi-Route & Branch Operations | eDrops™"
-  description="Water distribution software for branch operations, staff delivery tracking, customer subscriptions, and analytics with eDrops."
-  keywords="Water distribution software, water supplier software, bottled water distributor management, delivery fleet tracking"
+  title="Delivery Network – 20L Water Jar Delivery – eDrops"
+  description="Discover how eDrops organizes local delivery networks to ensure fast, dependable 20L water jar delivery across Kondotty and Malappuram."
   breadcrumbs={breadcrumbs}
-  serviceData={serviceData}
+  noindex={true}
 >
   <Navigation />
 
@@ -33,39 +25,39 @@ const serviceData = {
         <li class="text-edrops-muted">/</li>
         <li><a href="/industries/" class="hover:text-edrops-primary transition-colors">Industries</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Water Distributors</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Delivery Network</li>
       </ol>
     </nav>
 
     <div class="space-y-10 max-w-3xl">
       <header class="space-y-4">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Fleet & Routes</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Local Reach</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
-          Water distribution software for route clarity.
+          Dependable local water delivery network
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          eDrops supports distributors with branch-ready data models, driver delivery workspaces, real-time customer balances, audit logs, and operational analytics.
+          eDrops coordinates dedicated local delivery partners to bring pure 20L water jars straight to your doorstep on a consistent schedule.
         </p>
       </header>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Multi-Route Dispatch</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Organized Local Coverage</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Assign delivery sectors to specific drivers with live doorstep completion confirmation.
+            Local neighborhoods are served on fixed days for reliable, on-time jar swaps.
           </p>
         </div>
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Financial Integrity</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Doorstep Verification</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Eliminate cash leakages with automated prepaid deductions and immutable balance audit trails.
+            Every delivery is confirmed digitally upon jar swap so your account remains 100% accurate.
           </p>
         </div>
       </div>
 
       <div class="pt-6">
         <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-          Get Started as a Distributor
+          Order Water Jars Online
         </a>
       </div>
     </div>

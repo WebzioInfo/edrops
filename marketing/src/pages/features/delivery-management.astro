@@ -5,21 +5,21 @@ import Navigation from '../../components/Navigation.astro';
 const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Features', url: '/features/' },
-  { name: 'Delivery Management', url: '/features/delivery-management/' }
+  { name: 'Doorstep Delivery', url: '/features/delivery-management/' }
 ];
 
 const serviceData = {
-  name: 'eDrops Water Delivery & Route Scheduling Software',
-  description: 'Schedule, assign, track, and complete 20L water jar deliveries with balance-safe workflows, live route sheets, and verified doorstep jar swaps.',
+  name: 'eDrops Doorstep Water Jar Delivery & Swap',
+  description: 'Doorstep 20L water jar delivery with verified empty jar swaps and real-time delivery notifications.',
   url: '/features/delivery-management/',
-  serviceType: 'Water Delivery Dispatch Software'
+  serviceType: 'Doorstep Water Delivery Service'
 };
 ---
 
 <BaseLayout
-  title="Water Delivery Scheduling & Dispatch Software | eDrops™"
-  description="Schedule, assign, complete, fail, skip, and reschedule 20L jar deliveries with balance-safe workflows, live driver route sheets, and doorstep jar verification."
-  keywords="Water delivery management software, 20L water jar dispatch, water route optimization, bottle swap tracking"
+  title="Doorstep Jar Swap – 20L Water Jar Delivery – eDrops"
+  description="Enjoy hassle-free doorstep 20L water jar delivery and swaps with eDrops. Delivery partners bring clean full jars and take your empties right at your door."
+  keywords="doorstep jar swap, 20L water jar delivery, water can replacement, empty jar collection, eDrops delivery"
   breadcrumbs={breadcrumbs}
   serviceData={serviceData}
 >
@@ -33,39 +33,39 @@ const serviceData = {
         <li class="text-edrops-muted">/</li>
         <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Delivery Management</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Doorstep Delivery</li>
       </ol>
     </nav>
 
     <div class="space-y-10 max-w-3xl">
       <header class="space-y-4">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Route Execution</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Doorstep Convenience</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
-          Water delivery management without balance mistakes.
+          Doorstep 20L water jar delivery and swap
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          Completed deliveries deduct jars, failed deliveries do not, skipped deliveries preserve allocation, and every balance change becomes an auditable digital transaction.
+          Clean, sealed 20L water jars delivered straight to your door. Our delivery partners drop off fresh drinking water and collect your empty containers in a single visit.
         </p>
       </header>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Balance-Safe Completion</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Verified Doorstep Swap</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Jar counts only deduct when doorstep swap is physically confirmed by the driver. Zero accidental charges on skipped stops.
+            Full jars in, empty jars out. The swap happens right at your doorstep with verified digital confirmation.
           </p>
         </div>
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Live Route Sheets</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Accurate Balance Deduction</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Dispatchers group orders by building, sector, or pin code for minimal drive time and maximum jars per vehicle trip.
+            Your prepaid wallet balance is only deducted when the jar is physically delivered. Zero charges for skipped stops.
           </p>
         </div>
       </div>
 
       <div class="pt-6">
         <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-          Explore Driver Dispatch
+          Order Water Jar Delivery
         </a>
       </div>
     </div>

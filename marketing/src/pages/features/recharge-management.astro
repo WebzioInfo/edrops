@@ -5,21 +5,21 @@ import Navigation from '../../components/Navigation.astro';
 const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Features', url: '/features/' },
-  { name: 'Recharge Management', url: '/features/recharge-management/' }
+  { name: 'Prepaid Wallet', url: '/features/recharge-management/' }
 ];
 
 const serviceData = {
-  name: 'eDrops Prepaid Water Jar Wallet & Recharge Management System',
-  description: 'Recharge prepaid water jar balances, manage jar packs, volume offers, digital payments, and instant transaction receipts.',
+  name: 'eDrops Prepaid Water Jar Wallet',
+  description: 'Top up your prepaid water jar wallet with UPI or cards for cashless deliveries and instant digital receipts.',
   url: '/features/recharge-management/',
-  serviceType: 'Prepaid Wallet Software'
+  serviceType: 'Prepaid Wallet Service'
 };
 ---
 
 <BaseLayout
-  title="Prepaid Water Jar Wallet & Recharge Management System | eDrops™"
-  description="Recharge prepaid water jar balances, manage jar packs, offers, payments, and transaction history with automated balance tracking."
-  keywords="Water jar recharge software, prepaid water wallet, water delivery payment gateway, jar pack offers"
+  title="Prepaid Wallet – 20L Water Jar Delivery – eDrops"
+  description="Top up your eDrops prepaid wallet with UPI or card for seamless 20L water jar delivery. Automatic deductions, zero cash hassle, and digital receipts."
+  keywords="prepaid water wallet, water delivery recharge, UPI water jar payment, cashless water delivery, eDrops wallet"
   breadcrumbs={breadcrumbs}
   serviceData={serviceData}
 >
@@ -33,39 +33,39 @@ const serviceData = {
         <li class="text-edrops-muted">/</li>
         <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Recharge Management</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Prepaid Wallet</li>
       </ol>
     </nav>
 
     <div class="space-y-10 max-w-3xl">
       <header class="space-y-4">
-        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Prepaid Security</span>
+        <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Cashless Convenience</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
-          Recharge management that customers can see.
+          Prepaid wallet for cashless water jar delivery
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          When customers recharge, eDrops fills the smart jar, updates prepaid balance, logs the transaction, and recommends the next pack based on consumption.
+          Top up your eDrops wallet using UPI, credit/debit cards, or net banking. Each 20L jar delivery automatically deducts from your balance — no cash needed at the door.
         </p>
       </header>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Instant UPI & Cards</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Instant UPI & Card Recharges</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Zero gateway delays. Wallet credits appear instantly on customer screens with downloadable tax invoices.
+            Wallet credits reflect immediately upon recharge. Check your balance anytime from your customer dashboard.
           </p>
         </div>
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Volume Promo Engine</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Zero Cash Hassle</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Offer tiered incentives (e.g., buy 10 jars, get 1 free) to secure predictable upfront operating cashflow.
+            Never scramble for exact change or cash at the doorstep. Every delivery is digitally recorded with an instant transaction receipt.
           </p>
         </div>
       </div>
 
       <div class="pt-6">
         <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-          Explore Recharge Engine
+          Top Up Your eDrops Wallet
         </a>
       </div>
     </div>

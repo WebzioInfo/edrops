@@ -12,7 +12,9 @@ export default function HeroShowcase() {
       <div className="relative z-10">
         <img
           src="/hero-bottle.png"
-          alt="Premium 20L crystal clear water jar — the core of the Edrops delivery platform"
+          alt="Pure 20L water jar delivered to your doorstep by eDrops"
+          width={1024}
+          height={1024}
           className="w-[320px] sm:w-[380px] lg:w-[440px] xl:w-[480px] h-auto drop-shadow-2xl animate-float-slow select-none pointer-events-none"
           style={{
             filter: 'drop-shadow(0 30px 60px rgba(45, 121, 168, 0.18)) drop-shadow(0 10px 20px rgba(15, 43, 53, 0.08))',
@@ -35,7 +37,7 @@ export default function HeroShowcase() {
           </div>
           <div>
             <p className="text-[13px] font-bold text-edrops-ocean leading-tight">24 Deliveries Today</p>
-            <p className="text-[11px] text-edrops-slate mt-0.5">All routes on schedule</p>
+            <p className="text-[11px] text-edrops-slate mt-0.5">On-time doorstep drops</p>
           </div>
         </div>
       </div>
@@ -52,7 +54,7 @@ export default function HeroShowcase() {
           </div>
           <div>
             <p className="text-[13px] font-bold text-edrops-ocean leading-tight">100% Prepaid</p>
-            <p className="text-[11px] text-edrops-slate mt-0.5">Zero outstanding invoices</p>
+            <p className="text-[11px] text-edrops-slate mt-0.5">Zero cash at the door</p>
           </div>
         </div>
       </div>

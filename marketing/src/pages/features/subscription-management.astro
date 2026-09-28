@@ -5,21 +5,21 @@ import Navigation from '../../components/Navigation.astro';
 const breadcrumbs = [
   { name: 'Home', url: '/' },
   { name: 'Features', url: '/features/' },
-  { name: 'Subscription Management', url: '/features/subscription-management/' }
+  { name: 'Subscriptions', url: '/features/subscription-management/' }
 ];
 
 const serviceData = {
-  name: 'eDrops Water Subscription Management Software',
-  description: 'Manage recurring water jar subscriptions, pause/resume workflows, delivery schedules, and prepaid balance forecasting.',
+  name: 'eDrops 20L Water Jar Subscription Delivery',
+  description: 'Set up recurring water jar deliveries, pause or resume anytime, choose custom frequencies, and manage jar counts.',
   url: '/features/subscription-management/',
-  serviceType: 'Water Jar Subscription Management Software'
+  serviceType: '20L Water Jar Delivery Service'
 };
 ---
 
 <BaseLayout
-  title="20L Water Jar Subscription Management Software | eDrops™"
-  description="Manage recurring water jar subscriptions, pause/resume workflows, customized schedules, and automated recharge forecasting with eDrops."
-  keywords="Water subscription management software, 20L water recurring delivery, bottled water subscription software"
+  title="Subscriptions – 20L Water Jar Delivery – eDrops"
+  description="Set up flexible 20L water jar subscriptions with eDrops. Choose delivery days, pause during vacations, adjust jar counts, and get doorstep swaps."
+  keywords="water jar subscription, 20L water delivery plan, recurring water delivery, pause water delivery, eDrops subscription"
   breadcrumbs={breadcrumbs}
   serviceData={serviceData}
 >
@@ -33,7 +33,7 @@ const serviceData = {
         <li class="text-edrops-muted">/</li>
         <li><a href="/features/" class="hover:text-edrops-primary transition-colors">Features</a></li>
         <li class="text-edrops-muted">/</li>
-        <li class="text-edrops-ocean font-bold" aria-current="page">Subscription Management</li>
+        <li class="text-edrops-ocean font-bold" aria-current="page">Subscriptions</li>
       </ol>
     </nav>
 
@@ -41,10 +41,10 @@ const serviceData = {
       <header class="space-y-4">
         <span class="text-xs font-bold uppercase tracking-[0.2em] text-edrops-primary">Recurring Convenience</span>
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-edrops-ocean leading-tight">
-          Subscription management for 20L water jar delivery.
+          Flexible subscriptions for 20L water jar delivery
         </h1>
         <p class="text-lg text-edrops-slate leading-relaxed">
-          Create recurring schedules, pause and resume plans, connect every delivery to prepaid balance, and forecast recharge needs before customers run dry.
+          Set up a recurring schedule that matches your household or office drinking water needs. Pause, skip, or adjust jar counts anytime — with zero lock-in.
         </p>
       </header>
 
@@ -52,20 +52,20 @@ const serviceData = {
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
           <h2 class="text-lg font-bold text-edrops-ocean">Zero-Lockin Flexibility</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Customers adjust drop dates, increase jar quantities for events, or pause during holidays straight from their phones.
+            Adjust delivery dates, request extra jars for family events, or pause deliveries during holidays straight from your phone.
           </p>
         </div>
         <div class="p-6 rounded-2xl bg-white border border-edrops-border shadow-xs space-y-2">
-          <h2 class="text-lg font-bold text-edrops-ocean">Predictive Recharging</h2>
+          <h2 class="text-lg font-bold text-edrops-ocean">Low-Balance Reminders</h2>
           <p class="text-sm text-edrops-slate leading-relaxed">
-            Our consumption engine calculates runout dates based on household jar velocity and sends timely recharge prompts.
+            Receive helpful alerts when your prepaid balance is low so your recurring deliveries arrive on time without interruption.
           </p>
         </div>
       </div>
 
       <div class="pt-6">
         <a href="https://app.edrops.in" class="inline-flex rounded-full bg-edrops-secondary text-white text-sm font-bold px-8 py-3.5 shadow-md hover:bg-edrops-secondary-hover transition-colors">
-          Start Managing Subscriptions
+          Start Your Water Subscription
         </a>
       </div>
     </div>
