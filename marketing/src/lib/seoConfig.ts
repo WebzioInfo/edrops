@@ -18,10 +18,10 @@ export const ENTITY_CONFIG = {
     'eDrops water jar delivery app'
   ],
   disambiguatingDescription:
-    'eDrops is a delivery app for purified 20L water jars, serving Kondotty and Malappuram, Kerala.',
-  slogan: 'Delivery app for purified 20L drinking water jars with doorstep jar swap.',
+    'eDrops is a delivery app for buying purified 20L water jars, serving Kondotty and Malappuram, Kerala.',
+  slogan: 'Delivery app for buying purified 20L drinking water jars with doorstep jar swap.',
   description:
-    'eDrops is a delivery app for purified 20L water jars, serving Kondotty and Malappuram, Kerala.',
+    'eDrops is a delivery app for buying purified 20L water jars, serving Kondotty and Malappuram, Kerala.',
   url: SITE_URL,
   appUrl: APP_URL,
   logo: `${SITE_URL}/logo.png`,
@@ -124,12 +124,6 @@ export const CORE_SITELINKS_NAV = [
     url: `${SITE_URL}/about/`,
     description:
       'The story behind eDrops — making 20L water jar delivery simple, reliable, and fully digital.'
-  },
-  {
-    name: 'Blog',
-    url: `${SITE_URL}/blog/`,
-    description:
-      'Helpful guides and tips on 20L water jar delivery, doorstep jar swaps, and drinking water hydration.'
   }
 ];
 
@@ -250,14 +244,7 @@ export function buildWebApplicationSchema(pageDescription?: string) {
     },
     publisher: {
       '@id': `${SITE_URL}/#organization`
-    },
-    featureList: [
-      'Order purified 20L water jars online',
-      'Doorstep delivery with easy jar swap',
-      'Live order tracking from dispatch to delivery',
-      'Bulk water jar ordering for homes and offices',
-      'Membership benefits and repeat deliveries'
-    ]
+    }
   };
 }
 

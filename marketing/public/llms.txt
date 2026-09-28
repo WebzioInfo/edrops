@@ -1,6 +1,6 @@
 # eDrops
 
-> eDrops is a delivery app for purified 20L water jars, serving Kondotty and Malappuram, Kerala. Customers order online and get jars delivered to the doorstep, with easy jar swap. It also supports bulk orders for homes, offices, cafes, clinics, and shops, with membership benefits. eDrops is a water jar delivery service, not software, and is not related to edrop.io or other similarly named companies.
+> eDrops is a delivery app for buying purified 20L water jars, serving Kondotty and Malappuram, Kerala. Customers order online and get jars delivered to the doorstep, with easy jar swap. Bulk orders and memberships are available for homes, offices, cafes, clinics, and shops. eDrops is a water jar delivery store, not software, and is not related to edrop.io or other similarly named companies.
 
 ## What eDrops does
 
@@ -8,7 +8,7 @@ eDrops lets customers order purified 20L drinking water jars online:
 
 - Order online for fast doorstep delivery
 - Seamless doorstep jar swap: delivery partner brings full jars and takes empties
-- Live order tracking from dispatch to delivery
+- Live order tracking from order to doorstep delivery
 - Scheduled repeat deliveries and membership benefits for homes and workplaces
 - Bulk ordering for offices, cafes, clinics, and commercial spaces
 - Cashless convenience with digital payment and prepaid wallet
@@ -40,6 +40,5 @@ eDrops currently delivers in Kondotty and Malappuram, Kerala, India. Expansion t
 - FAQ: https://www.edrops.in/faq/
 - Contact: https://www.edrops.in/contact/
 - About: https://www.edrops.in/about/
-- Blog: https://www.edrops.in/blog/
 - Privacy policy: https://www.edrops.in/privacy/
 - Terms of service: https://www.edrops.in/terms/

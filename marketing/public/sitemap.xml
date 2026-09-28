@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- Core Consumer Delivery App Pages -->
+  <!-- Core Consumer Water Jar Delivery App Pages -->
   <url>
     <loc>https://www.edrops.in/</loc>
     <lastmod>2026-09-28</lastmod>
@@ -48,31 +48,5 @@
     <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
-  </url>
-
-  <!-- Blog Hub & Consumer Guides -->
-  <url>
-    <loc>https://www.edrops.in/blog/</loc>
-    <lastmod>2026-09-28</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.edrops.in/blog/how-to-order-water-jars-online/</loc>
-    <lastmod>2026-09-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.edrops.in/blog/benefits-of-purified-water-jar-delivery/</loc>
-    <lastmod>2026-09-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.edrops.in/blog/bulk-water-jar-orders-offices-cafes/</loc>
-    <lastmod>2026-09-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
   </url>
 </urlset>
