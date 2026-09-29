@@ -151,13 +151,8 @@ export class CheckoutService {
     }
 
     let subTotal = 0;
-
-    // Group purchased jars by brand and returned jars by brand
-    const purchasedJarsByBrand: Record<
-      string,
-      { quantity: number; depositAmount: number }
-    > = {};
-    const returnedJarsByBrand: Record<string, number> = {};
+    let depositTotal = 0;
+    const expectedReturnsByBrand: Record<string, number> = {};
 
     for (const item of items) {
       if (item.product.status !== 'ACTIVE') {
@@ -167,89 +162,38 @@ export class CheckoutService {
       }
       subTotal += item.product.price * item.quantity;
 
-      if (item.product.isJar && item.product.brandId) {
-        if (!purchasedJarsByBrand[item.product.brandId]) {
-          purchasedJarsByBrand[item.product.brandId] = {
-            quantity: 0,
-            depositAmount: item.product.depositAmount || 0,
-          };
-        }
-        purchasedJarsByBrand[item.product.brandId].quantity += item.quantity;
+      const isJar =
+        item.product.isJar ||
+        (item.product.depositAmount && item.product.depositAmount > 0);
 
-        if (item.declaredReturnQuantity > 0) {
-          returnedJarsByBrand[item.product.brandId] =
-            (returnedJarsByBrand[item.product.brandId] || 0) +
-            item.declaredReturnQuantity;
+      if (isJar) {
+        const depositPerJar =
+          item.product.depositAmount && item.product.depositAmount > 0
+            ? item.product.depositAmount
+            : 200;
+        const declaredReturn = Math.max(
+          0,
+          Math.min(item.quantity, item.declaredReturnQuantity || 0),
+        );
+        const unreturnedJars = Math.max(0, item.quantity - declaredReturn);
+        item.deposit = unreturnedJars * depositPerJar;
+        depositTotal += item.deposit;
+
+        if (item.product.brandId && declaredReturn > 0) {
+          expectedReturnsByBrand[item.product.brandId] =
+            (expectedReturnsByBrand[item.product.brandId] || 0) + declaredReturn;
         }
+      } else {
+        item.deposit = 0;
       }
     }
 
     if (dto.additionalReturns) {
       for (const additional of dto.additionalReturns) {
-        returnedJarsByBrand[additional.brandId] =
-          (returnedJarsByBrand[additional.brandId] || 0) + additional.quantity;
-      }
-    }
-
-    // Validate returned jars
-    for (const [brandId, returnQty] of Object.entries(returnedJarsByBrand)) {
-      const ownership = await this.prisma.jarOwnership.findUnique({
-        where: { customerId_brandId: { customerId, brandId } },
-      });
-
-      const ownedCount = ownership
-        ? ownership.ownedJars + ownership.companyJarsHeld
-        : 0;
-      if (returnQty > ownedCount) {
-        const brand = await this.prisma.brand.findUnique({
-          where: { id: brandId },
-        });
-        throw new BadRequestException(
-          `Cannot return ${returnQty} jars for ${brand?.name || brandId}. You only have ${ownedCount} jars.`,
-        );
-      }
-    }
-
-    let depositTotal = 0;
-    const additionalDepositByBrand: Record<string, number> = {};
-
-    // Calculate required deposit per brand based on net new jars
-    for (const [brandId, purchased] of Object.entries(purchasedJarsByBrand)) {
-      const returnedQty = returnedJarsByBrand[brandId] || 0;
-      const netNewJars = purchased.quantity - returnedQty;
-
-      if (netNewJars > 0) {
-        const depositRecord = await this.prisma.jarDeposit.findUnique({
-          where: { customerId_brandId: { customerId, brandId } },
-        });
-
-        const currentActiveJars = depositRecord?.maxActiveJars || 0;
-        const depositPaid = depositRecord?.depositPaid || 0;
-
-        const newTotalActiveJars = currentActiveJars + netNewJars;
-        const targetDeposit = newTotalActiveJars * purchased.depositAmount;
-
-        const additionalDepositRequired = Math.max(
-          0,
-          targetDeposit - depositPaid,
-        );
-        additionalDepositByBrand[brandId] = additionalDepositRequired;
-        depositTotal += additionalDepositRequired;
-      }
-    }
-
-    // Allocate deposit to items (for OrderItem records)
-    for (const item of items) {
-      if (
-        item.product.isJar &&
-        item.product.brandId &&
-        additionalDepositByBrand[item.product.brandId] > 0
-      ) {
-        const brandTotalDeposit =
-          additionalDepositByBrand[item.product.brandId];
-        const brandTotalQty =
-          purchasedJarsByBrand[item.product.brandId].quantity;
-        item.deposit = (brandTotalDeposit / brandTotalQty) * item.quantity;
+        if (additional.brandId && additional.quantity > 0) {
+          expectedReturnsByBrand[additional.brandId] =
+            (expectedReturnsByBrand[additional.brandId] || 0) + additional.quantity;
+        }
       }
     }
 
@@ -298,6 +242,12 @@ export class CheckoutService {
       items,
       additionalReturns: dto.additionalReturns || [],
       promoCode: dto.promoCode || null,
+      expectedReturns: Object.entries(expectedReturnsByBrand).map(
+        ([brandId, quantity]) => ({
+          brandId,
+          quantity,
+        }),
+      ),
     };
   }
 
@@ -444,10 +394,7 @@ export class CheckoutService {
             })),
           },
           expectedReturns: {
-            create: validation.additionalReturns.map((rj) => ({
-              brandId: rj.brandId,
-              quantity: rj.quantity,
-            })),
+            create: validation.expectedReturns,
           },
         },
       });

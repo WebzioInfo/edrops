@@ -68,20 +68,28 @@ export default function Checkout() {
       setCheckoutItems((prev) => prev.filter((i) => i.id !== id));
       return;
     }
+    const currentItem = checkoutItems.find((i) => i.id === id);
+    const prevItemQty = currentItem?.quantity || 1;
+
     setCheckoutItems((prev) =>
       prev.map((i) => (i.id === id ? { ...i, quantity: newQuantity } : i))
     );
 
     // Sync return quantity if exceeds new quantity
     setItemReturns((prev) => {
-      if (!prev[id]) return prev;
-      return {
-        ...prev,
-        [id]: {
-          ...prev[id],
-          quantity: Math.min(newQuantity, prev[id].quantity),
-        },
-      };
+      const current = prev[id];
+      if (!current) return prev;
+      if (current.returning) {
+        const nextQty = current.quantity >= prevItemQty ? newQuantity : Math.min(newQuantity, current.quantity);
+        return {
+          ...prev,
+          [id]: {
+            ...current,
+            quantity: nextQty,
+          },
+        };
+      }
+      return prev;
     });
   };
 
@@ -90,20 +98,43 @@ export default function Checkout() {
   };
 
   const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [jarOwnerships, setJarOwnerships] = useState<Array<{ brandId: string; companyJarsHeld: number; ownedJars: number }>>([]);
 
-  // Jar Return Wizard State
-  const [itemReturns, setItemReturns] = useState<Record<string, { willReturn: boolean; quantity: number }>>({});
+  // Authoritative Jar Return State: map of productId -> { returning: boolean; quantity: number }
+  const [itemReturns, setItemReturns] = useState<Record<string, { returning: boolean; quantity: number }>>(() => {
+    const initial: Record<string, { returning: boolean; quantity: number }> = {};
+    initialItems.forEach((item) => {
+      if (item.isJar || (item.depositAmount && item.depositAmount > 0)) {
+        initial[item.id] = { returning: true, quantity: item.quantity };
+      }
+    });
+    return initial;
+  });
+  const [pendingNoItemId, setPendingNoItemId] = useState<string | null>(null);
+  const [showNoReturnModal, setShowNoReturnModal] = useState(false);
   const [additionalReturns, setAdditionalReturns] = useState<{ brandId: string; quantity: number }[]>([]);
   const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
+
+  // Keep itemReturns in sync if checkoutItems change (e.g. newly added jar items)
+  useEffect(() => {
+    setItemReturns((prev) => {
+      let changed = false;
+      const updated = { ...prev };
+      checkoutItems.forEach((item) => {
+        if (item.isJar || (item.depositAmount && item.depositAmount > 0)) {
+          if (!updated[item.id]) {
+            updated[item.id] = { returning: true, quantity: item.quantity };
+            changed = true;
+          }
+        }
+      });
+      return changed ? updated : prev;
+    });
+  }, [checkoutItems]);
 
   useEffect(() => {
     fetchWithAuth('/auth/me').then((data) => {
       if (data?.customer?.wallet) {
         setWalletBalance(data.customer.wallet.balance);
-      }
-      if (data?.customer?.jarOwnerships) {
-        setJarOwnerships(data.customer.jarOwnerships);
       }
     }).catch(() => {});
 
@@ -117,42 +148,33 @@ export default function Checkout() {
     [checkoutItems]
   );
 
-  // Calculate dynamic deposit based on net new jars per brand
+  // Calculate dynamic deposit strictly based on unreturned jars per item
   const depositTotal = useMemo(() => {
     let total = 0;
-    const purchasedJarsByBrand: Record<string, { quantity: number; depositAmount: number }> = {};
-    const returnedJarsByBrand: Record<string, number> = {};
-
     checkoutItems.forEach((item) => {
-      if (item.isJar || (item.depositAmount && item.depositAmount > 0)) {
-        const brandKey = item.brandId || 'default-brand';
-        const deposit = item.depositAmount > 0 ? item.depositAmount : 200;
-        if (!purchasedJarsByBrand[brandKey]) {
-          purchasedJarsByBrand[brandKey] = { quantity: 0, depositAmount: deposit };
-        }
-        purchasedJarsByBrand[brandKey].quantity += item.quantity;
-
+      const isJar = item.isJar || (item.depositAmount && item.depositAmount > 0);
+      if (isJar) {
+        const depositPerJar = item.depositAmount && item.depositAmount > 0 ? item.depositAmount : 200;
         const returnInfo = itemReturns[item.id];
-        if (returnInfo?.willReturn && returnInfo.quantity > 0) {
-          returnedJarsByBrand[brandKey] = (returnedJarsByBrand[brandKey] || 0) + returnInfo.quantity;
+
+        let returningCount = 0;
+        if (returnInfo) {
+          if (returnInfo.returning) {
+            returningCount = Math.max(0, Math.min(item.quantity, returnInfo.quantity));
+          } else {
+            returningCount = 0;
+          }
+        } else {
+          // Default: returning all jars (YES) -> deposit = 0
+          returningCount = item.quantity;
         }
+
+        const unreturnedJars = Math.max(0, item.quantity - returningCount);
+        total += unreturnedJars * depositPerJar;
       }
     });
-
-    additionalReturns.forEach((ar) => {
-      const brandKey = ar.brandId || 'default-brand';
-      returnedJarsByBrand[brandKey] = (returnedJarsByBrand[brandKey] || 0) + ar.quantity;
-    });
-
-    for (const [brandId, purchased] of Object.entries(purchasedJarsByBrand)) {
-      const returnedQty = returnedJarsByBrand[brandId] || 0;
-      const netNewJars = purchased.quantity - returnedQty;
-      if (netNewJars > 0) {
-        total += netNewJars * purchased.depositAmount;
-      }
-    }
     return total;
-  }, [checkoutItems, itemReturns, additionalReturns]);
+  }, [checkoutItems, itemReturns]);
 
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -247,7 +269,6 @@ export default function Checkout() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [showNoReturnModal, setShowNoReturnModal] = useState(false);
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState('');
 
@@ -347,9 +368,15 @@ export default function Checkout() {
         addressId: selectedAddressId,
         paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : paymentMethod,
         timeSlot: selectedSlot,
-        itemReturns: Object.entries(itemReturns)
-          .filter(([_, info]) => info.willReturn && info.quantity > 0)
-          .map(([id, info]) => ({ productId: id, quantity: info.quantity })),
+        itemReturns: checkoutItems.map((item) => {
+          const returnInfo = itemReturns[item.id];
+          const isReturning = returnInfo ? returnInfo.returning : true;
+          const returnQty = returnInfo ? returnInfo.quantity : item.quantity;
+          return {
+            productId: item.id,
+            quantity: isReturning ? Math.max(0, Math.min(item.quantity, returnQty)) : 0,
+          };
+        }),
         additionalReturns: additionalReturns.filter((ar) => ar.brandId && ar.quantity > 0),
         promoCode: appliedPromo?.code || undefined,
         buyNowItems: checkoutItems.map((i) => ({ productId: i.id, quantity: i.quantity })),
@@ -418,70 +445,45 @@ export default function Checkout() {
     if (!selectedAddressId) return toast.error('Please select a delivery address');
     if (!selectedSlot) return toast.error('Please select a delivery slot');
 
-    const jarItems = checkoutItems.filter((i) => i.isJar || (i.depositAmount && i.depositAmount > 0));
-    if (jarItems.length > 0) {
-      const availableEmptyJars = (jarOwnerships.length > 0 ? jarOwnerships : (user?.customer?.jarOwnerships || [])).reduce(
-        (sum, jo) => sum + (jo.companyJarsHeld || 0) + (jo.ownedJars || 0),
-        0
-      );
-      const totalOrderedJars = jarItems.reduce((sum, i) => sum + i.quantity, 0);
+    setCurrentStep(2);
+  };
 
-      const hasSelectedYes = Object.values(itemReturns).some((r) => r?.willReturn && r.quantity > 0);
-      const totalDeclaredReturnCount =
-        Object.values(itemReturns).reduce((sum, r) => sum + (r?.willReturn ? r.quantity || 0 : 0), 0) +
-        additionalReturns.reduce((sum, ar) => sum + (ar.quantity || 0), 0);
+  const handleSelectYes = (itemId: string) => {
+    const item = checkoutItems.find((i) => i.id === itemId);
+    setItemReturns((prev) => ({
+      ...prev,
+      [itemId]: {
+        returning: true,
+        quantity: item ? item.quantity : 1,
+      },
+    }));
+  };
 
-      // Condition 1: Customer selected "No" for returning empty jars
-      if (!hasSelectedYes) {
-        // If customer has insufficient empty jars (e.g. 0 empty jars, or less than ordered count)
-        if (availableEmptyJars < totalOrderedJars || availableEmptyJars === 0) {
-          setShowNoReturnModal(true);
-          return;
-        }
-        // If customer has sufficient empty jars available, continue normally without confirmation
-      } else {
-        // Condition 2: Customer selected "Yes", but declared return count exceeds available empty jars
-        if (totalDeclaredReturnCount > availableEmptyJars) {
-          // Do NOT show error as toast/alert; show confirmation dialog instead
-          setShowNoReturnModal(true);
-          return;
-        }
-      }
+  const handleSelectNo = (itemId: string) => {
+    setPendingNoItemId(itemId);
+    setShowNoReturnModal(true);
+  };
+
+  const handleConfirmNoModal = () => {
+    if (pendingNoItemId) {
+      setItemReturns((prev) => ({
+        ...prev,
+        [pendingNoItemId]: { returning: false, quantity: 0 },
+      }));
     }
-
-    setCurrentStep(2);
-  };
-
-  const handleYesContinue = () => {
-    // Continue to Payment with return quantity = 0
-    setItemReturns((prev) => {
-      const updated: Record<string, { willReturn: boolean; quantity: number }> = {};
-      Object.keys(prev).forEach((k) => {
-        updated[k] = { willReturn: false, quantity: 0 };
-      });
-      return updated;
-    });
-    setAdditionalReturns([]);
+    setPendingNoItemId(null);
     setShowNoReturnModal(false);
-    setCurrentStep(2);
   };
 
-  const handleNoReturnItem = () => {
-    // Set/keep return quantity appropriately and remain on Delivery stage
-    const availableEmptyJars = (jarOwnerships.length > 0 ? jarOwnerships : (user?.customer?.jarOwnerships || [])).reduce(
-      (sum, jo) => sum + (jo.companyJarsHeld || 0) + (jo.ownedJars || 0),
-      0
-    );
-    setItemReturns((prev) => {
-      const updated: Record<string, { willReturn: boolean; quantity: number }> = {};
-      checkoutItems.forEach((item) => {
-        if (item.isJar || (item.depositAmount && item.depositAmount > 0)) {
-          const maxAllowed = availableEmptyJars > 0 ? Math.min(item.quantity, availableEmptyJars) : item.quantity;
-          updated[item.id] = { willReturn: true, quantity: maxAllowed };
-        }
-      });
-      return { ...prev, ...updated };
-    });
+  const handleCancelNoModal = () => {
+    if (pendingNoItemId) {
+      const item = checkoutItems.find((i) => i.id === pendingNoItemId);
+      setItemReturns((prev) => ({
+        ...prev,
+        [pendingNoItemId]: { returning: true, quantity: item ? item.quantity : 1 },
+      }));
+    }
+    setPendingNoItemId(null);
     setShowNoReturnModal(false);
   };
 
@@ -722,82 +724,83 @@ export default function Checkout() {
 
                     {hasJarsInOrder ? (
                       <div className="space-y-3 pt-1">
-                        {checkoutItems.filter((i) => i.isJar || (i.depositAmount && i.depositAmount > 0)).map((item) => (
-                          <div key={item.id} className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
-                            <div className="flex justify-between items-center mb-1.5">
-                              <span className="text-xs font-bold text-[#0F172A]">{item.name}</span>
-                              <span className="text-[11px] text-[#64748B]">Ordered: {item.quantity}</span>
-                            </div>
-                            <p className="text-xs text-[#64748B] mb-2">Returning empty jars for {item.name}?</p>
-                            <div className="flex items-center gap-3">
-                              <label className="flex items-center gap-1.5 text-xs font-bold text-[#334155] cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name={`return_${item.id}`}
-                                  checked={Boolean(itemReturns[item.id]?.willReturn)}
-                                  onChange={() =>
-                                    setItemReturns((prev) => ({
-                                      ...prev,
-                                      [item.id]: {
-                                        willReturn: true,
-                                        quantity: Math.min(item.quantity, prev[item.id]?.quantity || item.quantity),
-                                      },
-                                    }))
-                                  }
-                                  className="w-3.5 h-3.5 text-[#1E88E5]"
-                                />
-                                <span>Yes</span>
-                              </label>
-                              <label className="flex items-center gap-1.5 text-xs font-bold text-[#334155] cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name={`return_${item.id}`}
-                                  checked={!itemReturns[item.id]?.willReturn}
-                                  onChange={() =>
-                                    setItemReturns((prev) => ({
-                                      ...prev,
-                                      [item.id]: { willReturn: false, quantity: 0 },
-                                    }))
-                                  }
-                                  className="w-3.5 h-3.5 text-[#1E88E5]"
-                                />
-                                <span>No</span>
-                              </label>
+                        {checkoutItems.filter((i) => i.isJar || (i.depositAmount && i.depositAmount > 0)).map((item) => {
+                          const returnInfo = itemReturns[item.id];
+                          const isReturning = returnInfo ? returnInfo.returning : true;
+                          const currentReturnQty = returnInfo ? returnInfo.quantity : item.quantity;
 
-                              {itemReturns[item.id]?.willReturn && (
-                                <div className="ml-auto flex items-center bg-white border border-[#E2E8F0] rounded-lg overflow-hidden h-7 w-24 shadow-2xs">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setItemReturns((prev) => ({
-                                        ...prev,
-                                        [item.id]: { ...prev[item.id], quantity: Math.max(0, prev[item.id].quantity - 1) },
-                                      }))
-                                    }
-                                    className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  <span className="flex-1 text-center text-xs font-bold text-[#0F172A]">
-                                    {itemReturns[item.id]?.quantity || 0}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setItemReturns((prev) => ({
-                                        ...prev,
-                                        [item.id]: { ...prev[item.id], quantity: Math.min(item.quantity, prev[item.id].quantity + 1) },
-                                      }))
-                                    }
-                                    className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
+                          return (
+                            <div key={item.id} className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+                              <div className="flex justify-between items-center mb-1.5">
+                                <span className="text-xs font-bold text-[#0F172A]">{item.name}</span>
+                                <span className="text-[11px] text-[#64748B]">Ordered: {item.quantity}</span>
+                              </div>
+                              <p className="text-xs text-[#64748B] mb-2">Returning empty jars for {item.name}?</p>
+                              <div className="flex items-center gap-3">
+                                <label className="flex items-center gap-1.5 text-xs font-bold text-[#334155] cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`return_${item.id}`}
+                                    checked={isReturning}
+                                    onChange={() => handleSelectYes(item.id)}
+                                    className="w-3.5 h-3.5 text-[#1E88E5]"
+                                  />
+                                  <span>Yes</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 text-xs font-bold text-[#334155] cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`return_${item.id}`}
+                                    checked={!isReturning}
+                                    onChange={() => handleSelectNo(item.id)}
+                                    className="w-3.5 h-3.5 text-[#1E88E5]"
+                                  />
+                                  <span>No</span>
+                                </label>
+
+                                {isReturning && (
+                                  <div className="ml-auto flex items-center bg-white border border-[#E2E8F0] rounded-lg overflow-hidden h-7 w-24 shadow-2xs">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setItemReturns((prev) => ({
+                                          ...prev,
+                                          [item.id]: {
+                                            returning: true,
+                                            quantity: Math.max(0, currentReturnQty - 1),
+                                          },
+                                        }))
+                                      }
+                                      className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
+                                      aria-label="Decrease return jars"
+                                    >
+                                      <Minus className="w-3 h-3" />
+                                    </button>
+                                    <span className="flex-1 text-center text-xs font-bold text-[#0F172A]">
+                                      {currentReturnQty}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setItemReturns((prev) => ({
+                                          ...prev,
+                                          [item.id]: {
+                                            returning: true,
+                                            quantity: Math.min(item.quantity, currentReturnQty + 1),
+                                          },
+                                        }))
+                                      }
+                                      className="w-7 h-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
+                                      aria-label="Increase return jars"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-xs text-[#64748B] py-1">
@@ -1189,14 +1192,14 @@ export default function Checkout() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full">
                 <button
                   type="button"
-                  onClick={handleNoReturnItem}
+                  onClick={handleCancelNoModal}
                   className="w-full sm:flex-1 py-2.5 px-4 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] hover:bg-[#F8FAFC] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
                 >
                   No, Return Item
                 </button>
                 <button
                   type="button"
-                  onClick={handleYesContinue}
+                  onClick={handleConfirmNoModal}
                   className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-[#1E88E5] text-white hover:bg-[#1565C0] text-xs sm:text-sm font-bold transition-colors cursor-pointer shadow-xs"
                 >
                   Yes, Continue
