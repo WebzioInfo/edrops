@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { EventsGateway } from '../events/events.gateway';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { CreateDistributorDto } from './dto/create-distributor.dto';
@@ -14,7 +15,7 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class StaffService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private events: EventsGateway) {}
 
   create(createStaffDto: CreateStaffDto) {
     return this.prisma.staff.create({ data: createStaffDto as any });
@@ -421,6 +422,9 @@ export class StaffService {
       }
     });
 
+    if (dto.companyOwnedJars !== undefined || dto.distributorOwnedJars !== undefined) {
+      this.events.emitEvent(`distributor:${existingUser.id}`, 'inventory:updated', {});
+    }
     return this.getDistributorById(existingUser.id);
   }
 

@@ -20,6 +20,8 @@ import {
   RecordOrderPaymentDto,
   CancelDistributorOrderDto,
   ReleaseDistributorOrderDto,
+  VerifyDeliveryPinDto,
+  CompleteDeliveryDto,
 } from './dto/distributor-order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
@@ -136,6 +138,32 @@ export class OrderController {
   ) {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;
     return this.orderService.updateDistributorOrderStatus(id, userId, dto);
+  }
+
+  @Post('distributor/:id/delivery/verify-pin')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  verifyDistributorDeliveryPin(
+    @Param('id') id: string,
+    @Body() dto: VerifyDeliveryPinDto,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    const userRole = req.user?.role;
+    return this.orderService.verifyDeliveryPin(id, dto.pin, userId, userRole);
+  }
+
+  @Post('distributor/:id/delivery/complete')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  completeDistributorDelivery(
+    @Param('id') id: string,
+    @Body() dto: CompleteDeliveryDto,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    const userRole = req.user?.role;
+    return this.orderService.completeDelivery(id, userId, dto, userRole);
   }
 
   @Patch('distributor/:id/driver')
@@ -264,8 +292,8 @@ export class OrderController {
   @Get(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.CUSTOMER)
-  findOne(@Param('id') id: string) {
-    return this.orderService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    return this.orderService.findOne(id, req.user);
   }
 
   @Patch(':id/status')
@@ -281,6 +309,32 @@ export class OrderController {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;
     const userRole = req.user?.role;
     return this.orderService.updateOrderStatus(id, status, userId, reason, paymentConfirmation, false, userRole);
+  }
+
+  @Post(':id/delivery/verify-pin')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR)
+  verifyDeliveryPin(
+    @Param('id') id: string,
+    @Body() dto: VerifyDeliveryPinDto,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    const userRole = req.user?.role;
+    return this.orderService.verifyDeliveryPin(id, dto.pin, userId, userRole);
+  }
+
+  @Post(':id/delivery/complete')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR)
+  completeDelivery(
+    @Param('id') id: string,
+    @Body() dto: CompleteDeliveryDto,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.sub || req.user?.id || req.user?.userId;
+    const userRole = req.user?.role;
+    return this.orderService.completeDelivery(id, userId, dto, userRole);
   }
 
   @Patch(':id/assign')

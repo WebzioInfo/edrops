@@ -49,6 +49,7 @@ model User {
   distributorAssignments DistributorOrderAssignment[] @relation("DistributorAssignments")
   distributorOrderSkips DistributorOrderSkip[] @relation("DistributorOrderSkips")
   distributorPincodes   DistributorPincode[]   @relation("DistributorPincodes")
+  verifiedDeliveries    OrderDeliveryVerification[] @relation("VerifiedDeliveries")
 
   @@index([email])
   @@index([phone])
@@ -152,9 +153,12 @@ model Distributor {
   jarOwnership         String?  @default("COMPANY_OWNED")
   companyOwnedJars     Int      @default(0)
   distributorOwnedJars Int      @default(0)
+  inventoryLogs       InventoryLog[]
+  jarImageUrl         String?
   createdById          String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  jarItems            JarInventoryItem[]
 
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdBy            User?    @relation("DistributorCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -717,6 +721,14 @@ model Inventory {
 
 model InventoryLog {
   id          String   @id @default(uuid())
+  sequence      Int @unique @default(autoincrement())
+  distributorId String?
+  ownership     String?
+  jarItemId     String?
+  quantity      Int?
+  balanceAfter  Int?
+  distributor   Distributor? @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  jarItem       JarInventoryItem? @relation(fields: [jarItemId], references: [id], onDelete: SetNull)
   action      String
   filledQty   Int      @default(0)
   emptyQty    Int      @default(0)
@@ -726,6 +738,8 @@ model InventoryLog {
   createdAt   DateTime @default(now())
 
   @@index([createdAt])
+  @@index([distributorId, ownership, sequence])
+  @@index([jarItemId, sequence])
 }
 
 model Brand {
@@ -864,6 +878,8 @@ model Order {
   cancelledBy           User?                @relation("CancelledOrders", fields: [cancelledById], references: [id])
   cancellationReason    String?
   distributorAssignments DistributorOrderAssignment[]
+  jarAllocations        OrderJarAllocation[]
+  deliveryVerification  OrderDeliveryVerification?
 
   @@index([distributorId])
   @@index([driverId])
@@ -1312,5 +1328,79 @@ model Driver {
   @@index([vehicleNumber])
   @@index([pincode])
   @@map("drivers")
+}
+
+model JarInventoryItem {
+  id               String                 @id @default(uuid())
+  distributorId    String
+  name             String
+  ownershipType    String                 // 'COMPANY' | 'DISTRIBUTOR'
+  imageUrl         String?
+  description      String?
+  ownedQuantity    Int                    @default(0)
+  reservedQuantity Int                    @default(0)
+  isActive         Boolean                @default(true)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  distributor      Distributor            @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  allocations      OrderJarAllocation[]
+  inventoryLogs    InventoryLog[]
+
+  @@index([distributorId])
+  @@index([distributorId, ownershipType])
+  @@index([distributorId, isActive])
+  @@map("jar_inventory_items")
+}
+
+model OrderJarAllocation {
+  id                  String            @id @default(uuid())
+  orderId             String
+  jarItemId           String
+  quantity            Int
+  deliveredQuantity   Int?
+  undeliveredQuantity Int?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  order               Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  jarItem             JarInventoryItem  @relation(fields: [jarItemId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, jarItemId])
+  @@index([orderId])
+  @@index([jarItemId])
+  @@map("order_jar_allocations")
+}
+
+enum DeliveryVerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+model OrderDeliveryVerification {
+  id                  String                     @id @default(uuid())
+  orderId             String                     @unique
+  otp                 String
+  otpGeneratedAt      DateTime                   @default(now())
+  isVerified          Boolean                    @default(false)
+  verifiedAt          DateTime?
+  verifiedByUserId    String?
+  status              DeliveryVerificationStatus @default(PENDING)
+  outForDeliveryQty   Int                        @default(0)
+  deliveredQty        Int                        @default(0)
+  undeliveredQty      Int                        @default(0)
+  shortDeliveryReason String?
+  deliveryNotes       String?
+  completedAt         DateTime?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  order               Order                      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  verifiedByUser      User?                      @relation("VerifiedDeliveries", fields: [verifiedByUserId], references: [id])
+
+  @@index([orderId])
+  @@index([isVerified])
+  @@map("order_delivery_verifications")
 }
 

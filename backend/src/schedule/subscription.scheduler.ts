@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStatus } from '@prisma/client';
+import { generateDeliveryOtp } from '../order/utils/delivery-otp.util';
 
 @Injectable()
 export class SubscriptionScheduler {
@@ -98,6 +99,11 @@ export class SubscriptionScheduler {
                   totalAmount: 0, // Prepaid, deduced from jarBalance
                   paymentStatus: 'SUCCESS', // Prepaid via jar balance
                   paymentMethod: 'PREPAID',
+                  deliveryVerification: {
+                    create: {
+                      otp: generateDeliveryOtp(),
+                    },
+                  },
                   items: {
                     create: {
                       productId: product.id,

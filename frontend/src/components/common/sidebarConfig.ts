@@ -172,6 +172,11 @@ export function getPortalSidebarConfig(
             title: 'OPERATIONS',
             items: [
               {
+                to: '/distributor/inventory',
+                label: 'Inventory',
+                icon: Package,
+              },
+              {
                 to: '/distributor/drivers',
                 label: 'Drivers',
                 icon: Truck,

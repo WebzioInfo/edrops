@@ -24,6 +24,7 @@ const Reports = React.lazy(() => import('./pages/Reports'));
 const Drivers = React.lazy(() => import('./pages/Drivers'));
 const DistributorProfile = React.lazy(() => import('./pages/DistributorProfile'));
 const ServiceAreas = React.lazy(() => import('./pages/ServiceAreas'));
+const Inventory = React.lazy(() => import('./pages/Inventory'));
 
 /** Standardized operational placeholder for remaining distributor routes */
 function OperationalPlaceholder({ title, icon: Icon }: { title: string; icon: React.ComponentType<{ className?: string }> }) {
@@ -189,6 +190,7 @@ export default function DistributorPortal() {
               <Routes>
                 <Route index element={<Navigate to="/distributor/orders" replace />} />
                 <Route path="purchases" element={<Purchases />} />
+                <Route path="inventory" element={<Inventory />} />
                 <Route path="suppliers" element={<Suppliers />} />
                 <Route path="suppliers/:id" element={<SupplierDetail />} />
                 <Route path="dashboard" element={<Navigate to="/distributor/orders" replace />} />

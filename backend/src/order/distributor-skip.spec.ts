@@ -25,6 +25,9 @@ describe('Distributor Skip and Accept Flow (Unit & Scenarios)', () => {
       distributorOrderSkip: {
         upsert: jest.fn(),
       },
+      distributorOrderAssignment: {
+        create: jest.fn(),
+      },
       orderStatusHistory: {
         create: jest.fn(),
       },

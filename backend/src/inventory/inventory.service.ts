@@ -17,6 +17,8 @@ export class InventoryService {
 
   async getLogs() {
     return this.prisma.inventoryLog.findMany({
+      // Distributor ownership history is exposed only by its scoped endpoint.
+      where: { distributorId: null, ownership: null },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });

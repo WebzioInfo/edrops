@@ -361,7 +361,7 @@ export default function Checkout() {
       });
 
       if (initiateRes.status === 'SUCCESS') {
-        toast.success('Order placed successfully!');
+        toast.success('Order placed successfully. Delivery verification PIN created. View order details.');
         localStorage.removeItem('edrops_promo');
         window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
         return;
@@ -394,7 +394,7 @@ export default function Checkout() {
                 razorpaySignature: response.razorpay_signature,
               }),
             });
-            toast.success('Payment successful! Your order is confirmed.');
+            toast.success('Order placed successfully. Delivery verification PIN created. View order details.');
             localStorage.removeItem('edrops_promo');
             window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
           },

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Truck,
   Plus,
+  Minus,
   Search,
   RefreshCw,
   Eye,
@@ -30,6 +31,7 @@ import { useSocket } from '../../../contexts/SocketContext';
 import { DistributorTopbar } from '../components/DistributorTopbar';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import { MobileFilterSheet } from '../../../components/common/MobileFilterSheet';
+import { DeliveryConfirmationModal } from '../../../components/DeliveryConfirmationModal';
 
 // Types
 export interface OrderItemProduct {
@@ -176,7 +178,57 @@ export interface DistributorOrder {
     role?: string;
   } | null;
   cancellationReason?: string | null;
+  jarAllocations?: OrderJarAllocationRecord[];
+  deliveryVerification?: {
+    id?: string;
+    isVerified?: boolean;
+    status?: string;
+    outForDeliveryQty?: number;
+    deliveredQty?: number;
+    undeliveredQty?: number;
+    shortDeliveryReason?: string | null;
+    deliveryNotes?: string | null;
+  } | null;
 }
+
+export interface OrderJarAllocationRecord {
+  id: string;
+  orderId: string;
+  jarItemId: string;
+  quantity: number;
+  deliveredQuantity?: number | null;
+  undeliveredQuantity?: number | null;
+  createdAt?: string;
+  jarItem?: {
+    id: string;
+    name: string;
+    ownershipType: string;
+    imageUrl?: string | null;
+    description?: string | null;
+  };
+}
+
+export interface JarInventoryItemRecord {
+  id: string;
+  distributorId: string;
+  name: string;
+  ownershipType: 'COMPANY' | 'DISTRIBUTOR';
+  imageUrl?: string | null;
+  description?: string | null;
+  ownedQuantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  isActive: boolean;
+}
+
+export const getOrderJarQuantity = (order: DistributorOrder | null | undefined): number => {
+  if (!order) return 0;
+  const jarItems = (order.items || []).filter((i) => i.product?.isJar !== false);
+  if (jarItems.length > 0) {
+    return jarItems.reduce((acc, i) => acc + i.quantity, 0);
+  }
+  return (order.items || []).reduce((acc, i) => acc + i.quantity, 0) || order.totalQuantity || 0;
+};
 
 export interface OrderStats {
   totalOrders: number;
@@ -245,6 +297,7 @@ export default function Orders() {
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
 
   const [statusModalOrder, setStatusModalOrder] = useState<DistributorOrder | null>(null);
+  const [deliveryConfirmOrder, setDeliveryConfirmOrder] = useState<DistributorOrder | null>(null);
   const [newTargetStatus, setNewTargetStatus] = useState<string>('');
   const [statusReason, setStatusReason] = useState<string>('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
@@ -252,6 +305,13 @@ export default function Orders() {
   const [deliveryPaymentMode, setDeliveryPaymentMode] = useState<'FULL' | 'PARTIAL'>('FULL');
   const [deliveryPaymentAmount, setDeliveryPaymentAmount] = useState<string>('');
   const [deliveryPaymentMethod, setDeliveryPaymentMethod] = useState<string>('CASH');
+
+  // Jar Allocation Modal State
+  const [allocationJarItems, setAllocationJarItems] = useState<JarInventoryItemRecord[]>([]);
+  const [isLoadingAllocationItems, setIsLoadingAllocationItems] = useState<boolean>(false);
+  const [jarAllocationsMap, setJarAllocationsMap] = useState<Record<string, number>>({});
+  const [selectedDistributorJarIds, setSelectedDistributorJarIds] = useState<string[]>([]);
+  const [isAddingJar, setIsAddingJar] = useState<boolean>(false);
 
   const [paymentModalOrder, setPaymentModalOrder] = useState<DistributorOrder | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<string>('');
@@ -746,6 +806,10 @@ export default function Orders() {
   };
 
   const handleOpenStatusModal = (order: DistributorOrder) => {
+    if (order.status === 'OUT_FOR_DELIVERY') {
+      setDeliveryConfirmOrder(order);
+      return;
+    }
     setStatusModalOrder(order);
     const allowed = getAllowedStatusTransitions(order.status);
     setNewTargetStatus(allowed[0] || '');
@@ -753,6 +817,108 @@ export default function Orders() {
     setDeliveryPaymentMode('FULL');
     setDeliveryPaymentAmount('');
     setDeliveryPaymentMethod('CASH');
+    setJarAllocationsMap({});
+    setSelectedDistributorJarIds([]);
+    setIsAddingJar(false);
+  };
+
+  // Fetch jar items and initialize allocation quantities when OUT_FOR_DELIVERY is selected
+  useEffect(() => {
+    if (statusModalOrder && newTargetStatus === 'OUT_FOR_DELIVERY') {
+      setIsLoadingAllocationItems(true);
+      fetchWithAuth('/distributor/inventory/items')
+        .then((items: JarInventoryItemRecord[]) => {
+          const list = items || [];
+          setAllocationJarItems(list);
+
+          const initialMap: Record<string, number> = {};
+          if (statusModalOrder.jarAllocations && statusModalOrder.jarAllocations.length > 0) {
+            const addedDistIds: string[] = [];
+            statusModalOrder.jarAllocations.forEach((a) => {
+              initialMap[a.jarItemId] = a.quantity;
+              const found = list.find((i) => i.id === a.jarItemId);
+              if (found && found.ownershipType === 'DISTRIBUTOR') {
+                addedDistIds.push(found.id);
+              }
+            });
+            setSelectedDistributorJarIds(addedDistIds);
+          } else {
+            list.forEach((item) => {
+              initialMap[item.id] = 0;
+            });
+            const distItems = list.filter((i) => i.ownershipType === 'DISTRIBUTOR');
+            if (distItems.length > 0) {
+              setSelectedDistributorJarIds([distItems[0].id]);
+            } else {
+              setSelectedDistributorJarIds([]);
+            }
+            const req = getOrderJarQuantity(statusModalOrder);
+            const companyItem = list.find((i) => i.ownershipType === 'COMPANY') || list[0];
+            if (companyItem && companyItem.availableQuantity >= req) {
+              initialMap[companyItem.id] = req;
+            }
+          }
+          setJarAllocationsMap(initialMap);
+          setIsAddingJar(false);
+        })
+        .catch((err) => {
+          console.error('Failed to load jar items for allocation:', err);
+          showToast.error('Failed to load inventory for jar allocation');
+        })
+        .finally(() => {
+          setIsLoadingAllocationItems(false);
+        });
+    }
+  }, [statusModalOrder, newTargetStatus]);
+
+  const handleSetAllocationQty = (jarItemId: string, qty: number, availableStock: number) => {
+    const clamped = Math.max(0, Math.min(availableStock, qty));
+    setJarAllocationsMap((prev) => ({
+      ...prev,
+      [jarItemId]: clamped,
+    }));
+  };
+
+  const handleStepAllocation = (jarItemId: string, delta: number, availableStock: number) => {
+    const current = jarAllocationsMap[jarItemId] || 0;
+    const next = Math.max(0, Math.min(availableStock, current + delta));
+    setJarAllocationsMap((prev) => ({
+      ...prev,
+      [jarItemId]: next,
+    }));
+  };
+
+  const handleAddDistributorJar = (jarId: string) => {
+    if (!jarId) return;
+    const targetItem = allocationJarItems.find((i) => i.id === jarId);
+    if (!targetItem) return;
+
+    if (!selectedDistributorJarIds.includes(jarId)) {
+      setSelectedDistributorJarIds((prev) => [...prev, jarId]);
+    }
+
+    const currentAlloc = jarAllocationsMap[jarId] || 0;
+    if (currentAlloc === 0 && targetItem.availableQuantity > 0) {
+      const requiredJars = getOrderJarQuantity(statusModalOrder);
+      const totalAlloc = Object.values(jarAllocationsMap).reduce((s, v) => s + (Number(v) || 0), 0);
+      const remaining = Math.max(0, requiredJars - totalAlloc);
+      const initialQty = remaining > 0 ? Math.min(targetItem.availableQuantity, remaining) : 1;
+      setJarAllocationsMap((prev) => ({
+        ...prev,
+        [jarId]: Math.min(targetItem.availableQuantity, initialQty),
+      }));
+    }
+
+    setIsAddingJar(false);
+  };
+
+  const handleRemoveDistributorJar = (jarId: string) => {
+    setSelectedDistributorJarIds((prev) => prev.filter((id) => id !== jarId));
+    setJarAllocationsMap((prev) => {
+      const next = { ...prev };
+      delete next[jarId];
+      return next;
+    });
   };
 
   const handleStatusUpdateSubmit = async (e: React.FormEvent) => {
@@ -775,6 +941,35 @@ export default function Orders() {
       }
     }
 
+    // Validate OUT_FOR_DELIVERY requirements
+    if (newTargetStatus === 'OUT_FOR_DELIVERY') {
+      if (!statusModalOrder.driverId && !statusModalOrder.driver) {
+        showToast.error('Assign a driver before moving this order Out for Delivery.');
+        return;
+      }
+
+      const reqJars = getOrderJarQuantity(statusModalOrder);
+      const totalAlloc = Object.values(jarAllocationsMap).reduce((s, v) => s + (Number(v) || 0), 0);
+
+      if (totalAlloc < reqJars) {
+        showToast.error(`Allocate all ${reqJars} jars before sending the order Out for Delivery.`);
+        return;
+      }
+      if (totalAlloc > reqJars) {
+        showToast.error(`Allocated quantity cannot exceed the order quantity of ${reqJars} jars.`);
+        return;
+      }
+
+      for (const item of allocationJarItems) {
+        const qty = jarAllocationsMap[item.id] || 0;
+        if (qty > item.availableQuantity) {
+          const name = item.ownershipType === 'COMPANY' ? 'Biodrops' : item.name;
+          showToast.error(`Only ${item.availableQuantity} ${name} jars are available.`);
+          return;
+        }
+      }
+    }
+
     try {
       setIsUpdatingStatus(true);
 
@@ -782,6 +977,16 @@ export default function Orders() {
         status: newTargetStatus,
         reason: statusReason.trim() || undefined,
       };
+
+      if (newTargetStatus === 'OUT_FOR_DELIVERY') {
+        const allocations = Object.entries(jarAllocationsMap)
+          .filter(([_, qty]) => (Number(qty) || 0) > 0)
+          .map(([jarItemId, quantity]) => ({
+            jarItemId,
+            quantity: Number(quantity),
+          }));
+        body.allocations = allocations;
+      }
 
       if (isDelivering) {
         body.paymentInfo = {
@@ -2343,6 +2548,122 @@ export default function Orders() {
                 </div>
               </div>
 
+              {/* Jar Allocation & Delivery Reconciliation Display */}
+              {selectedOrder.jarAllocations && selectedOrder.jarAllocations.length > 0 && (() => {
+                const isDelivered = selectedOrder.status === 'DELIVERED' || selectedOrder.status === 'COMPLETED';
+                const totalAlloc = selectedOrder.jarAllocations.reduce((s, a) => s + a.quantity, 0);
+                const totalDeliv = selectedOrder.jarAllocations.reduce((s, a) => s + (a.deliveredQuantity ?? (isDelivered ? a.quantity : 0)), 0);
+                const totalUndeliv = selectedOrder.jarAllocations.reduce((s, a) => s + (a.undeliveredQuantity ?? 0), 0);
+
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                        {isDelivered ? 'Delivery Summary' : 'Jar Allocation'}
+                      </h5>
+                      <span className="text-[11px] font-bold text-[#1677C8]">
+                        Order quantity: {totalAlloc} {totalAlloc === 1 ? 'jar' : 'jars'}
+                      </span>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] font-black border-b border-slate-200">
+                          <tr>
+                            <th className="p-2.5">Jar Type</th>
+                            <th className="p-2.5">Ownership</th>
+                            <th className="p-2.5 text-right">{isDelivered ? 'Out for Delv' : 'Allocated'}</th>
+                            {isDelivered && (
+                              <>
+                                <th className="p-2.5 text-right text-emerald-700">Delivered</th>
+                                <th className="p-2.5 text-right text-amber-700">Undelivered</th>
+                              </>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                          {selectedOrder.jarAllocations.map((alloc) => {
+                            const isCompany = alloc.jarItem?.ownershipType === 'COMPANY';
+                            const name = isCompany ? 'BioDrops / Company Owned' : (alloc.jarItem?.name || 'Distributor Jar');
+                            const img = isCompany ? '/images/biodrops-jar.png' : alloc.jarItem?.imageUrl;
+                            const deliv = alloc.deliveredQuantity ?? (isDelivered ? alloc.quantity : null);
+                            const undeliv = alloc.undeliveredQuantity ?? 0;
+
+                            return (
+                              <tr key={alloc.id} className="hover:bg-slate-50/50">
+                                <td className="p-2.5 flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+                                    {img ? (
+                                      <img
+                                        src={img}
+                                        alt={name}
+                                        className="w-5 h-5 object-contain"
+                                        onError={(e) => {
+                                          (e.target as HTMLElement).style.display = 'none';
+                                        }}
+                                      />
+                                    ) : (
+                                      <Package className="w-3.5 h-3.5 text-slate-400" />
+                                    )}
+                                  </div>
+                                  <span className="font-bold text-slate-800">{name}</span>
+                                </td>
+                                <td className="p-2.5">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    isCompany ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-purple-50 text-purple-700 border border-purple-200'
+                                  }`}>
+                                    {isCompany ? 'Company' : 'Distributor'}
+                                  </span>
+                                </td>
+                                <td className="p-2.5 text-right font-black text-slate-800">
+                                  {alloc.quantity}
+                                </td>
+                                {isDelivered && (
+                                  <>
+                                    <td className="p-2.5 text-right font-black text-emerald-700">
+                                      {deliv ?? alloc.quantity}
+                                    </td>
+                                    <td className={`p-2.5 text-right font-black ${undeliv > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
+                                      {undeliv}
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot className="bg-slate-50/80 border-t border-slate-200 font-black text-slate-800 text-xs">
+                          <tr>
+                            <td colSpan={2} className="p-2.5 text-slate-600">Total</td>
+                            <td className="p-2.5 text-right">{totalAlloc}</td>
+                            {isDelivered && (
+                              <>
+                                <td className="p-2.5 text-right text-emerald-700">{totalDeliv}</td>
+                                <td className={`p-2.5 text-right ${totalUndeliv > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
+                                  {totalUndeliv}
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+
+                    {isDelivered && selectedOrder.deliveryVerification?.shortDeliveryReason && (
+                      <div className="mt-2.5 p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900">
+                        <span className="font-bold">Reason for short delivery: </span>
+                        {selectedOrder.deliveryVerification.shortDeliveryReason}
+                        {totalUndeliv > 0 && (
+                          <span className="block mt-0.5 text-[11px] text-amber-800">
+                            ✓ {totalUndeliv} {totalUndeliv === 1 ? 'jar' : 'jars'} returned to available inventory.
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Totals & Payments Summary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
@@ -2542,189 +2863,676 @@ export default function Orders() {
       )}
 
       {/* ─── MODAL: UPDATE STATUS ──────────────────────────────────── */}
-      {statusModalOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-slate-800 text-base">
-                Update Order Status
-              </h3>
-              <button
-                type="button"
-                onClick={() => setStatusModalOrder(null)}
-                className="p-1 text-slate-400 hover:text-slate-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {statusModalOrder && (() => {
+        const requiredJars = getOrderJarQuantity(statusModalOrder);
+        const totalAllocated = Object.values(jarAllocationsMap).reduce((s, v) => s + (Number(v) || 0), 0);
+        const remainingJars = requiredJars - totalAllocated;
+        const hasDriverAssigned = Boolean(statusModalOrder.driverId || statusModalOrder.driver);
+        const isAllocationValid = totalAllocated === requiredJars && totalAllocated > 0;
+        const isOverAllocated = totalAllocated > requiredJars;
+        const isUnderAllocated = totalAllocated < requiredJars;
+        const anyStockExceeded = allocationJarItems.some(
+          (item) => (jarAllocationsMap[item.id] || 0) > item.availableQuantity
+        );
+        const isOutForDelivery = newTargetStatus === 'OUT_FOR_DELIVERY';
 
-            <form onSubmit={handleStatusUpdateSubmit} className="space-y-4">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                <span className="text-slate-500 font-semibold">Order: </span>
-                <span className="font-black text-slate-800">#ORD-{formatOrderId(statusModalOrder.id)}</span>
-                <div className="mt-1">
-                  <span className="text-slate-500 font-semibold">Current Status: </span>
-                  {getStatusBadge(statusModalOrder.status)}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  New Status <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={newTargetStatus}
-                  onChange={(e) => setNewTargetStatus(e.target.value)}
-                  required
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8]"
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
+            <div className={`bg-white rounded-3xl border border-slate-200 shadow-2xl w-full p-6 max-h-[90vh] flex flex-col ${
+              isOutForDelivery ? 'max-w-lg' : 'max-w-md'
+            }`}>
+              <div className="flex items-center justify-between mb-4 shrink-0">
+                <h3 className="font-black text-slate-800 text-base">
+                  Update Order Status
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setStatusModalOrder(null)}
+                  className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
-                  {getAllowedStatusTransitions(statusModalOrder.status).map((st) => (
-                    <option key={st} value={st}>
-                      {formatOrderStatus(st)}
-                    </option>
-                  ))}
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              {(newTargetStatus === 'DELIVERED' || newTargetStatus === 'COMPLETED') && (() => {
-                const pst = getOrderPaymentState(statusModalOrder);
-                const partialAmt = Number(deliveryPaymentAmount) || 0;
-                const previewPaid = deliveryPaymentMode === 'FULL' ? pst.due : partialAmt;
-                const previewDue = deliveryPaymentMode === 'FULL' ? 0 : Math.max(0, pst.due - partialAmt);
-                return (
-                  <div className="space-y-3">
-                    {/* Payment Status toggle */}
+              <form onSubmit={handleStatusUpdateSubmit} className="space-y-4 overflow-y-auto pr-1 flex-1">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                  <span className="text-slate-500 font-semibold">Order: </span>
+                  <span className="font-black text-slate-800">#ORD-{formatOrderId(statusModalOrder.id)}</span>
+                  <div className="mt-1 flex items-center justify-between">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        Payment Status <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex gap-2">
+                      <span className="text-slate-500 font-semibold">Current Status: </span>
+                      {getStatusBadge(statusModalOrder.status)}
+                    </div>
+                    {requiredJars > 0 && (
+                      <span className="text-xs font-bold text-[#1677C8]">
+                        {requiredJars} × 20L Jars
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    New Status <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={newTargetStatus}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'DELIVERED') {
+                        const target = statusModalOrder;
+                        setStatusModalOrder(null);
+                        setDeliveryConfirmOrder(target);
+                        return;
+                      }
+                      setNewTargetStatus(val);
+                    }}
+                    required
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8]"
+                  >
+                    {getAllowedStatusTransitions(statusModalOrder.status).map((st) => (
+                      <option key={st} value={st}>
+                        {formatOrderStatus(st)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* ─── OUT_FOR_DELIVERY JAR ALLOCATION SECTION ─── */}
+                {isOutForDelivery && (
+                  <div className="space-y-3 pt-1">
+                    {/* Driver requirement notification */}
+                    {!hasDriverAssigned ? (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start justify-between gap-3 text-xs">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold text-amber-900">Driver Assignment Required</p>
+                            <p className="text-amber-700 text-[11px] mt-0.5">
+                              Assign a driver before moving this order Out for Delivery.
+                            </p>
+                          </div>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => setDeliveryPaymentMode('FULL')}
-                          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                            deliveryPaymentMode === 'FULL'
-                              ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
-                          }`}
+                          onClick={() => {
+                            const ord = statusModalOrder;
+                            setStatusModalOrder(null);
+                            handleOpenDriverModal(ord);
+                          }}
+                          className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shrink-0 cursor-pointer transition shadow-2xs"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Fully Paid
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeliveryPaymentMode('PARTIAL')}
-                          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                            deliveryPaymentMode === 'PARTIAL'
-                              ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300'
-                          }`}
-                        >
-                          <CreditCard className="w-3.5 h-3.5" />
-                          Partial
+                          Assign Driver
                         </button>
                       </div>
-                    </div>
-
-                    {/* Partial amount input */}
-                    {deliveryPaymentMode === 'PARTIAL' && (
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          Amount Paid <span className="text-rose-500">*</span>
-                        </label>
-                        <div className="flex items-center">
-                          <span className="px-2.5 py-2 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-xs font-bold text-slate-600">₹</span>
-                          <input
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            max={pst.due}
-                            placeholder={`Max ₹${pst.due.toFixed(2)}`}
-                            value={deliveryPaymentAmount}
-                            onChange={(e) => setDeliveryPaymentAmount(e.target.value)}
-                            className="flex-1 p-2 bg-white border border-slate-200 rounded-r-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8]"
-                          />
+                    ) : (
+                      <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <div>
+                          <span className="text-slate-500 font-medium">Assigned Driver: </span>
+                          <span className="font-bold text-slate-800">
+                            {statusModalOrder.driver?.name || 'Driver Assigned'}
+                          </span>
+                          {statusModalOrder.driver?.vehicleNumber && (
+                            <span className="text-slate-500 text-[11px] ml-1.5">
+                              ({statusModalOrder.driver.vehicleNumber})
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
 
-                    {/* Payment Method */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
-                      <select
-                        value={deliveryPaymentMethod}
-                        onChange={(e) => setDeliveryPaymentMethod(e.target.value)}
-                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
-                      >
-                        <option value="CASH">Cash</option>
-                        <option value="UPI">UPI</option>
-                        <option value="BANK_TRANSFER">Bank Transfer</option>
-                        <option value="CHEQUE">Cheque</option>
-                        <option value="CARD">Card</option>
-                      </select>
-                    </div>
-
-                    {/* Financial Summary */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
-                      <div className="flex justify-between text-slate-600">
-                        <span>Order Total</span>
-                        <span className="font-bold text-slate-800">₹{pst.total.toFixed(2)}</span>
-                      </div>
-                      {pst.paid > 0 && (
-                        <div className="flex justify-between text-slate-600">
-                          <span>Previously Paid</span>
-                          <span className="font-semibold text-emerald-700">₹{pst.paid.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-slate-600">
-                        <span>Paying Now</span>
-                        <span className="font-bold text-emerald-700">₹{previewPaid.toFixed(2)}</span>
-                      </div>
-                      <div className="border-t border-slate-200 pt-1.5 flex justify-between">
-                        <span className="font-bold text-slate-700">Remaining Due</span>
-                        <span className={`font-black ${previewDue > 0 ? 'text-orange-600' : 'text-emerald-700'}`}>
-                          ₹{previewDue.toFixed(2)}
+                    {/* Allocation Progress & Stats Banner */}
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">
+                          Jar Allocation
+                        </span>
+                        <span
+                          className={`font-black text-xs ${
+                            totalAllocated === requiredJars
+                              ? 'text-emerald-600'
+                              : isOverAllocated
+                              ? 'text-rose-600'
+                              : 'text-[#1677C8]'
+                          }`}
+                        >
+                          {totalAllocated} / {requiredJars} Jars
                         </span>
                       </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-200 rounded-full ${
+                            totalAllocated === requiredJars
+                              ? 'bg-emerald-500'
+                              : isOverAllocated
+                              ? 'bg-rose-500'
+                              : 'bg-[#1677C8]'
+                          }`}
+                          style={{
+                            width: `${Math.min(100, requiredJars > 0 ? (totalAllocated / requiredJars) * 100 : 0)}%`,
+                          }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-slate-200/80">
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Required</span>
+                          <span className="text-xs font-black text-slate-800">{requiredJars}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Allocated</span>
+                          <span
+                            className={`text-xs font-black ${
+                              totalAllocated === requiredJars
+                                ? 'text-emerald-600'
+                                : isOverAllocated
+                                ? 'text-rose-600'
+                                : 'text-slate-800'
+                            }`}
+                          >
+                            {totalAllocated}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Remaining</span>
+                          <span
+                            className={`text-xs font-black ${
+                              remainingJars === 0
+                                ? 'text-emerald-600'
+                                : remainingJars < 0
+                                ? 'text-rose-600'
+                                : 'text-amber-600'
+                            }`}
+                          >
+                            {remainingJars}
+                          </span>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Inventory Items List */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-700">
+                          Available Jar Inventory
+                        </label>
+                        {isLoadingAllocationItems && (
+                          <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Loading stock...
+                          </span>
+                        )}
+                      </div>
+
+                      {allocationJarItems.length === 0 && !isLoadingAllocationItems ? (
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                          No active jar items found in inventory.
+                        </div>
+                      ) : (() => {
+                        const companyItem =
+                          allocationJarItems.find((i) => i.ownershipType === 'COMPANY') ||
+                          allocationJarItems[0];
+                        const distributorItems = allocationJarItems.filter(
+                          (i) => i.id !== companyItem?.id
+                        );
+                        const availableDistributorOptions = distributorItems.filter(
+                          (i) => !selectedDistributorJarIds.includes(i.id)
+                        );
+
+                        return (
+                          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                            {/* 1. Default Permanent Row: Biodrops / Company Owned */}
+                            {companyItem && (() => {
+                              const currentAlloc = jarAllocationsMap[companyItem.id] || 0;
+                              const isStockExceeded = currentAlloc > companyItem.availableQuantity;
+
+                              return (
+                                <div
+                                  key={companyItem.id}
+                                  className={`p-3 rounded-2xl border transition-all ${
+                                    currentAlloc > 0
+                                      ? 'border-[#1677C8] bg-sky-50/30'
+                                      : 'border-slate-200 bg-white hover:border-slate-300'
+                                  } ${isStockExceeded ? 'border-rose-400 bg-rose-50/20' : ''}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-11 h-11 shrink-0 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                                      <img
+                                        src="/images/biodrops-jar.png"
+                                        alt="Biodrops / Company Owned"
+                                        className="w-9 h-9 object-contain"
+                                        onError={(e) => {
+                                          (e.target as HTMLElement).style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                      <h5 className="text-xs font-bold text-slate-800 truncate">
+                                        Biodrops / Company Owned
+                                      </h5>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[11px] font-medium text-slate-500">
+                                          Available:
+                                        </span>
+                                        <span
+                                          className={`text-[11px] font-bold ${
+                                            companyItem.availableQuantity > 0 ? 'text-emerald-700' : 'text-rose-600'
+                                          }`}
+                                        >
+                                          {companyItem.availableQuantity.toLocaleString()}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Stepper */}
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        disabled={currentAlloc <= 0}
+                                        onClick={() => handleStepAllocation(companyItem.id, -1, companyItem.availableQuantity)}
+                                        className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 transition cursor-pointer"
+                                      >
+                                        <Minus className="w-3.5 h-3.5" />
+                                      </button>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={companyItem.availableQuantity}
+                                        value={currentAlloc === 0 ? '' : currentAlloc}
+                                        placeholder="0"
+                                        onChange={(e) => {
+                                          const val = parseInt(e.target.value, 10);
+                                          handleSetAllocationQty(
+                                            companyItem.id,
+                                            isNaN(val) ? 0 : val,
+                                            companyItem.availableQuantity
+                                          );
+                                        }}
+                                        className={`w-14 p-1 text-center font-bold text-xs border rounded-lg outline-none transition ${
+                                          isStockExceeded
+                                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                                            : currentAlloc > 0
+                                            ? 'border-[#1677C8] bg-white text-[#1677C8]'
+                                            : 'border-slate-200 bg-white text-slate-800'
+                                        }`}
+                                      />
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          currentAlloc >= companyItem.availableQuantity ||
+                                          totalAllocated >= requiredJars
+                                        }
+                                        onClick={() => handleStepAllocation(companyItem.id, 1, companyItem.availableQuantity)}
+                                        className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 transition cursor-pointer"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {isStockExceeded && (
+                                    <p className="text-[10px] text-rose-600 font-bold mt-1.5 pl-14">
+                                      Allocation exceeds available stock ({companyItem.availableQuantity}).
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })()}
+
+                            {/* 2. Added Distributor-Owned Jar Rows */}
+                            {selectedDistributorJarIds.map((itemId) => {
+                              const item = allocationJarItems.find((i) => i.id === itemId);
+                              if (!item) return null;
+                              const currentAlloc = jarAllocationsMap[item.id] || 0;
+                              const isStockExceeded = currentAlloc > item.availableQuantity;
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`p-3 rounded-2xl border transition-all ${
+                                    currentAlloc > 0
+                                      ? 'border-[#1677C8] bg-sky-50/30'
+                                      : 'border-slate-200 bg-white hover:border-slate-300'
+                                  } ${isStockExceeded ? 'border-rose-400 bg-rose-50/20' : ''}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-11 h-11 shrink-0 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                                      {item.imageUrl ? (
+                                        <img
+                                          src={item.imageUrl}
+                                          alt={item.name}
+                                          className="w-9 h-9 object-contain"
+                                          onError={(e) => {
+                                            (e.target as HTMLElement).style.display = 'none';
+                                          }}
+                                        />
+                                      ) : (
+                                        <Package className="w-5 h-5 text-slate-400" />
+                                      )}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                      <h5 className="text-xs font-bold text-slate-800 truncate">
+                                        {item.name}
+                                      </h5>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[11px] font-medium text-slate-500">
+                                          Available:
+                                        </span>
+                                        <span
+                                          className={`text-[11px] font-bold ${
+                                            item.availableQuantity > 0 ? 'text-emerald-700' : 'text-rose-600'
+                                          }`}
+                                        >
+                                          {item.availableQuantity.toLocaleString()}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Stepper + Remove Option */}
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          disabled={currentAlloc <= 0}
+                                          onClick={() => handleStepAllocation(item.id, -1, item.availableQuantity)}
+                                          className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 transition cursor-pointer"
+                                        >
+                                          <Minus className="w-3.5 h-3.5" />
+                                        </button>
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={item.availableQuantity}
+                                          value={currentAlloc === 0 ? '' : currentAlloc}
+                                          placeholder="0"
+                                          onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10);
+                                            handleSetAllocationQty(
+                                              item.id,
+                                              isNaN(val) ? 0 : val,
+                                              item.availableQuantity
+                                            );
+                                          }}
+                                          className={`w-14 p-1 text-center font-bold text-xs border rounded-lg outline-none transition ${
+                                            isStockExceeded
+                                              ? 'border-rose-500 bg-rose-50 text-rose-700'
+                                              : currentAlloc > 0
+                                              ? 'border-[#1677C8] bg-white text-[#1677C8]'
+                                              : 'border-slate-200 bg-white text-slate-800'
+                                          }`}
+                                        />
+                                        <button
+                                          type="button"
+                                          disabled={
+                                            currentAlloc >= item.availableQuantity ||
+                                            totalAllocated >= requiredJars
+                                          }
+                                          onClick={() => handleStepAllocation(item.id, 1, item.availableQuantity)}
+                                          className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 transition cursor-pointer"
+                                        >
+                                          <Plus className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveDistributorJar(item.id)}
+                                        className="text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:underline px-1 py-1 transition cursor-pointer"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {isStockExceeded && (
+                                    <p className="text-[10px] text-rose-600 font-bold mt-1.5 pl-14">
+                                      Allocation exceeds available stock ({item.availableQuantity}).
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            {/* 3. Inline Distributor Jar Selector Row */}
+                            {isAddingJar && (
+                              <div className="p-3 rounded-2xl border border-dashed border-[#1677C8] bg-sky-50/40 space-y-2 animate-fade-in">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                                    Distributor Jar
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsAddingJar(false)}
+                                    className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    defaultValue=""
+                                    onChange={(e) => handleAddDistributorJar(e.target.value)}
+                                    className="flex-1 p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8] cursor-pointer"
+                                  >
+                                    <option value="" disabled>Select Jar ▼</option>
+                                    {availableDistributorOptions.map((item) => (
+                                      <option
+                                        key={item.id}
+                                        value={item.id}
+                                        disabled={item.availableQuantity <= 0}
+                                      >
+                                        {item.name} ({item.availableQuantity} available){item.availableQuantity <= 0 ? ' - Out of stock' : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsAddingJar(false)}
+                                    className="px-3 py-2 border border-slate-200 bg-white hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-600 cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 4. Compact "+ Add Jar Item" button */}
+                            {!isAddingJar && availableDistributorOptions.length > 0 && (
+                              <div className="pt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setIsAddingJar(true)}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-[#1677C8] hover:text-[#1264A8] hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  + Add Jar Item
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Live Validation Guidance Message */}
+                    {hasDriverAssigned && (
+                      <div className="pt-1">
+                        {isUnderAllocated && (
+                          <p className="text-xs text-amber-600 font-medium flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            Allocate all {requiredJars} jars before sending the order Out for Delivery. ({remainingJars} remaining)
+                          </p>
+                        )}
+                        {isOverAllocated && (
+                          <p className="text-xs text-rose-600 font-bold flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            Allocated quantity cannot exceed the order quantity of {requiredJars} jars.
+                          </p>
+                        )}
+                        {isAllocationValid && !anyStockExceeded && (
+                          <p className="text-xs text-emerald-600 font-bold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                            Allocation complete! Ready to send Out for Delivery.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                );
-              })()}
+                )}
 
+                {(newTargetStatus === 'DELIVERED' || newTargetStatus === 'COMPLETED') && (() => {
+                  const pst = getOrderPaymentState(statusModalOrder);
+                  const partialAmt = Number(deliveryPaymentAmount) || 0;
+                  const previewPaid = deliveryPaymentMode === 'FULL' ? pst.due : partialAmt;
+                  const previewDue = deliveryPaymentMode === 'FULL' ? 0 : Math.max(0, pst.due - partialAmt);
+                  return (
+                    <div className="space-y-3">
+                      {/* Payment Status toggle */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Payment Status <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setDeliveryPaymentMode('FULL')}
+                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                              deliveryPaymentMode === 'FULL'
+                                ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
+                            }`}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Fully Paid
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeliveryPaymentMode('PARTIAL')}
+                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                              deliveryPaymentMode === 'PARTIAL'
+                                ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300'
+                            }`}
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            Partial
+                          </button>
+                        </div>
+                      </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Reason / Comment (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Dispatched with route #3..."
-                  value={statusReason}
-                  onChange={(e) => setStatusReason(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-[#1677C8]"
-                />
-              </div>
+                      {/* Partial amount input */}
+                      {deliveryPaymentMode === 'PARTIAL' && (
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Amount Paid <span className="text-rose-500">*</span>
+                          </label>
+                          <div className="flex items-center">
+                            <span className="px-2.5 py-2 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-xs font-bold text-slate-600">₹</span>
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              max={pst.due}
+                              placeholder={`Max ₹${pst.due.toFixed(2)}`}
+                              value={deliveryPaymentAmount}
+                              onChange={(e) => setDeliveryPaymentAmount(e.target.value)}
+                              className="flex-1 p-2 bg-white border border-slate-200 rounded-r-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8]"
+                            />
+                          </div>
+                        </div>
+                      )}
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setStatusModalOrder(null)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUpdatingStatus || !newTargetStatus}
-                  className="px-4 py-2 bg-[#1677C8] hover:bg-[#1264A8] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isUpdatingStatus ? 'Updating...' : 'Confirm Update'}
-                </button>
-              </div>
-            </form>
+                      {/* Payment Method */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
+                        <select
+                          value={deliveryPaymentMethod}
+                          onChange={(e) => setDeliveryPaymentMethod(e.target.value)}
+                          className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8]"
+                        >
+                          <option value="CASH">Cash</option>
+                          <option value="UPI">UPI</option>
+                          <option value="BANK_TRANSFER">Bank Transfer</option>
+                          <option value="CHEQUE">Cheque</option>
+                          <option value="CARD">Card</option>
+                        </select>
+                      </div>
+
+                      {/* Financial Summary */}
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                        <div className="flex justify-between text-slate-600">
+                          <span>Order Total</span>
+                          <span className="font-bold text-slate-800">₹{pst.total.toFixed(2)}</span>
+                        </div>
+                        {pst.paid > 0 && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>Previously Paid</span>
+                            <span className="font-semibold text-emerald-700">₹{pst.paid.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-slate-600">
+                          <span>Paying Now</span>
+                          <span className="font-bold text-emerald-700">₹{previewPaid.toFixed(2)}</span>
+                        </div>
+                        <div className="border-t border-slate-200 pt-1.5 flex justify-between">
+                          <span className="font-bold text-slate-700">Remaining Due</span>
+                          <span className={`font-black ${previewDue > 0 ? 'text-orange-600' : 'text-emerald-700'}`}>
+                            ₹{previewDue.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Reason / Comment (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Dispatched with route #3..."
+                    value={statusReason}
+                    onChange={(e) => setStatusReason(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-[#1677C8]"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setStatusModalOrder(null)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      isUpdatingStatus ||
+                      !newTargetStatus ||
+                      (isOutForDelivery &&
+                        (!hasDriverAssigned || !isAllocationValid || anyStockExceeded || isLoadingAllocationItems))
+                    }
+                    className="px-4 py-2 bg-[#1677C8] hover:bg-[#1264A8] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    {isUpdatingStatus
+                      ? 'Updating...'
+                      : isOutForDelivery
+                      ? 'Confirm Out for Delivery'
+                      : 'Confirm Update'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ─── MODAL: RECORD PAYMENT ──────────────────────────────────── */}
       {paymentModalOrder && (
@@ -3241,6 +4049,25 @@ export default function Orders() {
             </form>
           </div>
         </div>
+      )}
+      {/* Delivery Confirmation Modal with PIN verification & reconciliation */}
+      {deliveryConfirmOrder && (
+        <DeliveryConfirmationModal
+          isOpen={Boolean(deliveryConfirmOrder)}
+          onClose={() => setDeliveryConfirmOrder(null)}
+          order={deliveryConfirmOrder}
+          apiPrefix="/orders/distributor"
+          onSuccess={() => {
+            const targetId = deliveryConfirmOrder.id;
+            setDeliveryConfirmOrder(null);
+            loadOrders();
+            if (selectedOrder && selectedOrder.id === targetId) {
+              fetchWithAuth(`/orders/distributor/${targetId}`).then((fresh) => {
+                setSelectedOrder(fresh);
+              }).catch(() => {});
+            }
+          }}
+        />
       )}
       </div>
     </div>

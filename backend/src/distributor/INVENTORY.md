@@ -1,0 +1,13 @@
+﻿# Distributor inventory ownership history
+
+The Inventory page reads `Distributor.companyOwnedJars` and `Distributor.distributorOwnedJars`. These fields describe ownership, not filled/empty stock or physical location. Customer `JarOwnership`, prepaid `JarBalance`, warehouse `Inventory`, and `StockMovement` do not attribute physical movements to a distributor and ownership type. Do not subtract global warehouse deliveries from distributor ownership totals.
+
+Migration `20260928020000_track_distributor_ownership` extends the existing `InventoryLog`. It records a dated opening snapshot of nonzero existing totals, then installs `distributor_ownership_history`, a PostgreSQL trigger recording subsequent inserts and quantity changes atomically. Zero-to-zero changes and image/profile-only edits create no movements. Historical movements before the snapshot are not reconstructed. The source totals are never rewritten by this migration.
+
+`quantity` is the signed ownership change; `balanceAfter` is the recorded post-change ownership total. `sequence` provides stable ordering for same-timestamp transactions. The API returns those stored balances, including when filtering or paging. Incoming/outgoing aggregate filtered ownership adjustments, excluding opening snapshots. They do not represent physical receipts or dispatches.
+
+`GET /distributor/inventory/transactions` requires a distributor JWT and `ownership=COMPANY_OWNED|DISTRIBUTOR_OWNED`. Optional parameters: `page` (1–100000), `limit` (1–100, default 20), `type` (OPENING_BALANCE or ADJUSTMENT), `from`/`to` (inclusive UTC calendar dates), `search` (reference or description, max 120 characters). All reads scope through the signed-in user's Distributor relation. Warehouse log endpoints exclude ownership entries.
+
+Apply migrations using `prisma migrate deploy`, then regenerate the client. Do not substitute `db push`: Prisma's declarative schema does not install the SQL trigger. Staff ownership edits notify only the affected distributor using the existing EventsGateway. The page also refreshes on existing order events, window focus and manual refresh. Direct SQL writes are logged by the trigger but do not emit a socket event.
+
+Validation: `npm.cmd test -- --runInBand distributor-inventory distributor-transactions`. During implementation, live authenticated API checks and rollback-only database tests verified pagination, isolation, 45 successive changes, negative adjustments, zero inventory and real Cloudinary upload/readback. Test stock and image changes were rolled back; the uploaded test asset was removed. No browser was available for visual verification.

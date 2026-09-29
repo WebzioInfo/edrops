@@ -109,6 +109,58 @@ export class DeliveryPaymentInfoDto {
   paymentMethod?: string;
 }
 
+export class JarAllocationDto {
+  @IsString()
+  @IsNotEmpty()
+  jarItemId: string;
+
+  @IsNumber()
+  @Min(1)
+  @Type(() => Number)
+  quantity: number;
+}
+
+export class VerifyDeliveryPinDto {
+  @IsString()
+  @IsNotEmpty()
+  pin: string;
+}
+
+export class DeliveredJarItemDto {
+  @IsString()
+  @IsNotEmpty()
+  jarItemId: string;
+
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveredQuantity: number;
+}
+
+export class CompleteDeliveryDto {
+  @IsOptional()
+  @IsString()
+  pin?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DeliveredJarItemDto)
+  items: DeliveredJarItemDto[];
+
+  @IsOptional()
+  @IsString()
+  shortDeliveryReason?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DeliveryPaymentInfoDto)
+  paymentInfo?: DeliveryPaymentInfoDto;
+}
+
 export class UpdateDistributorOrderStatusDto {
   @IsEnum(OrderStatus)
   @IsNotEmpty()
@@ -122,6 +174,30 @@ export class UpdateDistributorOrderStatusDto {
   @ValidateNested()
   @Type(() => DeliveryPaymentInfoDto)
   paymentInfo?: DeliveryPaymentInfoDto;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => JarAllocationDto)
+  allocations?: JarAllocationDto[];
+
+  @IsOptional()
+  @IsString()
+  pin?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DeliveredJarItemDto)
+  deliveredItems?: DeliveredJarItemDto[];
+
+  @IsOptional()
+  @IsString()
+  shortDeliveryReason?: string;
+
+  @IsOptional()
+  @IsString()
+  deliveryNote?: string;
 }
 
 export class RecordDistributorPaymentDto {

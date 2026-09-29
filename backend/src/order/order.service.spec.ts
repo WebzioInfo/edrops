@@ -37,12 +37,15 @@ describe('OrderService', () => {
       },
       payment: {
         create: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
       },
+      $executeRaw: jest.fn().mockResolvedValue(1),
       $transaction: jest.fn((callback) => callback(prisma)),
     };
 
     notificationService = {
       notifyOrderStatusUpdate: jest.fn(),
+      notifyOrderStatusTransition: jest.fn(),
     };
 
     eventsGateway = {

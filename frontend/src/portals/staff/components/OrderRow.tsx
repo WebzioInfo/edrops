@@ -17,6 +17,7 @@ import {
   Phone,
 } from 'lucide-react';
 import { formatOrderId, formatOrderStatus, formatPaymentDetails, formatDeliverySlot, getOrderPaymentState } from '../../../utils/orderFormatters';
+import { DeliveryConfirmationModal } from '../../../components/DeliveryConfirmationModal';
 
 export interface Distributor {
   id: string;
@@ -68,6 +69,7 @@ export default function OrderRow({
   const [partnerPromptError, setPartnerPromptError] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [paymentCollected, setPaymentCollected] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -645,26 +647,12 @@ export default function OrderRow({
 
                           <button
                             type="button"
-                            disabled={updatingStatus || isAssigning || (isCOD && !paymentCollected)}
-                            onClick={() => {
-                              if (isCOD) {
-                                handleStatusChange('DELIVERED', {
-                                  paymentReceived: true,
-                                  paymentMethod: 'COD',
-                                  amountReceived: order.totalAmount,
-                                });
-                              } else {
-                                handleStatusChange('DELIVERED');
-                              }
-                            }}
-                            className={`w-full px-3 py-2 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 ${
-                              isCOD && !paymentCollected
-                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-60'
-                                : 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer disabled:opacity-50'
-                            }`}
+                            disabled={updatingStatus || isAssigning}
+                            onClick={() => setShowDeliveryModal(true)}
+                            className="w-full px-3 py-2 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 cursor-pointer disabled:opacity-50"
                           >
                             <CheckCircle className="w-3.5 h-3.5" />
-                            <span>{isCOD ? 'Mark Delivered & Confirm Payment' : 'Mark Delivered'}</span>
+                            <span>Complete Delivery (Verify PIN)</span>
                           </button>
                         </div>
                       )}
@@ -857,6 +845,20 @@ export default function OrderRow({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Staff Delivery Confirmation Modal */}
+      {showDeliveryModal && (
+        <DeliveryConfirmationModal
+          isOpen={showDeliveryModal}
+          onClose={() => setShowDeliveryModal(false)}
+          order={order}
+          apiPrefix="/orders"
+          onSuccess={async () => {
+            setShowDeliveryModal(false);
+            await onStatusUpdate(order.id, 'DELIVERED');
+          }}
+        />
       )}
     </div>
   );

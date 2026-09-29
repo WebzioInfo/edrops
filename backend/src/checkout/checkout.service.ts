@@ -18,6 +18,7 @@ import { PromoService } from '../promo/promo.service';
 import { AuditService } from '../audit/audit.service';
 import { EventsGateway } from '../events/events.gateway';
 import { AddressService } from '../address/address.service';
+import { generateDeliveryOtp } from '../order/utils/delivery-otp.util';
 
 @Injectable()
 export class CheckoutService {
@@ -427,6 +428,11 @@ export class CheckoutService {
             dto.paymentMethod === 'WALLET'
               ? PaymentStatus.SUCCESS
               : PaymentStatus.PENDING,
+          deliveryVerification: {
+            create: {
+              otp: generateDeliveryOtp(),
+            },
+          },
           items: {
             create: items.map((item) => ({
               productId: item.productId,

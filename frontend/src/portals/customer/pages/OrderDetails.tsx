@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Download,
   CreditCard,
+  KeyRound,
   X,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
@@ -531,6 +532,96 @@ export default function OrderDetails() {
           {/* RIGHT COLUMN: Payment Breakdown & Quick Actions (4 cols) */}
           <div className="lg:col-span-4 space-y-6">
             
+            {/* Delivery Verification PIN Card (Before Delivery) */}
+            {order.deliveryVerification?.otp && !isCancelled && order.status !== 'DELIVERED' && order.status !== 'COMPLETED' && (
+              <div className="bg-gradient-to-br from-sky-50 via-white to-blue-50/40 rounded-2xl border-2 border-sky-200 p-5 shadow-xs">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-sky-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#1E88E5] text-white flex items-center justify-center font-bold">
+                      <KeyRound className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-[#0F172A]">Delivery Verification</h3>
+                      <p className="text-[11px] text-[#64748B]">Share with driver upon arrival</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 px-2.5 py-1 rounded-full border border-sky-200">
+                    PIN GENERATED
+                  </span>
+                </div>
+
+                <div className="text-center py-3 bg-white rounded-xl border border-sky-100 my-2 shadow-2xs">
+                  <p className="text-[11px] font-semibold text-[#64748B] mb-1">Your Delivery Verification PIN</p>
+                  <div className="text-3xl font-black tracking-widest text-[#1E88E5] font-mono select-all">
+                    {order.deliveryVerification.otp}
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-center text-[#64748B] mt-2">
+                  Give this PIN to the delivery person when your order is delivered to verify handover.
+                </p>
+              </div>
+            )}
+
+            {/* Delivery Completed & Reconciled Card */}
+            {order.deliveryVerification && (order.status === 'DELIVERED' || order.status === 'COMPLETED' || order.deliveryVerification.isVerified) && (
+              <div className="bg-emerald-50/60 rounded-2xl border border-emerald-200 p-5 shadow-xs">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-emerald-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-emerald-950">Delivery Completed</h3>
+                      <p className="text-[11px] text-emerald-700">✓ PIN Verified</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200">
+                    VERIFIED
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center py-2.5 bg-white rounded-xl border border-emerald-100 text-xs">
+                  <div>
+                    <p className="text-[10px] text-[#64748B]">Out for Delivery</p>
+                    <p className="font-bold text-[#0F172A] text-sm">
+                      {order.deliveryVerification.outForDeliveryQty || order.jarAllocations?.reduce((s: number, a: any) => s + (a.quantity || 0), 0) || (order.items?.reduce((s: number, i: any) => s + (i.quantity || 0), 0))} jars
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-emerald-600 font-medium">Delivered</p>
+                    <p className="font-bold text-emerald-700 text-sm">
+                      {order.deliveryVerification.deliveredQty ?? (order.deliveryVerification.outForDeliveryQty || 0)} jars
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[#64748B]">Undelivered</p>
+                    <p className={`font-bold text-sm ${(order.deliveryVerification.undeliveredQty || 0) > 0 ? 'text-amber-600' : 'text-[#64748B]'}`}>
+                      {order.deliveryVerification.undeliveredQty || 0} jar{(order.deliveryVerification.undeliveredQty || 0) === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                </div>
+
+                {order.deliveryVerification.shortDeliveryReason && (
+                  <div className="mt-3 p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900">
+                    <span className="font-semibold">Reason for short delivery:</span> {order.deliveryVerification.shortDeliveryReason}
+                  </div>
+                )}
+
+                {order.deliveryVerification.deliveryNotes && (
+                  <div className="mt-2 text-xs text-[#64748B]">
+                    <span className="font-medium">Delivery Note:</span> {order.deliveryVerification.deliveryNotes}
+                  </div>
+                )}
+
+                {order.deliveredAt && (
+                  <p className="text-[11px] text-[#64748B] mt-2.5 text-right">
+                    Delivered on {new Date(order.deliveredAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Payment Breakdown Card */}
             <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 sm:p-6 shadow-xs">
               <h3 className="font-bold text-base text-[#0F172A] pb-3 mb-4 border-b border-[#F1F5F9]">
