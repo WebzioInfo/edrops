@@ -124,13 +124,13 @@ export class NotificationService {
         },
       });
 
-      // Emit realtime socket event to customer room
+      // Emit realtime socket event to customer room & push notification
       this.dispatcher.dispatch({
         id: notification.id,
         type,
         title,
         message,
-        channels: [NotificationChannel.SOCKET],
+        channels: [NotificationChannel.SOCKET, NotificationChannel.PUSH],
         recipients: {
           userId,
           socketRoom: `user-${userId}`,
@@ -385,6 +385,71 @@ export class NotificationService {
     }
   }
 
+  async notifyDriverAssigned(data: {
+    orderId: string;
+    customerId?: string;
+    userId?: string;
+    driverName: string;
+    driverPhone?: string;
+  }) {
+    let targetUserId = data.userId;
+    if (!targetUserId && data.customerId) {
+      const cust = await this.prisma.customer.findUnique({
+        where: { id: data.customerId },
+        select: { userId: true },
+      });
+      targetUserId = cust?.userId;
+    }
+    if (!targetUserId) return;
+
+    const orderNumber = data.orderId.substring(0, 8).toUpperCase();
+    const eventKey = `order_${data.orderId}_DRIVER_ASSIGNED`;
+
+    await this.sendCustomerNotification({
+      userId: targetUserId,
+      type: NotificationType.DELIVERY_UPDATE,
+      title: 'Driver Assigned',
+      message: `${data.driverName} has been assigned to deliver your order #${orderNumber}.${data.driverPhone ? ` Phone: ${data.driverPhone}` : ''}`,
+      orderId: data.orderId,
+      orderNumber: `#${orderNumber}`,
+      link: `/customer/orders/${data.orderId}`,
+      eventKey,
+      metadata: {
+        orderId: data.orderId,
+        orderNumber: `#${orderNumber}`,
+        driverName: data.driverName,
+        driverPhone: data.driverPhone,
+      },
+    });
+  }
+
+  async notifyDistributorOrderAssigned(data: {
+    orderId: string;
+    distributorUserId: string;
+    orderNumber?: string;
+  }) {
+    const orderNumber = data.orderNumber || data.orderId.substring(0, 8).toUpperCase();
+    const eventKey = `distributor_${data.distributorUserId}_order_${data.orderId}_ASSIGNED`;
+
+    this.dispatcher.dispatch({
+      id: crypto.randomUUID(),
+      type: 'DISTRIBUTOR_ORDER_ASSIGNED',
+      title: 'New Order Assigned',
+      message: `Order #${orderNumber} has been assigned to you for delivery.`,
+      channels: [NotificationChannel.SOCKET, NotificationChannel.PUSH],
+      recipients: {
+        userId: data.distributorUserId,
+        socketRoom: `distributor:${data.distributorUserId}`,
+      },
+      data: {
+        orderId: data.orderId,
+        orderNumber: `#${orderNumber}`,
+        link: '/distributor/orders',
+        eventKey,
+      },
+    });
+  }
+
   // Keep existing methods for backward compatibility if needed by generic CRUD controllers
   create(createNotificationDto: CreateNotificationDto) {
     return this.prisma.notification.create({
@@ -484,7 +549,7 @@ export class NotificationService {
       title: 'Order Status Updated',
       message: `Your order ${data.orderId.substring(0, 8).toUpperCase()} is now ${data.newStatus.replace(/_/g, ' ')}.`,
       channels: targetUserId
-        ? [NotificationChannel.SOCKET, NotificationChannel.DATABASE]
+        ? [NotificationChannel.SOCKET, NotificationChannel.DATABASE, NotificationChannel.PUSH]
         : [NotificationChannel.SOCKET],
       recipients: {
         userId: targetUserId,
@@ -624,7 +689,7 @@ export class NotificationService {
       type: 'LOW_BALANCE',
       title: 'Low prepaid jar balance!',
       message: `You only have ${data.balance} jars remaining in your prepaid balance. Please purchase a new package to prevent delivery interruptions.`,
-      channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
+      channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE, NotificationChannel.PUSH],
       recipients: {
         userId: data.customerId,
         socketRoom: `customer-${data.customerId}`,
@@ -709,7 +774,7 @@ export class NotificationService {
       type: 'RECHARGE_SUCCESS',
       title: 'Wallet Recharge Successful',
       message: `Your wallet has been recharged with ₹${data.amount}.`,
-      channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
+      channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE, NotificationChannel.PUSH],
       recipients: {
         userId: data.customerId,
         socketRoom: `customer-${data.customerId}`,
@@ -732,7 +797,7 @@ export class NotificationService {
       type: 'RECHARGE_SUCCESS',
       title: 'Prepaid Jars Recharged!',
       message: `Successfully purchased package. Added ${data.jarsAdded} jars to your balance. Your new prepaid jar balance is ${data.balanceAfter} jars.`,
-      channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE],
+      channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE, NotificationChannel.PUSH],
       recipients: {
         userId: data.customerId,
         socketRoom: `customer-${data.customerId}`,

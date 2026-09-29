@@ -1416,6 +1416,10 @@ export class OrderService {
       });
       this.eventsGateway.server?.to('staff-notifications').emit('order:assigned', updatedOrder);
       this.eventsGateway.server?.to('staff-notifications').emit('order:updated', updatedOrder);
+      this.notificationService.notifyDistributorOrderAssigned({
+        orderId,
+        distributorUserId: distributorId,
+      });
     } catch (e) {
       console.warn('[OrderService] Staff assign realtime broadcast warning:', e);
     }
@@ -3216,6 +3220,16 @@ export class OrderService {
 
       return updated;
     });
+
+    if (assignedDriver && updatedOrder.customer?.user?.id) {
+      this.notificationService.notifyDriverAssigned({
+        orderId,
+        customerId: updatedOrder.customerId,
+        userId: updatedOrder.customer.user.id,
+        driverName: assignedDriver.name,
+        driverPhone: assignedDriver.phone,
+      }).catch((e) => console.warn('[OrderService] notifyDriverAssigned error:', e));
+    }
 
     const totalQty = updatedOrder.items.reduce((sum, item) => sum + item.quantity, 0);
     const paidAmount = updatedOrder.payments

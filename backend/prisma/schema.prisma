@@ -50,6 +50,7 @@ model User {
   distributorOrderSkips DistributorOrderSkip[] @relation("DistributorOrderSkips")
   distributorPincodes   DistributorPincode[]   @relation("DistributorPincodes")
   verifiedDeliveries    OrderDeliveryVerification[] @relation("VerifiedDeliveries")
+  pushSubscriptions     PushSubscription[]
 
   @@index([email])
   @@index([phone])
@@ -399,6 +400,27 @@ model Notification {
   @@index([userId, status])
   @@index([orderId])
   @@index([createdAt])
+}
+
+model PushSubscription {
+  id         String    @id @default(uuid())
+  userId     String
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  device     String?
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lastUsedAt DateTime?
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([endpoint])
+  @@map("push_subscriptions")
 }
 
 model Settings {

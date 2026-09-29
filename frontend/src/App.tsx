@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React, { Suspense, useState } from 'react';
 import PWAInstallPrompt from './components/pwa/PWAInstallPrompt';
+import PushNotificationPrompt from './components/notifications/PushNotificationPrompt';
 import SplashScreen from './components/pwa/SplashScreen';
 import { DialogProvider } from './contexts/DialogContext';
 
@@ -119,6 +120,7 @@ export default function App() {
                 </Suspense>
               </PullToRefresh>
               <PWAInstallPrompt />
+              <PushNotificationPrompt />
             </BrowserRouter>
           </SocketProvider>
         </DialogProvider>

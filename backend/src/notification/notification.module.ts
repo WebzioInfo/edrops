@@ -11,6 +11,7 @@ import { DatabaseProvider } from './providers/database.provider';
 import { EmailProvider } from './providers/email.provider';
 import { PushProvider } from './providers/push.provider';
 import { WhatsAppProvider } from './providers/whatsapp.provider';
+import { WebPushService } from './web-push.service';
 import { EventsModule } from '../events/events.module';
 // The project already uses @nestjs-modules/mailer somewhere, but if not we can dynamically inject MailerService.
 // Since it's in package.json, we assume MailerModule is imported in AppModule.
@@ -21,6 +22,7 @@ import { EventsModule } from '../events/events.module';
   providers: [
     NotificationService,
     StaffNotificationService,
+    WebPushService,
     NotificationDispatcher,
     SlackProvider,
     SocketProvider,
@@ -29,7 +31,7 @@ import { EventsModule } from '../events/events.module';
     PushProvider,
     WhatsAppProvider,
   ],
-  exports: [NotificationService, StaffNotificationService], // Exported for use in other modules
+  exports: [NotificationService, StaffNotificationService, WebPushService], // Exported for use in other modules
 })
 export class NotificationModule implements OnModuleInit {
   constructor(

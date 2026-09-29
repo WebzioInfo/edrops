@@ -6,6 +6,7 @@ import { Shield, Wallet, ShoppingBag, Truck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AccountDetailsForm from './profile/AccountDetailsForm';
 import ChangePasswordForm from './profile/ChangePasswordForm';
+import NotificationSettingsCard from '../components/notifications/NotificationSettingsCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { AdminTopbar } from '../portals/admin/components/AdminTopbar';
 import ProfileAvatarSection from '../components/common/ProfileAvatarSection';
@@ -113,6 +114,7 @@ export default function Profile() {
         <div className="space-y-6 sm:space-y-8 order-2 lg:order-1">
           <AccountDetailsForm profile={profile} onRefresh={loadProfile} />
           <ChangePasswordForm email={profile.email} />
+          <NotificationSettingsCard />
         </div>
 
         {/* Right Column: Stats - Order 1 on mobile (stacked), Order 2 on desktop */}

@@ -13,11 +13,52 @@ import {
 import { NotificationService } from './notification.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
+import { SubscribePushDto, UnsubscribePushDto } from './dto/push-subscription.dto';
+import { WebPushService } from './web-push.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller(['notification', 'notifications'])
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    private readonly webPushService: WebPushService,
+  ) {}
+
+  // =========================================================================
+  // PUSH NOTIFICATION ENDPOINTS (WEB PUSH / VAPID)
+  // =========================================================================
+
+  @Get('push/public-key')
+  getPushPublicKey() {
+    return this.webPushService.getPublicKey();
+  }
+
+  @Get('push/status')
+  @UseGuards(JwtAuthGuard)
+  getPushStatus(@Req() req: any) {
+    const userId = req.user?.id || req.user?.sub;
+    return this.webPushService.getStatus(userId);
+  }
+
+  @Post('push/subscribe')
+  @UseGuards(JwtAuthGuard)
+  subscribePush(@Req() req: any, @Body() dto: SubscribePushDto) {
+    const userId = req.user?.id || req.user?.sub;
+    return this.webPushService.subscribe(userId, dto);
+  }
+
+  @Delete('push/unsubscribe')
+  @Post('push/unsubscribe')
+  @UseGuards(JwtAuthGuard)
+  unsubscribePush(
+    @Req() req: any,
+    @Body() dto?: UnsubscribePushDto,
+    @Query('endpoint') queryEndpoint?: string,
+  ) {
+    const userId = req.user?.id || req.user?.sub;
+    const endpoint = dto?.endpoint || queryEndpoint || req.body?.endpoint;
+    return this.webPushService.unsubscribe(userId, endpoint);
+  }
 
   // =========================================================================
   // CUSTOMER NOTIFICATION ENDPOINTS

@@ -96,11 +96,23 @@ export default function CustomerNotificationDropdown() {
     socket.on('DELIVERY_COMPLETED', handleIncomingEvent);
     socket.on('PAYMENT_SUCCESS', handleIncomingEvent);
 
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'PUSH_NOTIFICATION_FOREGROUND') {
+        loadNotifications(false);
+      }
+    };
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    }
+
     return () => {
       socket.off('ORDER_STATUS_CHANGED', handleIncomingEvent);
       socket.off('ORDER_PLACED', handleIncomingEvent);
       socket.off('DELIVERY_COMPLETED', handleIncomingEvent);
       socket.off('PAYMENT_SUCCESS', handleIncomingEvent);
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      }
     };
   }, [socket, user, loadNotifications]);
 
