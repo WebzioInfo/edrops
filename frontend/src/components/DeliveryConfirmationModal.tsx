@@ -46,6 +46,8 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
 
   // Delivered quantities mapping: jarItemId -> deliveredQty
   const [deliveredQuantities, setDeliveredQuantities] = useState<Record<string, number>>({});
+  // Returned empty jars mapping: jarItemId -> returnedQty
+  const [returnedQuantities, setReturnedQuantities] = useState<Record<string, number>>({});
   const [shortReason, setShortReason] = useState(SHORT_DELIVERY_REASONS[0]);
   const [otherReasonText, setOtherReasonText] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
@@ -66,6 +68,7 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
       setPinError(null);
       setIsLegacyOrder(false);
       setDeliveredQuantities({});
+      setReturnedQuantities({});
       setOtherReasonText('');
       setDeliveryNotes('');
       return;
@@ -73,12 +76,15 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
 
     // Initialize delivered quantities to match out-for-delivery allocations
     const initialDelivered: Record<string, number> = {};
+    const initialReturned: Record<string, number> = {};
     if (order.jarAllocations && order.jarAllocations.length > 0) {
       order.jarAllocations.forEach((alloc: any) => {
         initialDelivered[alloc.jarItemId] = alloc.quantity;
+        initialReturned[alloc.jarItemId] = 0;
       });
     }
     setDeliveredQuantities(initialDelivered);
+    setReturnedQuantities(initialReturned);
 
     // Auto-focus the PIN input
     setTimeout(() => {
@@ -94,7 +100,12 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
     (sum: number, a: any) => sum + (Number(deliveredQuantities[a.jarItemId]) ?? a.quantity),
     0
   );
+  const totalReturned = allocations.reduce(
+    (sum: number, a: any) => sum + (Number(returnedQuantities[a.jarItemId]) || 0),
+    0
+  );
   const totalUndelivered = Math.max(0, totalOut - totalDelivered);
+  const netWithCustomer = totalDelivered - totalReturned;
   const isShortDelivery = totalDelivered < totalOut;
 
   const effectiveShortReason =
@@ -150,6 +161,15 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
     });
   };
 
+  // Stepper handlers for empty jars returned per jar
+  const handleReturnQuantityChange = (jarItemId: string, delta: number) => {
+    setReturnedQuantities((prev) => {
+      const current = prev[jarItemId] ?? 0;
+      const next = Math.max(0, current + delta);
+      return { ...prev, [jarItemId]: next };
+    });
+  };
+
   // Handle final delivery completion submission
   const handleConfirmDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,9 +203,16 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
         deliveredQuantity: deliveredQuantities[alloc.jarItemId] ?? alloc.quantity,
       }));
 
+      const returnedItemsPayload = allocations.map((alloc: any) => ({
+        jarItemId: alloc.jarItemId,
+        returnedQuantity: returnedQuantities[alloc.jarItemId] ?? 0,
+      }));
+
       const payload: any = {
         pin: pin || '0000',
         items: itemsPayload,
+        returnedItems: returnedItemsPayload,
+        returnedQuantity: totalReturned,
         shortDeliveryReason: isShortDelivery ? effectiveShortReason : undefined,
         note: deliveryNotes.trim() || undefined,
       };
@@ -205,8 +232,8 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
 
       toast.success(
         isShortDelivery
-          ? `Delivery completed with reconciliation (${totalDelivered}/${totalOut} jars)`
-          : 'Order delivered successfully!'
+          ? `Delivery completed with reconciliation (${totalDelivered}/${totalOut} jars, ${totalReturned} returned)`
+          : `Order delivered successfully! (${totalDelivered} delivered, ${totalReturned} returned)`
       );
       onSuccess();
       onClose();
@@ -344,58 +371,105 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
             </div>
 
             {/* Jar Rows */}
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {allocations.map((alloc: any) => {
                 const jarItem = alloc.jarItem;
                 const isCompany = jarItem?.ownershipType === 'COMPANY';
                 const displayName = isCompany ? 'Biodrops / Company Owned' : (jarItem?.name || 'Distributor Jar');
                 const outQty = alloc.quantity;
                 const delivered = deliveredQuantities[alloc.jarItemId] ?? outQty;
+                const returned = returnedQuantities[alloc.jarItemId] ?? 0;
+                const netHolding = delivered - returned;
 
                 return (
                   <div
                     key={alloc.id}
-                    className="p-3 bg-slate-50/70 border border-slate-200 rounded-2xl flex items-center justify-between gap-3"
+                    className="p-3.5 bg-slate-50/70 border border-slate-200 rounded-2xl space-y-3"
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-slate-900 truncate">
-                          {displayName}
-                        </span>
-                        {isCompany && (
-                          <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-1.5 py-0.2 rounded">
-                            Standard
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-slate-900 truncate">
+                            {displayName}
                           </span>
-                        )}
+                          {isCompany && (
+                            <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-1.5 py-0.2 rounded">
+                              Standard
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Out for Delivery: <span className="font-bold text-slate-700">{outQty}</span>
+                        </p>
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Out for Delivery: <span className="font-bold text-slate-700">{outQty}</span>
-                      </p>
+
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                          Net Customer Jar Δ
+                        </span>
+                        <span className={`text-xs font-black tabular-nums ${netHolding >= 0 ? 'text-[#1677C8]' : 'text-amber-600'}`}>
+                          {netHolding >= 0 ? `+${netHolding}` : netHolding} jars
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Stepper */}
-                    <div className="flex items-center gap-1.5 shrink-0 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => handleQuantityChange(alloc.jarItemId, outQty, -1)}
-                        disabled={delivered <= 0}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {/* Delivered Stepper */}
+                      <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-emerald-700">Delivered</span>
+                          <span className="text-[11px] text-slate-400 font-medium">To Customer</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(alloc.jarItemId, outQty, -1)}
+                            disabled={delivered <= 0}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-7 text-center text-xs font-black text-emerald-700 tabular-nums">
+                            {delivered}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(alloc.jarItemId, outQty, 1)}
+                            disabled={delivered >= outQty}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
 
-                      <span className="w-8 text-center text-xs font-black text-slate-800">
-                        {delivered}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => handleQuantityChange(alloc.jarItemId, outQty, 1)}
-                        disabled={delivered >= outQty}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Returned Stepper */}
+                      <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-indigo-700">Returned Empty</span>
+                          <span className="text-[11px] text-slate-400 font-medium">Collected Back</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleReturnQuantityChange(alloc.jarItemId, -1)}
+                            disabled={returned <= 0}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-7 text-center text-xs font-black text-indigo-700 tabular-nums">
+                            {returned}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleReturnQuantityChange(alloc.jarItemId, 1)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -403,9 +477,9 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
             </div>
 
             {/* Reconciliation Totals Summary Bar */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
               <div>
-                <p className="text-[10px] uppercase font-bold text-slate-500">Out for Delivery</p>
+                <p className="text-[10px] uppercase font-bold text-slate-500">Dispatched</p>
                 <p className="text-sm font-black text-slate-800 mt-0.5">{totalOut}</p>
               </div>
               <div>
@@ -413,9 +487,13 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
                 <p className="text-sm font-black text-emerald-700 mt-0.5">{totalDelivered}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase font-bold text-slate-500">Undelivered</p>
-                <p className={`text-sm font-black mt-0.5 ${totalUndelivered > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
-                  {totalUndelivered}
+                <p className="text-[10px] uppercase font-bold text-indigo-600">Returned</p>
+                <p className="text-sm font-black text-indigo-700 mt-0.5">{totalReturned}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-slate-500">Net Customer Δ</p>
+                <p className={`text-sm font-black mt-0.5 ${netWithCustomer >= 0 ? 'text-[#1677C8]' : 'text-amber-600'}`}>
+                  {netWithCustomer >= 0 ? `+${netWithCustomer}` : netWithCustomer}
                 </p>
               </div>
             </div>

@@ -67,6 +67,15 @@ export class CustomerController {
     );
   }
 
+  @Post(':id/resend-setup-link')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DISTRIBUTOR)
+  resendSetupLink(@Param('id') id: string, @Request() req) {
+    return this.customerService.resendSetupLink(
+      id,
+      req.user?.userId || req.user?.id,
+    );
+  }
+
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR)
   findAll() {

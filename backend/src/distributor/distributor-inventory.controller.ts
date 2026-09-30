@@ -20,6 +20,11 @@ import { multerOptions } from '../config/multer.config';
 import type { MulterFile } from '../config/cloudinary.service';
 import { DistributorInventoryService } from './distributor-inventory.service';
 import { CreateJarItemDto, UpdateJarItemDto } from './dto/distributor-jar-item.dto';
+import {
+  MoveJarStateDto,
+  AdjustJarStockDto,
+  CustomerJarReturnDto,
+} from './dto/distributor-inventory-actions.dto';
 
 @Controller('distributor/inventory')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -72,6 +77,35 @@ export class DistributorInventoryController {
     @Query() query: InventoryTransactionsQuery,
   ) {
     return this.inventory.getTransactions(req.user.id, query);
+  }
+
+  @Post('move')
+  moveJarState(
+    @Req() req: { user: { id: string } },
+    @Body() dto: MoveJarStateDto,
+  ) {
+    return this.inventory.moveJarState(req.user.id, dto);
+  }
+
+  @Post('customer-return')
+  customerJarReturn(
+    @Req() req: { user: { id: string } },
+    @Body() dto: CustomerJarReturnDto,
+  ) {
+    return this.inventory.customerJarReturn(req.user.id, dto);
+  }
+
+  @Post('adjust')
+  adjustJarStock(
+    @Req() req: { user: { id: string } },
+    @Body() dto: AdjustJarStockDto,
+  ) {
+    return this.inventory.adjustJarStock(req.user.id, dto);
+  }
+
+  @Get('reconciliation')
+  getReconciliation(@Req() req: { user: { id: string } }) {
+    return this.inventory.getReconciliation(req.user.id);
   }
 
   @Post('image')

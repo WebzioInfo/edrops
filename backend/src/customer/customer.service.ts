@@ -1,14 +1,17 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { MailService } from '../mail/mail.service';
+import { AccountStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class CustomerService {
+  private readonly logger = new Logger(CustomerService.name);
+
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
@@ -42,6 +45,7 @@ export class CustomerService {
       referredById,
       password,
       generateRandomPassword,
+      sendSetupLink,
     } = createCustomerDto;
 
     // Validation
@@ -68,12 +72,32 @@ export class CustomerService {
       }
     }
 
-    // Password
-    let rawPassword = password;
-    if (generateRandomPassword || !rawPassword) {
-      rawPassword = crypto.randomBytes(6).toString('hex');
+    // Account activation / password setup logic
+    // Any customer created with an email defaults to PENDING_PASSWORD_SETUP flow
+    const requiresSetup = Boolean(email);
+    const accountStatus = requiresSetup
+      ? AccountStatus.PENDING_PASSWORD_SETUP
+      : AccountStatus.ACTIVE;
+
+    // Password: NEVER expose or return plaintext password.
+    // If pending setup, use an unguessable crypto random hash so passwordHash is never null/empty
+    const effectivePassword =
+      password && !requiresSetup ? password : crypto.randomBytes(32).toString('hex');
+    const passwordHash = await bcrypt.hash(effectivePassword, 10);
+
+    // Cryptographically secure one-time activation token (32 bytes = 64 hex chars)
+    let rawActivationToken: string | null = null;
+    let activationTokenHash: string | null = null;
+    let activationExpiresAt: Date | null = null;
+
+    if (requiresSetup) {
+      rawActivationToken = crypto.randomBytes(32).toString('hex');
+      activationTokenHash = crypto
+        .createHash('sha256')
+        .update(rawActivationToken)
+        .digest('hex');
+      activationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     }
-    const passwordHash = await bcrypt.hash(rawPassword, 10);
 
     const initialJars =
       jars_at_customer !== undefined
@@ -138,9 +162,23 @@ export class CustomerService {
           gender,
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
           passwordHash,
+          accountStatus,
           role: 'CUSTOMER',
         },
       });
+
+      // 1b. Create Password Setup Token if activation is required
+      if (requiresSetup && activationTokenHash && activationExpiresAt) {
+        await tx.passwordSetupToken.create({
+          data: {
+            userId: user.id,
+            tokenHash: activationTokenHash,
+            expiresAt: activationExpiresAt,
+            createdBy: createdByUserId,
+            purpose: 'ACCOUNT_ACTIVATION',
+          },
+        });
+      }
 
       // 2. Create Customer
       const customer = await tx.customer.create({
@@ -220,14 +258,33 @@ export class CustomerService {
       }
 
       // 7. Audit Log
-      if (createdByUserId) {
+      await tx.auditLog.create({
+        data: {
+          userId: createdByUserId || user.id,
+          action: 'CUSTOMER_ACCOUNT_CREATED',
+          entityType: 'Customer',
+          entityId: customer.id,
+          newValues: {
+            phone,
+            email,
+            customerType,
+            accountStatus,
+            createdFrom,
+          },
+        },
+      });
+
+      if (requiresSetup && activationExpiresAt) {
         await tx.auditLog.create({
           data: {
-            userId: createdByUserId,
-            action: 'CREATE_CUSTOMER',
-            entityType: 'Customer',
-            entityId: customer.id,
-            newValues: { phone, email, customerType },
+            userId: createdByUserId || user.id,
+            action: 'PASSWORD_SETUP_LINK_SENT',
+            entityType: 'User',
+            entityId: user.id,
+            newValues: {
+              email,
+              expiresAt: activationExpiresAt,
+            },
           },
         });
       }
@@ -254,22 +311,104 @@ export class CustomerService {
     });
 
     if (result.user.email) {
-      this.mailService.sendWelcomeEmail(result.user).catch(() => {});
+      if (requiresSetup && rawActivationToken) {
+        this.mailService
+          .sendAccountSetupEmail(result.user, rawActivationToken)
+          .catch((err) => {
+            this.logger.error(
+              `Failed to send account setup email to ${result.user.email}: ${err.message}`,
+            );
+          });
+      } else {
+        this.mailService.sendWelcomeEmail(result.user).catch(() => {});
+      }
     }
 
     const referringDistName = referringDistributor
-      ? referringDistributor.agencyName || (referringDistributor.user ? `${referringDistributor.user.firstName} ${referringDistributor.user.lastName}`.trim() : undefined)
+      ? referringDistributor.agencyName ||
+        (referringDistributor.user
+          ? `${referringDistributor.user.firstName} ${referringDistributor.user.lastName}`.trim()
+          : undefined)
       : undefined;
 
     return {
       success: true,
-      message: 'Customer created successfully',
+      message: requiresSetup
+        ? `Customer created successfully. Password setup link sent to ${result.user.email}.`
+        : 'Customer created successfully',
       customerName: `${result.user.firstName} ${result.user.lastName}`,
       customerId: result.customer.id,
       referralCode: appliedReferralCode || undefined,
       referredByDistributorId: referringDistributor?.id || undefined,
       referredByDistributorName: referringDistName,
-      password: rawPassword, // Returning generated password to the admin/staff so they can share it
+      activationPending: requiresSetup,
+      activationEmailSent: requiresSetup,
+    };
+  }
+
+  async resendSetupLink(customerId: string, staffUserId?: string) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      include: { user: true },
+    });
+
+    if (!customer || !customer.user) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    if (!customer.user.email) {
+      throw new BadRequestException('Customer does not have an email address to send setup link to.');
+    }
+
+    if (customer.user.accountStatus === AccountStatus.ACTIVE) {
+      throw new BadRequestException('Customer account is already activated.');
+    }
+
+    // Invalidate existing unused tokens for this user
+    await this.prisma.passwordSetupToken.updateMany({
+      where: {
+        userId: customer.user.id,
+        usedAt: null,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
+    // Generate new 32-byte crypto token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await this.prisma.passwordSetupToken.create({
+      data: {
+        userId: customer.user.id,
+        tokenHash,
+        expiresAt,
+        createdBy: staffUserId,
+        purpose: 'ACCOUNT_ACTIVATION',
+      },
+    });
+
+    if (staffUserId) {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: staffUserId,
+          action: 'PASSWORD_SETUP_LINK_RESENT',
+          entityType: 'User',
+          entityId: customer.user.id,
+          newValues: { email: customer.user.email, expiresAt },
+        },
+      });
+    }
+
+    await this.mailService.sendAccountSetupEmail(customer.user, rawToken).catch((err) => {
+      this.logger.error(`Failed to send account setup email: ${err.message}`);
+    });
+
+    return {
+      success: true,
+      message: `Password setup link sent to ${customer.user.email}`,
     };
   }
 

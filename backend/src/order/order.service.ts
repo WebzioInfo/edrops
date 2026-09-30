@@ -2134,14 +2134,15 @@ export class OrderService {
           if (!dbItem || dbItem.distributorId !== distributor.id) {
             throw new ForbiddenException('Invalid or unauthorized jar inventory item');
           }
-          const availableStock = dbItem.ownedQuantity - dbItem.reservedQuantity;
+          const availableStock = dbItem.filledYardQuantity - dbItem.reservedQuantity;
           if (alloc.quantity > availableStock) {
             const displayName = dbItem.ownershipType === 'COMPANY' ? 'Biodrops' : dbItem.name;
-            throw new BadRequestException(`Only ${availableStock} ${displayName} jars are available.`);
+            throw new BadRequestException(`Only ${availableStock} ${displayName} jars are available in yard.`);
           }
         }
 
-        // Persist jar allocations and update inventory reservation
+        // Persist jar allocations and update physical jar state:
+        // Jars physically leave the yard and move to customer custody (OUT_FOR_DELIVERY)
         await tx.orderJarAllocation.deleteMany({ where: { orderId } });
 
         const orderRef = `ORD-${freshOrder.id.slice(0, 8).toUpperCase()}`;
@@ -2154,17 +2155,21 @@ export class OrderService {
               orderId,
               jarItemId: dbItem.id,
               quantity: alloc.quantity,
+              deliveredQuantity: null,
+              undeliveredQuantity: null,
+              returnedQuantity: 0,
             },
           });
 
+          // State transition: FILLED_YARD -> CUSTOMER
+          // Total ownership (ownedQuantity) is preserved!
           await tx.jarInventoryItem.update({
             where: { id: dbItem.id },
             data: {
-              reservedQuantity: { increment: alloc.quantity },
+              filledYardQuantity: { decrement: alloc.quantity },
+              customerQuantity: { increment: alloc.quantity },
             },
           });
-
-          const balanceAfter = dbItem.ownedQuantity - (dbItem.reservedQuantity + alloc.quantity);
 
           await tx.inventoryLog.create({
             data: {
@@ -2172,10 +2177,15 @@ export class OrderService {
               jarItemId: dbItem.id,
               ownership: dbItem.ownershipType === 'COMPANY' ? 'COMPANY_OWNED' : 'DISTRIBUTOR_OWNED',
               action: 'OUT_FOR_DELIVERY',
-              quantity: -alloc.quantity,
-              balanceAfter,
+              fromState: 'FILLED_YARD',
+              toState: 'CUSTOMER',
+              quantity: alloc.quantity,
+              balanceAfter: dbItem.ownedQuantity,
               referenceId: orderRef,
-              description: `${alloc.quantity} jars dispatched for delivery`,
+              orderId: freshOrder.id,
+              customerId: freshOrder.customerId,
+              description: `${alloc.quantity} jars dispatched for delivery (Yard -> Customer)`,
+              createdById: distributorUserId,
             },
           });
         }
@@ -2195,20 +2205,25 @@ export class OrderService {
           const updatedItem = await tx.jarInventoryItem.update({
             where: { id: alloc.jarItemId },
             data: {
-              reservedQuantity: { decrement: alloc.quantity },
+              customerQuantity: { decrement: alloc.quantity },
+              filledYardQuantity: { increment: alloc.quantity },
             },
           });
-          const balanceAfter = updatedItem.ownedQuantity - updatedItem.reservedQuantity;
           await tx.inventoryLog.create({
             data: {
               distributorId: alloc.jarItem.distributorId,
               jarItemId: alloc.jarItemId,
               ownership: alloc.jarItem.ownershipType === 'COMPANY' ? 'COMPANY_OWNED' : 'DISTRIBUTOR_OWNED',
-              action: 'ALLOCATION_RELEASED',
+              action: 'ORDER_CANCELLED',
+              fromState: 'CUSTOMER',
+              toState: 'FILLED_YARD',
               quantity: alloc.quantity,
-              balanceAfter,
+              balanceAfter: updatedItem.ownedQuantity,
               referenceId: orderRef,
-              description: `Order #${orderRef} cancelled, released ${alloc.quantity} reserved jars`,
+              orderId: freshOrder.id,
+              customerId: freshOrder.customerId,
+              description: `Order #${orderRef} cancelled while out for delivery: ${alloc.quantity} jars returned to yard`,
+              createdById: distributorUserId,
             },
           });
         }
@@ -2370,9 +2385,9 @@ export class OrderService {
       });
 
       // Attach authoritative computed payment fields
-      const totalPaid = res.payments
-        .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
-        .reduce((sum, p) => sum + p.amount, 0);
+      const totalPaid = (res.payments || [])
+        .filter((p: any) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum: number, p: any) => sum + p.amount, 0);
       const amountDue = Math.max(0, Number((res.totalAmount - totalPaid).toFixed(2)));
 
       return {
@@ -2540,8 +2555,26 @@ export class OrderService {
       itemDeliveredMap.set(item.jarItemId, qty);
     }
 
+    // Process empty returns
+    const returnedDto = dto.returnedItems || [];
+    const itemReturnedMap = new Map<string, number>();
+    for (const r of returnedDto) {
+      const q = Number(r.returnedQuantity);
+      if (!isNaN(q) && q >= 0 && Number.isInteger(q)) {
+        itemReturnedMap.set(r.jarItemId, q);
+      }
+    }
+    // Flat returnedQuantity fallback
+    if (returnedDto.length === 0 && dto.returnedQuantity !== undefined) {
+      const q = Number(dto.returnedQuantity);
+      if (!isNaN(q) && q > 0 && allocations.length > 0) {
+        itemReturnedMap.set(allocations[0].jarItemId, q);
+      }
+    }
+
     let totalOut = 0;
     let totalDelivered = 0;
+    let totalReturned = 0;
 
     for (const alloc of allocations) {
       totalOut += alloc.quantity;
@@ -2559,9 +2592,18 @@ export class OrderService {
         );
       }
       totalDelivered += deliveredQty;
+      totalReturned += itemReturnedMap.get(alloc.jarItemId) ?? 0;
     }
 
     const totalUndelivered = totalOut - totalDelivered;
+
+    // Validate that returned jars do not exceed customer-held jars
+    const heldJars = freshOrder.customer?.jarsAtCustomer ?? 0;
+    if (totalReturned > heldJars + totalDelivered) {
+      throw new BadRequestException(
+        `Customer currently holds only ${heldJars} jar(s). Cannot return ${totalReturned} jars.`,
+      );
+    }
 
     // Short delivery validation
     if (totalDelivered < totalOut) {
@@ -2592,6 +2634,9 @@ export class OrderService {
         throw new ConflictException('Order status changed during delivery processing.');
       }
 
+      // Lock Customer row FOR UPDATE
+      await tx.$executeRaw`SELECT "id" FROM "Customer" WHERE "id" = ${freshOrder.customerId} FOR UPDATE`;
+
       // 2. Exclusive row locks on inventory items
       const jarItemIds = allocations.map((a) => a.jarItemId);
       if (jarItemIds.length > 0) {
@@ -2606,7 +2651,7 @@ export class OrderService {
         where: { id: { in: jarItemIds } },
       });
 
-      // 3. Process each allocation: reconcile stock and log transactions
+      // 3. Process each allocation: reconcile physical jar positions without altering ownership
       for (const alloc of allocations) {
         const dbItem = dbJarItems.find((i) => i.id === alloc.jarItemId);
         if (!dbItem) continue;
@@ -2615,25 +2660,19 @@ export class OrderService {
           ? itemDeliveredMap.get(alloc.jarItemId)!
           : alloc.quantity;
         const undeliveredQty = alloc.quantity - deliveredQty;
-
-        // Release the dispatch reservation by alloc.quantity
-        // Decrement ownedQuantity by deliveredQty (only physically delivered jars leave inventory)
-        const updatedItem = await tx.jarInventoryItem.update({
-          where: { id: alloc.jarItemId },
-          data: {
-            reservedQuantity: { decrement: alloc.quantity },
-            ownedQuantity: { decrement: deliveredQty },
-          },
-        });
-
-        const balanceAfter = updatedItem.ownedQuantity - updatedItem.reservedQuantity;
+        const returnedQty = itemReturnedMap.get(alloc.jarItemId) ?? 0;
         const ownership = dbItem.ownershipType === 'COMPANY' ? 'COMPANY_OWNED' : 'DISTRIBUTOR_OWNED';
 
-        // Critical inventory rule: The delivered quantity was already removed at dispatch.
-        // DO NOT log a DELIVERED transaction in the inventory ledger.
-        // Only return undelivered jars to available stock if undeliveredQty > 0.
+        // If undelivered jars: return from CUSTOMER back to FILLED_YARD
         if (undeliveredQty > 0) {
-          // Idempotency: verify UNDELIVERED_RETURN has not already been posted for this order & item
+          await tx.jarInventoryItem.update({
+            where: { id: alloc.jarItemId },
+            data: {
+              customerQuantity: { decrement: undeliveredQty },
+              filledYardQuantity: { increment: undeliveredQty },
+            },
+          });
+
           const existingReturn = await tx.inventoryLog.findFirst({
             where: {
               distributorId: dbItem.distributorId,
@@ -2650,57 +2689,72 @@ export class OrderService {
                 jarItemId: dbItem.id,
                 ownership,
                 action: 'UNDELIVERED_RETURN',
+                fromState: 'CUSTOMER',
+                toState: 'FILLED_YARD',
                 quantity: undeliveredQty,
-                balanceAfter,
+                balanceAfter: dbItem.ownedQuantity,
                 referenceId: orderRef,
-                description: `${undeliveredQty} jar${undeliveredQty === 1 ? '' : 's'} returned to available stock after short delivery (${dto.shortDeliveryReason}).`,
+                orderId,
+                customerId: freshOrder.customerId,
+                description: `${undeliveredQty} jar${undeliveredQty === 1 ? '' : 's'} returned to yard after short delivery (${dto.shortDeliveryReason || 'Short delivery'}).`,
+                createdById: actingUserId,
               },
             });
           }
         }
 
-        // Update OrderJarAllocation with actual delivered and undelivered quantities
+        // If empty jars returned: move from CUSTOMER to EMPTY_YARD
+        if (returnedQty > 0) {
+          await tx.jarInventoryItem.update({
+            where: { id: alloc.jarItemId },
+            data: {
+              customerQuantity: { decrement: returnedQty },
+              emptyYardQuantity: { increment: returnedQty },
+            },
+          });
+
+          await tx.inventoryLog.create({
+            data: {
+              distributorId: dbItem.distributorId,
+              jarItemId: dbItem.id,
+              ownership,
+              action: 'CUSTOMER_RETURN',
+              fromState: 'CUSTOMER',
+              toState: 'EMPTY_YARD',
+              quantity: returnedQty,
+              balanceAfter: dbItem.ownedQuantity,
+              referenceId: orderRef,
+              orderId,
+              customerId: freshOrder.customerId,
+              description: `${returnedQty} empty jar(s) returned by customer on delivery #${orderRef}.`,
+              createdById: actingUserId,
+            },
+          });
+        }
+
+        // Update OrderJarAllocation with actual delivered, undelivered, and returned quantities
         await tx.orderJarAllocation.update({
           where: { id: alloc.id },
           data: {
             deliveredQuantity: deliveredQty,
             undeliveredQuantity: undeliveredQty,
+            returnedQuantity: returnedQty,
           },
         });
       }
 
-      // Sync distributor stock totals and customer jars
-      const companyDelivered = allocations
-        .filter((a) => a.jarItem?.ownershipType === 'COMPANY')
-        .reduce((sum, a) => sum + (itemDeliveredMap.get(a.jarItemId) ?? a.quantity), 0);
-      const distDelivered = allocations
-        .filter((a) => a.jarItem?.ownershipType === 'DISTRIBUTOR')
-        .reduce((sum, a) => sum + (itemDeliveredMap.get(a.jarItemId) ?? a.quantity), 0);
-
-      const distProfile = await tx.distributor.findFirst({
-        where: { userId: freshOrder.distributorId || actingUserId },
-        select: { id: true },
-      });
-      if (distProfile && (companyDelivered > 0 || distDelivered > 0)) {
-        await tx.distributor.update({
-          where: { id: distProfile.id },
-          data: {
-            companyOwnedJars: { decrement: companyDelivered },
-            distributorOwnedJars: { decrement: distDelivered },
-          },
-        });
-      }
-
-      if (totalDelivered > 0) {
+      // Net customer jar balance update: + delivered - returned
+      const netCustomerJarChange = totalDelivered - totalReturned;
+      if (netCustomerJarChange !== 0) {
         await tx.customer.update({
           where: { id: freshOrder.customerId },
           data: {
-            jarsAtCustomer: { increment: totalDelivered },
+            jarsAtCustomer: { increment: netCustomerJarChange },
           },
         });
       }
 
-      // 4. Update / create OrderDeliveryVerification
+      // Update OrderDeliveryVerification
       if (freshOrder.deliveryVerification) {
         await tx.orderDeliveryVerification.update({
           where: { orderId },
@@ -2715,6 +2769,7 @@ export class OrderService {
             outForDeliveryQty: totalOut,
             deliveredQty: totalDelivered,
             undeliveredQty: totalUndelivered,
+            returnedQty: totalReturned,
           },
         });
       } else {
@@ -2732,6 +2787,34 @@ export class OrderService {
             outForDeliveryQty: totalOut,
             deliveredQty: totalDelivered,
             undeliveredQty: totalUndelivered,
+            returnedQty: totalReturned,
+          },
+        });
+      }
+
+      // Record deposit refund if empty jars were returned
+      if (totalReturned > 0 && tx.depositTransaction?.create) {
+        const depositRefund = totalReturned * 200;
+        await tx.depositTransaction.create({
+          data: {
+            customerId: freshOrder.customerId,
+            type: 'JAR_RETURNED',
+            amount: depositRefund,
+            jarsAffected: totalReturned,
+            balanceBefore: 0,
+            balanceAfter: 0,
+            referenceId: orderRef,
+            description: `Deposit credit for ${totalReturned} returned jar(s) on #${orderRef}`,
+          },
+        });
+      }
+
+      // Update verifiedReturnQuantity on OrderItems
+      if (tx.orderItem?.updateMany) {
+        await tx.orderItem.updateMany({
+          where: { orderId },
+          data: {
+            verifiedReturnQuantity: totalReturned,
           },
         });
       }
@@ -3017,20 +3100,25 @@ export class OrderService {
           const updatedItem = await tx.jarInventoryItem.update({
             where: { id: alloc.jarItemId },
             data: {
-              reservedQuantity: { decrement: alloc.quantity },
+              customerQuantity: { decrement: alloc.quantity },
+              filledYardQuantity: { increment: alloc.quantity },
             },
           });
-          const balanceAfter = updatedItem.ownedQuantity - updatedItem.reservedQuantity;
           await tx.inventoryLog.create({
             data: {
               distributorId: alloc.jarItem.distributorId,
               jarItemId: alloc.jarItemId,
               ownership: alloc.jarItem.ownershipType === 'COMPANY' ? 'COMPANY_OWNED' : 'DISTRIBUTOR_OWNED',
               action: 'ALLOCATION_RELEASED',
+              fromState: 'CUSTOMER',
+              toState: 'FILLED_YARD',
               quantity: alloc.quantity,
-              balanceAfter,
+              balanceAfter: updatedItem.ownedQuantity,
               referenceId: orderRef,
-              description: `Order #${orderRef} assignment released, released ${alloc.quantity} reserved jars`,
+              orderId: order.id,
+              customerId: order.customerId,
+              description: `Order #${orderRef} assignment released, ${alloc.quantity} jars returned to filled yard`,
+              createdById: distributorUserId,
             },
           });
         }

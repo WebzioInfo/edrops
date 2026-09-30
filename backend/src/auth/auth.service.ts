@@ -10,8 +10,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { SetupPasswordDto, ResendActivationDto } from './dto/setup-password.dto';
 import * as bcrypt from 'bcrypt';
-import { UserRole } from '@prisma/client';
+import { UserRole, AccountStatus } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { CloudinaryService, type MulterFile } from '../config/cloudinary.service';
 import * as crypto from 'crypto';
@@ -120,6 +121,23 @@ export class AuthService {
         statusCode: 401,
         code: 'USER_NOT_FOUND',
         message: 'User not found with this email or username.',
+      });
+    }
+
+    if (user.accountStatus === AccountStatus.DISABLED) {
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'ACCOUNT_DISABLED',
+        message: 'Your account has been deactivated. Please contact support.',
+      });
+    }
+
+    if (user.accountStatus === AccountStatus.PENDING_PASSWORD_SETUP) {
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'ACCOUNT_PENDING_SETUP',
+        message:
+          'Your account setup is pending. Please use the activation link sent to your email to create your password.',
       });
     }
 
@@ -784,5 +802,242 @@ export class AuthService {
       user: updated,
     };
   }
+
+  /**
+   * Validate a customer password setup / activation token without consuming it.
+   */
+  async validateSetupToken(rawToken: string) {
+    if (!rawToken || typeof rawToken !== 'string') {
+      return {
+        valid: false,
+        reason: 'INVALID',
+        message: 'This password setup link is invalid.',
+      };
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const record = await this.prisma.passwordSetupToken.findUnique({
+      where: { tokenHash },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            isActive: true,
+            accountStatus: true,
+          },
+        },
+      },
+    });
+
+    if (!record) {
+      return {
+        valid: false,
+        reason: 'INVALID',
+        message: 'This password setup link is invalid.',
+      };
+    }
+
+    if (record.usedAt) {
+      return {
+        valid: false,
+        reason: 'ALREADY_USED',
+        message: 'This password setup link has already been used.',
+      };
+    }
+
+    if (record.expiresAt < new Date()) {
+      return {
+        valid: false,
+        reason: 'EXPIRED',
+        message: 'Your password setup link has expired.',
+      };
+    }
+
+    if (!record.user.isActive) {
+      return {
+        valid: false,
+        reason: 'INACTIVE_ACCOUNT',
+        message: 'This account has been deactivated. Please contact support.',
+      };
+    }
+
+    return {
+      valid: true,
+      email: record.user.email,
+      firstName: record.user.firstName,
+      accountStatus: record.user.accountStatus,
+    };
+  }
+
+  /**
+   * Atomically sets customer password, marks account ACTIVE, and invalidates activation token.
+   */
+  async setupPassword(dto: SetupPasswordDto) {
+    const { token, password, confirmPassword } = dto;
+
+    if (!token || typeof token !== 'string') {
+      throw new BadRequestException('Activation token is required.');
+    }
+
+    if (confirmPassword && password !== confirmPassword) {
+      throw new BadRequestException('Passwords do not match.');
+    }
+
+    if (!password || password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters long.');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const record = await this.prisma.passwordSetupToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!record) {
+      throw new BadRequestException('This password setup link is invalid.');
+    }
+
+    if (record.usedAt) {
+      throw new BadRequestException('This password setup link has already been used.');
+    }
+
+    if (record.expiresAt < new Date()) {
+      throw new BadRequestException('Your password setup link has expired.');
+    }
+
+    if (!record.user.isActive) {
+      throw new BadRequestException('This account has been deactivated. Please contact support.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const updatedUser = await this.prisma.$transaction(async (tx) => {
+      // 1. Update user password and activate account
+      const user = await tx.user.update({
+        where: { id: record.userId },
+        data: {
+          passwordHash,
+          accountStatus: 'ACTIVE',
+          isActive: true,
+        },
+      });
+
+      // 2. Invalidate this token
+      await tx.passwordSetupToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      });
+
+      // 3. Invalidate any other outstanding setup tokens for this user
+      await tx.passwordSetupToken.updateMany({
+        where: {
+          userId: record.userId,
+          usedAt: null,
+          id: { not: record.id },
+        },
+        data: { usedAt: new Date() },
+      });
+
+      // 4. Record audit log
+      await tx.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'PASSWORD_SETUP_COMPLETED',
+          entityType: 'USER',
+          entityId: user.id,
+          newValues: { accountStatus: 'ACTIVE' },
+        },
+      });
+
+      return user;
+    });
+
+    // 5. Send security confirmation email (Password Successfully Changed)
+    try {
+      await this.mailService.sendPasswordChanged(updatedUser);
+    } catch (e) {
+      this.logger.warn(`Failed to send password changed email: ${(e as Error).message}`);
+    }
+
+    return {
+      success: true,
+      message: 'Password created successfully. Your account is ready and you can now sign in.',
+    };
+  }
+
+  /**
+   * Resend password setup / activation email.
+   * Generic response prevents account enumeration.
+   */
+  async resendActivation(dto: ResendActivationDto) {
+    const email = dto.email?.trim().toLowerCase();
+    if (!email) {
+      return {
+        success: true,
+        message: 'If an account exists for this email and requires password setup, a link has been sent.',
+      };
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
+
+    if (user && user.accountStatus === 'PENDING_PASSWORD_SETUP' && user.isActive) {
+      // Rate limit: check if a token was created within the last 60 seconds
+      const recentToken = await this.prisma.passwordSetupToken.findFirst({
+        where: {
+          userId: user.id,
+          createdAt: { gt: new Date(Date.now() - 60000) },
+        },
+      });
+
+      if (!recentToken) {
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+        await this.prisma.$transaction(async (tx) => {
+          // Invalidate prior unused tokens
+          await tx.passwordSetupToken.updateMany({
+            where: { userId: user.id, usedAt: null },
+            data: { usedAt: new Date() },
+          });
+
+          await tx.passwordSetupToken.create({
+            data: {
+              userId: user.id,
+              tokenHash,
+              expiresAt,
+              purpose: 'RESEND_ACTIVATION',
+            },
+          });
+
+          await tx.auditLog.create({
+            data: {
+              userId: user.id,
+              action: 'PASSWORD_SETUP_LINK_RESENT',
+              entityType: 'USER',
+              entityId: user.id,
+            },
+          });
+        });
+
+        try {
+          await this.mailService.sendAccountSetupEmail(user, rawToken);
+        } catch (e) {
+          this.logger.warn(`Failed to send resend activation email: ${(e as Error).message}`);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: 'If an account exists for this email and requires password setup, a link has been sent.',
+    };
+  }
 }
+
 

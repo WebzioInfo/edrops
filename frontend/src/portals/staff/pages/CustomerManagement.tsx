@@ -13,6 +13,7 @@ import {
   Tag,
   Building2,
   SlidersHorizontal,
+  Mail,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -40,6 +41,22 @@ export default function CustomerManagement() {
   const [rules, setRules] = useState<any[]>([]);
   const [isScheduleActive, setIsScheduleActive] = useState(true);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [resendingCustId, setResendingCustId] = useState<string | null>(null);
+
+  const handleResendSetupLink = async (cust: any) => {
+    if (!cust?.id) return;
+    try {
+      setResendingCustId(cust.id);
+      const res = await fetchWithAuth(`/customer/${cust.id}/resend-setup-link`, {
+        method: 'POST',
+      });
+      toast.success(res?.message || 'Password setup link has been resent.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to resend setup link');
+    } finally {
+      setResendingCustId(null);
+    }
+  };
 
   const loadCustomers = async () => {
     try {
@@ -542,20 +559,27 @@ export default function CustomerManagement() {
 
                       {/* Status */}
                       <td className="py-2.5 px-3 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            isActive
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-rose-50 text-rose-700 border border-rose-200'
-                          }`}
-                        >
+                        {cust.user?.accountStatus === 'PENDING_PASSWORD_SETUP' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Pending Setup
+                          </span>
+                        ) : (
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isActive
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200'
                             }`}
-                          />
-                          {isActive ? 'Active' : 'Inactive'}
-                        </span>
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                              }`}
+                            />
+                            {isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        )}
                       </td>
 
                       {/* Prepaid Balance */}
@@ -627,6 +651,18 @@ export default function CustomerManagement() {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-end gap-1.5">
+                          {cust.user?.accountStatus === 'PENDING_PASSWORD_SETUP' && cust.user?.email && (
+                            <button
+                              type="button"
+                              onClick={() => handleResendSetupLink(cust)}
+                              disabled={resendingCustId === cust.id}
+                              className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                              title="Resend activation / password setup email"
+                            >
+                              <Mail className="w-3 h-3" />
+                              {resendingCustId === cust.id ? 'Sending...' : 'Resend Link'}
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => viewDetails(cust)}
@@ -815,15 +851,21 @@ export default function CustomerManagement() {
                         <h2 className="text-base font-bold text-slate-800 truncate">
                           {selectedCust?.user?.firstName} {selectedCust?.user?.lastName}
                         </h2>
-                        <span
-                          className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                            selectedCust?.user?.isActive !== false
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-rose-50 text-rose-700'
-                          }`}
-                        >
-                          {selectedCust?.user?.isActive !== false ? 'Active' : 'Inactive'}
-                        </span>
+                        {selectedCust?.user?.accountStatus === 'PENDING_PASSWORD_SETUP' ? (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            Pending Setup
+                          </span>
+                        ) : (
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                              selectedCust?.user?.isActive !== false
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-rose-50 text-rose-700'
+                            }`}
+                          >
+                            {selectedCust?.user?.isActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        )}
                       </div>
                       {selectedCust?.referralCode ? (
                         <p className="text-[11px] font-semibold text-[#1677C8] truncate">
@@ -851,6 +893,30 @@ export default function CustomerManagement() {
                     <EdropsPageLoader minHeight="min-h-[300px]" />
                   ) : selectedCust ? (
                     <>
+                      {/* Pending Activation Banner in Drawer */}
+                      {selectedCust?.user?.accountStatus === 'PENDING_PASSWORD_SETUP' && (
+                        <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-amber-900 block">
+                              Password Setup Pending
+                            </span>
+                            <span className="text-[11px] text-amber-700 block truncate">
+                              Link sent to {selectedCust.user?.email || 'customer email'}
+                            </span>
+                          </div>
+                          {selectedCust.user?.email && (
+                            <button
+                              type="button"
+                              onClick={() => handleResendSetupLink(selectedCust)}
+                              disabled={resendingCustId === selectedCust.id}
+                              className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition shrink-0 cursor-pointer disabled:opacity-50"
+                            >
+                              {resendingCustId === selectedCust.id ? 'Sending...' : 'Resend Setup Link'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
                       {/* Financial & Jar Overview */}
                       <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
                         <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">

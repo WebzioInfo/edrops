@@ -18,6 +18,7 @@ const DistributorPortal = React.lazy(() => import('./portals/distributor/Distrib
 const Login = React.lazy(() => import('./pages/auth/Auth'));
 const ForgotPassword = React.lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = React.lazy(() => import('./pages/auth/ResetPassword'));
+const SetupPassword = React.lazy(() => import('./pages/auth/SetupPassword'));
 
 import { GlobalCenteredPageLoader, CenteredPageLoader } from './components/common/CenteredPageLoader';
 import PullToRefresh from './components/pwa/PullToRefresh';
@@ -91,6 +92,7 @@ export default function App() {
                     <Route path="/register" element={<Login />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
                     <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/setup-password" element={<SetupPassword />} />
 
                     <Route path="/customer/*" element={<CustomerPortal />} />
 

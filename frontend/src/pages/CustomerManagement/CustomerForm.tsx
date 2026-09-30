@@ -38,7 +38,7 @@ export default function CustomerForm({ basePath }: { basePath: string }) {
     gstNumber: '',
     openingWalletBalance: 0,
     openingJarBalance: 0,
-    generateRandomPassword: true,
+    sendSetupLink: true,
     password: '',
   });
 
@@ -78,7 +78,7 @@ export default function CustomerForm({ basePath }: { basePath: string }) {
             gstNumber: data.gstNumber || '',
             openingWalletBalance: data.wallet?.balance || 0,
             openingJarBalance: data.jarBalances?.[0]?.availableJars || data.jars_at_customer || 0,
-            generateRandomPassword: false,
+            sendSetupLink: false,
             password: '',
           });
 
@@ -161,7 +161,7 @@ export default function CustomerForm({ basePath }: { basePath: string }) {
     for (let i = 0; i < 10; i++) {
       generated += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    setFormData((prev) => ({ ...prev, password: generated, generateRandomPassword: false }));
+    setFormData((prev) => ({ ...prev, password: generated }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -201,14 +201,19 @@ export default function CustomerForm({ basePath }: { basePath: string }) {
       if (!isEdit) {
         payload.openingWalletBalance = formData.openingWalletBalance;
         payload.openingJarBalance = formData.openingJarBalance;
-        payload.password = formData.password || undefined;
-        payload.generateRandomPassword = formData.generateRandomPassword;
+        payload.sendSetupLink = formData.sendSetupLink;
 
         await fetchWithAuth('/customer', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        toast.success('Customer registered successfully');
+        if (payload.email && formData.sendSetupLink) {
+          toast.success(
+            `Customer created successfully. Password setup link sent to ${payload.email}.`,
+          );
+        } else {
+          toast.success('Customer registered successfully');
+        }
         navigate(basePath);
       } else {
         if (formData.password) {
@@ -654,39 +659,23 @@ export default function CustomerForm({ basePath }: { basePath: string }) {
                   />
                 </div>
 
-                <div className="lg:col-span-2 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      name="generateRandomPassword"
-                      checked={formData.generateRandomPassword}
-                      onChange={handleFormChange}
-                      className="w-4 h-4 text-[#1677C8] rounded focus:ring-[#1677C8]"
-                    />
-                    <span className="text-[11px] text-slate-700 font-semibold">
-                      Auto-generate random password & send welcome SMS/email
+                <div className="lg:col-span-2 bg-sky-50/70 p-3 rounded-xl border border-sky-100 flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="sendSetupLink"
+                    name="sendSetupLink"
+                    checked={formData.sendSetupLink}
+                    onChange={handleFormChange}
+                    className="mt-0.5 w-4 h-4 text-[#00AEEF] rounded focus:ring-[#00AEEF] cursor-pointer"
+                  />
+                  <label htmlFor="sendSetupLink" className="cursor-pointer select-none space-y-0.5">
+                    <span className="text-xs text-slate-800 font-bold block">
+                      Send account setup link by email
+                    </span>
+                    <span className="text-[11px] text-slate-500 block leading-relaxed">
+                      The customer will receive a secure 24-hour activation link to create their first password.
                     </span>
                   </label>
-
-                  {!formData.generateRandomPassword && (
-                    <div className="flex items-center gap-2 pt-0.5">
-                      <input
-                        type="text"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleFormChange}
-                        placeholder="Enter password"
-                        className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8] transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={generatePassword}
-                        className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
-                      >
-                        Preview
-                      </button>
-                    </div>
-                  )}
                 </div>
               </>
             ) : (

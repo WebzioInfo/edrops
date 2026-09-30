@@ -137,6 +137,17 @@ export class DeliveredJarItemDto {
   deliveredQuantity: number;
 }
 
+export class ReturnedJarItemDto {
+  @IsString()
+  @IsNotEmpty()
+  jarItemId: string;
+
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  returnedQuantity: number;
+}
+
 export class CompleteDeliveryDto {
   @IsOptional()
   @IsString()
@@ -146,6 +157,18 @@ export class CompleteDeliveryDto {
   @ValidateNested({ each: true })
   @Type(() => DeliveredJarItemDto)
   items: DeliveredJarItemDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReturnedJarItemDto)
+  returnedItems?: ReturnedJarItemDto[];
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  returnedQuantity?: number;
 
   @IsOptional()
   @IsString()
@@ -190,6 +213,18 @@ export class UpdateDistributorOrderStatusDto {
   @ValidateNested({ each: true })
   @Type(() => DeliveredJarItemDto)
   deliveredItems?: DeliveredJarItemDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReturnedJarItemDto)
+  returnedItems?: ReturnedJarItemDto[];
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  returnedQuantity?: number;
 
   @IsOptional()
   @IsString()

@@ -3,6 +3,7 @@ import {
   Post,
   Body,
   Get,
+  Query,
   Delete,
   UseGuards,
   Request,
@@ -15,6 +16,7 @@ import type { MulterFile } from '../config/cloudinary.service';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { SetupPasswordDto, ResendActivationDto } from './dto/setup-password.dto';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
@@ -29,6 +31,21 @@ export class AuthController {
   @Post('login')
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Get('setup-password/validate')
+  validateSetupToken(@Query('token') token: string) {
+    return this.authService.validateSetupToken(token);
+  }
+
+  @Post('setup-password')
+  setupPassword(@Body() dto: SetupPasswordDto) {
+    return this.authService.setupPassword(dto);
+  }
+
+  @Post('resend-activation')
+  resendActivation(@Body() dto: ResendActivationDto) {
+    return this.authService.resendActivation(dto);
   }
 
   @Post('forgot-password')

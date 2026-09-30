@@ -12,6 +12,8 @@ type Transaction = {
   balanceAfter: number;
   referenceId: string | null;
   description: string | null;
+  fromState?: string | null;
+  toState?: string | null;
 };
 type Result = {
   items: Transaction[];
@@ -37,6 +39,12 @@ const date = (value: string) =>
     minute: "2-digit",
     timeZone: "UTC",
   }).format(new Date(value));
+
+function formatStateLabel(st?: string | null) {
+  if (!st) return "";
+  return st.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function Movement({ value }: { value: number }) {
   const Icon = value < 0 ? ArrowUpRight : ArrowDownLeft;
   return (
@@ -293,9 +301,16 @@ export function InventoryTransactions({
                             {date(item.createdAt)}
                           </td>
                           <td className="py-2.5 px-3.5">
-                            <p className="font-medium text-[#16324F]">
-                              {item.label}
-                            </p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="font-medium text-[#16324F]">
+                                {item.label}
+                              </p>
+                              {(item.fromState || item.toState) && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                                  {formatStateLabel(item.fromState)} → {formatStateLabel(item.toState)}
+                                </span>
+                              )}
+                            </div>
                             <p className="mt-0.5 break-words text-[10px] text-slate-400">
                               {item.description}
                             </p>
@@ -329,9 +344,16 @@ export function InventoryTransactions({
                           <Movement value={item.quantity} />
                         </div>
                         <div className="mt-2 flex justify-between gap-3 text-xs">
-                          <p className="font-semibold text-[#16324F]">
-                            {item.label}
-                          </p>
+                          <div>
+                            <p className="font-semibold text-[#16324F]">
+                              {item.label}
+                            </p>
+                            {(item.fromState || item.toState) && (
+                              <span className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                                {formatStateLabel(item.fromState)} → {formatStateLabel(item.toState)}
+                              </span>
+                            )}
+                          </div>
                           <p className="shrink-0 text-slate-500">
                             Balance{" "}
                             <strong className="tabular-nums text-[#16324F]">

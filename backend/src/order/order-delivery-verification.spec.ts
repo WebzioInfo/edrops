@@ -312,27 +312,16 @@ describe('Order Delivery OTP, Quantity Reconciliation & Inventory Ledger', () =>
       expect(prisma.$executeRaw).toHaveBeenCalled();
 
       // 2. Verify inventory updates:
-      // Biodrops: reserved decremented by 3, owned decremented by 3 (all 3 delivered)
-      expect(prisma.jarInventoryItem.update).toHaveBeenCalledWith({
-        where: { id: biodropsItemId },
-        data: {
-          reservedQuantity: { decrement: 3 },
-          ownedQuantity: { decrement: 3 },
-        },
-      });
-
-      // Dist A: reserved decremented by 2 (releases full OOD reservation), owned decremented by 1 (only 1 delivered)
-      // Net result: 1 undelivered jar is back in available stock with correct distributor ownership!
+      // Dist A had short delivery: 2 dispatched, 1 delivered -> 1 undelivered jar returned to filled yard
       expect(prisma.jarInventoryItem.update).toHaveBeenCalledWith({
         where: { id: distAItemId },
         data: {
-          reservedQuantity: { decrement: 2 },
-          ownedQuantity: { decrement: 1 },
+          customerQuantity: { decrement: 1 },
+          filledYardQuantity: { increment: 1 },
         },
       });
 
       // 3. Verify InventoryLog records created
-      // Critical inventory rule: No DELIVERED log (already deducted at dispatch).
       // Only UNDELIVERED_RETURN is logged for Dist A (1 undelivered jar).
       expect(prisma.inventoryLog.create).toHaveBeenCalledTimes(1);
       expect(prisma.inventoryLog.create).toHaveBeenCalledWith(
@@ -342,17 +331,20 @@ describe('Order Delivery OTP, Quantity Reconciliation & Inventory Ledger', () =>
             action: 'UNDELIVERED_RETURN',
             quantity: 1,
             ownership: 'DISTRIBUTOR_OWNED',
-            description: expect.stringContaining('1 jar returned to available stock after short delivery'),
+            fromState: 'CUSTOMER',
+            toState: 'FILLED_YARD',
+            description: expect.stringContaining('1 jar returned to yard after short delivery'),
           }),
         }),
       );
 
-      // 4. Verify OrderJarAllocation updated with actual delivered and undelivered quantities
+      // 4. Verify OrderJarAllocation updated with actual delivered, undelivered, and returned quantities
       expect(prisma.orderJarAllocation.update).toHaveBeenCalledWith({
         where: { id: 'alloc-1' },
         data: {
           deliveredQuantity: 3,
           undeliveredQuantity: 0,
+          returnedQuantity: 0,
         },
       });
       expect(prisma.orderJarAllocation.update).toHaveBeenCalledWith({
@@ -360,6 +352,7 @@ describe('Order Delivery OTP, Quantity Reconciliation & Inventory Ledger', () =>
         data: {
           deliveredQuantity: 1,
           undeliveredQuantity: 1,
+          returnedQuantity: 0,
         },
       });
 

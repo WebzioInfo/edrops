@@ -94,6 +94,8 @@ describe('Distributor Order Jar Allocation & Multi-Jar Inventory', () => {
     name: 'Biodrops 20L Water Jar',
     ownershipType: 'COMPANY',
     ownedQuantity: 100,
+    filledYardQuantity: 100,
+    customerQuantity: 0,
     reservedQuantity: 0,
     isActive: true,
   };
@@ -104,6 +106,8 @@ describe('Distributor Order Jar Allocation & Multi-Jar Inventory', () => {
     name: 'Distributor Jar - Blue',
     ownershipType: 'DISTRIBUTOR',
     ownedQuantity: 25,
+    filledYardQuantity: 25,
+    customerQuantity: 0,
     reservedQuantity: 0,
     isActive: true,
   };
@@ -134,13 +138,19 @@ describe('Distributor Order Jar Allocation & Multi-Jar Inventory', () => {
     expect(prisma.jarInventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'item-company' },
-        data: { reservedQuantity: { increment: 10 } },
+        data: {
+          filledYardQuantity: { decrement: 10 },
+          customerQuantity: { increment: 10 },
+        },
       }),
     );
     expect(prisma.jarInventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'item-blue' },
-        data: { reservedQuantity: { increment: 10 } },
+        data: {
+          filledYardQuantity: { decrement: 10 },
+          customerQuantity: { increment: 10 },
+        },
       }),
     );
     expect(prisma.inventoryLog.create).toHaveBeenCalledTimes(2);
@@ -188,7 +198,7 @@ describe('Distributor Order Jar Allocation & Multi-Jar Inventory', () => {
       items: [{ quantity: 6, product: { isJar: true } }],
     });
     prisma.jarInventoryItem.findMany.mockResolvedValue([
-      { ...companyJarItem, ownedQuantity: 5, reservedQuantity: 0 },
+      { ...companyJarItem, ownedQuantity: 5, filledYardQuantity: 5, customerQuantity: 0, reservedQuantity: 0 },
     ]);
 
     await expect(
@@ -200,7 +210,7 @@ describe('Distributor Order Jar Allocation & Multi-Jar Inventory', () => {
           allocations: [{ jarItemId: 'item-company', quantity: 6 }],
         },
       ),
-    ).rejects.toThrow('Only 5 Biodrops jars are available.');
+    ).rejects.toThrow('Only 5 Biodrops jars are available in yard.');
   });
 
   it('TEST 5: Missing driver is BLOCKED even if allocation is valid', async () => {
@@ -259,13 +269,16 @@ describe('Distributor Order Jar Allocation & Multi-Jar Inventory', () => {
     expect(prisma.jarInventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'item-blue' },
-        data: { reservedQuantity: { decrement: 20 } },
+        data: {
+          customerQuantity: { decrement: 20 },
+          filledYardQuantity: { increment: 20 },
+        },
       }),
     );
     expect(prisma.inventoryLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          action: 'ALLOCATION_RELEASED',
+          action: 'ORDER_CANCELLED',
           quantity: 20,
           balanceAfter: 25,
         }),

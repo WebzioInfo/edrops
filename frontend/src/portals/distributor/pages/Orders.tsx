@@ -186,6 +186,7 @@ export interface DistributorOrder {
     outForDeliveryQty?: number;
     deliveredQty?: number;
     undeliveredQty?: number;
+    returnedQty?: number;
     shortDeliveryReason?: string | null;
     deliveryNotes?: string | null;
   } | null;
@@ -198,6 +199,7 @@ export interface OrderJarAllocationRecord {
   quantity: number;
   deliveredQuantity?: number | null;
   undeliveredQuantity?: number | null;
+  returnedQuantity?: number | null;
   createdAt?: string;
   jarItem?: {
     id: string;
@@ -2554,15 +2556,17 @@ export default function Orders() {
                 const totalAlloc = selectedOrder.jarAllocations.reduce((s, a) => s + a.quantity, 0);
                 const totalDeliv = selectedOrder.jarAllocations.reduce((s, a) => s + (a.deliveredQuantity ?? (isDelivered ? a.quantity : 0)), 0);
                 const totalUndeliv = selectedOrder.jarAllocations.reduce((s, a) => s + (a.undeliveredQuantity ?? 0), 0);
+                const totalRet = selectedOrder.jarAllocations.reduce((s, a) => s + (a.returnedQuantity ?? (selectedOrder.deliveryVerification?.returnedQty ?? 0)), 0);
+                const netCustomerDelta = totalDeliv - totalRet;
 
                 return (
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                        {isDelivered ? 'Delivery Summary' : 'Jar Allocation'}
+                        {isDelivered ? 'Physical Jar Movement & Delivery' : 'Jar Allocation'}
                       </h5>
                       <span className="text-[11px] font-bold text-[#1677C8]">
-                        Order quantity: {totalAlloc} {totalAlloc === 1 ? 'jar' : 'jars'}
+                        Dispatched: {totalAlloc} {totalAlloc === 1 ? 'jar' : 'jars'}
                       </span>
                     </div>
 
@@ -2572,11 +2576,12 @@ export default function Orders() {
                           <tr>
                             <th className="p-2.5">Jar Type</th>
                             <th className="p-2.5">Ownership</th>
-                            <th className="p-2.5 text-right">{isDelivered ? 'Out for Delv' : 'Allocated'}</th>
+                            <th className="p-2.5 text-right">{isDelivered ? 'Dispatched' : 'Allocated'}</th>
                             {isDelivered && (
                               <>
                                 <th className="p-2.5 text-right text-emerald-700">Delivered</th>
-                                <th className="p-2.5 text-right text-amber-700">Undelivered</th>
+                                <th className="p-2.5 text-right text-indigo-700">Returned</th>
+                                <th className="p-2.5 text-right text-slate-800">Net Customer Δ</th>
                               </>
                             )}
                           </tr>
@@ -2587,7 +2592,8 @@ export default function Orders() {
                             const name = isCompany ? 'BioDrops / Company Owned' : (alloc.jarItem?.name || 'Distributor Jar');
                             const img = isCompany ? '/images/biodrops-jar.png' : alloc.jarItem?.imageUrl;
                             const deliv = alloc.deliveredQuantity ?? (isDelivered ? alloc.quantity : null);
-                            const undeliv = alloc.undeliveredQuantity ?? 0;
+                            const ret = alloc.returnedQuantity ?? 0;
+                            const itemNet = (deliv ?? alloc.quantity) - ret;
 
                             return (
                               <tr key={alloc.id} className="hover:bg-slate-50/50">
@@ -2623,8 +2629,11 @@ export default function Orders() {
                                     <td className="p-2.5 text-right font-black text-emerald-700">
                                       {deliv ?? alloc.quantity}
                                     </td>
-                                    <td className={`p-2.5 text-right font-black ${undeliv > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
-                                      {undeliv}
+                                    <td className="p-2.5 text-right font-black text-indigo-700">
+                                      {ret}
+                                    </td>
+                                    <td className={`p-2.5 text-right font-black ${itemNet >= 0 ? 'text-slate-800' : 'text-amber-700'}`}>
+                                      {itemNet >= 0 ? `+${itemNet}` : itemNet}
                                     </td>
                                   </>
                                 )}
@@ -2639,8 +2648,9 @@ export default function Orders() {
                             {isDelivered && (
                               <>
                                 <td className="p-2.5 text-right text-emerald-700">{totalDeliv}</td>
-                                <td className={`p-2.5 text-right ${totalUndeliv > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
-                                  {totalUndeliv}
+                                <td className="p-2.5 text-right text-indigo-700">{totalRet}</td>
+                                <td className={`p-2.5 text-right ${netCustomerDelta >= 0 ? 'text-[#1677C8]' : 'text-amber-700'}`}>
+                                  {netCustomerDelta >= 0 ? `+${netCustomerDelta}` : netCustomerDelta}
                                 </td>
                               </>
                             )}
@@ -2649,14 +2659,25 @@ export default function Orders() {
                       </table>
                     </div>
 
-                    {isDelivered && selectedOrder.deliveryVerification?.shortDeliveryReason && (
-                      <div className="mt-2.5 p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900">
-                        <span className="font-bold">Reason for short delivery: </span>
-                        {selectedOrder.deliveryVerification.shortDeliveryReason}
-                        {totalUndeliv > 0 && (
-                          <span className="block mt-0.5 text-[11px] text-amber-800">
-                            ✓ {totalUndeliv} {totalUndeliv === 1 ? 'jar' : 'jars'} returned to available inventory.
+                    {isDelivered && (
+                      <div className="mt-2.5 space-y-1.5">
+                        <div className="p-2.5 bg-sky-50/80 border border-sky-200 rounded-xl text-xs text-sky-900 flex flex-wrap items-center justify-between gap-2">
+                          <span>
+                            Physical Movement: <strong>{totalDeliv}</strong> dispatched to customer · <strong>{totalRet}</strong> empty jars returned to yard
                           </span>
+                          <span className="font-bold text-[#1677C8]">
+                            Net Customer Holding: {netCustomerDelta >= 0 ? `+${netCustomerDelta}` : netCustomerDelta} jars
+                          </span>
+                        </div>
+
+                        {totalUndeliv > 0 && (
+                          <div className="p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900">
+                            <span className="font-bold">Short delivery: </span>
+                            {selectedOrder.deliveryVerification?.shortDeliveryReason || 'Partial delivery'}
+                            <span className="block mt-0.5 text-[11px] text-amber-800">
+                              ✓ {totalUndeliv} {totalUndeliv === 1 ? 'jar' : 'jars'} reconciled back to yard filled inventory.
+                            </span>
+                          </div>
                         )}
                       </div>
                     )}
