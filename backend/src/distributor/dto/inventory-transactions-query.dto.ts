@@ -31,7 +31,26 @@ export class InventoryTransactionsQuery {
   limit = 20;
 
   @IsOptional()
-  @IsIn(['OPENING_BALANCE', 'ADJUSTMENT', 'OUT_FOR_DELIVERY', 'RETURN', 'ALLOCATION_RELEASED'])
+  @IsIn([
+    'OPENING_BALANCE',
+    'ADJUSTMENT',
+    'OUT_FOR_DELIVERY',
+    'RETURN',
+    'CUSTOMER_RETURN',
+    'UNDELIVERED_RETURN',
+    'ALLOCATION_RELEASED',
+    'ORDER_CANCELLED',
+    'JAR_WASHING',
+    'JAR_FILLING',
+    'JAR_FILLED',
+    'JAR_QUARANTINED',
+    'JAR_RELEASED',
+    'JAR_DAMAGED',
+    'MANUAL_ADJUSTMENT',
+    'STATE_TRANSITION',
+    'DELIVERY_COMPLETED',
+    'DELIVERED',
+  ])
   type?: string;
 
   @IsOptional()
@@ -52,4 +71,8 @@ export class InventoryTransactionsQuery {
   @IsOptional()
   @IsString()
   jarItemId?: string;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
 }

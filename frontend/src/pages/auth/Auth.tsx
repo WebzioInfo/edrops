@@ -15,7 +15,7 @@ export type AuthState = 'signin' | 'signup' | 'forgot';
 
 // --- VALIDATION SCHEMAS ---
 const loginSchema = Yup.object({
-  identifier: Yup.string().required('Phone number or email is required'),
+  identifier: Yup.string().required('Email or phone number is required'),
   password: Yup.string().required('Password is required'),
 });
 
@@ -79,12 +79,20 @@ const ArimoInput = ({
   placeholder,
   label,
   autoComplete,
+  inputMode,
   ...props
 }: any) => {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
   const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
   const hasError = Boolean(form.touched[field.name] && form.errors[field.name]);
+
+  // Dynamically set inputMode to 'tel' if the user types numbers/phone chars into the identifier field
+  const dynamicInputMode =
+    inputMode ||
+    (field.name === 'identifier' && field.value && /^[+\d\s\-()]+$/.test(field.value)
+      ? 'tel'
+      : undefined);
 
   return (
     <div className="mb-3 text-left">
@@ -105,6 +113,7 @@ const ArimoInput = ({
           {...props}
           value={field.value ?? ''}
           type={inputType}
+          inputMode={dynamicInputMode}
           autoComplete={autoComplete}
           placeholder={placeholder}
           className={`w-full h-11 sm:h-12 ${
@@ -384,18 +393,23 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
       const errorCode = err?.code || err?.data?.code;
       const errorMsg = (err?.message || '').toLowerCase();
 
-      if (errorCode === 'USER_NOT_FOUND') {
-        toast.error('User not found with this email or username.');
-      } else if (errorCode === 'INCORRECT_PASSWORD') {
-        toast.error('Incorrect password. Please try again.');
+      if (
+        errorCode === 'USER_NOT_FOUND' ||
+        errorCode === 'INCORRECT_PASSWORD' ||
+        errorCode === 'INVALID_CREDENTIALS' ||
+        errorMsg.includes('invalid email/phone number or password')
+      ) {
+        toast.error('Invalid email/phone number or password.');
       } else if (errorMsg.includes('failed to fetch') || errorMsg.includes('network')) {
         toast.error('Unable to connect to server. Please check your internet connection.');
-      } else if (errorMsg.includes('deactivated') || errorMsg.includes('inactive')) {
+      } else if (errorMsg.includes('deactivated') || errorMsg.includes('inactive') || errorMsg.includes('disabled')) {
         toast.error('This account has been deactivated. Please contact support.');
+      } else if (errorMsg.includes('password setup') || errorMsg.includes('activation')) {
+        toast.error('Account setup required. Please use the password setup link sent to your email.');
       } else if (err?.message && !errorMsg.includes('unauthorized') && !errorMsg.includes('401')) {
         toast.error(err.message);
       } else {
-        toast.error('Login failed. Please try again.');
+        toast.error('Invalid email/phone number or password.');
       }
     } finally {
       setSubmitting(false);
@@ -571,8 +585,11 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
               >
                 <div className="mb-5 text-center">
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
-                    Welcome to Edrops<br />Login now!
+                    Welcome back
                   </h1>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Sign in to your account
+                  </p>
                 </div>
 
                 <Formik
@@ -585,9 +602,12 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                       <Field
                         name="identifier"
                         component={ArimoInput}
-                        label="Phone or Email"
-                        placeholder="Phone number or email"
+                        label="Email or Phone Number"
+                        placeholder="you@example.com or 9876543210"
                         autoComplete="username"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck="false"
                       />
                       <Field
                         name="password"
@@ -595,7 +615,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                         icon={Lock}
                         type="password"
                         label="Password"
-                        placeholder="Password"
+                        placeholder="••••••••••••"
                         autoComplete="current-password"
                       />
 
@@ -625,7 +645,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                         {isSubmitting ? (
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
-                          'Continue'
+                          'Sign In'
                         )}
                       </button>
                     </Form>

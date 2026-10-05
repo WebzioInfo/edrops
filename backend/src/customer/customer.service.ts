@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { MailService } from '../mail/mail.service';
 import { AccountStatus } from '@prisma/client';
+import { normalizePhoneNumber } from '../common/phone-utils';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -48,9 +49,16 @@ export class CustomerService {
       sendSetupLink,
     } = createCustomerDto;
 
-    // Validation
-    const existingPhone = await this.prisma.user.findUnique({
-      where: { phone },
+    // Phone Validation & Normalization
+    const normalizedPhone = normalizePhoneNumber(phone);
+    if (!normalizedPhone) {
+      throw new BadRequestException('Please enter a valid mobile number.');
+    }
+
+    const existingPhone = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ phone: normalizedPhone }, { phone }],
+      },
     });
     if (existingPhone) {
       throw new BadRequestException('Phone number is already registered.');
@@ -156,7 +164,7 @@ export class CustomerService {
         data: {
           firstName,
           lastName,
-          phone,
+          phone: normalizedPhone,
           alternatePhone,
           email,
           gender,
@@ -609,11 +617,23 @@ export class CustomerService {
         throw new BadRequestException('Customer not found');
       }
 
-      // Check phone uniqueness if phone is changing
-      if (phone && phone !== existingCustomer.user.phone) {
-        const phoneExists = await tx.user.findUnique({ where: { phone } });
-        if (phoneExists) {
-          throw new BadRequestException('Phone number is already registered.');
+      // Check phone uniqueness with normalization if phone is changing
+      let normalizedPhone: string | undefined = undefined;
+      if (phone) {
+        normalizedPhone = normalizePhoneNumber(phone) || undefined;
+        if (!normalizedPhone) {
+          throw new BadRequestException('Please enter a valid mobile number.');
+        }
+        if (normalizedPhone !== existingCustomer.user.phone) {
+          const phoneExists = await tx.user.findFirst({
+            where: {
+              OR: [{ phone: normalizedPhone }, { phone }],
+              NOT: { id: existingCustomer.userId },
+            },
+          });
+          if (phoneExists) {
+            throw new BadRequestException('Phone number is already registered.');
+          }
         }
       }
 
@@ -632,7 +652,7 @@ export class CustomerService {
           data: {
             ...(firstName ? { firstName } : {}),
             ...(lastName ? { lastName } : {}),
-            ...(phone ? { phone } : {}),
+            ...(phone ? { phone: normalizedPhone || phone } : {}),
             ...(email !== undefined ? { email } : {}),
           },
         });

@@ -31,7 +31,7 @@ export interface UploadResult {
   bytes: number;
 }
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 @Injectable()

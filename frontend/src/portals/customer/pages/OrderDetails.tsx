@@ -20,6 +20,7 @@ import {
   Download,
   CreditCard,
   KeyRound,
+  Receipt,
   X,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
@@ -203,14 +204,88 @@ export default function OrderDetails() {
 
   const stepIndex = getTimelineStepIndex(order.status);
   const isCancelled = order.status === 'CANCELLED';
-  const partnerUser = order.delivery?.assignment?.deliveryPartner?.user;
-  const partnerVehicle = order.delivery?.assignment?.deliveryPartner?.vehicleNumber;
+  const isDelivered = order.status === 'DELIVERED' || order.status === 'COMPLETED';
+
+  // Authoritative settlement & delivery checks
+  const dv = order.deliveryVerification;
+  const hasDeliverySettlement = Boolean(
+    order.hasDeliverySettlement ||
+      (isDelivered && (order.settlement || dv?.isVerified || (dv?.calculatedTotal !== null && dv?.calculatedTotal !== undefined)))
+  );
+
+  const totalOrderedCount = (order.items || []).reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
+  const totalAllocatedCount =
+    order.jarAllocations && order.jarAllocations.length > 0
+      ? order.jarAllocations.reduce((sum: number, a: any) => sum + (Number(a.quantity) || 0), 0)
+      : totalOrderedCount;
+
+  const deliveryData = order.delivery || (dv ? {
+    completedAt: dv.completedAt || order.deliveredAt,
+    otpVerified: dv.isVerified ?? true,
+    dispatchedQty: dv.outForDeliveryQty || totalAllocatedCount,
+    deliveredQty: dv.deliveredQty ?? (isDelivered ? totalAllocatedCount : 0),
+    returnedQty: dv.returnedQty ?? 0,
+    shortQty: dv.undeliveredQty ?? 0,
+    shortDeliveryReason: dv.shortDeliveryReason,
+    deliveryNotes: dv.deliveryNotes,
+    netCustomerHolding: (dv.deliveredQty ?? 0) - (dv.returnedQty ?? 0),
+    items: order.delivery?.items,
+  } : null);
+
+  const settlement = order.settlement || (dv ? {
+    originalTotal: Number(order.totalAmount || 0),
+    refillRate: Number(dv.refillRate || 100),
+    depositRate: Number(dv.depositRate || 200),
+    refillAmount: Number(dv.refillAmount || 0),
+    baseDepositAmount: dv.deliveredQty && dv.depositRate
+      ? Number((dv.deliveredQty * dv.depositRate).toFixed(2))
+      : Number(dv.depositAmount || 0),
+    returnDeduction: dv.returnedQty && dv.depositRate
+      ? Number((dv.returnedQty * dv.depositRate).toFixed(2))
+      : 0,
+    finalDepositAmount: Number(dv.depositAmount || 0),
+    calculatedTotal: Number(dv.calculatedTotal ?? order.totalAmount ?? 0),
+    actualAmountReceived: Number(dv.amountReceived ?? 0),
+    remainingDue: Number(order.dueAmount ?? order.amountDue ?? 0),
+    paymentMethod: dv.paymentMethod || order.paymentMethod || 'CASH',
+  } : null);
+
+  const driverInfo = order.driver || (order.delivery?.assignment?.deliveryPartner ? {
+    name: `${order.delivery.assignment.deliveryPartner.user?.firstName || ''} ${order.delivery.assignment.deliveryPartner.user?.lastName || ''}`.trim() || 'Assigned Delivery Partner',
+    phone: order.delivery.assignment.deliveryPartner.user?.phone,
+    vehicleNumber: order.delivery.assignment.deliveryPartner.vehicleNumber,
+    vehicleType: order.delivery.assignment.deliveryPartner.vehicleType,
+    routeOrArea: undefined,
+  } : null);
+
+  const completedAtFormatted = deliveryData?.completedAt
+    ? new Date(deliveryData.completedAt).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : null;
 
   const timelineSteps = [
     { title: 'Order Placed', desc: 'Order logged & placed' },
     { title: 'Confirmed', desc: 'Order confirmed & accepted' },
     { title: 'Out for Delivery', desc: 'Delivery partner on the way' },
-    { title: 'Delivered', desc: 'Order delivered successfully' },
+    {
+      title: 'Delivered',
+      desc: hasDeliverySettlement && deliveryData ? (
+        <span>
+          {completedAtFormatted ? `${completedAtFormatted} · ` : ''}
+          {deliveryData.deliveredQty} jars delivered
+          {deliveryData.returnedQty > 0 && ` · ${deliveryData.returnedQty} returned`}
+          {settlement && ` · ₹${settlement.calculatedTotal.toFixed(2)}`}
+          {deliveryData.otpVerified && ' · ✓ Verified'}
+        </span>
+      ) : (
+        'Order delivered successfully'
+      ),
+    },
   ];
 
   const itemsTotal = order.items?.reduce(
@@ -410,7 +485,7 @@ export default function OrderDetails() {
               )}
 
               {/* Delivery Partner Details if Assigned */}
-              {partnerUser && (
+              {driverInfo && (
                 <div className="mt-6 pt-5 border-t border-[#F1F5F9] bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-[#EBF5FB] border border-[#BBDFF2] flex items-center justify-center text-[#1E88E5]">
@@ -419,17 +494,19 @@ export default function OrderDetails() {
                     <div>
                       <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider block">Assigned Delivery Partner</span>
                       <h4 className="text-sm font-bold text-[#0F172A]">
-                        {partnerUser.firstName} {partnerUser.lastName}
+                        {driverInfo.name}
                       </h4>
-                      {partnerVehicle && (
-                        <span className="text-[11px] text-[#64748B] block">Vehicle: {partnerVehicle}</span>
+                      {(driverInfo.vehicleType || driverInfo.vehicleNumber) && (
+                        <span className="text-[11px] text-[#64748B] block">
+                          Vehicle: {[driverInfo.vehicleType, driverInfo.vehicleNumber].filter(Boolean).join(' · ')}
+                        </span>
                       )}
                     </div>
                   </div>
 
-                  {partnerUser.phone && (
+                  {driverInfo.phone && (
                     <a
-                      href={`tel:${partnerUser.phone}`}
+                      href={`tel:${driverInfo.phone}`}
                       className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#1E88E5] text-white text-xs font-bold hover:bg-[#1565C0] transition-colors shadow-xs"
                     >
                       <Phone className="w-3.5 h-3.5" /> Call Partner
@@ -439,12 +516,151 @@ export default function OrderDetails() {
               )}
             </motion.div>
 
-            {/* Items Ordered Card */}
+            {/* Delivery Result & Physical Jar Movement (Visible only for completed delivery) */}
+            {hasDeliverySettlement && deliveryData && (
+              <div className="bg-white rounded-2xl border border-emerald-200 p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-emerald-100/80">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-900 leading-tight">
+                        Delivery Result & Physical Jar Movement
+                      </h3>
+                      {completedAtFormatted && (
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Delivery completed on {completedAtFormatted}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {deliveryData.otpVerified && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/90 px-2.5 py-1 rounded-full border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> PIN Verified
+                    </span>
+                  )}
+                </div>
+
+                {/* 6-Stat Grid for Complete Physical Handover Reconciliation */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-center">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
+                      Ordered
+                    </span>
+                    <span className="text-base font-black text-slate-800">
+                      {totalOrderedCount} <span className="text-xs font-normal text-slate-500">jars</span>
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-center">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
+                      Dispatched
+                    </span>
+                    <span className="text-base font-black text-slate-800">
+                      {deliveryData.dispatchedQty} <span className="text-xs font-normal text-slate-500">jars</span>
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200 text-center">
+                    <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider block">
+                      Delivered
+                    </span>
+                    <span className="text-base font-black text-emerald-800">
+                      {deliveryData.deliveredQty} <span className="text-xs font-normal text-emerald-600">jars</span>
+                    </span>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border text-center ${deliveryData.shortQty > 0 ? "bg-amber-50/80 border-amber-200" : "bg-slate-50 border-slate-200/80"}`}>
+                    <span className={`text-[10px] uppercase font-bold tracking-wider block ${deliveryData.shortQty > 0 ? "text-amber-800" : "text-slate-500"}`}>
+                      Undelivered
+                    </span>
+                    <span className={`text-base font-black ${deliveryData.shortQty > 0 ? "text-amber-900" : "text-slate-800"}`}>
+                      {deliveryData.shortQty} <span className="text-xs font-normal text-slate-500">jars</span>
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-200 text-center">
+                    <span className="text-[10px] uppercase font-bold text-indigo-700 tracking-wider block">
+                      Returned Empty
+                    </span>
+                    <span className="text-base font-black text-indigo-800">
+                      {deliveryData.returnedQty} <span className="text-xs font-normal text-indigo-600">jars</span>
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200 text-center">
+                    <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider block">
+                      Customer Holding
+                    </span>
+                    <span className="text-base font-black text-blue-800">
+                      {(deliveryData.netCustomerHolding ?? 0) >= 0
+                        ? `+${deliveryData.netCustomerHolding}`
+                        : deliveryData.netCustomerHolding}{' '}
+                      <span className="text-xs font-normal text-blue-600">jars</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Short delivery reason if applicable */}
+                {deliveryData.shortQty > 0 && (
+                  <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>
+                        Short Delivery: {deliveryData.shortQty} jar{deliveryData.shortQty === 1 ? '' : 's'} undelivered
+                      </span>
+                    </div>
+                    {deliveryData.shortDeliveryReason && (
+                      <p className="text-amber-800 pl-5">
+                        <span className="font-semibold">Reason:</span> {deliveryData.shortDeliveryReason}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Multi-item allocations breakdown if order had multiple items */}
+                {deliveryData.items && deliveryData.items.length > 1 && (
+                  <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Item Delivery Details
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {deliveryData.items.map((it: any, idx: number) => (
+                        <div key={it.id || idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/70 text-xs">
+                          <span className="font-bold text-slate-800 block truncate">{it.name}</span>
+                          <div className="text-[11px] text-slate-600 flex items-center gap-2 mt-0.5">
+                            <span>Delivered: <strong>{it.deliveredQty}</strong></span>
+                            <span>•</span>
+                            <span>Returned: <strong>{it.returnedQty}</strong></span>
+                            <span>•</span>
+                            <span className="text-blue-700 font-semibold">Holding: +{it.netCustomerHolding}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {deliveryData.deliveryNotes && (
+                  <div className="text-xs text-slate-600 pl-1 pt-1">
+                    <span className="font-semibold">Delivery Note:</span> {deliveryData.deliveryNotes}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Items Ordered Card (Historical Snapshot Preserved) */}
             <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 sm:p-6 shadow-xs">
               <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#F1F5F9]">
                 <h2 className="text-base font-bold text-[#0F172A] flex items-center gap-2">
                   <Package className="w-5 h-5 text-[#1E88E5]" /> Items Ordered ({order.items?.length || 0})
                 </h2>
+                {hasDeliverySettlement && (
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    Original Order Snapshot
+                  </span>
+                )}
               </div>
 
               <div className="divide-y divide-[#F1F5F9]">
@@ -477,14 +693,21 @@ export default function OrderDetails() {
                         </div>
 
                         <p className="text-xs text-[#64748B] mt-0.5">
-                          Quantity: <strong className="text-[#0F172A]">{itemQty}</strong> × ₹{itemPrice}
+                          Ordered: <strong className="text-[#0F172A]">{itemQty}</strong> × ₹{itemPrice}
                           {itemDeposit > 0 && ` · Deposit ₹${itemDeposit}`}
                         </p>
+
+                        {/* If completed delivery, show actual delivery result on item */}
+                        {hasDeliverySettlement && (
+                          <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
+                            Delivered: {deliveryData?.deliveredQty ?? itemQty} · Returned: {deliveryData?.returnedQty ?? 0}
+                          </p>
+                        )}
                       </div>
 
                       <div className="text-right shrink-0">
                         <span className="font-extrabold text-sm sm:text-base text-[#0F172A]">
-                          ₹{itemPrice * itemQty + (item.deposit || 0)}
+                          ₹{(itemPrice * itemQty + (item.deposit || 0)).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -563,142 +786,227 @@ export default function OrderDetails() {
               </div>
             )}
 
-            {/* Delivery Completed & Reconciled Card */}
-            {order.deliveryVerification && (order.status === 'DELIVERED' || order.status === 'COMPLETED' || order.deliveryVerification.isVerified) && (
-              <div className="bg-emerald-50/60 rounded-2xl border border-emerald-200 p-5 shadow-xs">
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-emerald-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
-                      <CheckCircle2 className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-sm text-emerald-950">Delivery Completed</h3>
-                      <p className="text-[11px] text-emerald-700">✓ PIN Verified</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200">
-                    VERIFIED
+            {/* Final Delivery Settlement Breakdown Card (Only shown for completed delivery orders) */}
+            {hasDeliverySettlement && settlement && (
+              <div className="bg-white rounded-2xl border border-sky-200 p-5 sm:p-6 shadow-xs">
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-sky-100">
+                  <h3 className="font-bold text-base text-[#0F172A] flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-[#1E88E5]" />
+                    Final Delivery Settlement
+                  </h3>
+                  <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
+                    ACTUAL RECONCILIATION
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center py-2.5 bg-white rounded-xl border border-emerald-100 text-xs">
-                  <div>
-                    <p className="text-[10px] text-[#64748B]">Out for Delivery</p>
-                    <p className="font-bold text-[#0F172A] text-sm">
-                      {order.deliveryVerification.outForDeliveryQty || order.jarAllocations?.reduce((s: number, a: any) => s + (a.quantity || 0), 0) || (order.items?.reduce((s: number, i: any) => s + (i.quantity || 0), 0))} jars
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-emerald-600 font-medium">Delivered</p>
-                    <p className="font-bold text-emerald-700 text-sm">
-                      {order.deliveryVerification.deliveredQty ?? (order.deliveryVerification.outForDeliveryQty || 0)} jars
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-[#64748B]">Undelivered</p>
-                    <p className={`font-bold text-sm ${(order.deliveryVerification.undeliveredQty || 0) > 0 ? 'text-amber-600' : 'text-[#64748B]'}`}>
-                      {order.deliveryVerification.undeliveredQty || 0} jar{(order.deliveryVerification.undeliveredQty || 0) === 1 ? '' : 's'}
-                    </p>
-                  </div>
+                <div className="space-y-3 text-xs">
+                  {/* Refill Calculation */}
+                  {(() => {
+                    const deliveredQty = deliveryData?.deliveredQty ?? 0;
+                    const returnedQty = deliveryData?.returnedQty ?? 0;
+                    const rRate = deliveryData?.items?.[0]?.refillRate ?? (deliveredQty > 0 ? settlement.refillAmount / deliveredQty : 0);
+                    const dRate = deliveryData?.items?.[0]?.depositRate ?? (deliveredQty > 0 ? settlement.baseDepositAmount / deliveredQty : 0);
+                    const depositBearingCount = Math.max(0, deliveredQty - returnedQty);
+
+                    return (
+                      <>
+                        <div className="flex justify-between items-center text-[#64748B]">
+                          <span>
+                            Refill ({deliveredQty} × ₹{rRate.toFixed(2)})
+                          </span>
+                          <span className="font-semibold text-[#0F172A]">
+                            ₹{settlement.refillAmount.toFixed(2)}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[#64748B]">
+                          <span>
+                            Jar Deposit ({deliveredQty} × ₹{dRate.toFixed(2)})
+                          </span>
+                          <span className="font-semibold text-[#0F172A]">
+                            ₹{settlement.baseDepositAmount.toFixed(2)}
+                          </span>
+                        </div>
+
+                        {settlement.returnDeduction > 0 && (
+                          <div className="flex justify-between items-center text-emerald-600 font-medium">
+                            <span>
+                              Returned Empty ({returnedQty} × ₹{dRate.toFixed(2)})
+                            </span>
+                            <span className="font-bold text-emerald-600">
+                              −₹{settlement.returnDeduction.toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center text-xs pt-2 border-t border-dashed border-slate-200">
+                          <span className="text-slate-600 font-medium">
+                            Final Deposit ({depositBearingCount} deposit-bearing jar{depositBearingCount === 1 ? '' : 's'})
+                          </span>
+                          <span className="font-bold text-slate-800">
+                            ₹{settlement.finalDepositAmount.toFixed(2)}
+                          </span>
+                        </div>
+
+                        <div className="pt-3 border-t border-[#F1F5F9] flex justify-between items-center">
+                          <div>
+                            <span className="font-extrabold text-sm text-[#0F172A] block">
+                              Final Delivery Amount
+                            </span>
+                            <span className="text-[11px] text-[#64748B]">
+                              Original Order Total: <span className="line-through">₹{Number(order.totalAmount || 0).toFixed(2)}</span>
+                            </span>
+                          </div>
+                          <span className="text-lg font-black text-[#1E88E5]">
+                            ₹{settlement.calculatedTotal.toFixed(2)}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
-
-                {order.deliveryVerification.shortDeliveryReason && (
-                  <div className="mt-3 p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900">
-                    <span className="font-semibold">Reason for short delivery:</span> {order.deliveryVerification.shortDeliveryReason}
-                  </div>
-                )}
-
-                {order.deliveryVerification.deliveryNotes && (
-                  <div className="mt-2 text-xs text-[#64748B]">
-                    <span className="font-medium">Delivery Note:</span> {order.deliveryVerification.deliveryNotes}
-                  </div>
-                )}
-
-                {order.deliveredAt && (
-                  <p className="text-[11px] text-[#64748B] mt-2.5 text-right">
-                    Delivered on {new Date(order.deliveredAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                  </p>
-                )}
               </div>
             )}
 
-            {/* Payment Breakdown Card */}
+            {/* Payment Summary Card */}
             <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 sm:p-6 shadow-xs">
               <h3 className="font-bold text-base text-[#0F172A] pb-3 mb-4 border-b border-[#F1F5F9]">
                 Payment Summary
               </h3>
 
-              <div className="space-y-2.5 text-xs text-[#64748B]">
-                <div className="flex justify-between items-center">
-                  <span>Items Subtotal</span>
-                  <span className="font-bold text-[#0F172A]">₹{itemsTotal}</span>
-                </div>
-
-                {depositTotal > 0 && (
-                  <div className="flex justify-between items-center text-[#0F172A]">
-                    <span className="flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#1E88E5]" /> Security Deposit
-                    </span>
-                    <span className="font-bold">₹{depositTotal}</span>
+              {/* Pre-delivery order breakdown */}
+              {!hasDeliverySettlement && (
+                <div className="space-y-2.5 text-xs text-[#64748B]">
+                  <div className="flex justify-between items-center">
+                    <span>Items Subtotal</span>
+                    <span className="font-bold text-[#0F172A]">₹{itemsTotal}</span>
                   </div>
-                )}
 
-
-                {discountTotal > 0 && (
-                  <div className="flex justify-between items-center text-emerald-600">
-                    <span>Promo Discount</span>
-                    <span className="font-bold">-₹{discountTotal}</span>
-                  </div>
-                )}
-
-                {(() => {
-                  const pst = getOrderPaymentState(order);
-                  return (
-                    <div className="pt-3 border-t border-[#F1F5F9] space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-semibold text-[#64748B]">Total Amount</span>
-                        <span className="font-bold text-[#0F172A]">₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-semibold text-[#64748B]">Paid</span>
-                        <span className="font-bold text-emerald-600">₹{pst.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-semibold text-[#64748B]">Outstanding Due</span>
-                        <span className={`font-bold ${pst.hasDue ? 'text-orange-600' : 'text-emerald-600'}`}>
-                          ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs pt-1.5 border-t border-[#F1F5F9]">
-                        <span className="font-semibold text-[#64748B]">Payment Status</span>
-                        <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] border ${pst.badgeClass}`}>
-                          {pst.canonicalStatus === 'PAID' ? 'PAID' : pst.canonicalStatus === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : 'UNPAID'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-[#64748B] font-medium">Payment Mode</span>
-                        <span className="font-bold text-[#0F172A] bg-[#F8FAFC] px-2.5 py-1 rounded-lg border border-[#E2E8F0]">
-                          {formatPaymentDetails(order).method}
-                        </span>
-                      </div>
-
-                      {pst.hasDue && order.status !== 'CANCELLED' && (
-                        <div className="pt-2">
-                          <button
-                            type="button"
-                            onClick={() => setPayModalOpen(true)}
-                            className="w-full py-2.5 px-3 bg-[#1E88E5] hover:bg-[#1565C0] text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                            <span>Pay Outstanding Balance (₹{pst.due})</span>
-                          </button>
-                        </div>
-                      )}
+                  {depositTotal > 0 && (
+                    <div className="flex justify-between items-center text-[#0F172A]">
+                      <span className="flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#1E88E5]" /> Security Deposit
+                      </span>
+                      <span className="font-bold">₹{depositTotal}</span>
                     </div>
-                  );
-                })()}
-              </div>
+                  )}
+
+                  {discountTotal > 0 && (
+                    <div className="flex justify-between items-center text-emerald-600">
+                      <span>Promo Discount</span>
+                      <span className="font-bold">-₹{discountTotal}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Completed delivery financial summary */}
+              {hasDeliverySettlement && (
+                <div className="space-y-2 text-xs text-[#64748B]">
+                  <div className="flex justify-between items-center">
+                    <span>Original Order</span>
+                    <span className="font-medium text-slate-500 line-through">
+                      ₹{Number(order.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-[#0F172A]">Final Delivery Settlement</span>
+                    <span className="font-bold text-[#0F172A]">
+                      ₹{Number(settlement?.calculatedTotal ?? order.totalAmount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {(() => {
+                const pst = getOrderPaymentState(order);
+                return (
+                  <div className="pt-3 border-t border-[#F1F5F9] space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-semibold text-[#64748B]">Paid</span>
+                      <span className="font-bold text-emerald-600">
+                        ₹{pst.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-semibold text-[#64748B]">Remaining Due</span>
+                      <span className={`font-bold ${pst.hasDue ? 'text-orange-600' : 'text-emerald-600'}`}>
+                        ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {pst.canonicalStatus === 'OVERPAID' && (
+                      <div className="flex justify-between items-center text-xs text-sky-600">
+                        <span className="font-semibold">Credit / Excess</span>
+                        <span className="font-bold">
+                          ₹{Math.max(0, pst.paid - pst.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-xs pt-1.5 border-t border-[#F1F5F9]">
+                      <span className="font-semibold text-[#64748B]">Payment Status</span>
+                      <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] border ${pst.badgeClass}`}>
+                        {pst.canonicalStatus === 'PAID' ? 'PAID' : pst.canonicalStatus === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : pst.canonicalStatus === 'OVERPAID' ? 'OVERPAID' : 'UNPAID'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-[#64748B] font-medium">Payment Method</span>
+                      <span className="font-bold text-[#0F172A] bg-[#F8FAFC] px-2.5 py-1 rounded-lg border border-[#E2E8F0]">
+                        {settlement?.paymentMethod || formatPaymentDetails(order).method}
+                      </span>
+                    </div>
+
+                    {pst.hasDue && order.status !== 'CANCELLED' && (
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setPayModalOpen(true)}
+                          className="w-full py-2.5 px-3 bg-[#1E88E5] hover:bg-[#1565C0] text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          <span>Pay Outstanding Balance (₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })})</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
+
+            {/* Delivery Driver Information Card (Only if driver data is available) */}
+            {driverInfo && (
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-xs space-y-3">
+                <h3 className="font-bold text-xs text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5 pb-2 border-b border-[#F1F5F9]">
+                  <Truck className="w-4 h-4 text-[#1E88E5]" />
+                  Delivery Driver
+                </h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Driver</span>
+                    <span className="font-bold text-slate-800">{driverInfo.name}</span>
+                  </div>
+                  {(driverInfo.vehicleType || driverInfo.vehicleNumber) && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Vehicle</span>
+                      <span className="font-semibold text-slate-700">
+                        {[driverInfo.vehicleType, driverInfo.vehicleNumber].filter(Boolean).join(' · ')}
+                      </span>
+                    </div>
+                  )}
+                  {driverInfo.routeOrArea && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Route</span>
+                      <span className="font-semibold text-slate-700">{driverInfo.routeOrArea}</span>
+                    </div>
+                  )}
+                  {completedAtFormatted && (
+                    <div className="flex justify-between items-center pt-1 border-t border-slate-100">
+                      <span className="text-slate-500">Completed At</span>
+                      <span className="font-medium text-slate-700">{completedAtFormatted}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Payment History Card (actual payment events only) */}
             {order.payments && order.payments.length > 0 && (

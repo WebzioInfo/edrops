@@ -48,9 +48,9 @@ export class MoveJarStateDto {
 }
 
 export class AdjustJarStockDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  jarItemId: string;
+  jarItemId?: string;
 
   @IsEnum(JarPhysicalState)
   @IsNotEmpty()
@@ -67,6 +67,10 @@ export class AdjustJarStockDto {
   @IsOptional()
   @IsBoolean()
   isOwnershipChange?: boolean;
+
+  @IsOptional()
+  @IsString()
+  adjustmentType?: 'INCREASE' | 'DECREASE';
 }
 
 export class CustomerJarReturnDto {

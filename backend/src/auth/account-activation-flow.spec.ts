@@ -301,4 +301,194 @@ describe('Customer Account Activation + First Password Setup Flow', () => {
       expect(mailService.sendAccountSetupEmail).toHaveBeenCalled();
     });
   });
+
+  describe('5. Phone Number + Password Login Flow (Unified Auth)', () => {
+    const password = 'SecretPassword123!';
+    let passwordHash: string;
+    let mockUnifiedUser: any;
+
+    beforeEach(async () => {
+      passwordHash = await bcrypt.hash(password, 10);
+      mockUnifiedUser = {
+        id: 'user-unified-1',
+        email: 'customer@example.com',
+        phone: '+919876543210',
+        firstName: 'Test',
+        lastName: 'Customer',
+        role: 'CUSTOMER',
+        accountStatus: AccountStatus.ACTIVE,
+        passwordHash,
+        isActive: true,
+      };
+    });
+
+    it('TEST 1: Valid email + password -> success', async () => {
+      prismaService.user.findFirst.mockResolvedValue(mockUnifiedUser);
+
+      const res = await authService.login({
+        identifier: 'customer@example.com',
+        password,
+      });
+
+      expect(res).toHaveProperty('access_token');
+      expect(res.user.id).toBe(mockUnifiedUser.id);
+    });
+
+    it('TEST 2: Valid 10-digit Indian phone without country code -> success', async () => {
+      prismaService.user.findFirst.mockResolvedValue(mockUnifiedUser);
+
+      const res = await authService.login({
+        identifier: '9876543210',
+        password,
+      });
+
+      expect(res).toHaveProperty('access_token');
+      expect(res.user.id).toBe(mockUnifiedUser.id);
+      expect(prismaService.user.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              expect.objectContaining({ phone: '+919876543210' }),
+              expect.objectContaining({ phone: '9876543210' }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('TEST 3: Valid phone with country code (+919876543210) -> resolves to exact same account', async () => {
+      prismaService.user.findFirst.mockResolvedValue(mockUnifiedUser);
+
+      const res = await authService.login({
+        identifier: '+919876543210',
+        password,
+      });
+
+      expect(res).toHaveProperty('access_token');
+      expect(res.user.id).toBe(mockUnifiedUser.id);
+    });
+
+    it('TEST 4: Valid phone with spaces and dashes (+91 98765-43210) -> normalizes and succeeds', async () => {
+      prismaService.user.findFirst.mockResolvedValue(mockUnifiedUser);
+
+      const res = await authService.login({
+        identifier: '+91 98765-43210',
+        password,
+      });
+
+      expect(res).toHaveProperty('access_token');
+      expect(res.user.id).toBe(mockUnifiedUser.id);
+    });
+
+    it('TEST 5: Uppercase email (CUSTOMER@EXAMPLE.COM) -> lowercases and succeeds', async () => {
+      prismaService.user.findFirst.mockResolvedValue(mockUnifiedUser);
+
+      const res = await authService.login({
+        identifier: 'CUSTOMER@EXAMPLE.COM',
+        password,
+      });
+
+      expect(res).toHaveProperty('access_token');
+      expect(prismaService.user.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              expect.objectContaining({
+                email: expect.objectContaining({
+                  equals: 'customer@example.com',
+                }),
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('TEST 6: Invalid phone format -> rejects with generic error message', async () => {
+      prismaService.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        authService.login({
+          identifier: '12345',
+          password,
+        }),
+      ).rejects.toThrow('Invalid email/phone number or password.');
+    });
+
+    it('TEST 7: Invalid password -> rejects with generic error message', async () => {
+      prismaService.user.findFirst.mockResolvedValue(mockUnifiedUser);
+
+      await expect(
+        authService.login({
+          identifier: '9876543210',
+          password: 'WrongPassword!',
+        }),
+      ).rejects.toThrow('Invalid email/phone number or password.');
+    });
+
+    it('TEST 8: Unknown phone number -> rejects with generic error message without enumerating', async () => {
+      prismaService.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        authService.login({
+          identifier: '9999999999',
+          password,
+        }),
+      ).rejects.toThrow('Invalid email/phone number or password.');
+    });
+
+    it('TEST 9: Inactive account (isActive: false) -> rejected', async () => {
+      prismaService.user.findFirst.mockResolvedValue({
+        ...mockUnifiedUser,
+        isActive: false,
+      });
+
+      await expect(
+        authService.login({
+          identifier: '9876543210',
+          password,
+        }),
+      ).rejects.toThrow('Your account has been deactivated. Please contact support.');
+    });
+
+    it('TEST 10: Disabled account (accountStatus: DISABLED) -> rejected', async () => {
+      prismaService.user.findFirst.mockResolvedValue({
+        ...mockUnifiedUser,
+        accountStatus: AccountStatus.DISABLED,
+      });
+
+      await expect(
+        authService.login({
+          identifier: '9876543210',
+          password,
+        }),
+      ).rejects.toThrow('Your account has been deactivated. Please contact support.');
+    });
+
+    it('TEST 11: Pending setup account via phone -> rejected with password setup requirement', async () => {
+      prismaService.user.findFirst.mockResolvedValue({
+        ...mockUnifiedUser,
+        accountStatus: AccountStatus.PENDING_PASSWORD_SETUP,
+      });
+
+      await expect(
+        authService.login({
+          identifier: '9876543210',
+          password,
+        }),
+      ).rejects.toThrow('Your account setup is pending. Please use the activation link sent to your email to create your password.');
+    });
+
+    it('TEST 12: Backward compatibility with legacy email field in login payload', async () => {
+      prismaService.user.findFirst.mockResolvedValue(mockUnifiedUser);
+
+      const res = await authService.login({
+        email: 'customer@example.com',
+        password,
+      });
+
+      expect(res).toHaveProperty('access_token');
+      expect(res.user.id).toBe(mockUnifiedUser.id);
+    });
+  });
 });

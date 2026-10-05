@@ -73,6 +73,7 @@ export default function Orders() {
         (prev || []).map((o: any) => (o.id === data.orderId ? { ...o, status: data.status } : o))
       );
       toast.success(`Order ${formatOrderId(data.orderId)} updated`, { icon: '📦' });
+      loadOrders(true);
     };
 
     const handleOrderUpdated = (data: any) => {
@@ -80,6 +81,7 @@ export default function Orders() {
         setOrders((prev) =>
           (prev || []).map((o: any) => (o.id === data.id ? { ...o, ...data } : o))
         );
+        loadOrders(true);
       }
     };
 
@@ -624,6 +626,21 @@ export default function Orders() {
                             <span>Qty: {totalJarsCount} {totalJarsCount === 1 ? 'jar' : 'jars'}</span>
                           </div>
 
+                          {/* Delivery Summary for Completed Delivery Orders */}
+                          {order.deliverySummary && (
+                            <div className="flex items-center gap-2 text-[11px] text-emerald-800 bg-emerald-50/60 px-2 py-0.5 rounded-md w-fit">
+                              <span>Delivered: <strong>{order.deliverySummary.deliveredQty}</strong></span>
+                              <span>•</span>
+                              <span>Returned: <strong>{order.deliverySummary.returnedQty}</strong></span>
+                              {(order.deliverySummary.shortQty || 0) > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-amber-700 font-semibold">Short: {order.deliverySummary.shortQty}</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+
                           {/* Authoritative Financial State */}
                           {(() => {
                             const pst = getOrderPaymentState(order);
@@ -632,17 +649,28 @@ export default function Orders() {
                                 <span className={`px-2 py-0.5 rounded font-bold text-[10px] border ${pst.badgeClass}`}>
                                   {pst.canonicalStatus === 'PAID' ? 'PAID' : pst.canonicalStatus === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : 'UNPAID'}
                                 </span>
-                                <span className="font-semibold text-slate-700">
-                                  Total: ₹{pst.total.toLocaleString('en-IN')}
-                                </span>
+                                {pst.hasSettlement ? (
+                                  <div className="flex items-center gap-1.5 font-bold text-[#1677C8]">
+                                    <span>Final: ₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                    {pst.total !== pst.originalTotal && (
+                                      <span className="text-slate-400 line-through text-[10px] font-normal">
+                                        (Orig: ₹{pst.originalTotal.toLocaleString('en-IN')})
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="font-semibold text-slate-700">
+                                    Total: ₹{pst.total.toLocaleString('en-IN')}
+                                  </span>
+                                )}
                                 {pst.paid > 0 && (
                                   <span className="font-semibold text-emerald-600">
-                                    · Paid: ₹{pst.paid.toLocaleString('en-IN')}
+                                    · Paid: ₹{pst.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                   </span>
                                 )}
                                 {pst.hasDue ? (
                                   <span className="font-bold text-orange-600">
-                                    · Due: ₹{pst.due.toLocaleString('en-IN')}
+                                    · Due: ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                   </span>
                                 ) : (
                                   <span className="font-semibold text-emerald-600">· Settled</span>
@@ -661,11 +689,16 @@ export default function Orders() {
                           return (
                             <div className="text-right">
                               <span className="text-sm sm:text-base font-bold text-[#0F172A] block font-mono">
-                                ₹{pst.total.toLocaleString('en-IN')}
+                                ₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               </span>
+                              {pst.hasSettlement && pst.total !== pst.originalTotal && (
+                                <span className="text-[10px] text-slate-400 block line-through">
+                                  ₹{pst.originalTotal.toLocaleString('en-IN')}
+                                </span>
+                              )}
                               {pst.hasDue ? (
                                 <span className="block text-[11px] font-bold text-orange-600">
-                                  Due ₹{pst.due.toLocaleString('en-IN')}
+                                  Due ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               ) : (
                                 <span className="hidden sm:block text-[10px] text-emerald-600 font-semibold">

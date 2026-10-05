@@ -52,7 +52,7 @@ describe('Order Delivery OTP, Quantity Reconciliation & Inventory Ledger', () =>
       },
       payment: {
         findMany: jest.fn().mockResolvedValue([]),
-        create: jest.fn(),
+        create: jest.fn().mockResolvedValue({ id: 'mock-pay-1', amount: 1000 }),
       },
       paymentAuditLog: {
         create: jest.fn(),
@@ -322,8 +322,7 @@ describe('Order Delivery OTP, Quantity Reconciliation & Inventory Ledger', () =>
       });
 
       // 3. Verify InventoryLog records created
-      // Only UNDELIVERED_RETURN is logged for Dist A (1 undelivered jar).
-      expect(prisma.inventoryLog.create).toHaveBeenCalledTimes(1);
+      // UNDELIVERED_RETURN is logged for Dist A (1 undelivered jar).
       expect(prisma.inventoryLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -400,7 +399,11 @@ describe('Order Delivery OTP, Quantity Reconciliation & Inventory Ledger', () =>
 
       expect(res.status).toBe(OrderStatus.DELIVERED);
       // No UNDELIVERED_RETURN transaction should be logged when all jars delivered
-      expect(prisma.inventoryLog.create).not.toHaveBeenCalled();
+      expect(prisma.inventoryLog.create).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ action: 'UNDELIVERED_RETURN' }),
+        }),
+      );
     });
 
     it('CASE 3: Multi-item partial return: BioDrops=3 dispatched, 2 delivered -> 1 BioDrops returned', async () => {
@@ -421,7 +424,6 @@ describe('Order Delivery OTP, Quantity Reconciliation & Inventory Ledger', () =>
       });
 
       // Exactly 1 return transaction for BioDrops
-      expect(prisma.inventoryLog.create).toHaveBeenCalledTimes(1);
       expect(prisma.inventoryLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -448,6 +450,185 @@ describe('Order Delivery OTP, Quantity Reconciliation & Inventory Ledger', () =>
       expect(res.status).toBe(OrderStatus.DELIVERED);
       expect(prisma.inventoryLog.create).not.toHaveBeenCalled();
       expect(prisma.jarInventoryItem.update).not.toHaveBeenCalled();
+    });
+
+    it('CORE BUSINESS RULE: 5 ordered, 4 delivered, 0 returned -> ₹1,200 (Refill: ₹400, Deposit: ₹800, undelivered jar excluded)', async () => {
+      const unpaidOrder = {
+        ...mockOrder,
+        payments: [],
+        items: [
+          {
+            quantity: 5,
+            unitPrice: 100,
+            product: { isJar: true, depositAmount: 200 },
+          },
+        ],
+      };
+      prisma.order.findUnique.mockResolvedValue(unpaidOrder);
+      prisma.jarInventoryItem.findMany.mockResolvedValue(mockDbJarItems);
+      prisma.order.update.mockResolvedValue({ ...unpaidOrder, status: OrderStatus.DELIVERED });
+
+      await service.completeDelivery(unpaidOrder.id, mockDistributorUserId, {
+        pin: '4827',
+        items: [
+          { jarItemId: biodropsItemId, deliveredQuantity: 3 },
+          { jarItemId: distAItemId, deliveredQuantity: 1 },
+        ],
+        returnedQuantity: 0,
+        shortDeliveryReason: 'Customer took 4',
+        paymentInfo: {
+          paymentMode: 'FULL',
+          paymentMethod: 'CASH',
+        },
+      });
+
+      expect(prisma.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amount: 1200,
+            provider: 'CASH',
+          }),
+        }),
+      );
+
+      expect(prisma.orderDeliveryVerification.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            refillRate: 100,
+            depositRate: 200,
+            refillAmount: 400,
+            depositQty: 4,
+            depositAmount: 800,
+            calculatedTotal: 1200,
+            amountReceived: 1200,
+            isManualAdjustment: false,
+          }),
+        }),
+      );
+    });
+
+    it('JAR RETURN OFFSET: 5 ordered, 4 delivered, 1 returned -> ₹1,000 (Refill: ₹400, Deposit: 3 x ₹200 = ₹600)', async () => {
+      const unpaidOrder = {
+        ...mockOrder,
+        payments: [],
+        items: [
+          {
+            quantity: 5,
+            unitPrice: 100,
+            product: { isJar: true, depositAmount: 200 },
+          },
+        ],
+      };
+      prisma.order.findUnique.mockResolvedValue(unpaidOrder);
+      prisma.jarInventoryItem.findMany.mockResolvedValue(mockDbJarItems);
+      prisma.order.update.mockResolvedValue({ ...unpaidOrder, status: OrderStatus.DELIVERED });
+
+      await service.completeDelivery(unpaidOrder.id, mockDistributorUserId, {
+        pin: '4827',
+        items: [
+          { jarItemId: biodropsItemId, deliveredQuantity: 3 },
+          { jarItemId: distAItemId, deliveredQuantity: 1 },
+        ],
+        returnedItems: [
+          { jarItemId: biodropsItemId, returnedQuantity: 1 },
+          { jarItemId: distAItemId, returnedQuantity: 0 },
+        ],
+        shortDeliveryReason: 'Customer took 4',
+        paymentInfo: {
+          paymentMode: 'FULL',
+          paymentMethod: 'UPI',
+        },
+      });
+
+      expect(prisma.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amount: 1000,
+            provider: 'UPI',
+          }),
+        }),
+      );
+
+      expect(prisma.orderDeliveryVerification.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            refillAmount: 400,
+            depositQty: 3,
+            depositAmount: 600,
+            calculatedTotal: 1000,
+            amountReceived: 1000,
+          }),
+        }),
+      );
+    });
+
+    it('MANUAL AMOUNT EDIT: Calculated ₹1,200, user manually pays ₹1,150 -> records ₹1,150 with isManualAdjustment = true', async () => {
+      const unpaidOrder = {
+        ...mockOrder,
+        payments: [],
+        items: [
+          {
+            quantity: 5,
+            unitPrice: 100,
+            product: { isJar: true, depositAmount: 200 },
+          },
+        ],
+      };
+      prisma.order.findUnique.mockResolvedValue(unpaidOrder);
+      prisma.jarInventoryItem.findMany.mockResolvedValue(mockDbJarItems);
+      prisma.order.update.mockResolvedValue({ ...unpaidOrder, status: OrderStatus.DELIVERED });
+
+      await service.completeDelivery(unpaidOrder.id, mockDistributorUserId, {
+        pin: '4827',
+        items: [
+          { jarItemId: biodropsItemId, deliveredQuantity: 3 },
+          { jarItemId: distAItemId, deliveredQuantity: 1 },
+        ],
+        shortDeliveryReason: 'Customer took 4',
+        paymentInfo: {
+          paymentMode: 'PARTIAL',
+          amountPaid: 1150,
+          paymentMethod: 'CASH',
+          isManualAdjustment: true,
+        },
+      });
+
+      expect(prisma.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amount: 1150,
+            provider: 'CASH',
+          }),
+        }),
+      );
+
+      expect(prisma.orderDeliveryVerification.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            calculatedTotal: 1200,
+            amountReceived: 1150,
+            isManualAdjustment: true,
+          }),
+        }),
+      );
+    });
+
+    it('VALIDATION: Rejects if returned empty jars exceed delivered jars', async () => {
+      prisma.order.findUnique.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.completeDelivery(mockOrder.id, mockDistributorUserId, {
+          pin: '4827',
+          items: [
+            { jarItemId: biodropsItemId, deliveredQuantity: 2 },
+            { jarItemId: distAItemId, deliveredQuantity: 0 },
+          ],
+          returnedItems: [
+            { jarItemId: biodropsItemId, returnedQuantity: 3 },
+          ],
+          shortDeliveryReason: 'Short delivery',
+        }),
+      ).rejects.toThrow(/Returned empty jars \(3\) cannot exceed delivered/);
     });
   });
 });

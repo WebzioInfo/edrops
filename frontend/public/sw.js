@@ -16,8 +16,20 @@ const ASSETS_TO_CACHE = [
   '/manifest.json'
 ];
 
+const isLocalhost = Boolean(
+  self.location.hostname === 'localhost' ||
+  self.location.hostname === '[::1]' ||
+  self.location.hostname === '127.0.0.1' ||
+  self.location.hostname.endsWith('.localhost') ||
+  self.location.port === '5173'
+);
+
 // Install Event - Pre-cache Core Shell Assets
 self.addEventListener('install', (event) => {
+  if (isLocalhost) {
+    self.skipWaiting();
+    return;
+  }
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -29,6 +41,17 @@ self.addEventListener('install', (event) => {
 
 // Activate Event - Clean Up Old Caches and Take Control
 self.addEventListener('activate', (event) => {
+  if (isLocalhost) {
+    // If accidentally activated in development, purge caches and unregister
+    event.waitUntil(
+      caches.keys()
+        .then((cacheNames) => Promise.all(cacheNames.map((cache) => caches.delete(cache))))
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.claim())
+    );
+    return;
+  }
+
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -44,18 +67,36 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event - Caching and Fallback Strategies
 self.addEventListener('fetch', (event) => {
+  // Never intercept or cache anything in local development environments (prevents Vite module MIME type errors)
+  if (isLocalhost) {
+    return;
+  }
+
   // Only intercept GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
+  // Only handle HTTP and HTTPS requests; ignore unsupported schemes (chrome-extension://, moz-extension://, etc.)
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   // Ignore API requests, websockets, and Vite development paths
   if (
     url.pathname.startsWith('/api') || 
     url.pathname.startsWith('/socket.io') || 
-    event.request.url.includes('hot-update') || 
-    url.pathname.includes('@vite') ||
-    url.pathname.includes('@react-refresh')
+    url.pathname.startsWith('/src/') ||
+    url.pathname.endsWith('.tsx') ||
+    url.pathname.endsWith('.ts') ||
+    url.pathname.endsWith('.jsx') ||
+    url.pathname.includes('/@vite/') ||
+    url.pathname.includes('/@react-refresh') ||
+    url.pathname.includes('/@fs/') ||
+    url.pathname.includes('/@id/') ||
+    url.pathname.includes('hot-update') ||
+    url.searchParams.has('t') ||
+    url.searchParams.has('import')
   ) {
     return;
   }
@@ -84,11 +125,27 @@ self.addEventListener('fetch', (event) => {
   // Static Assets (CSS, JS, Images, Fonts) - Stale-While-Revalidate caching
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
+      // Validate cached response: Never serve text/html for script or style destinations
+      if (cachedResponse) {
+        const dest = event.request.destination;
+        const cachedType = cachedResponse.headers.get('content-type') || '';
+        if ((dest === 'script' || dest === 'style' || dest === 'worker') && cachedType.includes('text/html')) {
+          caches.open(CACHE_NAME).then((cache) => cache.delete(event.request));
+        } else {
+          return cachedResponse;
+        }
+      }
+
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            const contentType = networkResponse.headers.get('content-type') || '';
+            const dest = event.request.destination;
+            // Prevent caching HTML error pages or SPA fallback as JS/CSS
+            if (!((dest === 'script' || dest === 'style' || dest === 'worker') && contentType.includes('text/html'))) {
+              const copy = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            }
           }
           return networkResponse;
         })
@@ -96,7 +153,7 @@ self.addEventListener('fetch', (event) => {
           // Silent catch: network failures of static assets return cached fallback if available
         });
 
-      return cachedResponse || fetchPromise;
+      return fetchPromise;
     })
   );
 });

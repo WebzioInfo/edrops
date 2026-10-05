@@ -45,10 +45,11 @@ export default function CustomerNotificationDropdown() {
   const [markingAll, setMarkingAll] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const userId = user?.id;
 
   // Fetch notifications from server
   const loadNotifications = useCallback(async (showLoader = false) => {
-    if (!user) return;
+    if (!userId) return;
     if (showLoader) setLoading(true);
     try {
       const res = await fetchWithAuth('/notifications?limit=30');
@@ -61,34 +62,41 @@ export default function CustomerNotificationDropdown() {
     } finally {
       if (showLoader) setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
-  // Initial fetch and on-focus refresh
+  const loadNotificationsRef = useRef(loadNotifications);
   useEffect(() => {
-    loadNotifications(true);
+    loadNotificationsRef.current = loadNotifications;
+  }, [loadNotifications]);
+
+  // Initial fetch and on-focus refresh per authenticated session
+  useEffect(() => {
+    if (!userId) return;
+
+    loadNotificationsRef.current(true);
 
     const handleFocus = () => {
-      loadNotifications(false);
+      loadNotificationsRef.current(false);
     };
 
     window.addEventListener('focus', handleFocus);
     const interval = setInterval(() => {
-      loadNotifications(false);
-    }, 30000); // 30s background heartbeat
+      loadNotificationsRef.current(false);
+    }, 60000); // 60s background heartbeat
 
     return () => {
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
-  }, [loadNotifications]);
+  }, [userId]);
 
   // Listen for realtime socket notifications
   useEffect(() => {
-    if (!socket || !user) return;
+    if (!socket || !userId) return;
 
     const handleIncomingEvent = () => {
       // Refresh list immediately when any relevant socket event arrives
-      loadNotifications(false);
+      loadNotificationsRef.current(false);
     };
 
     socket.on('ORDER_STATUS_CHANGED', handleIncomingEvent);
@@ -98,7 +106,7 @@ export default function CustomerNotificationDropdown() {
 
     const handleServiceWorkerMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'PUSH_NOTIFICATION_FOREGROUND') {
-        loadNotifications(false);
+        loadNotificationsRef.current(false);
       }
     };
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
@@ -114,7 +122,7 @@ export default function CustomerNotificationDropdown() {
         navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
       }
     };
-  }, [socket, user, loadNotifications]);
+  }, [socket, userId]);
 
   // Close when clicking outside or pressing Escape
   useEffect(() => {

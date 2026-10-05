@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { showToast } from '../utils/toast';
 
@@ -151,7 +151,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const login = (newToken: string, newUser: User) => {
+  const login = useCallback((newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
     setAuthStatus('authenticated');
@@ -163,18 +163,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       id: 'auth-welcome-toast',
       description: 'You are now signed in.',
     });
-  };
+  }, []);
 
-  const updateUser = (updatedFields: Partial<User>) => {
+  const updateUser = useCallback((updatedFields: Partial<User>) => {
     setUser((prev) => {
       if (!prev) return null;
-      const merged = { ...prev, ...updatedFields };
-      localStorage.setItem(USER_KEY, JSON.stringify(merged));
-      return merged;
+      // Prevent unnecessary state changes if all fields are identical
+      const hasDifferences = Object.entries(updatedFields).some(
+        ([key, val]) => (prev as any)[key] !== val
+      );
+      if (!hasDifferences) {
+        return prev;
+      }
+      return { ...prev, ...updatedFields };
     });
-  };
+  }, []);
 
-  const logout = () => {
+  // Safely synchronize user state to localStorage outside of React state setters
+  useEffect(() => {
+    if (user) {
+      try {
+        const stored = localStorage.getItem(USER_KEY);
+        const serialized = JSON.stringify(user);
+        if (stored !== serialized) {
+          localStorage.setItem(USER_KEY, serialized);
+        }
+      } catch {}
+    }
+  }, [user]);
+
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     setAuthStatus('unauthenticated');
@@ -186,11 +204,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     sessionStorage.removeItem(SESSION_WELCOME_KEY);
     sessionStorage.removeItem('dashboard_greeting_dismissed');
     window.location.href = '/login';
-  };
+  }, []);
 
   const isAuthenticated = authStatus === 'authenticated' && Boolean(token && user);
 
-  const hasPermission = (perm: string): boolean => {
+  const hasPermission = useCallback((perm: string): boolean => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
     const perms = Array.isArray(user.permissions) ? user.permissions : [];
@@ -205,22 +223,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         (u.startsWith('catalog') && target.startsWith('catalog'))
       );
     });
-  };
+  }, [user]);
+
+  const contextValue = useMemo<AuthContextType>(
+    () => ({
+      user,
+      token,
+      authStatus,
+      isLoading,
+      isAuthenticated,
+      hasPermission,
+      login,
+      updateUser,
+      logout,
+    }),
+    [user, token, authStatus, isLoading, isAuthenticated, hasPermission, login, updateUser, logout]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        authStatus,
-        isLoading,
-        isAuthenticated,
-        hasPermission,
-        login,
-        updateUser,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

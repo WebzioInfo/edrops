@@ -15,6 +15,7 @@ import * as bcrypt from 'bcrypt';
 import { UserRole, AccountStatus } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { CloudinaryService, type MulterFile } from '../config/cloudinary.service';
+import { normalizePhoneNumber, isEmailIdentifier } from '../common/phone-utils';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -29,8 +30,15 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const existingPhone = await this.prisma.user.findUnique({
-      where: { phone: registerDto.phone },
+    const normalizedPhone = normalizePhoneNumber(registerDto.phone);
+    if (!normalizedPhone) {
+      throw new BadRequestException('Please enter a valid mobile number.');
+    }
+
+    const existingPhone = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ phone: normalizedPhone }, { phone: registerDto.phone }],
+      },
     });
 
     if (existingPhone) {
@@ -51,11 +59,11 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
-        email: registerDto.email,
+        email: registerDto.email ? registerDto.email.trim().toLowerCase() : null,
         passwordHash,
         firstName: registerDto.firstName,
         lastName: registerDto.lastName,
-        phone: registerDto.phone,
+        phone: normalizedPhone,
         role: UserRole.CUSTOMER, // Default role
         customer: {
           create: {
@@ -75,39 +83,51 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const rawIdentifier = loginDto.identifier?.trim() || '';
+    const rawIdentifier = (loginDto.identifier || (loginDto as any).email || '').trim();
     if (!rawIdentifier) {
       throw new UnauthorizedException({
         statusCode: 401,
-        code: 'USER_NOT_FOUND',
-        message: 'User not found with this email or username.',
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid email/phone number or password.',
       });
     }
 
     const conditions: any[] = [];
 
-    if (rawIdentifier.includes('@')) {
+    if (isEmailIdentifier(rawIdentifier)) {
       // Direct email lookup (case-insensitive)
-      conditions.push({ email: { equals: rawIdentifier, mode: 'insensitive' } });
+      const cleanEmail = rawIdentifier.toLowerCase();
+      conditions.push({ email: { equals: cleanEmail, mode: 'insensitive' } });
     } else {
-      // Username lookup (exact email or email local-part before '@')
-      conditions.push(
-        { email: { equals: rawIdentifier, mode: 'insensitive' } },
-        { email: { startsWith: `${rawIdentifier}@`, mode: 'insensitive' } },
-      );
+      // Phone lookup with canonical E.164 normalization
+      const normalizedPhone = normalizePhoneNumber(rawIdentifier);
+      if (normalizedPhone) {
+        conditions.push({ phone: normalizedPhone });
+      }
 
-      // Phone lookup (exact, whitespace-stripped, or standard 10-digit formats)
+      // Also match raw string and digits variations for legacy existing rows
       const cleanDigits = rawIdentifier.replace(/\D/g, '');
       conditions.push(
         { phone: rawIdentifier },
         { phone: rawIdentifier.replace(/\s+/g, '') },
       );
-      if (cleanDigits.length >= 10) {
+      if (cleanDigits.length === 10) {
+        conditions.push(
+          { phone: cleanDigits },
+          { phone: `+91${cleanDigits}` },
+        );
+      } else if (cleanDigits.length >= 10) {
         conditions.push(
           { phone: { endsWith: cleanDigits } },
-          { phone: `+91${cleanDigits.slice(-10)}` },
+          { phone: `+${cleanDigits}` },
         );
       }
+
+      // Username lookup fallback
+      conditions.push(
+        { email: { equals: rawIdentifier, mode: 'insensitive' } },
+        { email: { startsWith: `${rawIdentifier}@`, mode: 'insensitive' } },
+      );
     }
 
     const user = await this.prisma.user.findFirst({
@@ -116,15 +136,16 @@ export class AuthService {
       },
     });
 
+    // Anti-enumeration: return identical generic message if user not found
     if (!user) {
       throw new UnauthorizedException({
         statusCode: 401,
-        code: 'USER_NOT_FOUND',
-        message: 'User not found with this email or username.',
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid email/phone number or password.',
       });
     }
 
-    if (user.accountStatus === AccountStatus.DISABLED) {
+    if (user.isActive === false || user.accountStatus === AccountStatus.DISABLED) {
       throw new UnauthorizedException({
         statusCode: 401,
         code: 'ACCOUNT_DISABLED',
@@ -146,11 +167,12 @@ export class AuthService {
       user.passwordHash,
     );
 
+    // Anti-enumeration: return identical generic message if password incorrect
     if (!isPasswordValid) {
       throw new UnauthorizedException({
         statusCode: 401,
-        code: 'INCORRECT_PASSWORD',
-        message: 'Incorrect password. Please try again.',
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid email/phone number or password.',
       });
     }
 

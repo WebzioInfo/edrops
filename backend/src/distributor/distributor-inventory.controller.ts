@@ -2,6 +2,7 @@ import { InventoryTransactionsQuery } from './dto/inventory-transactions-query.d
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -59,6 +60,24 @@ export class DistributorInventoryController {
     @Body() dto: UpdateJarItemDto,
   ) {
     return this.inventory.updateJarItem(req.user.id, id, dto);
+  }
+
+  @Delete('items/:id')
+  deleteJarItem(
+    @Req() req: { user: { id: string } },
+    @Param('id') id: string,
+  ) {
+    return this.inventory.deleteJarItem(req.user.id, id);
+  }
+
+  @Post('items/:id/adjustment')
+  adjustItemStock(
+    @Req() req: { user: { id: string } },
+    @Param('id') id: string,
+    @Body() dto: AdjustJarStockDto,
+  ) {
+    dto.jarItemId = id;
+    return this.inventory.adjustJarStock(req.user.id, dto);
   }
 
   @Post('items/:id/image')

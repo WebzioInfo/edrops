@@ -218,6 +218,8 @@ export async function getPushNotificationStatus(): Promise<PushPermissionState> 
  * Automatically sync/register push subscription if permission was already granted in this browser
  */
 export async function syncPushSubscriptionIfGranted(): Promise<void> {
+  // In development, do not register SW or sync push subscriptions to avoid Vite HMR conflicts
+  if (import.meta.env.DEV) return;
   if (!isPushNotificationSupported()) return;
 
   if (Notification.permission === 'granted') {

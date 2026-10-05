@@ -523,6 +523,26 @@ export class DistributorInventoryService {
           dto.notes ||
           `${dto.quantity} jars moved from ${dto.fromState.replace(/_/g, ' ')} to ${dto.toState.replace(/_/g, ' ')}${dto.reason ? ` (${dto.reason})` : ''}`;
 
+        let signedQty = dto.quantity;
+        let resultingBalance = updated.filledYardQuantity;
+
+        if (dto.toState === JarPhysicalState.FILLED_YARD) {
+          signedQty = dto.quantity;
+          resultingBalance = updated.filledYardQuantity;
+        } else if (dto.fromState === JarPhysicalState.FILLED_YARD) {
+          signedQty = -dto.quantity;
+          resultingBalance = updated.filledYardQuantity;
+        } else if (dto.toState === JarPhysicalState.EMPTY_YARD) {
+          signedQty = dto.quantity;
+          resultingBalance = updated.emptyYardQuantity;
+        } else if (dto.fromState === JarPhysicalState.EMPTY_YARD) {
+          signedQty = -dto.quantity;
+          resultingBalance = updated.emptyYardQuantity;
+        } else {
+          signedQty = dto.quantity;
+          resultingBalance = (updated as any)[toCol] ?? item.ownedQuantity;
+        }
+
         await tx.inventoryLog.create({
           data: {
             distributorId: profile.id,
@@ -531,10 +551,11 @@ export class DistributorInventoryService {
             action,
             fromState: dto.fromState,
             toState: dto.toState,
-            quantity: dto.quantity,
-            balanceAfter: item.ownedQuantity,
+            quantity: signedQty,
+            balanceAfter: resultingBalance,
             description: logDesc,
             createdById: userId,
+            eventTimestamp: new Date(),
           },
         });
 
@@ -622,10 +643,11 @@ export class DistributorInventoryService {
             fromState: 'CUSTOMER',
             toState: 'EMPTY_YARD',
             quantity: dto.quantity,
-            balanceAfter: item.ownedQuantity,
+            balanceAfter: updatedItem.emptyYardQuantity,
             referenceId: orderRef,
-            description: `${dto.quantity} empty jar(s) returned by ${custName}${dto.notes ? ` (${dto.notes})` : ''}`,
+            description: `${dto.quantity} empty jar(s) returned by ${custName}${dto.notes ? ` (${dto.notes})` : ''} (Customer → Empty Yard)`,
             createdById: userId,
+            eventTimestamp: new Date(),
           },
         });
 
@@ -655,6 +677,9 @@ export class DistributorInventoryService {
   }
 
   async adjustJarStock(userId: string, dto: AdjustJarStockDto) {
+    if (!dto.jarItemId) {
+      throw new BadRequestException('jarItemId is required');
+    }
     if (!dto.reason?.trim()) {
       throw new BadRequestException('Reason is required for manual stock adjustments');
     }
@@ -678,8 +703,11 @@ export class DistributorInventoryService {
 
         if (!item) throw new NotFoundException('Jar item not found');
 
-        const currentVal = (item as any)[col] as number;
-        const delta = Number(dto.quantity);
+        const currentVal = ((item as any)[col] as number) || 0;
+        let delta = Number(dto.quantity);
+        if (dto.adjustmentType === 'DECREASE' && delta > 0) {
+          delta = -delta;
+        }
 
         if (delta === 0) {
           throw new BadRequestException('Adjustment quantity must be non-zero');
@@ -689,7 +717,9 @@ export class DistributorInventoryService {
           throw new BadRequestException(`Cannot adjust below zero. Current ${dto.state}: ${currentVal}`);
         }
 
-        if (dto.isOwnershipChange) {
+        const isOwnershipChange = dto.isOwnershipChange ?? true;
+
+        if (isOwnershipChange) {
           if (item.ownedQuantity + delta < 0) {
             throw new BadRequestException('Cannot adjust total ownership below zero');
           }
@@ -723,13 +753,21 @@ export class DistributorInventoryService {
               fromState: delta > 0 ? 'EXTERNAL' : dto.state,
               toState: delta > 0 ? dto.state : 'EXTERNAL',
               quantity: delta,
-              balanceAfter: updated.ownedQuantity,
-              description: `Ownership adjustment (${delta > 0 ? '+' : ''}${delta}): ${dto.reason}`,
+              balanceAfter: ((updated as any)[col]) as number,
+              description: `[${dto.state}] ${currentVal} → ${currentVal + delta} (${delta > 0 ? '+' : ''}${delta}): ${dto.reason.trim()}`,
               createdById: userId,
+              eventTimestamp: new Date(),
             },
           });
 
-          return { success: true, item: updated };
+          return {
+            success: true,
+            item: updated,
+            previousQuantity: currentVal,
+            adjustment: delta,
+            newQuantity: currentVal + delta,
+            newOwnedQuantity: updated.ownedQuantity,
+          };
         } else {
           throw new BadRequestException(
             'Physical movement between states must specify fromState and toState via /move endpoint to preserve ownership reconciliation.',
@@ -738,6 +776,49 @@ export class DistributorInventoryService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
+  }
+
+  async deleteJarItem(userId: string, itemId: string) {
+    const profile = await this.profile(userId);
+    const item = await this.prisma.jarInventoryItem.findFirst({
+      where: { id: itemId, distributorId: profile.id },
+    });
+    if (!item) throw new NotFoundException('Jar item not found');
+    if (item.ownershipType === 'COMPANY') {
+      throw new BadRequestException('Company owned item cannot be deleted or archived');
+    }
+
+    const [logCount, allocationCount] = await Promise.all([
+      this.prisma.inventoryLog.count({ where: { jarItemId: itemId } }),
+      this.prisma.orderJarAllocation.count({ where: { jarItemId: itemId } }),
+    ]);
+
+    const hasStock =
+      item.ownedQuantity > 0 ||
+      item.filledYardQuantity > 0 ||
+      item.emptyYardQuantity > 0 ||
+      item.customerQuantity > 0;
+
+    if (logCount > 0 || allocationCount > 0 || hasStock) {
+      await this.prisma.jarInventoryItem.update({
+        where: { id: itemId },
+        data: { isActive: false },
+      });
+      return {
+        success: true,
+        archived: true,
+        message: 'Item has ledger history or stock and has been archived instead of permanently deleted to preserve transaction records.',
+      };
+    }
+
+    await this.prisma.jarInventoryItem.delete({
+      where: { id: itemId },
+    });
+    return {
+      success: true,
+      deleted: true,
+      message: 'Unused jar item deleted successfully.',
+    };
   }
 
   async getReconciliation(userId: string) {
@@ -762,22 +843,67 @@ export class DistributorInventoryService {
       quantity: { not: null },
       balanceAfter: { not: null },
     };
-    const until = query.to ? new Date(query.to + 'T00:00:00.000Z') : undefined;
-    if (until) until.setUTCDate(until.getUTCDate() + 1);
+    const fromDate = query.from
+      ? query.from.includes('T')
+        ? new Date(query.from)
+        : new Date(`${query.from}T00:00:00Z`)
+      : undefined;
+    const toDate = query.to
+      ? query.to.includes('T')
+        ? new Date(query.to)
+        : (() => {
+            const d = new Date(`${query.to}T00:00:00Z`);
+            d.setUTCDate(d.getUTCDate() + 1);
+            return d;
+          })()
+      : undefined;
+
     const where: Prisma.InventoryLogWhereInput = {
       ...scope,
       ...(query.type ? { action: query.type } : {}),
-      ...(query.from || until
+      ...(fromDate || toDate
         ? {
             createdAt: {
-              ...(query.from
-                ? { gte: new Date(query.from + 'T00:00:00.000Z') }
-                : {}),
-              ...(until ? { lt: until } : {}),
+              ...(fromDate ? { gte: fromDate } : {}),
+              ...(toDate ? { lt: toDate } : {}),
             },
           }
         : {}),
-      ...(query.search?.trim()
+      ...(query.location && query.search?.trim()
+        ? {
+            AND: [
+              {
+                OR: [
+                  { fromState: query.location },
+                  { toState: query.location },
+                ],
+              },
+              {
+                OR: [
+                  {
+                    referenceId: {
+                      contains: query.search.trim(),
+                      mode: 'insensitive',
+                    },
+                  },
+                  {
+                    description: {
+                      contains: query.search.trim(),
+                      mode: 'insensitive',
+                    },
+                  },
+                ],
+              },
+            ],
+          }
+        : query.location
+        ? {
+            OR: [
+              { fromState: query.location },
+              { toState: query.location },
+            ],
+          }
+        : query.search?.trim()
         ? {
             OR: [
               {
@@ -809,6 +935,7 @@ export class DistributorInventoryService {
           select: {
             id: true,
             createdAt: true,
+            eventTimestamp: true,
             action: true,
             quantity: true,
             balanceAfter: true,
@@ -818,6 +945,13 @@ export class DistributorInventoryService {
             toState: true,
             orderId: true,
             customerId: true,
+            createdBy: {
+              select: {
+                firstName: true,
+                lastName: true,
+                role: true,
+              },
+            },
           },
         });
         const incoming = await tx.inventoryLog.aggregate({
@@ -850,6 +984,9 @@ export class DistributorInventoryService {
               return 'Opening balance';
             case 'OUT_FOR_DELIVERY':
               return 'Out for delivery';
+            case 'DELIVERY_COMPLETED':
+            case 'DELIVERED':
+              return 'Delivery completed';
             case 'UNDELIVERED_RETURN':
               return 'Undelivered Return';
             case 'ALLOCATION_RELEASED':
@@ -881,10 +1018,28 @@ export class DistributorInventoryService {
           }
         };
 
+        const getLocationLabel = (row: any) => {
+          if (row.action === 'OUT_FOR_DELIVERY' || row.fromState === 'FILLED_YARD' || row.toState === 'FILLED_YARD') {
+            return 'Filled Yard';
+          }
+          if (row.action === 'CUSTOMER_RETURN' || row.toState === 'EMPTY_YARD' || row.fromState === 'EMPTY_YARD') {
+            return 'Empty Yard';
+          }
+          if (row.toState === 'CUSTOMER' || row.fromState === 'CUSTOMER') {
+            return 'Customer Holding';
+          }
+          if (row.toState) {
+            return row.toState.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase());
+          }
+          return 'Filled Yard';
+        };
+
         return {
           items: rows.map((row) => ({
             ...row,
             label: getActionLabel(row.action),
+            locationLabel: getLocationLabel(row),
+            eventTimestamp: row.eventTimestamp ?? row.createdAt,
           })),
           page,
           limit,
@@ -896,6 +1051,7 @@ export class DistributorInventoryService {
           types: [
             { value: 'OPENING_BALANCE', label: 'Opening balance' },
             { value: 'OUT_FOR_DELIVERY', label: 'Out for delivery' },
+            { value: 'DELIVERY_COMPLETED', label: 'Delivery completed' },
             { value: 'UNDELIVERED_RETURN', label: 'Undelivered Return' },
             { value: 'ALLOCATION_RELEASED', label: 'Allocation released' },
             { value: 'CUSTOMER_RETURN', label: 'Customer return' },
@@ -903,7 +1059,9 @@ export class DistributorInventoryService {
             { value: 'JAR_FILLING', label: 'Sent to filling' },
             { value: 'JAR_FILLED', label: 'Filled in yard' },
             { value: 'JAR_QUARANTINED', label: 'Quarantined' },
+            { value: 'JAR_RELEASED', label: 'Released from quarantine' },
             { value: 'JAR_DAMAGED', label: 'Damaged' },
+            { value: 'MANUAL_ADJUSTMENT', label: 'Manual adjustment' },
             { value: 'ADJUSTMENT', label: 'Ownership adjustment' },
           ],
         };

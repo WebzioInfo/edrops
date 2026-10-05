@@ -8,13 +8,18 @@ import {
   CheckCircle2,
   ChevronDown,
   Droplets,
-  Factory,
+  Edit3,
+  History,
   ImagePlus,
   Package,
   Plus,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
+  SlidersHorizontal,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
   Upload,
   UserCheck,
   X,
@@ -108,10 +113,6 @@ const PHYSICAL_STATES = [
   { value: "FILLED_YARD", label: "Filled in Yard", icon: Droplets, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
   { value: "EMPTY_YARD", label: "Empty in Yard", icon: Boxes, color: "text-slate-700 bg-slate-50 border-slate-200" },
   { value: "CUSTOMER", label: "With Customers", icon: UserCheck, color: "text-blue-700 bg-blue-50 border-blue-200" },
-  { value: "WASHING", label: "Washing & Cleaning", icon: Factory, color: "text-cyan-700 bg-cyan-50 border-cyan-200" },
-  { value: "FILLING", label: "Water Filling", icon: Droplets, color: "text-sky-700 bg-sky-50 border-sky-200" },
-  { value: "QUARANTINE", label: "Quarantine / QC", icon: AlertTriangle, color: "text-amber-700 bg-amber-50 border-amber-200" },
-  { value: "DAMAGED", label: "Damaged / Scrapped", icon: AlertCircle, color: "text-rose-700 bg-rose-50 border-rose-200" },
 ] as const;
 
 export default function Inventory() {
@@ -136,7 +137,7 @@ export default function Inventory() {
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [moveJarItemId, setMoveJarItemId] = useState<string>("");
   const [moveFromState, setMoveFromState] = useState<string>("EMPTY_YARD");
-  const [moveToState, setMoveToState] = useState<string>("WASHING");
+  const [moveToState, setMoveToState] = useState<string>("FILLED_YARD");
   const [moveQuantity, setMoveQuantity] = useState<string>("1");
   const [moveReason, setMoveReason] = useState<string>("");
   const [isMoving, setIsMoving] = useState(false);
@@ -155,6 +156,38 @@ export default function Inventory() {
   const [editPreview, setEditPreview] = useState<string | null>(null);
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
   const editFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Manage Stock Modal State
+  const [stockModalItem, setStockModalItem] = useState<{
+    id: string;
+    name: string;
+    ownershipType: "COMPANY" | "DISTRIBUTOR";
+    imageUrl?: string | null;
+    totalOwned: number;
+    availableQuantity: number;
+    reservedQuantity: number;
+    filledYardQuantity: number;
+    emptyYardQuantity: number;
+    customerQuantity: number;
+  } | null>(null);
+  const [stockModalTab, setStockModalTab] = useState<"CURRENT" | "HISTORY">("CURRENT");
+  const [adjustingState, setAdjustingState] = useState<"FILLED_YARD" | "EMPTY_YARD" | "CUSTOMER" | null>(null);
+  const [adjustType, setAdjustType] = useState<"INCREASE" | "DECREASE">("INCREASE");
+  const [adjustQty, setAdjustQty] = useState<string>("1");
+  const [adjustReason, setAdjustReason] = useState<string>("Physical Count Correction");
+  const [customReason, setCustomReason] = useState<string>("");
+  const [isAdjusting, setIsAdjusting] = useState<boolean>(false);
+
+  // Item Adjustment History in Modal State
+  const [itemHistory, setItemHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
+
+  // Edit Brand/Item Modal State
+  const [editItem, setEditItem] = useState<JarInventoryItemRecord | null>(null);
+  const [editItemName, setEditItemName] = useState<string>("");
+  const [editItemDescription, setEditItemDescription] = useState<string>("");
+  const [isSavingEditItem, setIsSavingEditItem] = useState<boolean>(false);
+  const [isDeletingItem, setIsDeletingItem] = useState<boolean>(false);
 
   const request = useRef(0);
   const { socket } = useSocket();
@@ -244,7 +277,7 @@ export default function Inventory() {
     const targetItem = itemId ? allItems.find((i) => i.id === itemId) : allItems[0];
     setMoveJarItemId(targetItem?.id || allItems[0]?.id || "");
     setMoveFromState(defaultFrom || "EMPTY_YARD");
-    setMoveToState(defaultTo || "WASHING");
+    setMoveToState(defaultTo || "FILLED_YARD");
     setMoveQuantity("1");
     setMoveReason("");
     setIsMoveModalOpen(true);
@@ -386,6 +419,198 @@ export default function Inventory() {
     }
   };
 
+  // Stock Management Modal Handlers
+  const loadItemHistory = useCallback(async (jarItemId: string) => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetchWithAuth(
+        `/distributor/inventory/transactions?jarItemId=${jarItemId}&limit=50`,
+      );
+      setItemHistory(res.items || []);
+    } catch (err) {
+      console.error("Failed to load item adjustment history", err);
+      setItemHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (stockModalItem && stockModalTab === "HISTORY") {
+      void loadItemHistory(stockModalItem.id);
+    }
+  }, [stockModalItem, stockModalTab, loadItemHistory]);
+
+  const handleOpenStockModal = (item: {
+    id: string;
+    name: string;
+    ownershipType: "COMPANY" | "DISTRIBUTOR";
+    imageUrl?: string | null;
+    totalOwned: number;
+    availableQuantity: number;
+    reservedQuantity: number;
+    filledYardQuantity: number;
+    emptyYardQuantity: number;
+    customerQuantity: number;
+  }) => {
+    setStockModalItem(item);
+    setStockModalTab("CURRENT");
+    setAdjustingState(null);
+    setAdjustType("INCREASE");
+    setAdjustQty("1");
+    setAdjustReason("Physical Count Correction");
+    setCustomReason("");
+  };
+
+  const handleAdjustSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stockModalItem || !adjustingState) return;
+
+    const qtyNum = parseInt(adjustQty, 10);
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      toast.error("Please enter a valid positive quantity.");
+      return;
+    }
+
+    const finalReason =
+      adjustReason === "Other"
+        ? customReason.trim() || "Manual stock adjustment"
+        : adjustReason;
+
+    if (!finalReason.trim()) {
+      toast.error("Please specify a reason for this stock adjustment.");
+      return;
+    }
+
+    let currentVal = 0;
+    if (adjustingState === "FILLED_YARD") currentVal = stockModalItem.filledYardQuantity;
+    else if (adjustingState === "EMPTY_YARD") currentVal = stockModalItem.emptyYardQuantity;
+    else if (adjustingState === "CUSTOMER") currentVal = stockModalItem.customerQuantity;
+
+    if (adjustType === "DECREASE" && qtyNum > currentVal) {
+      toast.error(
+        `Cannot decrease below 0. Current ${adjustingState.replace("_", " ")} is ${currentVal}.`,
+      );
+      return;
+    }
+
+    setIsAdjusting(true);
+    try {
+      await fetchWithAuth(
+        `/distributor/inventory/items/${stockModalItem.id}/adjustment`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            state: adjustingState,
+            quantity: qtyNum,
+            adjustmentType: adjustType,
+            reason: finalReason,
+            isOwnershipChange: true,
+          }),
+        },
+      );
+
+      toast.success(
+        `Successfully adjusted ${adjustingState.replace("_", " ").toLowerCase()}!`,
+      );
+      await load();
+
+      const delta = adjustType === "INCREASE" ? qtyNum : -qtyNum;
+      setStockModalItem((prev) => {
+        if (!prev) return null;
+        const updated = { ...prev };
+        if (adjustingState === "FILLED_YARD") {
+          updated.filledYardQuantity = Math.max(0, updated.filledYardQuantity + delta);
+          updated.availableQuantity = Math.max(
+            0,
+            updated.filledYardQuantity - updated.reservedQuantity,
+          );
+        } else if (adjustingState === "EMPTY_YARD") {
+          updated.emptyYardQuantity = Math.max(0, updated.emptyYardQuantity + delta);
+        } else if (adjustingState === "CUSTOMER") {
+          updated.customerQuantity = Math.max(0, updated.customerQuantity + delta);
+        }
+        updated.totalOwned = Math.max(0, updated.totalOwned + delta);
+        return updated;
+      });
+
+      setAdjustingState(null);
+      setAdjustQty("1");
+      setCustomReason("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to adjust stock");
+    } finally {
+      setIsAdjusting(false);
+    }
+  };
+
+  const handleOpenEditItem = (item: JarInventoryItemRecord) => {
+    setEditItem(item);
+    setEditItemName(item.name);
+    setEditItemDescription(item.description || "");
+  };
+
+  const handleSaveEditItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editItem) return;
+    if (!editItemName.trim()) {
+      toast.error("Item name is required.");
+      return;
+    }
+
+    setIsSavingEditItem(true);
+    try {
+      await fetchWithAuth(`/distributor/inventory/items/${editItem.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: editItemName.trim(),
+          description: editItemDescription.trim() || null,
+        }),
+      });
+      toast.success("Item details updated successfully!");
+      setEditItem(null);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update item.");
+    } finally {
+      setIsSavingEditItem(false);
+    }
+  };
+
+  const handleDeleteItem = async (item: JarInventoryItemRecord) => {
+    if (item.ownershipType === "COMPANY") {
+      toast.error("Company owned items cannot be deleted or archived.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete or archive "${item.name}"?\n\nNote: If this item has ledger history or active stock, it will be safely archived to preserve all historical transaction records.`,
+    );
+    if (!confirmed) return;
+
+    setIsDeletingItem(true);
+    try {
+      const res = await fetchWithAuth(
+        `/distributor/inventory/items/${item.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+      toast.success(
+        res.message ||
+          (res.archived
+            ? "Item archived successfully."
+            : "Item deleted successfully."),
+      );
+      setEditItem(null);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete item.");
+    } finally {
+      setIsDeletingItem(false);
+    }
+  };
+
   // Company and Distributor items
   const companyItem = data?.items?.find((i) => i.ownershipType === "COMPANY");
   const distributorItems = data?.items?.filter((i) => i.ownershipType === "DISTRIBUTOR") || [];
@@ -397,11 +622,6 @@ export default function Inventory() {
     filledYard: companyItem?.filledYardQuantity ?? data?.companyOwned.filledYard ?? 0,
     emptyYard: companyItem?.emptyYardQuantity ?? data?.companyOwned.emptyYard ?? 0,
     withCustomers: companyItem?.customerQuantity ?? data?.companyOwned.withCustomers ?? 0,
-    washing: companyItem?.washingQuantity ?? data?.companyOwned.washing ?? 0,
-    filling: companyItem?.fillingQuantity ?? data?.companyOwned.filling ?? 0,
-    quarantine: companyItem?.quarantineQuantity ?? data?.companyOwned.quarantine ?? 0,
-    damaged: companyItem?.damagedQuantity ?? data?.companyOwned.damaged ?? 0,
-    lost: companyItem?.lostQuantity ?? data?.companyOwned.lost ?? 0,
   };
 
   const distributorOwnedStockTotal = distributorItems.length > 0
@@ -423,10 +643,6 @@ export default function Inventory() {
       case "FILLED_YARD": return item.filledYardQuantity ?? 0;
       case "EMPTY_YARD": return item.emptyYardQuantity ?? 0;
       case "CUSTOMER": return item.customerQuantity ?? 0;
-      case "WASHING": return item.washingQuantity ?? 0;
-      case "FILLING": return item.fillingQuantity ?? 0;
-      case "QUARANTINE": return item.quarantineQuantity ?? 0;
-      case "DAMAGED": return item.damagedQuantity ?? 0;
       default: return 0;
     }
   };
@@ -593,148 +809,150 @@ export default function Inventory() {
                 </div>
 
                 <div className="w-full bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden">
-                  <div className="p-4 border-b border-[#E2E8F0] bg-gradient-to-r from-slate-50 via-white to-sky-50/20 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white border border-[#E2E8F0] shadow-2xs">
+                  {/* Compact Product Header with Integrated Mini-Stats */}
+                  <div className="p-3.5 sm:p-4 bg-gradient-to-r from-slate-50 via-white to-sky-50/20 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+                    {/* Product info (Left) */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white border border-[#E2E8F0] shadow-2xs">
                         <img
                           src="/images/biodrops-jar.png"
                           alt="Biodrops 20L jar"
-                          className="h-9 w-9 object-contain"
+                          className="h-8 w-8 object-contain"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = "none";
                           }}
                         />
                       </span>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-bold text-[#16324F]">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-sm font-bold text-[#16324F] truncate">
                             {companyItem?.name || "BioDrops 20L Returnable Jar"}
                           </h4>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200 shrink-0">
                             Company Owned
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
+                        <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-xs sm:max-w-md">
                           Standard BioDrops returnable assets · Custody changes do not change legal ownership
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4 text-right">
-                      <div>
-                        <span className="block text-[10px] uppercase font-bold text-slate-400">Total Owned</span>
-                        <span className="text-base font-black text-[#16324F] tabular-nums">
-                          {companyOwnedStock.total.toLocaleString()} jars
-                        </span>
+                    {/* Right: Integrated Mini-Stats & KPIs */}
+                    <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-5 pt-2.5 lg:pt-0 border-t border-slate-100 lg:border-t-0">
+                      {/* 3 Compact Mini-Stat Blocks */}
+                      <div className="flex items-center gap-2.5 sm:gap-4">
+                        {/* Filled */}
+                        <div className="min-w-[62px]">
+                          <div className="flex items-center gap-1 text-emerald-600">
+                            <Droplets className="w-3 h-3 shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Filled</span>
+                          </div>
+                          <div className="flex items-baseline gap-1 mt-0.5">
+                            <span className="text-base sm:text-lg font-black text-emerald-700 tabular-nums">
+                              {(companyOwnedStock.filledYard ?? 0).toLocaleString()}
+                            </span>
+                            {(companyOwnedStock.reserved ?? 0) > 0 && (
+                              <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1 rounded">
+                                ({companyOwnedStock.reserved} res)
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-medium">Available</span>
+                        </div>
+
+                        <div className="w-px h-7 bg-slate-200 shrink-0" />
+
+                        {/* Empty */}
+                        <div className="min-w-[55px]">
+                          <div className="flex items-center gap-1 text-slate-500">
+                            <Boxes className="w-3 h-3 shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Empty</span>
+                          </div>
+                          <p className="text-base sm:text-lg font-black text-slate-700 tabular-nums mt-0.5">
+                            {(companyOwnedStock.emptyYard ?? 0).toLocaleString()}
+                          </p>
+                          <span className="text-[10px] text-slate-400 font-medium">In yard</span>
+                        </div>
+
+                        <div className="w-px h-7 bg-slate-200 shrink-0" />
+
+                        {/* Customers */}
+                        <div className="min-w-[62px]">
+                          <div className="flex items-center gap-1 text-blue-600">
+                            <UserCheck className="w-3 h-3 shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Customers</span>
+                          </div>
+                          <p className="text-base sm:text-lg font-black text-blue-700 tabular-nums mt-0.5">
+                            {(companyOwnedStock.withCustomers ?? 0).toLocaleString()}
+                          </p>
+                          <span className="text-[10px] text-slate-400 font-medium">Custody</span>
+                        </div>
                       </div>
-                      <div className="pl-3 border-l border-slate-200">
-                        <span className="block text-[10px] uppercase font-bold text-emerald-600">Available to Dispatch</span>
-                        <span className="text-base font-black text-emerald-700 tabular-nums">
-                          {(companyOwnedStock.available ?? 0).toLocaleString()} jars
-                        </span>
+
+                      {/* Divider between mini-stats and totals on desktop */}
+                      <div className="hidden sm:block w-px h-8 bg-slate-200 shrink-0" />
+
+                      {/* Summary KPIs: Total Owned & Available */}
+                      <div className="flex items-center gap-3 sm:gap-4 text-right">
+                        <div>
+                          <span className="block text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Owned</span>
+                          <span className="text-sm sm:text-base font-black text-[#16324F] tabular-nums">
+                            {companyOwnedStock.total.toLocaleString()} <span className="text-[11px] font-normal text-slate-400">jars</span>
+                          </span>
+                        </div>
+                        <div className="pl-3 border-l border-slate-200">
+                          <span className="block text-[9px] uppercase font-bold text-emerald-600 tracking-wider">Available</span>
+                          <span className="text-sm sm:text-base font-black text-emerald-700 tabular-nums">
+                            {(companyOwnedStock.available ?? 0).toLocaleString()} <span className="text-[11px] font-normal text-emerald-600/80">jars</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Manage Stock Action */}
+                      <div className="pl-1 sm:pl-2 flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!companyItem) return;
+                            handleOpenStockModal({
+                              id: companyItem.id,
+                              name: companyItem.name || "BioDrops 20L Returnable Jar",
+                              ownershipType: "COMPANY",
+                              imageUrl: "/images/biodrops-jar.png",
+                              totalOwned: companyOwnedStock.total,
+                              availableQuantity: companyOwnedStock.available ?? 0,
+                              reservedQuantity: companyOwnedStock.reserved ?? 0,
+                              filledYardQuantity: companyOwnedStock.filledYard ?? 0,
+                              emptyYardQuantity: companyOwnedStock.emptyYard ?? 0,
+                              customerQuantity: companyOwnedStock.withCustomers ?? 0,
+                            });
+                          }}
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-[#16324F] rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                        >
+                          <SlidersHorizontal className="w-3 h-3 text-[#1677C8]" /> Manage Stock
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Physical States Grid */}
-                  <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 bg-[#FAFBFC] border-b border-[#E2E8F0]">
-                    <div className="p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-emerald-700">
-                        <span className="text-[10px] uppercase font-bold">Filled in Yard</span>
-                        <Droplets className="w-3.5 h-3.5" />
-                      </div>
-                      <p className="text-lg font-black text-emerald-700 tabular-nums">
-                        {(companyOwnedStock.filledYard ?? 0).toLocaleString()}
-                      </p>
-                      <span className="block text-[10px] text-slate-400">
-                        {(companyOwnedStock.reserved ?? 0) > 0 ? `${companyOwnedStock.reserved} reserved` : "0 reserved"}
-                      </span>
-                    </div>
-
-                    <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-slate-700">
-                        <span className="text-[10px] uppercase font-bold">Empty in Yard</span>
-                        <Boxes className="w-3.5 h-3.5 text-slate-400" />
-                      </div>
-                      <p className="text-lg font-black text-slate-800 tabular-nums">
-                        {(companyOwnedStock.emptyYard ?? 0).toLocaleString()}
-                      </p>
-                      <span className="block text-[10px] text-slate-400">Awaiting washing</span>
-                    </div>
-
-                    <div className="p-3 bg-white rounded-xl border border-blue-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-blue-700">
-                        <span className="text-[10px] uppercase font-bold">With Customers</span>
-                        <UserCheck className="w-3.5 h-3.5" />
-                      </div>
-                      <p className="text-lg font-black text-blue-700 tabular-nums">
-                        {(companyOwnedStock.withCustomers ?? 0).toLocaleString()}
-                      </p>
-                      <span className="block text-[10px] text-slate-400">In customer custody</span>
-                    </div>
-
-                    <div className="p-3 bg-white rounded-xl border border-cyan-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-cyan-700">
-                        <span className="text-[10px] uppercase font-bold">Washing</span>
-                        <Factory className="w-3.5 h-3.5" />
-                      </div>
-                      <p className="text-lg font-black text-cyan-700 tabular-nums">
-                        {(companyOwnedStock.washing ?? 0).toLocaleString()}
-                      </p>
-                      <span className="block text-[10px] text-slate-400">In cleaning cycle</span>
-                    </div>
-
-                    <div className="p-3 bg-white rounded-xl border border-sky-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-sky-700">
-                        <span className="text-[10px] uppercase font-bold">Filling</span>
-                        <Droplets className="w-3.5 h-3.5 text-sky-600" />
-                      </div>
-                      <p className="text-lg font-black text-sky-700 tabular-nums">
-                        {(companyOwnedStock.filling ?? 0).toLocaleString()}
-                      </p>
-                      <span className="block text-[10px] text-slate-400">At filling line</span>
-                    </div>
-
-                    <div className="p-3 bg-white rounded-xl border border-amber-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-amber-700">
-                        <span className="text-[10px] uppercase font-bold">Quarantine / QC</span>
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                      </div>
-                      <p className="text-lg font-black text-amber-700 tabular-nums">
-                        {(companyOwnedStock.quarantine ?? 0).toLocaleString()}
-                      </p>
-                      <span className="block text-[10px] text-slate-400">Under inspection</span>
-                    </div>
-
-                    <div className="p-3 bg-white rounded-xl border border-rose-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-rose-700">
-                        <span className="text-[10px] uppercase font-bold">Damaged</span>
-                        <AlertCircle className="w-3.5 h-3.5" />
-                      </div>
-                      <p className="text-lg font-black text-rose-700 tabular-nums">
-                        {(companyOwnedStock.damaged ?? 0).toLocaleString()}
-                      </p>
-                      <span className="block text-[10px] text-slate-400">Non-reusable jars</span>
-                    </div>
-                  </div>
-
-                  {/* Mathematical Reconciliation Summary */}
-                  <div className="px-4 py-2.5 bg-white flex flex-wrap items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  {/* Compact Reconciliation Footer */}
+                  <div className="px-3.5 sm:px-4 py-2 bg-slate-50/70 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span>
-                        ∑ ({companyOwnedStock.filledYard ?? 0} Filled + {companyOwnedStock.emptyYard ?? 0} Empty + {companyOwnedStock.withCustomers ?? 0} Customer + {companyOwnedStock.washing ?? 0} Wash + {companyOwnedStock.filling ?? 0} Fill + {companyOwnedStock.quarantine ?? 0} QC + {companyOwnedStock.damaged ?? 0} Dmg) = <strong>{companyOwnedStock.total} Owned Jars</strong>
+                        ✓ {(companyOwnedStock.filledYard ?? 0)} Filled + {(companyOwnedStock.emptyYard ?? 0)} Empty + {(companyOwnedStock.withCustomers ?? 0)} Customer = <strong className="text-slate-900 font-bold">{companyOwnedStock.total} Owned Jars</strong>
                       </span>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => setExpanded(expanded === "COMPANY_OWNED" ? null : "COMPANY_OWNED")}
-                      className="inline-flex items-center gap-1 font-semibold text-[#1677C8] hover:underline cursor-pointer"
+                      className="inline-flex items-center gap-1 font-semibold text-[#1677C8] hover:underline cursor-pointer ml-auto"
                     >
                       {expanded === "COMPANY_OWNED" ? "Hide ledger transactions" : "View ledger transactions"}
                       <ChevronDown
-                        className={`h-4 w-4 transition-transform duration-150 ${expanded === "COMPANY_OWNED" ? "rotate-180" : ""}`}
+                        className={`h-3.5 w-3.5 transition-transform duration-150 ${expanded === "COMPANY_OWNED" ? "rotate-180" : ""}`}
                       />
                     </button>
                   </div>
@@ -752,6 +970,8 @@ export default function Inventory() {
                           reserved: companyOwnedStock.reserved,
                           withCustomers: companyOwnedStock.withCustomers ?? null,
                           damaged: companyOwnedStock.damaged ?? null,
+                          filledYard: companyOwnedStock.filledYard ?? null,
+                          emptyYard: companyOwnedStock.emptyYard ?? null,
                         }}
                       />
                     </div>
@@ -813,59 +1033,147 @@ export default function Inventory() {
                           key={item.id}
                           className="w-full bg-white border border-[#E2E8F0] rounded-xl shadow-2xs overflow-hidden"
                         >
-                          <div className="p-4 border-b border-[#E2E8F0] bg-gradient-to-r from-slate-50 via-white to-purple-50/20 flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white border border-[#E2E8F0] overflow-hidden shadow-2xs">
+                          {/* Compact Product Header with Integrated Mini-Stats & Actions */}
+                          <div className="p-3.5 sm:p-4 bg-gradient-to-r from-slate-50 via-white to-purple-50/20 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+                            {/* Product info (Left) */}
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white border border-[#E2E8F0] overflow-hidden shadow-2xs">
                                 {image ? (
                                   <img
                                     src={image}
                                     alt={item.name}
-                                    className="h-10 w-10 object-contain"
+                                    className="h-8 w-8 object-contain"
                                   />
                                 ) : (
                                   <ImagePlus className="h-5 w-5 text-slate-400" />
                                 )}
                               </span>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h4 className="text-sm font-bold text-[#16324F]">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="text-sm font-bold text-[#16324F] truncate">
                                     {item.name}
                                   </h4>
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 shrink-0">
                                     Distributor Owned
                                   </span>
                                 </div>
-                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-xs sm:max-w-md">
                                   {item.description || "Distributor-owned 20L returnable jar asset"}
                                 </p>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-4 text-right">
-                              <div>
-                                <span className="block text-[10px] uppercase font-bold text-slate-400">Total Owned</span>
-                                <span className="text-base font-black text-[#16324F] tabular-nums">
-                                  {item.ownedQuantity.toLocaleString()} jars
-                                </span>
+                            {/* Right: Integrated Mini-Stats, KPIs, and Actions */}
+                            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 pt-2.5 lg:pt-0 border-t border-slate-100 lg:border-t-0">
+                              {/* 3 Compact Mini-Stat Blocks */}
+                              <div className="flex items-center gap-2.5 sm:gap-4">
+                                {/* Filled */}
+                                <div className="min-w-[62px]">
+                                  <div className="flex items-center gap-1 text-emerald-600">
+                                    <Droplets className="w-3 h-3 shrink-0" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">Filled</span>
+                                  </div>
+                                  <div className="flex items-baseline gap-1 mt-0.5">
+                                    <span className="text-base sm:text-lg font-black text-emerald-700 tabular-nums">
+                                      {(item.filledYardQuantity ?? 0).toLocaleString()}
+                                    </span>
+                                    {item.reservedQuantity > 0 && (
+                                      <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1 rounded">
+                                        ({item.reservedQuantity} res)
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 font-medium">Available</span>
+                                </div>
+
+                                <div className="w-px h-7 bg-slate-200 shrink-0" />
+
+                                {/* Empty */}
+                                <div className="min-w-[55px]">
+                                  <div className="flex items-center gap-1 text-slate-500">
+                                    <Boxes className="w-3 h-3 shrink-0" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">Empty</span>
+                                  </div>
+                                  <p className="text-base sm:text-lg font-black text-slate-700 tabular-nums mt-0.5">
+                                    {(item.emptyYardQuantity ?? 0).toLocaleString()}
+                                  </p>
+                                  <span className="text-[10px] text-slate-400 font-medium">In yard</span>
+                                </div>
+
+                                <div className="w-px h-7 bg-slate-200 shrink-0" />
+
+                                {/* Customers */}
+                                <div className="min-w-[62px]">
+                                  <div className="flex items-center gap-1 text-blue-600">
+                                    <UserCheck className="w-3 h-3 shrink-0" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">Customers</span>
+                                  </div>
+                                  <p className="text-base sm:text-lg font-black text-blue-700 tabular-nums mt-0.5">
+                                    {(item.customerQuantity ?? 0).toLocaleString()}
+                                  </p>
+                                  <span className="text-[10px] text-slate-400 font-medium">Custody</span>
+                                </div>
                               </div>
-                              <div className="pl-3 border-l border-slate-200">
-                                <span className="block text-[10px] uppercase font-bold text-emerald-600">Available to Dispatch</span>
-                                <span className="text-base font-black text-emerald-700 tabular-nums">
-                                  {item.availableQuantity.toLocaleString()} jars
-                                </span>
+
+                              {/* Divider between mini-stats and totals on desktop */}
+                              <div className="hidden sm:block w-px h-8 bg-slate-200 shrink-0" />
+
+                              {/* Summary KPIs: Total Owned & Available */}
+                              <div className="flex items-center gap-3 sm:gap-4 text-right">
+                                <div>
+                                  <span className="block text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Owned</span>
+                                  <span className="text-sm sm:text-base font-black text-[#16324F] tabular-nums">
+                                    {item.ownedQuantity.toLocaleString()} <span className="text-[11px] font-normal text-slate-400">jars</span>
+                                  </span>
+                                </div>
+                                <div className="pl-3 border-l border-slate-200">
+                                  <span className="block text-[9px] uppercase font-bold text-emerald-600 tracking-wider">Available</span>
+                                  <span className="text-sm sm:text-base font-black text-emerald-700 tabular-nums">
+                                    {item.availableQuantity.toLocaleString()} <span className="text-[11px] font-normal text-emerald-600/80">jars</span>
+                                  </span>
+                                </div>
                               </div>
-                              <div className="pl-2 flex items-center gap-1.5">
+
+                              {/* Action buttons (Manage Stock, Edit, Move, Return) */}
+                              <div className="pl-1 sm:pl-2 flex items-center gap-1.5 flex-wrap shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleOpenStockModal({
+                                      id: item.id,
+                                      name: item.name,
+                                      ownershipType: "DISTRIBUTOR",
+                                      imageUrl: item.imageUrl,
+                                      totalOwned: item.ownedQuantity,
+                                      availableQuantity: item.availableQuantity,
+                                      reservedQuantity: item.reservedQuantity,
+                                      filledYardQuantity: item.filledYardQuantity ?? 0,
+                                      emptyYardQuantity: item.emptyYardQuantity ?? 0,
+                                      customerQuantity: item.customerQuantity ?? 0,
+                                    });
+                                  }}
+                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-[#16324F] rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                >
+                                  <SlidersHorizontal className="w-3 h-3 text-[#1677C8]" /> Manage Stock
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditItem(item)}
+                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Edit3 className="w-3 h-3 text-slate-600" /> Edit
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => handleOpenMoveModal(item.id)}
-                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs"
                                 >
                                   <ArrowRightLeft className="w-3 h-3" /> Move
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleOpenReturnModal(item.id)}
-                                  className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                                  className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs"
                                 >
                                   <RotateCcw className="w-3 h-3" /> Return
                                 </button>
@@ -873,91 +1181,16 @@ export default function Inventory() {
                             </div>
                           </div>
 
-                          {/* Physical States Grid */}
-                          <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 bg-[#FAFBFC] border-b border-[#E2E8F0]">
-                            <div className="p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs space-y-1">
-                              <div className="flex items-center justify-between text-emerald-700">
-                                <span className="text-[10px] uppercase font-bold">Filled in Yard</span>
-                                <Droplets className="w-3.5 h-3.5" />
-                              </div>
-                              <p className="text-lg font-black text-emerald-700 tabular-nums">
-                                {(item.filledYardQuantity ?? 0).toLocaleString()}
-                              </p>
-                              <span className="block text-[10px] text-slate-400">
-                                {item.reservedQuantity > 0 ? `${item.reservedQuantity} reserved` : "0 reserved"}
+                          {/* Compact Reconciliation Footer & Photo Controls */}
+                          <div className="px-3.5 sm:px-4 py-2 bg-slate-50/70 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>
+                                ✓ {(item.filledYardQuantity ?? 0)} Filled + {(item.emptyYardQuantity ?? 0)} Empty + {(item.customerQuantity ?? 0)} Customer = <strong className="text-slate-900 font-bold">{item.ownedQuantity} Owned Jars</strong>
                               </span>
                             </div>
 
-                            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                              <div className="flex items-center justify-between text-slate-700">
-                                <span className="text-[10px] uppercase font-bold">Empty in Yard</span>
-                                <Boxes className="w-3.5 h-3.5 text-slate-400" />
-                              </div>
-                              <p className="text-lg font-black text-slate-800 tabular-nums">
-                                {(item.emptyYardQuantity ?? 0).toLocaleString()}
-                              </p>
-                              <span className="block text-[10px] text-slate-400">Awaiting washing</span>
-                            </div>
-
-                            <div className="p-3 bg-white rounded-xl border border-blue-200 shadow-2xs space-y-1">
-                              <div className="flex items-center justify-between text-blue-700">
-                                <span className="text-[10px] uppercase font-bold">With Customers</span>
-                                <UserCheck className="w-3.5 h-3.5" />
-                              </div>
-                              <p className="text-lg font-black text-blue-700 tabular-nums">
-                                {(item.customerQuantity ?? 0).toLocaleString()}
-                              </p>
-                              <span className="block text-[10px] text-slate-400">In customer custody</span>
-                            </div>
-
-                            <div className="p-3 bg-white rounded-xl border border-cyan-200 shadow-2xs space-y-1">
-                              <div className="flex items-center justify-between text-cyan-700">
-                                <span className="text-[10px] uppercase font-bold">Washing</span>
-                                <Factory className="w-3.5 h-3.5" />
-                              </div>
-                              <p className="text-lg font-black text-cyan-700 tabular-nums">
-                                {(item.washingQuantity ?? 0).toLocaleString()}
-                              </p>
-                              <span className="block text-[10px] text-slate-400">In cleaning cycle</span>
-                            </div>
-
-                            <div className="p-3 bg-white rounded-xl border border-sky-200 shadow-2xs space-y-1">
-                              <div className="flex items-center justify-between text-sky-700">
-                                <span className="text-[10px] uppercase font-bold">Filling</span>
-                                <Droplets className="w-3.5 h-3.5 text-sky-600" />
-                              </div>
-                              <p className="text-lg font-black text-sky-700 tabular-nums">
-                                {(item.fillingQuantity ?? 0).toLocaleString()}
-                              </p>
-                              <span className="block text-[10px] text-slate-400">At filling line</span>
-                            </div>
-
-                            <div className="p-3 bg-white rounded-xl border border-amber-200 shadow-2xs space-y-1">
-                              <div className="flex items-center justify-between text-amber-700">
-                                <span className="text-[10px] uppercase font-bold">Quarantine / QC</span>
-                                <AlertTriangle className="w-3.5 h-3.5" />
-                              </div>
-                              <p className="text-lg font-black text-amber-700 tabular-nums">
-                                {(item.quarantineQuantity ?? 0).toLocaleString()}
-                              </p>
-                              <span className="block text-[10px] text-slate-400">Under inspection</span>
-                            </div>
-
-                            <div className="p-3 bg-white rounded-xl border border-rose-200 shadow-2xs space-y-1">
-                              <div className="flex items-center justify-between text-rose-700">
-                                <span className="text-[10px] uppercase font-bold">Damaged</span>
-                                <AlertCircle className="w-3.5 h-3.5" />
-                              </div>
-                              <p className="text-lg font-black text-rose-700 tabular-nums">
-                                {(item.damagedQuantity ?? 0).toLocaleString()}
-                              </p>
-                              <span className="block text-[10px] text-slate-400">Non-reusable jars</span>
-                            </div>
-                          </div>
-
-                          {/* Image upload & toggle footer */}
-                          <div className="px-4 py-2.5 bg-white flex flex-wrap items-center justify-between gap-3 text-xs">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3 ml-auto">
                               <input
                                 ref={editFileInputRef}
                                 type="file"
@@ -982,40 +1215,37 @@ export default function Inventory() {
                                 }}
                               />
                               <button
-                                className={button}
+                                className={`${button} py-1 px-2.5 text-xs`}
                                 disabled={isUpdatingImage}
                                 onClick={() => {
                                   setActiveUploadItemId(item.id);
                                   editFileInputRef.current?.click();
                                 }}
                               >
-                                <Upload className="h-3.5 w-3.5 text-slate-500" />
+                                <Upload className="h-3 w-3 text-slate-500" />
                                 {item.imageUrl ? "Change Photo" : "Upload Photo"}
                               </button>
                               {activeUploadItemId === item.id && editFile && (
                                 <button
-                                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-[#1677C8] hover:bg-[#1264A8] rounded-lg transition shadow-xs disabled:opacity-50 cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-white bg-[#1677C8] hover:bg-[#1264A8] rounded-lg transition shadow-xs disabled:opacity-50 cursor-pointer"
                                   disabled={isUpdatingImage}
                                   onClick={() => void handleSaveItemImage(item.id)}
                                 >
                                   {isUpdatingImage ? "Saving..." : "Save Image"}
                                 </button>
                               )}
-                              <span className="text-[11px] text-slate-400">
-                                Invariant: ∑ Breakdown = {item.ownedQuantity} Owned · Variance: 0
-                              </span>
-                            </div>
 
-                            <button
-                              type="button"
-                              onClick={() => setExpanded(open ? null : item.id)}
-                              className="inline-flex items-center gap-1 font-semibold text-[#1677C8] hover:underline cursor-pointer"
-                            >
-                              {open ? "Hide ledger transactions" : "View ledger transactions"}
-                              <ChevronDown
-                                className={`h-4 w-4 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
-                              />
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => setExpanded(open ? null : item.id)}
+                                className="inline-flex items-center gap-1 font-semibold text-[#1677C8] hover:underline cursor-pointer"
+                              >
+                                {open ? "Hide ledger transactions" : "View ledger transactions"}
+                                <ChevronDown
+                                  className={`h-3.5 w-3.5 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+                                />
+                              </button>
+                            </div>
                           </div>
 
                           {/* Expandable Transaction Ledger */}
@@ -1031,6 +1261,8 @@ export default function Inventory() {
                                   reserved: item.reservedQuantity,
                                   withCustomers: item.customerQuantity ?? null,
                                   damaged: item.damagedQuantity ?? null,
+                                  filledYard: item.filledYardQuantity ?? null,
+                                  emptyYard: item.emptyYardQuantity ?? null,
                                 }}
                               />
                             </div>
@@ -1049,7 +1281,7 @@ export default function Inventory() {
                   Authoritative ERP Inventory Principles
                 </p>
                 <p className="text-[11px] text-sky-800 leading-relaxed">
-                  1. Ownership is the master invariant. Jar movements across locations (washing, filling, customer possession) never change legal ownership quantities.<br />
+                  1. Ownership is the master invariant. Jar movements across physical states (Filled Yard, Empty Yard, Customer custody) never change legal ownership quantities.<br />
                   2. Dispatches to customers move jars from Filled Yard to With Customer without reducing total owned stock.<br />
                   3. Customer empty jar returns move jars into Empty Yard and automatically credit the customer deposit ledger.
                 </p>
@@ -1281,9 +1513,7 @@ export default function Inventory() {
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8] focus:bg-white transition"
                   >
                     <option value="EMPTY_YARD">Empty in Yard</option>
-                    <option value="WASHING">Direct to Washing</option>
-                    <option value="QUARANTINE">Quarantine / QC</option>
-                    <option value="DAMAGED">Damaged on Return</option>
+                    <option value="FILLED_YARD">Filled in Yard</option>
                   </select>
                 </div>
               </div>
@@ -1495,6 +1725,539 @@ export default function Inventory() {
                     "Create Jar Item"
                   )}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 4: MANAGE STOCK MODAL (CURRENT STOCK + AUDIT TRAIL) ─── */}
+      {stockModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-sky-100 text-[#1677C8] flex items-center justify-center shrink-0">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#16324F] flex items-center gap-2">
+                    Manage Stock
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        stockModalItem.ownershipType === "COMPANY"
+                          ? "bg-sky-100 text-sky-800 border-sky-200"
+                          : "bg-purple-100 text-purple-800 border-purple-200"
+                      }`}
+                    >
+                      {stockModalItem.ownershipType === "COMPANY" ? "Company Owned" : "Distributor Owned"}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {stockModalItem.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setStockModalItem(null);
+                  setAdjustingState(null);
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tabs: Current Stock vs Adjustment History */}
+            <div className="flex border-b border-slate-200 bg-white px-4 pt-2 gap-4 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setStockModalTab("CURRENT");
+                  setAdjustingState(null);
+                }}
+                className={`pb-2.5 px-1 border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+                  stockModalTab === "CURRENT"
+                    ? "border-[#1677C8] text-[#1677C8]"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Boxes className="w-3.5 h-3.5" />
+                Current Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStockModalTab("HISTORY");
+                  setAdjustingState(null);
+                }}
+                className={`pb-2.5 px-1 border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+                  stockModalTab === "HISTORY"
+                    ? "border-[#1677C8] text-[#1677C8]"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <History className="w-3.5 h-3.5" />
+                Adjustment History
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
+              {stockModalTab === "CURRENT" ? (
+                adjustingState === null ? (
+                  /* Current Stock State Cards */
+                  <div className="space-y-4">
+                    <div className="space-y-2.5">
+                      {/* 1. Filled in Yard */}
+                      <div className="p-3.5 rounded-xl border border-emerald-200/80 bg-emerald-50/30 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                            <Droplets className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                              Filled in Yard
+                            </span>
+                            <div className="text-xl font-black text-emerald-700 tabular-nums">
+                              {stockModalItem.filledYardQuantity.toLocaleString()}{" "}
+                              <span className="text-xs font-semibold text-emerald-600/80">jars</span>
+                            </div>
+                            <span className="text-[11px] text-slate-500">
+                              Available for dispatch
+                              {stockModalItem.reservedQuantity > 0 && ` (${stockModalItem.reservedQuantity} reserved)`}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdjustingState("FILLED_YARD");
+                            setAdjustType("INCREASE");
+                            setAdjustQty("1");
+                            setAdjustReason("Physical Count Correction");
+                          }}
+                          className="px-3 py-1.5 bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-800 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
+                        >
+                          Adjust
+                        </button>
+                      </div>
+
+                      {/* 2. Empty in Yard */}
+                      <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                            <Boxes className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                              Empty in Yard
+                            </span>
+                            <div className="text-xl font-black text-slate-800 tabular-nums">
+                              {stockModalItem.emptyYardQuantity.toLocaleString()}{" "}
+                              <span className="text-xs font-semibold text-slate-500">jars</span>
+                            </div>
+                            <span className="text-[11px] text-slate-500">
+                              In yard awaiting washing/filling
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdjustingState("EMPTY_YARD");
+                            setAdjustType("INCREASE");
+                            setAdjustQty("1");
+                            setAdjustReason("Physical Count Correction");
+                          }}
+                          className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
+                        >
+                          Adjust
+                        </button>
+                      </div>
+
+                      {/* 3. With Customers */}
+                      <div className="p-3.5 rounded-xl border border-blue-200/80 bg-blue-50/30 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                            <UserCheck className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800">
+                              With Customers
+                            </span>
+                            <div className="text-xl font-black text-blue-700 tabular-nums">
+                              {stockModalItem.customerQuantity.toLocaleString()}{" "}
+                              <span className="text-xs font-semibold text-blue-600/80">jars</span>
+                            </div>
+                            <span className="text-[11px] text-slate-500">
+                              In customer custody
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdjustingState("CUSTOMER");
+                            setAdjustType("INCREASE");
+                            setAdjustQty("1");
+                            setAdjustReason("Physical Count Correction");
+                          }}
+                          className="px-3 py-1.5 bg-white border border-blue-200 hover:bg-blue-50 text-blue-800 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
+                        >
+                          Adjust
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Invariant Reconciliation Summary */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">
+                          Total Owned (Authoritative)
+                        </span>
+                        <span className="font-black text-slate-900 tabular-nums text-sm">
+                          {stockModalItem.totalOwned.toLocaleString()} jars
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60">
+                        <span className="font-bold text-emerald-600 uppercase tracking-wider text-[10px]">
+                          Available for Dispatch
+                        </span>
+                        <span className="font-black text-emerald-700 tabular-nums text-sm">
+                          {stockModalItem.availableQuantity.toLocaleString()} jars
+                        </span>
+                      </div>
+                      <p className="text-[10.5px] text-slate-400 pt-1 leading-normal">
+                        Total owned is derived mathematically from physical locations. Adjusting any physical state creates an audited ledger adjustment.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Dedicated Adjustment Form */
+                  <form onSubmit={handleAdjustSubmit} className="space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setAdjustingState(null)}
+                        className="text-xs font-bold text-[#1677C8] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        ← Back to States
+                      </button>
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Adjust {adjustingState.replace("_", " ")}
+                      </span>
+                    </div>
+
+                    {/* Current Quantity display */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-600">Current Quantity:</span>
+                      <span className="text-lg font-black text-slate-900 tabular-nums">
+                        {(adjustingState === "FILLED_YARD"
+                          ? stockModalItem.filledYardQuantity
+                          : adjustingState === "EMPTY_YARD"
+                          ? stockModalItem.emptyYardQuantity
+                          : stockModalItem.customerQuantity
+                        ).toLocaleString()}{" "}
+                        jars
+                      </span>
+                    </div>
+
+                    {/* Adjustment Type: Increase or Decrease */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Adjustment Type
+                      </label>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setAdjustType("INCREASE")}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                            adjustType === "INCREASE"
+                              ? "bg-emerald-50 border-emerald-400 text-emerald-800 shadow-2xs"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <TrendingUp className="w-4 h-4 text-emerald-600" />
+                          Increase (+)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAdjustType("DECREASE")}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                            adjustType === "DECREASE"
+                              ? "bg-rose-50 border-rose-400 text-rose-800 shadow-2xs"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <TrendingDown className="w-4 h-4 text-rose-600" />
+                          Decrease (-)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quantity */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Adjustment Quantity <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        required
+                        value={adjustQty}
+                        onChange={(e) => setAdjustQty(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-[#1677C8] focus:bg-white transition"
+                        placeholder="e.g. 5"
+                      />
+                    </div>
+
+                    {/* Reason */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Adjustment Reason <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={adjustReason}
+                        onChange={(e) => setAdjustReason(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8] focus:bg-white transition cursor-pointer"
+                      >
+                        <option value="Physical Count Correction">Physical Count Correction</option>
+                        <option value="Opening Balance">Opening Balance</option>
+                        <option value="Damaged/Unusable Correction">Damaged/Unusable Correction</option>
+                        <option value="Missing Stock Correction">Missing Stock Correction</option>
+                        <option value="Recovery">Recovery</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      {adjustReason === "Other" && (
+                        <input
+                          type="text"
+                          required
+                          placeholder="Specify adjustment reason..."
+                          value={customReason}
+                          onChange={(e) => setCustomReason(e.target.value)}
+                          className="w-full mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-[#1677C8] focus:bg-white transition"
+                        />
+                      )}
+                    </div>
+
+                    {/* Resulting Projection Preview */}
+                    {(() => {
+                      const currentVal =
+                        adjustingState === "FILLED_YARD"
+                          ? stockModalItem.filledYardQuantity
+                          : adjustingState === "EMPTY_YARD"
+                          ? stockModalItem.emptyYardQuantity
+                          : stockModalItem.customerQuantity;
+                      const qtyNum = parseInt(adjustQty, 10) || 0;
+                      const delta = adjustType === "INCREASE" ? qtyNum : -qtyNum;
+                      const projectedVal = currentVal + delta;
+                      const projectedTotal = stockModalItem.totalOwned + delta;
+                      const isInvalid = projectedVal < 0 || projectedTotal < 0;
+
+                      return (
+                        <div
+                          className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                            isInvalid ? "bg-rose-50 border-rose-200 text-rose-800" : "bg-sky-50 border-sky-100 text-sky-900"
+                          }`}
+                        >
+                          <div className="font-bold flex items-center justify-between">
+                            <span>Projected {adjustingState.replace("_", " ")}:</span>
+                            <span className="tabular-nums">
+                              {currentVal} → {projectedVal} ({delta >= 0 ? `+${delta}` : delta})
+                            </span>
+                          </div>
+                          <div className="font-bold flex items-center justify-between">
+                            <span>Projected Total Owned:</span>
+                            <span className="tabular-nums">
+                              {stockModalItem.totalOwned} → {projectedTotal} ({delta >= 0 ? `+${delta}` : delta})
+                            </span>
+                          </div>
+                          {isInvalid && (
+                            <p className="text-[11px] text-rose-700 font-bold pt-1">
+                              Cannot decrease below 0. Maximum decrease is {currentVal}.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setAdjustingState(null)}
+                        className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={
+                          isAdjusting ||
+                          !adjustQty ||
+                          parseInt(adjustQty, 10) <= 0 ||
+                          (adjustType === "DECREASE" &&
+                            parseInt(adjustQty, 10) >
+                              (adjustingState === "FILLED_YARD"
+                                ? stockModalItem.filledYardQuantity
+                                : adjustingState === "EMPTY_YARD"
+                                ? stockModalItem.emptyYardQuantity
+                                : stockModalItem.customerQuantity))
+                        }
+                        className="px-4 py-2 bg-[#1677C8] hover:bg-[#1264A8] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
+                      >
+                        {isAdjusting ? (
+                          <>
+                            <LoadingSpinner size="sm" light />
+                            Adjusting...
+                          </>
+                        ) : (
+                          "Confirm Adjustment"
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                )
+              ) : (
+                /* Adjustment History Tab */
+                <div className="space-y-3">
+                  {historyLoading ? (
+                    <div className="py-8 flex justify-center">
+                      <LoadingSpinner label="Loading audit history..." />
+                    </div>
+                  ) : itemHistory.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400">
+                      No ledger transactions or adjustments recorded for this item yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {itemHistory.map((tx: any) => {
+                        const isPositive = (tx.quantity ?? 0) > 0;
+                        return (
+                          <div
+                            key={tx.id}
+                            className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs space-y-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-800">
+                                {tx.label || tx.action?.replace(/_/g, " ")}
+                              </span>
+                              <span
+                                className={`font-black tabular-nums ${
+                                  isPositive ? "text-emerald-600" : "text-rose-600"
+                                }`}
+                              >
+                                {isPositive ? `+${tx.quantity}` : tx.quantity} jars
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-slate-500">
+                              <span>{tx.description || "Stock adjustment"}</span>
+                              <span>Balance: <strong>{tx.balanceAfter ?? "—"}</strong></span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-200/50">
+                              <span>{new Date(tx.createdAt).toLocaleString()}</span>
+                              <span>
+                                By: {tx.createdBy ? `${tx.createdBy.firstName} ${tx.createdBy.lastName || ""}`.trim() : "System / Distributor"}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 5: EDIT BRAND / ITEM MODAL ─── */}
+      {editItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#16324F]">Edit Brand / Item</h3>
+                  <p className="text-xs text-slate-500 font-medium">{editItem.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditItem(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditItem} className="p-4 sm:p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Item / Brand Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editItemName}
+                  onChange={(e) => setEditItemName(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8] focus:bg-white transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={editItemDescription}
+                  onChange={(e) => setEditItemDescription(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-[#1677C8] focus:bg-white transition"
+                  placeholder="Item description or notes..."
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={isDeletingItem}
+                  onClick={() => handleDeleteItem(editItem)}
+                  className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {isDeletingItem ? "Processing..." : "Archive / Delete"}
+                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditItem(null)}
+                    className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingEditItem || !editItemName.trim()}
+                    className="px-4 py-2 bg-[#1677C8] hover:bg-[#1264A8] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    {isSavingEditItem ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

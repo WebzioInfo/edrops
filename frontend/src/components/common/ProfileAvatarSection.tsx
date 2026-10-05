@@ -14,7 +14,16 @@ interface ProfileAvatarSectionProps {
 }
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const ALLOWED_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'application/octet-stream',
+];
+const ALLOWED_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
 
 export default function ProfileAvatarSection({
   currentAvatarUrl,
@@ -46,9 +55,12 @@ export default function ProfileAvatarSection({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 1. Validate type
-    if (!ALLOWED_TYPES.includes(file.type.toLowerCase())) {
-      toast.error('Invalid image type. Please select a JPEG, PNG, or WEBP image.');
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const mime = file.type.toLowerCase();
+
+    // 1. Validate type (supporting iOS HEIC/HEIF)
+    if (!ALLOWED_TYPES.includes(mime) && !ALLOWED_EXTS.includes(ext)) {
+      toast.error('Invalid image type. Please select a JPG, PNG, WEBP, or HEIC image.');
       return;
     }
 

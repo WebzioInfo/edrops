@@ -58,11 +58,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token]);
 
+  const userRole = user?.role;
+  const userId = user?.id;
+
   useEffect(() => {
-    if (user && ['STAFF', 'MANAGER', 'ADMIN'].includes(user.role)) {
+    if (userRole && ['STAFF', 'MANAGER', 'ADMIN'].includes(userRole)) {
       fetchNotifications();
     }
-  }, [user, fetchNotifications]);
+  }, [userId, userRole, fetchNotifications]);
 
   useEffect(() => {
     if (!socket) return;

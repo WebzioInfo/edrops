@@ -93,37 +93,56 @@ export function getPaymentStatusLabel(order: any): { label: string; badgeClass: 
  */
 export function getOrderPaymentState(order: any): {
   total: number;
+  originalTotal: number;
   paid: number;
   due: number;
-  canonicalStatus: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID';
+  canonicalStatus: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'OVERPAID';
   label: string;
   badgeClass: string;
   hasDue: boolean;
+  hasSettlement: boolean;
+  finalSettlementTotal?: number;
 } {
   if (!order) {
     return {
       total: 0,
+      originalTotal: 0,
       paid: 0,
       due: 0,
       canonicalStatus: 'UNPAID',
       label: 'Unpaid',
       badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
       hasDue: false,
+      hasSettlement: false,
     };
   }
 
-  const total = Number(order.totalAmount || 0);
+  const isDelivered = order.status === 'DELIVERED' || order.status === 'COMPLETED';
+  const hasSettlement = isDelivered && Boolean(
+    order.settlement?.calculatedTotal !== undefined ||
+    (order.finalSettlement !== undefined && order.finalSettlement !== null) ||
+    (order.deliveryVerification?.calculatedTotal !== undefined && order.deliveryVerification?.calculatedTotal !== null)
+  );
+
+  const settlementTotal = hasSettlement
+    ? Number(order.settlement?.calculatedTotal ?? order.finalSettlement ?? order.deliveryVerification?.calculatedTotal)
+    : Number(order.totalAmount || 0);
+
+  const originalTotal = Number(order.originalTotal ?? order.totalAmount ?? 0);
+  const total = hasSettlement ? settlementTotal : originalTotal;
   const paid = Number(order.amountPaid ?? order.totalPaid ?? 0);
-  const due = Number(order.amountDue ?? order.dueAmount ?? Math.max(0, Number((total - paid).toFixed(2))));
+  const due = Number(order.amountDue ?? order.dueAmount ?? order.remainingDue ?? Math.max(0, Number((total - paid).toFixed(2))));
 
   const rawStatus = (order.paymentStatus || '').toUpperCase();
 
-  let canonicalStatus: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID';
-  if (rawStatus === 'PAID' || rawStatus === 'SUCCESS') {
+  let canonicalStatus: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'OVERPAID' = 'UNPAID';
+  if (paid > total + 0.01 && total > 0) {
+    canonicalStatus = 'OVERPAID';
+  } else if (rawStatus === 'PAID' || rawStatus === 'SUCCESS') {
     canonicalStatus = 'PAID';
   } else if (rawStatus === 'PARTIALLY_PAID') {
     canonicalStatus = 'PARTIALLY_PAID';
-  } else if (paid > 0 && due > 0) {
+  } else if (paid > 0 && due > 0.01) {
     canonicalStatus = 'PARTIALLY_PAID';
   } else if (paid >= total && total > 0) {
     canonicalStatus = 'PAID';
@@ -136,6 +155,8 @@ export function getOrderPaymentState(order: any): {
       ? 'Paid'
       : canonicalStatus === 'PARTIALLY_PAID'
       ? 'Partially Paid'
+      : canonicalStatus === 'OVERPAID'
+      ? 'Overpaid / Credit'
       : 'Unpaid';
 
   const badgeClass =
@@ -143,7 +164,20 @@ export function getOrderPaymentState(order: any): {
       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
       : canonicalStatus === 'PARTIALLY_PAID'
       ? 'bg-orange-50 text-orange-700 border-orange-200'
+      : canonicalStatus === 'OVERPAID'
+      ? 'bg-sky-50 text-sky-700 border-sky-200'
       : 'bg-amber-50 text-amber-700 border-amber-200';
 
-  return { total, paid, due, canonicalStatus, label, badgeClass, hasDue: due > 0 };
+  return {
+    total,
+    originalTotal,
+    paid,
+    due,
+    canonicalStatus,
+    label,
+    badgeClass,
+    hasDue: due > 0.01,
+    hasSettlement,
+    finalSettlementTotal: hasSettlement ? settlementTotal : undefined,
+  };
 }

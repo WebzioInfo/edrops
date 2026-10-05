@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, ForbiddenException,
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { EventsGateway } from '../events/events.gateway';
-import { OrderStatus, OrderSource, OrderType, PaymentStatus, UserRole } from '@prisma/client';
+import { OrderStatus, OrderSource, OrderType, PaymentStatus, UserRole, DeliveryVerificationStatus } from '@prisma/client';
 
 import { CreatePartnerOrderDto, CreatePartnerOrderItemDto } from './dto/create-partner-order.dto';
 import {
@@ -17,6 +17,7 @@ import {
 } from './dto/distributor-order.dto';
 import { isValidTransition, isPartnerAllowedTransition, VALID_ORDER_TRANSITIONS } from './order-state-machine';
 import { generateDeliveryOtp } from './utils/delivery-otp.util';
+import { calculateDeliveryAmount, calculateMultiItemDelivery } from './utils/delivery-calculation.util';
 
 @Injectable()
 export class OrderService {
@@ -28,7 +29,12 @@ export class OrderService {
 
   async findAll(customerId: string) {
     const orders = await this.prisma.order.findMany({
-      where: { customerId },
+      where: {
+        OR: [
+          { customerId },
+          { customer: { userId: customerId } },
+        ],
+      },
       include: {
         address: true,
         items: {
@@ -47,16 +53,83 @@ export class OrderService {
           include: { user: { select: { firstName: true, lastName: true, role: true } } },
           orderBy: { createdAt: 'asc' },
         },
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            vehicleNumber: true,
+            vehicleType: true,
+            routeOrArea: true,
+          },
+        },
+        deliveryVerification: {
+          select: {
+            isVerified: true,
+            status: true,
+            verifiedAt: true,
+            completedAt: true,
+            shortDeliveryReason: true,
+            outForDeliveryQty: true,
+            deliveredQty: true,
+            undeliveredQty: true,
+            returnedQty: true,
+            refillRate: true,
+            depositRate: true,
+            refillAmount: true,
+            depositQty: true,
+            depositAmount: true,
+            calculatedTotal: true,
+            amountReceived: true,
+            paymentMode: true,
+            paymentMethod: true,
+            isManualAdjustment: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
     return orders.map((o) => {
+      const isDelivered = o.status === OrderStatus.DELIVERED || o.status === OrderStatus.COMPLETED;
+      const dv = o.deliveryVerification;
+      const hasDeliverySettlement =
+        isDelivered &&
+        Boolean(dv && (dv.isVerified || (dv.calculatedTotal !== null && dv.calculatedTotal !== undefined)));
+
+      const finalSettlementTotal =
+        hasDeliverySettlement && dv?.calculatedTotal !== null && dv?.calculatedTotal !== undefined
+          ? Number(dv.calculatedTotal)
+          : Number(o.totalAmount);
+
       const paidAmount = (o.payments || [])
         .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
         .reduce((sum, p) => sum + p.amount, 0);
-      const dueAmount = Math.max(0, Number((o.totalAmount - paidAmount).toFixed(2)));
-      return { ...o, amountPaid: paidAmount, amountDue: dueAmount };
+
+      const dueAmount = Math.max(0, Number((finalSettlementTotal - paidAmount).toFixed(2)));
+
+      return {
+        ...o,
+        originalTotal: o.totalAmount,
+        finalSettlement: hasDeliverySettlement ? finalSettlementTotal : null,
+        amountPaid: paidAmount,
+        amountDue: dueAmount,
+        totalPaid: paidAmount,
+        dueAmount,
+        hasDeliverySettlement,
+        deliverySummary: hasDeliverySettlement
+          ? {
+              deliveredQty: dv?.deliveredQty,
+              returnedQty: dv?.returnedQty,
+              shortQty: dv?.undeliveredQty,
+              completedAt: dv?.completedAt || o.deliveredAt,
+              calculatedTotal: finalSettlementTotal,
+              amountReceived: dv?.amountReceived ?? paidAmount,
+              remainingDue: dueAmount,
+              paymentMethod: dv?.paymentMethod || o.paymentMethod || 'CASH',
+            }
+          : null,
+      };
     });
   }
 
@@ -356,10 +429,22 @@ export class OrderService {
 
     if (!order) throw new NotFoundException(`Order not found: ${orderId}`);
 
+    const isDelivered = order.status === OrderStatus.DELIVERED || order.status === OrderStatus.COMPLETED;
+    const dv = order.deliveryVerification;
+    const hasDeliverySettlement =
+      isDelivered &&
+      Boolean(dv && (dv.isVerified || (dv.calculatedTotal !== null && dv.calculatedTotal !== undefined)));
+
+    const finalSettlementTotal =
+      hasDeliverySettlement && dv?.calculatedTotal !== null && dv?.calculatedTotal !== undefined
+        ? Number(dv.calculatedTotal)
+        : Number(order.totalAmount);
+
     const paidAmount = (order.payments || [])
       .filter((p: any) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
       .reduce((sum: number, p: any) => sum + p.amount, 0);
-    const dueAmount = Math.max(0, Number((order.totalAmount - paidAmount).toFixed(2)));
+
+    const dueAmount = Math.max(0, Number((finalSettlementTotal - paidAmount).toFixed(2)));
 
     // Security: Only the customer who placed this order can see the raw OTP.
     const isCustomerOwner =
@@ -378,6 +463,83 @@ export class OrderService {
       };
     }
 
+    // Physical jar movement & delivery calculations
+    const totalOrdered = (order.items || []).reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0);
+    const dispatchedQty = dv?.outForDeliveryQty ?? (order.jarAllocations && order.jarAllocations.length > 0
+      ? order.jarAllocations.reduce((s: number, a: any) => s + (Number(a.quantity) || 0), 0)
+      : totalOrdered);
+    const deliveredQty = dv?.deliveredQty ?? (isDelivered ? dispatchedQty : null);
+    const returnedQty = dv?.returnedQty ?? 0;
+    const shortQty = dv?.undeliveredQty ?? Math.max(0, dispatchedQty - (deliveredQty ?? dispatchedQty));
+    const netCustomerHolding = deliveredQty !== null ? deliveredQty - returnedQty : null;
+
+    // Item-level breakdown
+    const itemDeliveryResults = (order.jarAllocations && order.jarAllocations.length > 0)
+      ? order.jarAllocations.map((alloc: any) => {
+          const out = alloc.quantity;
+          const delv = alloc.deliveredQuantity ?? (isDelivered ? out : 0);
+          const ret = alloc.returnedQuantity ?? 0;
+          const short = alloc.undeliveredQuantity ?? Math.max(0, out - delv);
+          const name = alloc.jarItem?.name || (alloc.jarItem?.ownershipType === 'COMPANY' ? 'Biodrops 20L Jar' : 'Standard 20L Jar');
+          return {
+            id: alloc.id,
+            jarItemId: alloc.jarItemId,
+            name,
+            dispatchedQty: out,
+            deliveredQty: delv,
+            returnedQty: ret,
+            shortQty: short,
+            netCustomerHolding: delv - ret,
+          };
+        })
+      : (order.items || []).map((item: any) => ({
+          id: item.id,
+          name: item.product?.name || 'Water Jar',
+          dispatchedQty: item.quantity,
+          deliveredQty: deliveredQty ?? item.quantity,
+          returnedQty: returnedQty,
+          shortQty: shortQty,
+          netCustomerHolding: (deliveredQty ?? item.quantity) - returnedQty,
+        }));
+
+    // Financial breakdown
+    const refillAmount = dv?.refillAmount ?? 0;
+    const baseDepositAmount = dv?.deliveredQty && dv?.depositRate
+      ? Number((dv.deliveredQty * dv.depositRate).toFixed(2))
+      : (dv?.depositAmount ?? 0);
+    const returnDeduction = dv?.returnedQty && dv?.depositRate
+      ? Number((dv.returnedQty * dv.depositRate).toFixed(2))
+      : 0;
+    const finalDepositAmount = dv?.depositAmount ?? Math.max(0, baseDepositAmount - returnDeduction);
+
+    const deliveryResult = hasDeliverySettlement ? {
+      completedAt: dv?.completedAt || order.deliveredAt,
+      otpVerified: dv?.isVerified ?? true,
+      dispatchedQty,
+      deliveredQty: deliveredQty ?? 0,
+      returnedQty,
+      shortQty,
+      shortDeliveryReason: dv?.shortDeliveryReason || null,
+      deliveryNotes: dv?.deliveryNotes || null,
+      netCustomerHolding,
+      items: itemDeliveryResults,
+    } : null;
+
+    const settlementResult = hasDeliverySettlement ? {
+      originalTotal: order.totalAmount,
+      refillRate: dv?.refillRate ?? 0,
+      depositRate: dv?.depositRate ?? 0,
+      refillAmount,
+      baseDepositAmount,
+      returnDeduction,
+      finalDepositAmount,
+      calculatedTotal: finalSettlementTotal,
+      actualAmountReceived: dv?.amountReceived ?? paidAmount,
+      remainingDue: dueAmount,
+      paymentMethod: dv?.paymentMethod || order.paymentMethod || 'CASH',
+      isManualAdjustment: dv?.isManualAdjustment ?? false,
+    } : null;
+
     return {
       ...order,
       deliveryVerification: sanitizedVerification,
@@ -386,6 +548,12 @@ export class OrderService {
       orderTotal: order.totalAmount,
       totalPaid: paidAmount,
       dueAmount,
+      originalTotal: order.totalAmount,
+      finalSettlement: hasDeliverySettlement ? finalSettlementTotal : null,
+      finalSettlementTotal: hasDeliverySettlement ? finalSettlementTotal : null,
+      hasDeliverySettlement,
+      delivery: deliveryResult,
+      settlement: settlementResult,
     };
   }
 
@@ -848,10 +1016,10 @@ export class OrderService {
       );
     }
 
-    // Enforce complete delivery verification & reconciliation flow for DELIVERED
-    if (newStatus === OrderStatus.DELIVERED) {
+    // Enforce complete delivery verification & reconciliation flow for DELIVERED and COMPLETED
+    if ((newStatus as any) === OrderStatus.DELIVERED || (newStatus as any) === 'COMPLETED') {
       throw new BadRequestException(
-        'Delivery PIN verification and jar reconciliation are mandatory before marking an order as Delivered. Please use the complete delivery flow.',
+        'Delivery PIN verification and jar reconciliation are mandatory before marking an order as Delivered or Completed. Please use the complete delivery flow.',
       );
     }
 
@@ -872,7 +1040,7 @@ export class OrderService {
       let targetPaymentMethod = order.paymentMethod;
       let deliveredAt = order.deliveredAt;
 
-      const isDelivering = (newStatus as any) === OrderStatus.DELIVERED || newStatus === OrderStatus.COMPLETED;
+      const isDelivering = (newStatus as any) === OrderStatus.DELIVERED || (newStatus as any) === 'COMPLETED';
       const isAlreadyPaid = order.paymentStatus === PaymentStatus.SUCCESS;
 
       if (isDelivering) {
@@ -1020,7 +1188,7 @@ export class OrderService {
             releaseReason: `Order cancelled by staff: ${reason?.trim()}`,
           },
         });
-      } else if ((newStatus as any) === OrderStatus.DELIVERED || newStatus === OrderStatus.COMPLETED) {
+      } else if ((newStatus as any) === OrderStatus.DELIVERED || (newStatus as any) === 'COMPLETED') {
         await tx.distributorOrderAssignment.updateMany({
           where: { orderId, status: 'ACCEPTED' },
           data: {
@@ -1046,7 +1214,7 @@ export class OrderService {
         await tx.delivery.update({
           where: { id: delivery.id },
           data: {
-            status: (newStatus as any) === OrderStatus.DELIVERED || newStatus === OrderStatus.COMPLETED
+            status: (newStatus as any) === OrderStatus.DELIVERED || (newStatus as any) === 'COMPLETED'
               ? OrderStatus.DELIVERED
               : newStatus === OrderStatus.CANCELLED
               ? OrderStatus.CANCELLED
@@ -1593,7 +1761,7 @@ export class OrderService {
           items: {
             include: {
               product: {
-                select: { id: true, name: true, price: true, isJar: true },
+                select: { id: true, name: true, price: true, isJar: true, depositAmount: true },
               },
             },
           },
@@ -1613,6 +1781,7 @@ export class OrderService {
               jarItem: true,
             },
           },
+          deliveryVerification: true,
         },
         orderBy,
         skip,
@@ -2030,13 +2199,15 @@ export class OrderService {
       );
     }
 
-    if (dto.status === OrderStatus.DELIVERED) {
+    if (dto.status === OrderStatus.DELIVERED || dto.status === OrderStatus.COMPLETED) {
       return this.completeDelivery(
         orderId,
         distributorUserId,
         {
           pin: dto.pin,
           items: dto.deliveredItems || [],
+          returnedItems: dto.returnedItems,
+          returnedQuantity: dto.returnedQuantity,
           shortDeliveryReason: dto.shortDeliveryReason,
           note: dto.deliveryNote,
           paymentInfo: dto.paymentInfo,
@@ -2046,11 +2217,11 @@ export class OrderService {
     }
 
     const deliveredAt =
-      (dto.status as any) === OrderStatus.DELIVERED || dto.status === OrderStatus.COMPLETED
+      (dto.status as any) === OrderStatus.DELIVERED || (dto.status as any) === 'COMPLETED'
         ? new Date()
         : order.deliveredAt;
 
-    const isDelivering = (dto.status as any) === OrderStatus.DELIVERED || dto.status === OrderStatus.COMPLETED;
+    const isDelivering = (dto.status as any) === OrderStatus.DELIVERED || (dto.status as any) === 'COMPLETED';
 
     const updated = await this.prisma.$transaction(async (tx) => {
       // 1. Acquire exclusive DB row lock to serialize status and financial mutations
@@ -2073,6 +2244,9 @@ export class OrderService {
 
       // Mandatory OUT_FOR_DELIVERY validations and jar allocation
       if (dto.status === OrderStatus.OUT_FOR_DELIVERY) {
+        if (freshOrder.status === OrderStatus.OUT_FOR_DELIVERY) {
+          throw new BadRequestException('Order is already Out for Delivery.');
+        }
         if (!freshOrder.driverId) {
           throw new BadRequestException('Assign a driver before moving this order Out for Delivery.');
         }
@@ -2163,7 +2337,7 @@ export class OrderService {
 
           // State transition: FILLED_YARD -> CUSTOMER
           // Total ownership (ownedQuantity) is preserved!
-          await tx.jarInventoryItem.update({
+          const updatedItem = await tx.jarInventoryItem.update({
             where: { id: dbItem.id },
             data: {
               filledYardQuantity: { decrement: alloc.quantity },
@@ -2179,13 +2353,14 @@ export class OrderService {
               action: 'OUT_FOR_DELIVERY',
               fromState: 'FILLED_YARD',
               toState: 'CUSTOMER',
-              quantity: alloc.quantity,
-              balanceAfter: dbItem.ownedQuantity,
+              quantity: -Math.abs(alloc.quantity),
+              balanceAfter: updatedItem?.filledYardQuantity ?? Math.max(0, (dbItem.filledYardQuantity ?? 0) - alloc.quantity),
               referenceId: orderRef,
               orderId: freshOrder.id,
               customerId: freshOrder.customerId,
-              description: `${alloc.quantity} jars dispatched for delivery (Yard -> Customer)`,
+              description: `${alloc.quantity} jars dispatched for delivery (Filled Yard → Customer)`,
               createdById: distributorUserId,
+              eventTimestamp: new Date(),
             },
           });
         }
@@ -2218,12 +2393,13 @@ export class OrderService {
               fromState: 'CUSTOMER',
               toState: 'FILLED_YARD',
               quantity: alloc.quantity,
-              balanceAfter: updatedItem.ownedQuantity,
+              balanceAfter: updatedItem.filledYardQuantity,
               referenceId: orderRef,
               orderId: freshOrder.id,
               customerId: freshOrder.customerId,
-              description: `Order #${orderRef} cancelled while out for delivery: ${alloc.quantity} jars returned to yard`,
+              description: `Order #${orderRef} cancelled while out for delivery: ${alloc.quantity} jars returned to yard (Customer → Filled Yard)`,
               createdById: distributorUserId,
+              eventTimestamp: new Date(),
             },
           });
         }
@@ -2489,6 +2665,7 @@ export class OrderService {
       include: {
         customer: { include: { user: true } },
         driver: true,
+        items: { include: { product: true } },
         jarAllocations: { include: { jarItem: true } },
         deliveryVerification: true,
         payments: true,
@@ -2591,11 +2768,28 @@ export class OrderService {
           `Delivered quantity (${deliveredQty}) cannot exceed Out for Delivery quantity (${alloc.quantity}) for jar item: ${itemName}.`,
         );
       }
+      const itemReturned = itemReturnedMap.get(alloc.jarItemId) ?? 0;
+      if (itemReturned < 0) {
+        throw new BadRequestException('Returned empty jar quantity cannot be negative.');
+      }
+      if (itemReturned > deliveredQty) {
+        const itemName = alloc.jarItem?.name || (alloc.jarItem?.ownershipType === 'COMPANY' ? 'Biodrops' : alloc.jarItemId);
+        throw new BadRequestException(
+          `Returned empty jars (${itemReturned}) cannot exceed delivered quantity (${deliveredQty}) for ${itemName}.`,
+        );
+      }
       totalDelivered += deliveredQty;
-      totalReturned += itemReturnedMap.get(alloc.jarItemId) ?? 0;
+      totalReturned += itemReturned;
     }
 
     const totalUndelivered = totalOut - totalDelivered;
+
+    // Validate that returned jars do not exceed delivered jars for this delivery
+    if (totalReturned > totalDelivered) {
+      throw new BadRequestException(
+        `Returned empty jars (${totalReturned}) cannot exceed delivered jars (${totalDelivered}) for this delivery.`,
+      );
+    }
 
     // Validate that returned jars do not exceed customer-held jars
     const heldJars = freshOrder.customer?.jarsAtCustomer ?? 0;
@@ -2665,7 +2859,7 @@ export class OrderService {
 
         // If undelivered jars: return from CUSTOMER back to FILLED_YARD
         if (undeliveredQty > 0) {
-          await tx.jarInventoryItem.update({
+          const updatedItem = await tx.jarInventoryItem.update({
             where: { id: alloc.jarItemId },
             data: {
               customerQuantity: { decrement: undeliveredQty },
@@ -2692,12 +2886,13 @@ export class OrderService {
                 fromState: 'CUSTOMER',
                 toState: 'FILLED_YARD',
                 quantity: undeliveredQty,
-                balanceAfter: dbItem.ownedQuantity,
+                balanceAfter: updatedItem?.filledYardQuantity ?? ((dbItem.filledYardQuantity ?? 0) + undeliveredQty),
                 referenceId: orderRef,
                 orderId,
                 customerId: freshOrder.customerId,
-                description: `${undeliveredQty} jar${undeliveredQty === 1 ? '' : 's'} returned to yard after short delivery (${dto.shortDeliveryReason || 'Short delivery'}).`,
+                description: `${undeliveredQty} jar${undeliveredQty === 1 ? '' : 's'} returned to yard after short delivery (${dto.shortDeliveryReason || 'Short delivery'}) (Customer → Filled Yard).`,
                 createdById: actingUserId,
+                eventTimestamp: new Date(),
               },
             });
           }
@@ -2705,7 +2900,7 @@ export class OrderService {
 
         // If empty jars returned: move from CUSTOMER to EMPTY_YARD
         if (returnedQty > 0) {
-          await tx.jarInventoryItem.update({
+          const updatedItem = await tx.jarInventoryItem.update({
             where: { id: alloc.jarItemId },
             data: {
               customerQuantity: { decrement: returnedQty },
@@ -2713,23 +2908,69 @@ export class OrderService {
             },
           });
 
-          await tx.inventoryLog.create({
-            data: {
+          const existingCustomerReturn = await tx.inventoryLog.findFirst({
+            where: {
               distributorId: dbItem.distributorId,
               jarItemId: dbItem.id,
-              ownership,
               action: 'CUSTOMER_RETURN',
-              fromState: 'CUSTOMER',
-              toState: 'EMPTY_YARD',
-              quantity: returnedQty,
-              balanceAfter: dbItem.ownedQuantity,
               referenceId: orderRef,
-              orderId,
-              customerId: freshOrder.customerId,
-              description: `${returnedQty} empty jar(s) returned by customer on delivery #${orderRef}.`,
-              createdById: actingUserId,
             },
           });
+
+          if (!existingCustomerReturn) {
+            await tx.inventoryLog.create({
+              data: {
+                distributorId: dbItem.distributorId,
+                jarItemId: dbItem.id,
+                ownership,
+                action: 'CUSTOMER_RETURN',
+                fromState: 'CUSTOMER',
+                toState: 'EMPTY_YARD',
+                quantity: returnedQty,
+                balanceAfter: updatedItem?.emptyYardQuantity ?? ((dbItem.emptyYardQuantity ?? 0) + returnedQty),
+                referenceId: orderRef,
+                orderId,
+                customerId: freshOrder.customerId,
+                description: `${returnedQty} empty jar(s) returned by customer on delivery #${orderRef} (Customer → Empty Yard).`,
+                createdById: actingUserId,
+                eventTimestamp: new Date(),
+              },
+            });
+          }
+        }
+
+        // Explicit delivery reconciliation log: records completion without deducting filled stock again
+        if (deliveredQty > 0) {
+          const existingDeliveryLog = await tx.inventoryLog.findFirst({
+            where: {
+              distributorId: dbItem.distributorId,
+              jarItemId: dbItem.id,
+              action: 'DELIVERY_COMPLETED',
+              referenceId: orderRef,
+            },
+          });
+
+          if (!existingDeliveryLog) {
+            const currentFilledYard = (dbItem.filledYardQuantity ?? 0) + (undeliveredQty > 0 ? undeliveredQty : 0);
+            await tx.inventoryLog.create({
+              data: {
+                distributorId: dbItem.distributorId,
+                jarItemId: dbItem.id,
+                ownership,
+                action: 'DELIVERY_COMPLETED',
+                fromState: 'CUSTOMER',
+                toState: 'CUSTOMER',
+                quantity: 0,
+                balanceAfter: currentFilledYard,
+                referenceId: orderRef,
+                orderId,
+                customerId: freshOrder.customerId,
+                description: `${deliveredQty} jar${deliveredQty === 1 ? '' : 's'} delivered to customer (Reconciled from dispatch · No additional stock deduction).`,
+                createdById: actingUserId,
+                eventTimestamp: new Date(),
+              },
+            });
+          }
         }
 
         // Update OrderJarAllocation with actual delivered, undelivered, and returned quantities
@@ -2754,57 +2995,150 @@ export class OrderService {
         });
       }
 
-      // Update OrderDeliveryVerification
+      // 4. Authoritative delivery settlement calculation
+      const jarOrderItem = (freshOrder.items || []).find(
+        (i) => i.product?.isJar || (i.product?.depositAmount && i.product?.depositAmount > 0),
+      ) || (freshOrder.items || [])[0];
+
+      const refillRate = Number(jarOrderItem?.unitPrice ?? 100);
+      let depositRate = Number(jarOrderItem?.product?.depositAmount ?? 0);
+      if (!depositRate || depositRate <= 0) {
+        depositRate = 200;
+      }
+
+      const itemsForCalc = allocations.map((alloc) => {
+        const deliveredQty = itemDeliveredMap.has(alloc.jarItemId)
+          ? itemDeliveredMap.get(alloc.jarItemId)!
+          : alloc.quantity;
+        const returnedQty = itemReturnedMap.get(alloc.jarItemId) ?? 0;
+        return {
+          id: alloc.id,
+          name: alloc.jarItem?.name || (alloc.jarItem?.ownershipType === 'COMPANY' ? 'Biodrops / Standard' : 'Distributor Standard'),
+          outQty: alloc.quantity,
+          deliveredQty,
+          returnedQty,
+          refillRate,
+          depositRate,
+        };
+      });
+
+      const settlement = allocations.length > 0
+        ? calculateMultiItemDelivery(itemsForCalc)
+        : calculateDeliveryAmount({
+            deliveredQty: totalDelivered,
+            returnedQty: totalReturned,
+            refillRate,
+            depositRate,
+          });
+
+      // 5. Payment reconciliation
+      const currentPaid = (freshOrder.payments || [])
+        .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
+        .reduce((sum, p) => sum + p.amount, 0);
+
+      // Remaining due based on delivery settlement minus what was already prepaid
+      const netPayable = Math.max(0, Number((settlement.calculatedAmount - currentPaid).toFixed(2)));
+
+      let newPaymentStatus = freshOrder.paymentStatus;
+      let paymentHistoryNote = '';
+      let amountReceived = 0;
+      let isManualAdjustment = false;
+      let paymentMethodToRecord = freshOrder.paymentMethod || 'CASH';
+
+      if (dto.paymentInfo) {
+        const { paymentMode, amountPaid: requestedPaid, paymentMethod, isManualAdjustment: reqManual, manualAmount } = dto.paymentInfo;
+        paymentMethodToRecord = paymentMethod || freshOrder.paymentMethod || 'CASH';
+
+        if (paymentMode === 'PARTIAL') {
+          amountReceived = Number(requestedPaid !== undefined ? requestedPaid : (manualAmount || 0));
+          if (amountReceived <= 0) {
+            throw new BadRequestException('Partial payment amount must be greater than 0.');
+          }
+          isManualAdjustment = true;
+        } else {
+          // FULL payment mode
+          if (requestedPaid !== undefined && requestedPaid !== null) {
+            amountReceived = Number(requestedPaid);
+            isManualAdjustment = Boolean(reqManual || Math.abs(amountReceived - netPayable) > 0.01);
+          } else {
+            amountReceived = netPayable;
+            isManualAdjustment = false;
+          }
+        }
+
+        if (amountReceived > 0) {
+          const newTotalPaid = Number((currentPaid + amountReceived).toFixed(2));
+          newPaymentStatus = newTotalPaid >= settlement.calculatedAmount
+            ? PaymentStatus.PAID
+            : PaymentStatus.PARTIALLY_PAID;
+
+          const createdPayment = await tx.payment.create({
+            data: {
+              orderId: freshOrder.id,
+              customerId: freshOrder.customerId,
+              amount: amountReceived,
+              currency: 'INR',
+              status: PaymentStatus.PAID,
+              provider: paymentMethodToRecord,
+              receiptId: `RCP-DELV-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              description: `Payment on delivery: ₹${amountReceived} (Settlement: ₹${settlement.calculatedAmount}, Refill: ₹${settlement.refillAmount}, Deposit: ₹${settlement.depositAmount})`,
+              createdAt: new Date(),
+            },
+          });
+
+          await tx.paymentAuditLog.create({
+            data: {
+              paymentId: createdPayment?.id || 'pay-delv',
+              action: 'PAYMENT_COLLECTED_ON_DELIVERY',
+              previousStatus: freshOrder.paymentStatus,
+              newStatus: newPaymentStatus,
+              notes: `Collected ₹${amountReceived} via ${paymentMethodToRecord}. Settlement total: ₹${settlement.calculatedAmount}, Total paid: ₹${newTotalPaid}.`,
+            },
+          });
+
+          paymentHistoryNote = `Payment ₹${amountReceived} received via ${paymentMethodToRecord} (Settlement: ₹${settlement.calculatedAmount})`;
+        } else if (netPayable === 0 && currentPaid >= settlement.calculatedAmount) {
+          newPaymentStatus = PaymentStatus.PAID;
+          paymentHistoryNote = `Fully covered by advance payment (Settlement: ₹${settlement.calculatedAmount}, Paid: ₹${currentPaid})`;
+        }
+      }
+
+      // Update or create OrderDeliveryVerification with complete financial & operational record
+      const verificationPayload = {
+        isVerified: true,
+        status: DeliveryVerificationStatus.VERIFIED,
+        verifiedAt: new Date(),
+        completedAt: new Date(),
+        verifiedByUserId: actingUserId,
+        shortDeliveryReason: totalDelivered < totalOut ? dto.shortDeliveryReason : null,
+        deliveryNotes: dto.note || null,
+        outForDeliveryQty: totalOut,
+        deliveredQty: totalDelivered,
+        undeliveredQty: totalUndelivered,
+        returnedQty: totalReturned,
+        refillRate: settlement.refillRate,
+        depositRate: settlement.depositRate,
+        refillAmount: settlement.refillAmount,
+        depositQty: settlement.depositQty,
+        depositAmount: settlement.depositAmount,
+        calculatedTotal: settlement.calculatedAmount,
+        amountReceived: amountReceived,
+        paymentMode: dto.paymentInfo?.paymentMode || (amountReceived >= netPayable ? 'FULL' : 'PARTIAL'),
+        paymentMethod: paymentMethodToRecord,
+        isManualAdjustment,
+      };
+
       if (freshOrder.deliveryVerification) {
         await tx.orderDeliveryVerification.update({
           where: { orderId },
-          data: {
-            isVerified: true,
-            status: 'VERIFIED',
-            verifiedAt: new Date(),
-            completedAt: new Date(),
-            verifiedByUserId: actingUserId,
-            shortDeliveryReason: totalDelivered < totalOut ? dto.shortDeliveryReason : null,
-            deliveryNotes: dto.note || null,
-            outForDeliveryQty: totalOut,
-            deliveredQty: totalDelivered,
-            undeliveredQty: totalUndelivered,
-            returnedQty: totalReturned,
-          },
+          data: verificationPayload,
         });
       } else {
         await tx.orderDeliveryVerification.create({
           data: {
             orderId,
             otp: '0000',
-            isVerified: true,
-            status: 'VERIFIED',
-            verifiedAt: new Date(),
-            completedAt: new Date(),
-            verifiedByUserId: actingUserId,
-            shortDeliveryReason: totalDelivered < totalOut ? dto.shortDeliveryReason : null,
-            deliveryNotes: dto.note || null,
-            outForDeliveryQty: totalOut,
-            deliveredQty: totalDelivered,
-            undeliveredQty: totalUndelivered,
-            returnedQty: totalReturned,
-          },
-        });
-      }
-
-      // Record deposit refund if empty jars were returned
-      if (totalReturned > 0 && tx.depositTransaction?.create) {
-        const depositRefund = totalReturned * 200;
-        await tx.depositTransaction.create({
-          data: {
-            customerId: freshOrder.customerId,
-            type: 'JAR_RETURNED',
-            amount: depositRefund,
-            jarsAffected: totalReturned,
-            balanceBefore: 0,
-            balanceAfter: 0,
-            referenceId: orderRef,
-            description: `Deposit credit for ${totalReturned} returned jar(s) on #${orderRef}`,
+            ...verificationPayload,
           },
         });
       }
@@ -2817,91 +3151,6 @@ export class OrderService {
             verifiedReturnQuantity: totalReturned,
           },
         });
-      }
-
-      // 5. Handle payment info if passed
-      const currentPaid = (freshOrder.payments || [])
-        .filter((p) => p.status === PaymentStatus.PAID || p.status === PaymentStatus.SUCCESS)
-        .reduce((sum, p) => sum + p.amount, 0);
-      const remainingDue = Math.max(0, Number((freshOrder.totalAmount - currentPaid).toFixed(2)));
-
-      let newPaymentStatus = freshOrder.paymentStatus;
-      let paymentHistoryNote = '';
-
-      if (dto.paymentInfo) {
-        const { paymentMode, amountPaid: requestedPaid, paymentMethod } = dto.paymentInfo;
-        const method = paymentMethod || freshOrder.paymentMethod || 'CASH';
-
-        if (paymentMode === 'PARTIAL') {
-          if (!requestedPaid || requestedPaid <= 0) {
-            throw new BadRequestException('Partial payment amount must be greater than 0.');
-          }
-          if (requestedPaid > remainingDue + 0.01) {
-            throw new BadRequestException(
-              `Payment amount (₹${requestedPaid}) exceeds remaining balance (₹${remainingDue}).`,
-            );
-          }
-
-          const newTotalPaid = Number((currentPaid + requestedPaid).toFixed(2));
-          newPaymentStatus = newTotalPaid >= freshOrder.totalAmount
-            ? PaymentStatus.PAID
-            : PaymentStatus.PARTIALLY_PAID;
-
-          const createdPayment = await tx.payment.create({
-            data: {
-              orderId: freshOrder.id,
-              customerId: freshOrder.customerId,
-              amount: requestedPaid,
-              currency: 'INR',
-              status: PaymentStatus.PAID,
-              provider: method,
-              receiptId: `RCP-DELV-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-              description: `Partial payment on delivery: ₹${requestedPaid}`,
-              createdAt: new Date(),
-            },
-          });
-
-          await tx.paymentAuditLog.create({
-            data: {
-              paymentId: createdPayment.id,
-              action: 'PAYMENT_COLLECTED_ON_DELIVERY',
-              previousStatus: freshOrder.paymentStatus,
-              newStatus: newPaymentStatus,
-              notes: `Partial collected: ₹${requestedPaid} via ${method}. Remaining due: ₹${Number((freshOrder.totalAmount - newTotalPaid).toFixed(2))}`,
-            },
-          });
-
-          paymentHistoryNote = `Partial payment ₹${requestedPaid} received via ${method}`;
-        } else {
-          // FULL payment
-          if (remainingDue > 0) {
-            const createdPayment = await tx.payment.create({
-              data: {
-                orderId: freshOrder.id,
-                customerId: freshOrder.customerId,
-                amount: remainingDue,
-                currency: 'INR',
-                status: PaymentStatus.PAID,
-                provider: method,
-                receiptId: `RCP-DELV-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                description: `Full payment on delivery: ₹${remainingDue}`,
-                createdAt: new Date(),
-              },
-            });
-
-            await tx.paymentAuditLog.create({
-              data: {
-                paymentId: createdPayment.id,
-                action: 'PAYMENT_COLLECTED_ON_DELIVERY',
-                previousStatus: freshOrder.paymentStatus,
-                newStatus: PaymentStatus.PAID,
-                notes: `Full payment collected: ₹${remainingDue} via ${method}.`,
-              },
-            });
-          }
-          newPaymentStatus = PaymentStatus.PAID;
-          paymentHistoryNote = `Fully Paid ₹${freshOrder.totalAmount} via ${method}`;
-        }
       }
 
       // 6. Update order status to DELIVERED

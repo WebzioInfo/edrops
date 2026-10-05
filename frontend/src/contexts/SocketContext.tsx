@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
@@ -16,26 +16,31 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const { token, user } = useAuth();
+  const userId = user?.id;
 
   useEffect(() => {
-    // Only connect if we have a token and user is logged in
-    if (!token || !user) {
+    // Only connect if we have a token and authenticated user
+    if (!token || !userId) {
       if (socket) {
         socket.disconnect();
+        setSocket(null);
+        setIsConnected(false);
       }
       return;
     }
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    
+
     const newSocket = io(apiUrl, {
       auth: {
         token: token,
       },
-      reconnectionDelay: 1000,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
       reconnection: true,
-      reconnectionAttempts: 10,
-      transports: ['websocket'],
+      reconnectionAttempts: 5,
+      transports: ['polling', 'websocket'],
+      autoConnect: true,
     });
 
     newSocket.on('connect', () => {
@@ -46,15 +51,22 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       setIsConnected(false);
     });
 
+    newSocket.on('connect_error', () => {
+      setIsConnected(false);
+    });
+
     setSocket(newSocket);
 
     return () => {
+      newSocket.removeAllListeners();
       newSocket.disconnect();
     };
-  }, [token, user]);
+  }, [token, userId]); // Stable dependencies: token and userId
+
+  const contextValue = useMemo(() => ({ socket, isConnected }), [socket, isConnected]);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected }}>
+    <SocketContext.Provider value={contextValue}>
       {children}
     </SocketContext.Provider>
   );

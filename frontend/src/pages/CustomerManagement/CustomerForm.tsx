@@ -398,7 +398,7 @@ export default function CustomerForm({ basePath }: { basePath: string }) {
                 minLength={10}
                 value={formData.phone}
                 onChange={handleFormChange}
-                placeholder="10-digit mobile"
+                placeholder="10-digit mobile or +91..."
                 className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#1677C8] focus:bg-white transition-all font-mono"
               />
             </div>

@@ -11,7 +11,7 @@ import { fetchWithAuth } from '../../api/client';
 import { EdropsLogo } from '../../components/Logo';
 
 const LoginSchema = Yup.object().shape({
-  email: Yup.string().email('Invalid email').required('Required'),
+  identifier: Yup.string().required('Required'),
   password: Yup.string().min(6, 'Too Short!').required('Required'),
 });
 
@@ -47,10 +47,8 @@ export default function Login() {
       navigate(from || `/${rolePath}`, { replace: true });
     } catch (err: any) {
       const errorCode = err?.code || err?.data?.code;
-      if (errorCode === 'USER_NOT_FOUND') {
-        setGlobalError('User not found with this email or username.');
-      } else if (errorCode === 'INCORRECT_PASSWORD') {
-        setGlobalError('Incorrect password. Please try again.');
+      if (errorCode === 'USER_NOT_FOUND' || errorCode === 'INCORRECT_PASSWORD' || errorCode === 'INVALID_CREDENTIALS') {
+        setGlobalError('Invalid email/phone number or password.');
       } else {
         setGlobalError(err.message || 'Authentication failed');
       }
@@ -97,7 +95,7 @@ export default function Login() {
 
                 <Formik
                   initialValues={isLogin 
-                    ? { email: '', password: '' }
+                    ? { identifier: '', password: '' }
                     : { firstName: '', lastName: '', email: '', password: '' }
                   }
                   validationSchema={isLogin ? LoginSchema : RegisterSchema}
@@ -124,13 +122,23 @@ export default function Login() {
                         </div>
                       )}
 
-                      <InputBox
-                        label="Email Address"
-                        name="email"
-                        type="email"
-                        placeholder="you@example.com"
-                        icon={<Mail className="h-5 w-5 text-gray-400" />}
-                      />
+                      {isLogin ? (
+                        <InputBox
+                          label="Email or Phone Number"
+                          name="identifier"
+                          type="text"
+                          placeholder="you@example.com or 9876543210"
+                          icon={<Mail className="h-5 w-5 text-gray-400" />}
+                        />
+                      ) : (
+                        <InputBox
+                          label="Email Address"
+                          name="email"
+                          type="email"
+                          placeholder="you@example.com"
+                          icon={<Mail className="h-5 w-5 text-gray-400" />}
+                        />
+                      )}
 
                       <div>
                         <InputBox

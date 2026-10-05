@@ -645,4 +645,134 @@ describe('Production Inventory Redesign Invariants (Section 31 Test Cases)', () 
     // Total ownership was NOT changed by the deposit
     expect(item.ownedQuantity).toBe(100);
   });
+
+  // =========================================================================
+  // TEST 13: Manual physical stock adjustment: 82 Filled -> 84 Filled, Total 91 -> 93
+  // =========================================================================
+  it('TEST 13: Manual physical stock adjustment (+2 Filled) properly adjusts state and total ownership', async () => {
+    const item = {
+      id: 'comp-item-1',
+      distributorId: mockDistributorId,
+      name: 'Biodrops 20L Water Jar',
+      ownershipType: 'COMPANY',
+      ownedQuantity: 91,
+      filledYardQuantity: 82,
+      emptyYardQuantity: 0,
+      customerQuantity: 9,
+    };
+
+    prisma.jarInventoryItem.findFirst.mockResolvedValue(item);
+    prisma.jarInventoryItem.update.mockResolvedValue({
+      ...item,
+      filledYardQuantity: 84,
+      ownedQuantity: 93,
+    });
+
+    const result = await inventoryService.adjustJarStock(mockDistributorUserId, {
+      jarItemId: item.id,
+      state: JarPhysicalState.FILLED_YARD,
+      quantity: 2,
+      reason: 'Physical Count Correction',
+    });
+
+    expect(result.success).toBe(true);
+    expect(prisma.jarInventoryItem.update).toHaveBeenCalledWith({
+      where: { id: item.id },
+      data: {
+        ownedQuantity: { increment: 2 },
+        filledYardQuantity: { increment: 2 },
+      },
+    });
+    expect(prisma.distributor.update).toHaveBeenCalledWith({
+      where: { id: mockDistributorId },
+      data: {
+        companyOwnedJars: { increment: 2 },
+      },
+    });
+    expect(prisma.inventoryLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        jarItemId: item.id,
+        action: 'MANUAL_ADJUSTMENT',
+        quantity: 2,
+        balanceAfter: 84,
+      }),
+    });
+  });
+
+  // =========================================================================
+  // TEST 14: Attempt negative stock adjustment: Must be rejected
+  // =========================================================================
+  it('TEST 14: Attempting to adjust stock below zero is rejected with BadRequestException', async () => {
+    const item = {
+      id: 'dist-item-1',
+      distributorId: mockDistributorId,
+      name: 'Distributor Jar',
+      ownershipType: 'DISTRIBUTOR',
+      ownedQuantity: 10,
+      filledYardQuantity: 5,
+      emptyYardQuantity: 0,
+      customerQuantity: 5,
+    };
+
+    prisma.jarInventoryItem.findFirst.mockResolvedValue(item);
+
+    await expect(
+      inventoryService.adjustJarStock(mockDistributorUserId, {
+        jarItemId: item.id,
+        state: JarPhysicalState.FILLED_YARD,
+        quantity: 10,
+        adjustmentType: 'DECREASE',
+        reason: 'Missing stock correction',
+      }),
+    ).rejects.toThrow(/Cannot adjust below zero/i);
+  });
+
+  // =========================================================================
+  // TEST 15: Safe archiving when item has transaction history / stock
+  // =========================================================================
+  it('TEST 15: Item with ledger history is safely archived instead of hard-deleted', async () => {
+    const item = {
+      id: 'dist-item-1',
+      distributorId: mockDistributorId,
+      name: 'Distributor Jar',
+      ownershipType: 'DISTRIBUTOR',
+      ownedQuantity: 10,
+      filledYardQuantity: 10,
+      emptyYardQuantity: 0,
+      customerQuantity: 0,
+    };
+
+    prisma.jarInventoryItem.findFirst.mockResolvedValue(item);
+    prisma.inventoryLog.count = jest.fn().mockResolvedValue(5);
+    prisma.orderJarAllocation.count = jest.fn().mockResolvedValue(2);
+    prisma.jarInventoryItem.delete = jest.fn();
+
+    const res = await inventoryService.deleteJarItem(mockDistributorUserId, item.id);
+
+    expect(res.archived).toBe(true);
+    expect(prisma.jarInventoryItem.update).toHaveBeenCalledWith({
+      where: { id: item.id },
+      data: { isActive: false },
+    });
+    expect(prisma.jarInventoryItem.delete).not.toHaveBeenCalled();
+  });
+
+  // =========================================================================
+  // TEST 16: Company-owned item cannot be deleted or archived
+  // =========================================================================
+  it('TEST 16: Company-owned item cannot be deleted or archived', async () => {
+    const item = {
+      id: 'comp-1',
+      distributorId: mockDistributorId,
+      name: 'Biodrops 20L Water Jar',
+      ownershipType: 'COMPANY',
+      ownedQuantity: 91,
+    };
+
+    prisma.jarInventoryItem.findFirst.mockResolvedValue(item);
+
+    await expect(
+      inventoryService.deleteJarItem(mockDistributorUserId, item.id),
+    ).rejects.toThrow(/Company owned item cannot be deleted or archived/i);
+  });
 });

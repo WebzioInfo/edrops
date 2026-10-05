@@ -57,6 +57,7 @@ export default function SetupPassword() {
 
   const [isValidating, setIsValidating] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
+  const [tokenReason, setTokenReason] = useState<'EXPIRED' | 'ALREADY_USED' | 'INVALID' | null>(null);
   const [customerEmail, setCustomerEmail] = useState<string | null>(null);
   const [customerFirstName, setCustomerFirstName] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -76,6 +77,7 @@ export default function SetupPassword() {
         if (isMounted) {
           setIsValidating(false);
           setTokenValid(false);
+          setTokenReason('INVALID');
           setErrorMessage('No setup token was provided in the link.');
         }
         return;
@@ -90,13 +92,15 @@ export default function SetupPassword() {
             setCustomerFirstName(res.firstName || null);
           } else {
             setTokenValid(false);
-            setErrorMessage('This password setup link is invalid or has expired.');
+            setTokenReason(res?.reason || 'INVALID');
+            setErrorMessage(res?.message || 'This password setup link is invalid or has expired.');
           }
         }
       } catch (err: any) {
         if (isMounted) {
           setTokenValid(false);
-          setErrorMessage(err.message || 'This password setup link is invalid or has expired.');
+          setTokenReason('INVALID');
+          setErrorMessage(err.message || 'This password setup link is invalid.');
         }
       } finally {
         if (isMounted) {
@@ -188,7 +192,7 @@ export default function SetupPassword() {
                     Password Created Successfully
                   </h1>
                   <p className="text-sm text-gray-600 leading-relaxed">
-                    Your eDrops account is ready. You can now sign in using your email and new password.
+                    Your eDrops account is ready. You can now sign in using your email or phone number and new password.
                   </p>
                 </div>
 
@@ -203,7 +207,7 @@ export default function SetupPassword() {
               </div>
             )}
 
-            {/* 3. Invalid / Expired Token State */}
+            {/* 3. Invalid / Expired / Already Used Token State */}
             {!isValidating && !tokenValid && !isSuccess && (
               <div className="py-4 text-center space-y-6">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-600">
@@ -212,14 +216,40 @@ export default function SetupPassword() {
 
                 <div className="space-y-2">
                   <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                    Password Setup Link Unavailable
+                    {tokenReason === 'ALREADY_USED'
+                      ? 'Password Already Set'
+                      : tokenReason === 'EXPIRED'
+                      ? 'Password Setup Link Expired'
+                      : 'Password Setup Link Invalid'}
                   </h1>
                   <p className="text-sm text-gray-600 leading-relaxed">
-                    {errorMessage || 'This password setup link is invalid or has expired.'}
+                    {tokenReason === 'ALREADY_USED'
+                      ? 'This password setup link has already been used. If you already created your password, you can sign in.'
+                      : tokenReason === 'EXPIRED'
+                      ? 'This password setup link has expired. Request a new password setup link to continue.'
+                      : errorMessage || 'This password setup link is invalid.'}
                   </p>
                 </div>
 
-                {!showResend ? (
+                {tokenReason === 'ALREADY_USED' ? (
+                  <div className="space-y-3 pt-2">
+                    <Button
+                      onClick={() => navigate('/login')}
+                      fullWidth
+                      size="lg"
+                      className="bg-[#00AEEF] hover:bg-[#0096ce] text-white font-semibold"
+                    >
+                      SIGN IN
+                    </Button>
+                    <Link
+                      to="/login"
+                      className="inline-flex items-center justify-center gap-2 text-sm font-medium text-gray-600 hover:text-edrops-blue transition-colors"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Back to Login
+                    </Link>
+                  </div>
+                ) : !showResend ? (
                   <div className="space-y-3 pt-2">
                     <Button
                       onClick={() => {
@@ -230,7 +260,7 @@ export default function SetupPassword() {
                       size="lg"
                       className="bg-[#00AEEF] hover:bg-[#0096ce] text-white font-semibold"
                     >
-                      REQUEST NEW LINK
+                      {tokenReason === 'EXPIRED' ? 'SEND NEW LINK' : 'REQUEST NEW LINK'}
                     </Button>
                     <Link
                       to="/login"

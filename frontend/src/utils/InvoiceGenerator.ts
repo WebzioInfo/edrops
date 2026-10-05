@@ -194,18 +194,65 @@ export function generateOrderInvoice(order: any) {
     currentY += 5;
   }
 
+  // Summary items
+  const settlement = order.settlement || (order.deliveryVerification?.calculatedTotal != null ? {
+    calculatedTotal: Number(order.deliveryVerification.calculatedTotal),
+    returnDeduction: Number(order.deliveryVerification.returnedQty || 0) * Number(order.deliveryVerification.depositRate || 0),
+    actualAmountReceived: Number(order.deliveryVerification.amountReceived || 0),
+    remainingDue: Math.max(0, Number(order.deliveryVerification.calculatedTotal) - Number(order.deliveryVerification.amountReceived || 0)),
+  } : null);
+
+  const finalSettlementTotal = settlement?.calculatedTotal ?? grandTotal;
+  const paid = Number(order.paidAmount ?? settlement?.actualAmountReceived ?? 0);
+  const due = Math.max(0, finalSettlementTotal - paid);
+
   // Divider Line
   doc.setDrawColor(lightGray[0], lightGray[1], lightGray[2]);
   doc.setLineWidth(0.4);
   doc.line(summaryX, currentY, pageWidth - margin, currentY);
-  currentY += 6;
+  currentY += 5;
 
-  // Grand Total
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
-  doc.text('Grand Total:', summaryX, currentY);
-  doc.text(`Rs. ${grandTotal.toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
+  if (settlement && (order.status === 'DELIVERED' || order.status === 'COMPLETED')) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(mutedSlate[0], mutedSlate[1], mutedSlate[2]);
+    doc.text('Original Order Total:', summaryX, currentY);
+    doc.text(`Rs. ${grandTotal.toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
+    currentY += 4.5;
+
+    if (settlement.returnDeduction > 0) {
+      doc.setTextColor(16, 185, 129);
+      doc.text('Empty Return Deduction:', summaryX, currentY);
+      doc.text(`-Rs. ${settlement.returnDeduction.toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
+      currentY += 4.5;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+    doc.text('Delivery Settlement:', summaryX, currentY);
+    doc.text(`Rs. ${finalSettlementTotal.toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
+    currentY += 5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(darkSlate[0], darkSlate[1], darkSlate[2]);
+    doc.text('Amount Paid:', summaryX, currentY);
+    doc.text(`Rs. ${paid.toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
+    currentY += 4.5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Balance Due:', summaryX, currentY);
+    doc.setTextColor(due > 0 ? 234 : 16, due > 0 ? 88 : 185, due > 0 ? 12 : 129);
+    doc.text(`Rs. ${due.toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
+  } else {
+    // Grand Total
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+    doc.text('Grand Total:', summaryX, currentY);
+    doc.text(`Rs. ${grandTotal.toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
+  }
 
   // 5. FOOTER
   const footerY = pageHeight - 20;

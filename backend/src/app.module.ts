@@ -37,6 +37,7 @@ import { PurchaseModule } from './purchase/purchase.module';
 import { SupplierModule } from './supplier/supplier.module';
 import { DistributorModule } from './distributor/distributor.module';
 import { DriverModule } from './driver/driver.module';
+import { ProfileModule } from './profile/profile.module';
 import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
@@ -45,6 +46,7 @@ import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
     PrismaModule,
     EnginesModule,
     AuthModule,
+    ProfileModule,
     CustomerModule,
     StaffModule,
     AdminModule,

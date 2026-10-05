@@ -8,6 +8,7 @@ import {
   IsNumber,
   Min,
   IsPositive,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
@@ -107,6 +108,16 @@ export class DeliveryPaymentInfoDto {
   @IsOptional()
   @IsString()
   paymentMethod?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isManualAdjustment?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  manualAmount?: number;
 }
 
 export class JarAllocationDto {

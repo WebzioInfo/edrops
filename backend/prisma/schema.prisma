@@ -769,9 +769,11 @@ model InventoryLog {
   order       Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
   customer    Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
   createdBy   User?             @relation("InventoryLogCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  eventTimestamp DateTime? @default(now())
   createdAt   DateTime @default(now())
 
   @@index([createdAt])
+  @@index([eventTimestamp])
   @@index([distributorId, ownership, sequence])
   @@index([jarItemId, sequence])
   @@index([orderId])
@@ -1440,6 +1442,16 @@ model OrderDeliveryVerification {
   shortDeliveryReason String?
   deliveryNotes       String?
   completedAt         DateTime?
+  refillRate          Float?
+  depositRate         Float?
+  refillAmount        Float?
+  depositQty          Int?
+  depositAmount       Float?
+  calculatedTotal     Float?
+  amountReceived      Float?
+  paymentMode         String?
+  paymentMethod       String?
+  isManualAdjustment  Boolean?                   @default(false)
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
 
