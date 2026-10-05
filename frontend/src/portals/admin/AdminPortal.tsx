@@ -22,6 +22,7 @@ const PromoManager = React.lazy(() => import('./pages/PromoManager'));
 const CustomerForm = React.lazy(() => import('../../pages/CustomerManagement/CustomerForm'));
 const CreateOrderPOS = React.lazy(() => import('./pages/CreateOrderPOS'));
 const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
+const CentralInventory = React.lazy(() => import('../staff/pages/InventoryAudit'));
 
 const AdminLoader = () => (
   <div className="flex h-96 items-center justify-center">
@@ -144,6 +145,7 @@ export default function AdminPortal() {
                 <Route path="support" element={<GlobalSupport />} />
                 <Route path="settings" element={<BusinessSettings />} />
                 <Route path="reports" element={<ReportsCenter />} />
+                <Route path="inventory" element={<CentralInventory />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="promos" element={<PromoManager />} />
                 <Route path="" element={<Navigate to="customers" replace />} />

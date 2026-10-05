@@ -223,6 +223,11 @@ export function getPortalSidebarConfig(
                 label: 'Orders',
                 icon: ShoppingCart,
               },
+              {
+                to: '/admin/inventory',
+                label: 'Inventory',
+                icon: ClipboardList,
+              },
             ],
           },
           {
