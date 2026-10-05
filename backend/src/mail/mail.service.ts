@@ -81,35 +81,65 @@ export class MailService {
 
   /**
    * EMAIL #1: Welcome / First Password Setup
-   * Sent when staff creates a new customer or customer requests activation.
+   * Sent when staff or distributor creates a new customer or customer requests activation.
    */
-  async sendAccountSetupEmail(user: User, token: string) {
-    if (!user.email) return;
+  async sendAccountSetupEmail(
+    user: User,
+    token: string,
+    options?: { distributorName?: string },
+  ): Promise<boolean> {
+    if (!user.email) return false;
 
     const frontendUrl = this.getFrontendUrl();
     const setupUrl = `${frontendUrl}/setup-password?token=${encodeURIComponent(token)}`;
     const firstName = (user.firstName && user.firstName.trim()) ? user.firstName.trim() : 'there';
+    const distributorName = options?.distributorName?.trim();
 
     const bodyHtml = `
       <h1 style="font-size: 22px; font-weight: 800; color: #16324F; margin: 0 0 16px; letter-spacing: -0.3px;">
-        Welcome to eDrops
+        Welcome to Edrops
       </h1>
       <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 12px;">
-        Hi <strong>${firstName}</strong>,
+        Hello <strong>${firstName}</strong>,
       </p>
-      <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 8px;">
-        Your eDrops customer account has been created successfully.
+      <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
+        Your Edrops customer account has been created successfully.
       </p>
-      <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 28px;">
-        You can now set your password and access your account.
+
+      <!-- Account Summary Card -->
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; margin: 0 0 24px 0;">
+        <tr>
+          <td style="padding: 16px 20px;">
+            <div style="margin-bottom: 10px;">
+              <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #94A3B8; letter-spacing: 0.6px; display: block; margin-bottom: 2px;">Account Email</span>
+              <span style="font-size: 14px; font-weight: 700; color: #16324F;">${user.email}</span>
+            </div>
+            ${user.phone ? `
+            <div style="margin-bottom: ${distributorName ? '10px' : '0'};">
+              <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #94A3B8; letter-spacing: 0.6px; display: block; margin-bottom: 2px;">Phone</span>
+              <span style="font-size: 14px; font-weight: 600; color: #16324F;">${user.phone}</span>
+            </div>
+            ` : ''}
+            ${distributorName ? `
+            <div>
+              <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #94A3B8; letter-spacing: 0.6px; display: block; margin-bottom: 2px;">Customer account was created by</span>
+              <span style="font-size: 14px; font-weight: 600; color: #1677C8;">${distributorName}</span>
+            </div>
+            ` : ''}
+          </td>
+        </tr>
+      </table>
+
+      <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+        To activate your account and start ordering, please set your password using the link below:
       </p>
 
       <!-- Primary CTA Button -->
-      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 28px 0;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0;">
         <tr>
           <td align="center">
             <a href="${setupUrl}" target="_blank" style="background-color: #00AEEF; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 34px; border-radius: 12px; display: inline-block; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(0, 174, 239, 0.35);">
-              CREATE YOUR PASSWORD
+              SET YOUR PASSWORD
             </a>
           </td>
         </tr>
@@ -118,22 +148,12 @@ export class MailService {
       <p style="color: #64748B; font-size: 13px; line-height: 1.6; margin: 0 0 6px;">
         This secure link will allow you to create your password.
       </p>
-      <p style="color: #64748B; font-size: 13px; line-height: 1.6; margin: 0 0 24px;">
+      <p style="color: #64748B; font-size: 13px; line-height: 1.6; margin: 0 0 20px;">
         For your security, this link expires in <strong>24 hours</strong> and can only be used once.
       </p>
 
-      <!-- Login Email Callout -->
-      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; margin: 0 0 24px 0;">
-        <tr>
-          <td style="padding: 14px 18px;">
-            <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #94A3B8; letter-spacing: 0.6px; display: block; margin-bottom: 4px;">Your login email</span>
-            <span style="font-size: 14px; font-weight: 700; color: #16324F;">${user.email}</span>
-          </td>
-        </tr>
-      </table>
-
       <!-- Fallback URL Section -->
-      <div style="border-top: 1px dashed #E2E8F0; padding-top: 16px; margin: 24px 0 16px 0;">
+      <div style="border-top: 1px dashed #E2E8F0; padding-top: 16px; margin: 20px 0 16px 0;">
         <p style="color: #94A3B8; font-size: 12px; line-height: 1.5; margin: 0 0 6px;">
           Having trouble with the button? Copy and paste this link into your browser:
         </p>
@@ -142,13 +162,13 @@ export class MailService {
         </p>
       </div>
 
-      <p style="font-size: 12px; color: #94A3B8; line-height: 1.5; margin: 18px 0 0 0;">
-        If you did not expect this account, you can safely ignore this email.
+      <p style="font-size: 12px; color: #94A3B8; line-height: 1.5; margin: 16px 0 0 0;">
+        If you did not expect this account, please contact our support team at support@edrops.com.
       </p>
     `;
 
     const html = this.renderEmailShell({
-      title: 'Welcome to eDrops — Create Your Password',
+      title: 'Welcome to Edrops — Your Customer Account',
       bodyHtml,
       frontendUrl,
     });
@@ -156,12 +176,14 @@ export class MailService {
     try {
       await this.mailerService.sendMail({
         to: user.email,
-        subject: 'Welcome to eDrops — Create Your Password',
+        subject: 'Welcome to Edrops — Your Customer Account',
         html,
       });
-      this.logger.log(`Account setup email sent to ${user.email}`);
+      this.logger.log(`Account onboarding email sent to ${user.email}`);
+      return true;
     } catch (error) {
       this.logger.error(`Failed to send account setup email to ${user.email}`, error);
+      return false;
     }
   }
 

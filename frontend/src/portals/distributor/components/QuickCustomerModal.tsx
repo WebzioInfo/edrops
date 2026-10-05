@@ -45,6 +45,11 @@ export default function QuickCustomerModal({
   const [pincode, setPincode] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+  const [createdCustomerResult, setCreatedCustomerResult] = useState<{
+    customerId: string;
+    email: string;
+  } | null>(null);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   if (!isOpen) return null;
 
@@ -64,10 +69,35 @@ export default function QuickCustomerModal({
     setDistrict('');
     setState('Kerala');
     setPincode('');
+    setCreatedCustomerResult(null);
+  };
+
+  const handleResendWelcomeEmail = async () => {
+    if (!createdCustomerResult?.customerId) return;
+    setResendingEmail(true);
+    try {
+      const res = await fetchWithAuth('/customer/onboarding/resend', {
+        method: 'POST',
+        body: JSON.stringify({ customerId: createdCustomerResult.customerId }),
+      });
+      if (res?.emailSent || res?.success) {
+        toast.success(`Welcome email sent to ${createdCustomerResult.email}`);
+        resetForm();
+        onClose();
+      } else {
+        toast.error(res?.message || 'Failed to resend welcome email.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to resend welcome email.');
+    } finally {
+      setResendingEmail(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (submitting) return;
 
     if (!hasValidReferral) {
       toast.error('Cannot onboard customer without an assigned distributor referral code.');
@@ -76,6 +106,18 @@ export default function QuickCustomerModal({
 
     if (!firstName.trim() || !lastName.trim() || !phone.trim()) {
       toast.error('First Name, Last Name, and Phone Number are required.');
+      return;
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      toast.error('Email Address is required for customer account onboarding.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      toast.error('Please enter a valid email address.');
       return;
     }
 
@@ -91,12 +133,13 @@ export default function QuickCustomerModal({
     }
 
     setSubmitting(true);
+    setCreatedCustomerResult(null);
     try {
       const payload: any = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: cleanPhone,
-        email: email.trim() || undefined,
+        email: cleanEmail,
         customerType,
         companyName: customerType === 'COMMERCIAL' ? companyName.trim() : undefined,
         referralCode: referralCode!.trim(),
@@ -115,15 +158,22 @@ export default function QuickCustomerModal({
         ],
       };
 
-      await fetchWithAuth('/customer', {
+      const res = await fetchWithAuth('/customer', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
 
-      toast.success('Customer created successfully.');
-
-      resetForm();
-      onClose();
+      if (res?.emailSent) {
+        toast.success(`Customer created successfully.\nAccount activated and welcome email sent to ${res?.email || cleanEmail}.`);
+        resetForm();
+        onClose();
+      } else {
+        toast.error('Customer created, but welcome email could not be sent.');
+        setCreatedCustomerResult({
+          customerId: res?.customerId || '',
+          email: res?.email || cleanEmail,
+        });
+      }
     } catch (err: any) {
       const msg = err.message || 'Failed to create customer.';
       toast.error(msg);
@@ -145,7 +195,7 @@ export default function QuickCustomerModal({
             <div>
               <h3 className="text-sm font-bold text-slate-800">Quick Customer Creation</h3>
               <p className="text-[11px] text-slate-500">
-                Register a new customer with your referral code for attribution
+                Create the customer account and send login setup details.
               </p>
             </div>
           </div>
@@ -161,6 +211,53 @@ export default function QuickCustomerModal({
         {/* ─── MODAL FORM BODY ─────────────────────────────── */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           
+          {/* ─── EMAIL DELIVERY FAILURE BANNER / RESEND ────── */}
+          {createdCustomerResult && (
+            <div className="p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl space-y-2 animate-in fade-in duration-200">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1 text-xs">
+                  <p className="font-bold text-amber-900">
+                    Customer created successfully, but the welcome email could not be sent.
+                  </p>
+                  <p className="text-amber-700 mt-0.5 text-[11px]">
+                    Customer account is active. Click below to resend the password setup email to <span className="font-semibold text-slate-800">{createdCustomerResult.email}</span>.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleResendWelcomeEmail}
+                  disabled={resendingEmail}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  {resendingEmail ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Resending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-3 h-3" />
+                      <span>Resend Welcome Email</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetForm();
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 bg-white border border-amber-200 hover:bg-amber-50 text-slate-700 font-semibold rounded-lg text-xs transition cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ─── 1. AUTOMATIC REFERRAL CODE (LOCKED) ───────── */}
           <div className="bg-gradient-to-br from-sky-50 to-blue-50/80 p-3.5 rounded-xl border border-sky-200/80 shadow-2xs space-y-1.5">
             <div className="flex items-center justify-between">
@@ -217,7 +314,8 @@ export default function QuickCustomerModal({
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="Rahul"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all"
+                  disabled={submitting}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all disabled:opacity-60"
                   required
                 />
               </div>
@@ -231,7 +329,8 @@ export default function QuickCustomerModal({
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Sharma"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all"
+                  disabled={submitting}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all disabled:opacity-60"
                   required
                 />
               </div>
@@ -250,7 +349,8 @@ export default function QuickCustomerModal({
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="9876543210"
                     maxLength={10}
-                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:bg-white focus:border-[#1677C8] transition-all"
+                    disabled={submitting}
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:bg-white focus:border-[#1677C8] transition-all disabled:opacity-60"
                     required
                   />
                 </div>
@@ -258,7 +358,7 @@ export default function QuickCustomerModal({
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Email Address <span className="text-slate-400 font-normal">(optional)</span>
+                  Email Address <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -267,7 +367,9 @@ export default function QuickCustomerModal({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="customer@example.com"
-                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all"
+                    disabled={submitting}
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all disabled:opacity-60"
+                    required
                   />
                 </div>
               </div>
@@ -324,7 +426,8 @@ export default function QuickCustomerModal({
                   value={street}
                   onChange={(e) => setStreet(e.target.value)}
                   placeholder="e.g. Marine Drive Road"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all"
+                  disabled={submitting}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all disabled:opacity-60"
                   required
                 />
               </div>
@@ -338,7 +441,8 @@ export default function QuickCustomerModal({
                   value={houseOrFlat}
                   onChange={(e) => setHouseOrFlat(e.target.value)}
                   placeholder="e.g. Flat 3B, Sky Towers"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all"
+                  disabled={submitting}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all disabled:opacity-60"
                 />
               </div>
             </div>
@@ -351,7 +455,8 @@ export default function QuickCustomerModal({
                   value={area}
                   onChange={(e) => setArea(e.target.value)}
                   placeholder="Near High Court"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all"
+                  disabled={submitting}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all disabled:opacity-60"
                 />
               </div>
 
@@ -364,7 +469,8 @@ export default function QuickCustomerModal({
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Kochi"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all"
+                  disabled={submitting}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-[#1677C8] transition-all disabled:opacity-60"
                   required
                 />
               </div>
@@ -379,7 +485,8 @@ export default function QuickCustomerModal({
                   onChange={(e) => setPincode(e.target.value)}
                   placeholder="682001"
                   maxLength={6}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:bg-white focus:border-[#1677C8] transition-all"
+                  disabled={submitting}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:bg-white focus:border-[#1677C8] transition-all disabled:opacity-60"
                   required
                 />
               </div>

@@ -55,6 +55,59 @@ export class CustomerService {
       throw new BadRequestException('Please enter a valid mobile number.');
     }
 
+    // Email Validation & Normalization
+    let normalizedEmail: string | undefined = undefined;
+    if (email && typeof email === 'string' && email.trim()) {
+      normalizedEmail = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedEmail)) {
+        throw new BadRequestException('Please enter a valid email address.');
+      }
+    }
+
+    // If created by a distributor or referralCode provided, derive referral attribution
+    let appliedReferralCode: string | null = null;
+    let createdFrom = 'Registration';
+    let referringDistributor: any = null;
+
+    if (createdByUserId) {
+      createdFrom = 'Admin Panel';
+      const creator = await this.prisma.user.findUnique({
+        where: { id: createdByUserId },
+        include: { distributor: true },
+      });
+      if (creator?.role === 'DISTRIBUTOR') {
+        if (!creator.distributor?.referralCode) {
+          throw new BadRequestException('Distributor does not have an assigned referral code. Cannot onboard customer.');
+        }
+        appliedReferralCode = creator.distributor.referralCode;
+        referringDistributor = creator.distributor;
+        createdFrom = 'Distributor Portal';
+
+        // Validate client passed referral code if provided
+        if (referralCode && referralCode.trim().toUpperCase() !== appliedReferralCode.toUpperCase()) {
+          throw new BadRequestException('Invalid referral code. It must match your assigned distributor code.');
+        }
+
+        // Email is mandatory for Quick Customer Creation onboarding
+        if (!normalizedEmail) {
+          throw new BadRequestException('Email address is required for customer account onboarding.');
+        }
+      }
+    }
+
+    if (!referringDistributor && referralCode) {
+      const dist = await this.prisma.distributor.findFirst({
+        where: { referralCode: { equals: referralCode.trim(), mode: 'insensitive' } },
+        include: { user: true },
+      });
+      if (dist) {
+        appliedReferralCode = dist.referralCode;
+        referringDistributor = dist;
+      }
+    }
+
+    // Duplicate Phone Check
     const existingPhone = await this.prisma.user.findFirst({
       where: {
         OR: [{ phone: normalizedPhone }, { phone }],
@@ -63,14 +116,17 @@ export class CustomerService {
     if (existingPhone) {
       throw new BadRequestException('Phone number is already registered.');
     }
-    if (email) {
-      const existingEmail = await this.prisma.user.findUnique({
-        where: { email },
+
+    // Duplicate Email Check
+    if (normalizedEmail) {
+      const existingEmail = await this.prisma.user.findFirst({
+        where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
       });
       if (existingEmail) {
-        throw new BadRequestException('Email is already registered.');
+        throw new BadRequestException('This email is already registered.');
       }
     }
+
     if (gstNumber) {
       const existingGst = await this.prisma.customer.findUnique({
         where: { gstNumber },
@@ -82,7 +138,7 @@ export class CustomerService {
 
     // Account activation / password setup logic
     // Any customer created with an email defaults to PENDING_PASSWORD_SETUP flow
-    const requiresSetup = Boolean(email);
+    const requiresSetup = Boolean(normalizedEmail);
     const accountStatus = requiresSetup
       ? AccountStatus.PENDING_PASSWORD_SETUP
       : AccountStatus.ACTIVE;
@@ -114,59 +170,39 @@ export class CustomerService {
         ? Number(jarsAtCustomer)
         : 0;
 
-    // If created by a distributor or referralCode provided, derive referral attribution
-    let appliedReferralCode: string | null = null;
-    let createdFrom = 'Registration';
-    let referringDistributor: any = null;
-
-    if (createdByUserId) {
-      createdFrom = 'Admin Panel';
-      const creator = await this.prisma.user.findUnique({
-        where: { id: createdByUserId },
-        include: { distributor: true },
-      });
-      if (creator?.role === 'DISTRIBUTOR') {
-        if (!creator.distributor?.referralCode) {
-          throw new BadRequestException('Distributor does not have an assigned referral code. Cannot onboard customer.');
-        }
-        appliedReferralCode = creator.distributor.referralCode;
-        referringDistributor = creator.distributor;
-        createdFrom = 'Distributor Portal';
-
-        // Validate client passed referral code if provided
-        if (referralCode && referralCode.trim().toUpperCase() !== appliedReferralCode.toUpperCase()) {
-          throw new BadRequestException('Invalid referral code. It must match your assigned distributor code.');
-        }
-      }
-    }
-
-    if (!referringDistributor && referralCode) {
-      const dist = await this.prisma.distributor.findFirst({
-        where: { referralCode: { equals: referralCode.trim(), mode: 'insensitive' } },
-        include: { user: true },
-      });
-      if (dist) {
-        appliedReferralCode = dist.referralCode;
-        referringDistributor = dist;
-      }
-    }
-
     // Customer's own referral code (unique)
     let customerOwnCode = referralCode;
     if (!customerOwnCode || customerOwnCode.toUpperCase() === appliedReferralCode?.toUpperCase()) {
       customerOwnCode = `CUST-${Math.floor(100000 + Math.random() * 900000)}`;
     }
 
-    // Create via Transaction
+    // Create via Atomic Transaction
     const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Create User
+      // 1. Double-check uniqueness inside transaction
+      const dupPhone = await tx.user.findFirst({
+        where: { OR: [{ phone: normalizedPhone }, { phone }] },
+      });
+      if (dupPhone) {
+        throw new BadRequestException('Phone number is already registered.');
+      }
+
+      if (normalizedEmail) {
+        const dupEmail = await tx.user.findFirst({
+          where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
+        });
+        if (dupEmail) {
+          throw new BadRequestException('This email is already registered.');
+        }
+      }
+
+      // 2. Create User
       const user = await tx.user.create({
         data: {
-          firstName,
-          lastName,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           phone: normalizedPhone,
-          alternatePhone,
-          email,
+          alternatePhone: alternatePhone ? alternatePhone.trim() : null,
+          email: normalizedEmail || null,
           gender,
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
           passwordHash,
@@ -175,7 +211,7 @@ export class CustomerService {
         },
       });
 
-      // 1b. Create Password Setup Token if activation is required
+      // 3. Create Password Setup Token if activation is required
       if (requiresSetup && activationTokenHash && activationExpiresAt) {
         await tx.passwordSetupToken.create({
           data: {
@@ -188,14 +224,14 @@ export class CustomerService {
         });
       }
 
-      // 2. Create Customer
+      // 4. Create Customer Profile
       const customer = await tx.customer.create({
         data: {
           userId: user.id,
           customerType: customerType || 'RESIDENTIAL',
           gstNumber,
-          companyName,
-          contactPerson,
+          companyName: companyName ? companyName.trim() : null,
+          contactPerson: contactPerson ? contactPerson.trim() : null,
           businessCategory,
           jarsAtCustomer: initialJars,
           referralCode: customerOwnCode,
@@ -206,21 +242,21 @@ export class CustomerService {
         },
       });
 
-      // 3. Create Addresses
+      // 5. Create Addresses
       if (addresses && addresses.length > 0) {
         await tx.address.createMany({
           data: addresses.map((addr) => ({
             customerId: customer.id,
-            houseName: addr.houseName,
-            buildingName: addr.buildingName,
-            street: addr.street,
-            area: addr.area,
-            landmark: addr.landmark,
-            city: addr.city,
-            district: addr.district,
-            state: addr.state,
+            houseName: addr.houseName ? addr.houseName.trim() : undefined,
+            buildingName: addr.buildingName ? addr.buildingName.trim() : undefined,
+            street: addr.street.trim(),
+            area: addr.area ? addr.area.trim() : undefined,
+            landmark: addr.landmark ? addr.landmark.trim() : undefined,
+            city: addr.city.trim(),
+            district: addr.district ? addr.district.trim() : undefined,
+            state: addr.state.trim() || 'Kerala',
             country: addr.country || 'India',
-            zipCode: addr.zipCode,
+            zipCode: addr.zipCode.trim(),
             latitude: addr.latitude,
             longitude: addr.longitude,
             googleMapsUrl: addr.googleMapsUrl,
@@ -230,7 +266,7 @@ export class CustomerService {
         });
       }
 
-      // 4. Create Wallet
+      // 6. Create Wallet
       await tx.wallet.create({
         data: {
           customerId: customer.id,
@@ -238,11 +274,7 @@ export class CustomerService {
         },
       });
 
-      // 5. Create Jar Balances
-      // Removed default jar balance/deposit/ownership creation since they are now brand-specific
-      // They will be created on the fly when required for a specific brand
-
-      // 6. Delivery Schedule rules
+      // 7. Delivery Schedule rules
       if (
         preferredTimeSlot ||
         (preferredDeliveryDays && preferredDeliveryDays.length > 0)
@@ -258,44 +290,49 @@ export class CustomerService {
               deliveryScheduleId: schedule.id,
               type: 'WEEKLY',
               dayOfWeek: day,
-              quantity: 1, // Default to 1, can be customized later
+              quantity: 1,
               customNotes: deliveryInstructions,
             })),
           });
         }
       }
 
-      // 7. Audit Log
+      // 8. Audit Logs
       await tx.auditLog.create({
         data: {
           userId: createdByUserId || user.id,
-          action: 'CUSTOMER_ACCOUNT_CREATED',
+          action: 'CUSTOMER_CREATED',
           entityType: 'Customer',
           entityId: customer.id,
           newValues: {
-            phone,
-            email,
+            customerId: customer.id,
+            actorId: createdByUserId || user.id,
+            distributorId: referringDistributor?.id || null,
+            phone: normalizedPhone,
+            email: normalizedEmail,
             customerType,
-            accountStatus,
             createdFrom,
           },
         },
       });
 
-      if (requiresSetup && activationExpiresAt) {
-        await tx.auditLog.create({
-          data: {
-            userId: createdByUserId || user.id,
-            action: 'PASSWORD_SETUP_LINK_SENT',
-            entityType: 'User',
-            entityId: user.id,
-            newValues: {
-              email,
-              expiresAt: activationExpiresAt,
-            },
+      await tx.auditLog.create({
+        data: {
+          userId: createdByUserId || user.id,
+          action: 'CUSTOMER_ACCOUNT_CREATED',
+          entityType: 'User',
+          entityId: user.id,
+          newValues: {
+            customerId: customer.id,
+            actorId: createdByUserId || user.id,
+            distributorId: referringDistributor?.id || null,
+            phone: normalizedPhone,
+            email: normalizedEmail,
+            role: 'CUSTOMER',
+            accountStatus,
           },
-        });
-      }
+        },
+      });
 
       return { user, customer };
     });
@@ -318,20 +355,6 @@ export class CustomerService {
       createdBy: createdByName,
     });
 
-    if (result.user.email) {
-      if (requiresSetup && rawActivationToken) {
-        this.mailService
-          .sendAccountSetupEmail(result.user, rawActivationToken)
-          .catch((err) => {
-            this.logger.error(
-              `Failed to send account setup email to ${result.user.email}: ${err.message}`,
-            );
-          });
-      } else {
-        this.mailService.sendWelcomeEmail(result.user).catch(() => {});
-      }
-    }
-
     const referringDistName = referringDistributor
       ? referringDistributor.agencyName ||
         (referringDistributor.user
@@ -339,18 +362,76 @@ export class CustomerService {
           : undefined)
       : undefined;
 
+    // Send Onboarding Email (Non-fatal: DB transaction is committed, email failure does NOT roll back account)
+    let emailSent = false;
+    let emailDeliveryStatus: 'SENT' | 'FAILED' | 'SKIPPED' = 'SKIPPED';
+
+    if (result.user.email) {
+      if (requiresSetup && rawActivationToken) {
+        try {
+          emailSent = await this.mailService.sendAccountSetupEmail(
+            result.user,
+            rawActivationToken,
+            { distributorName: referringDistName },
+          );
+          emailDeliveryStatus = emailSent ? 'SENT' : 'FAILED';
+        } catch (err: any) {
+          this.logger.error(
+            `Failed to send account setup email to ${result.user.email}: ${err.message}`,
+          );
+          emailSent = false;
+          emailDeliveryStatus = 'FAILED';
+        }
+      } else {
+        try {
+          await this.mailService.sendWelcomeEmail(result.user);
+          emailSent = true;
+          emailDeliveryStatus = 'SENT';
+        } catch {
+          emailDeliveryStatus = 'FAILED';
+        }
+      }
+
+      // Record audit log for email outcome
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            userId: createdByUserId || result.user.id,
+            action: emailSent ? 'WELCOME_EMAIL_SENT' : 'WELCOME_EMAIL_FAILED',
+            entityType: 'User',
+            entityId: result.user.id,
+            newValues: {
+              customerId: result.customer.id,
+              actorId: createdByUserId || result.user.id,
+              distributorId: referringDistributor?.id || null,
+              email: result.user.email,
+              status: emailDeliveryStatus,
+            },
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Failed to record email audit log: ${err.message}`);
+      }
+    }
+
     return {
       success: true,
-      message: requiresSetup
-        ? `Customer created successfully. Password setup link sent to ${result.user.email}.`
-        : 'Customer created successfully',
-      customerName: `${result.user.firstName} ${result.user.lastName}`,
       customerId: result.customer.id,
+      accountCreated: true,
+      accountStatus: result.user.accountStatus,
+      emailSent,
+      emailDeliveryStatus,
+      message: emailSent
+        ? `Customer created successfully. Account activated and welcome email sent to ${result.user.email}.`
+        : `Customer account created, but the welcome email could not be sent.`,
+      customerName: `${result.user.firstName} ${result.user.lastName}`,
+      email: result.user.email,
+      phone: result.user.phone,
       referralCode: appliedReferralCode || undefined,
       referredByDistributorId: referringDistributor?.id || undefined,
       referredByDistributorName: referringDistName,
       activationPending: requiresSetup,
-      activationEmailSent: requiresSetup,
+      activationEmailSent: emailSent,
     };
   }
 
@@ -370,6 +451,38 @@ export class CustomerService {
 
     if (customer.user.accountStatus === AccountStatus.ACTIVE) {
       throw new BadRequestException('Customer account is already activated.');
+    }
+
+    // Rate Limiting: check if a token was created within the last 60 seconds
+    if (this.prisma.passwordSetupToken?.findFirst) {
+      const recentToken = await this.prisma.passwordSetupToken.findFirst({
+        where: {
+          userId: customer.user.id,
+          createdAt: { gt: new Date(Date.now() - 60000) },
+        },
+      });
+      if (recentToken) {
+        throw new BadRequestException('A welcome email was recently sent. Please wait 60 seconds before requesting another.');
+      }
+    }
+
+    // Tenant / Distributor permission check
+    let referringDistName: string | undefined = undefined;
+    if (staffUserId) {
+      const actor = await this.prisma.user.findUnique({
+        where: { id: staffUserId },
+        include: { distributor: true },
+      });
+      if (actor?.role === 'DISTRIBUTOR') {
+        const distCode = actor.distributor?.referralCode?.toUpperCase();
+        const matchesAttribution =
+          customer.createdById === staffUserId ||
+          (customer.source && distCode && customer.source.toUpperCase() === distCode);
+        if (!matchesAttribution) {
+          throw new BadRequestException('You do not have permission to resend welcome email for this customer.');
+        }
+        referringDistName = actor.distributor?.agencyName || `${actor.firstName} ${actor.lastName}`.trim();
+      }
     }
 
     // Invalidate existing unused tokens for this user
@@ -398,25 +511,49 @@ export class CustomerService {
       },
     });
 
-    if (staffUserId) {
-      await this.prisma.auditLog.create({
-        data: {
-          userId: staffUserId,
-          action: 'PASSWORD_SETUP_LINK_RESENT',
-          entityType: 'User',
-          entityId: customer.user.id,
-          newValues: { email: customer.user.email, expiresAt },
-        },
-      });
+    let emailSent = false;
+    try {
+      emailSent = await this.mailService.sendAccountSetupEmail(
+        customer.user,
+        rawToken,
+        { distributorName: referringDistName },
+      );
+    } catch (err: any) {
+      this.logger.error(`Failed to send account setup email: ${err.message}`);
+      emailSent = false;
     }
 
-    await this.mailService.sendAccountSetupEmail(customer.user, rawToken).catch((err) => {
-      this.logger.error(`Failed to send account setup email: ${err.message}`);
-    });
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: staffUserId || customer.user.id,
+          action: emailSent ? 'WELCOME_EMAIL_RESENT' : 'WELCOME_EMAIL_FAILED',
+          entityType: 'User',
+          entityId: customer.user.id,
+          newValues: {
+            customerId: customer.id,
+            email: customer.user.email,
+            status: emailSent ? 'SENT' : 'FAILED',
+            expiresAt,
+          },
+        },
+      });
+    } catch {
+      // Non-fatal
+    }
+
+    if (!emailSent) {
+      return {
+        success: false,
+        emailSent: false,
+        message: 'Welcome email could not be sent. Please check email address or try again later.',
+      };
+    }
 
     return {
       success: true,
-      message: `Password setup link sent to ${customer.user.email}`,
+      emailSent: true,
+      message: `Welcome email resent successfully to ${customer.user.email}.`,
     };
   }
 

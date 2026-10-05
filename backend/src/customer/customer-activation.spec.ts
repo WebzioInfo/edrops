@@ -32,9 +32,10 @@ describe('CustomerService - Customer Account Activation Flow', () => {
       passwordSetupToken: {
         create: jest.fn(),
         updateMany: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
       },
       auditLog: {
-        create: jest.fn(),
+        create: jest.fn().mockResolvedValue({}),
       },
       $transaction: jest.fn(async (cb) => {
         return cb(prismaService);
@@ -129,6 +130,7 @@ describe('CustomerService - Customer Account Activation Flow', () => {
       expect(mailService.sendAccountSetupEmail).toHaveBeenCalledWith(
         mockCreatedUser,
         expect.any(String),
+        expect.anything(),
       );
     });
   });
@@ -184,6 +186,7 @@ describe('CustomerService - Customer Account Activation Flow', () => {
       expect(mailService.sendAccountSetupEmail).toHaveBeenCalledWith(
         pendingCustomer.user,
         expect.any(String),
+        expect.anything(),
       );
     });
   });

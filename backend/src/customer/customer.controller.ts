@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from '@prisma/client';
@@ -63,6 +64,19 @@ export class CustomerController {
   create(@Body() createCustomerDto: CreateCustomerDto, @Request() req) {
     return this.customerService.create(
       createCustomerDto,
+      req.user?.userId || req.user?.id,
+    );
+  }
+
+  @Post('onboarding/resend')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DISTRIBUTOR)
+  resendOnboarding(@Body() body: { customerId: string }, @Request() req) {
+    const customerId = body?.customerId;
+    if (!customerId) {
+      throw new BadRequestException('customerId is required.');
+    }
+    return this.customerService.resendSetupLink(
+      customerId,
       req.user?.userId || req.user?.id,
     );
   }
