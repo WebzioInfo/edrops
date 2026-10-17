@@ -330,7 +330,7 @@ export function InventoryTransactions({
                   <table className="hidden md:table w-full table-fixed text-left text-xs text-[#16324F] border-collapse">
                     <caption className="sr-only">
                       {ownership === "COMPANY_OWNED"
-                        ? "Company-owned"
+                        ? "Edrops Owned"
                         : "Distributor-owned"}{" "}
                       jar inventory transactions
                     </caption>

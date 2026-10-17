@@ -579,7 +579,7 @@ export default function Inventory() {
 
   const handleDeleteItem = async (item: JarInventoryItemRecord) => {
     if (item.ownershipType === "COMPANY") {
-      toast.error("Company owned items cannot be deleted or archived.");
+      toast.error("Edrops Owned items cannot be deleted or archived.");
       return;
     }
 
@@ -727,7 +727,7 @@ export default function Inventory() {
                     colorVariant="blue"
                   />
                   <ReportKpiCard
-                    label="Company Owned"
+                    label="Edrops Owned"
                     value={inventoryQuantity(companyOwnedStock.total)}
                     icon={Building2}
                     colorVariant="blue"
@@ -783,11 +783,11 @@ export default function Inventory() {
                 </div>
               </div>
 
-              {/* ─── SECTION 2: COMPANY OWNED BREAKDOWN ────────────────── */}
+              {/* ─── SECTION 2: EDROPS OWNED BREAKDOWN ──────────────────── */}
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
-                    Company Owned Physical Breakdown
+                    Edrops Owned Physical Breakdown
                   </h3>
                   <div className="flex items-center gap-2">
                     <button
@@ -829,7 +829,7 @@ export default function Inventory() {
                             {companyItem?.name || "BioDrops 20L Returnable Jar"}
                           </h4>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200 shrink-0">
-                            Company Owned
+                            Edrops Owned
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-xs sm:max-w-md">
@@ -1754,7 +1754,7 @@ export default function Inventory() {
                           : "bg-purple-100 text-purple-800 border-purple-200"
                       }`}
                     >
-                      {stockModalItem.ownershipType === "COMPANY" ? "Company Owned" : "Distributor Owned"}
+                      {stockModalItem.ownershipType === "COMPANY" ? "Edrops Owned" : "Distributor Owned"}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">

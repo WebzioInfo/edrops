@@ -73,7 +73,7 @@ export default function DistributorOperationsCard({ profile }: DistributorOperat
           <div className="grid grid-cols-3 gap-2.5 pt-0.5">
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
               <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Company Owned
+                Edrops Owned
               </span>
               <span className="text-base sm:text-lg font-bold text-slate-800 font-mono mt-0.5 block">
                 {companyOwned}
