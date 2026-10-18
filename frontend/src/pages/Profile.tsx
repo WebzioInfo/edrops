@@ -21,10 +21,14 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  // Stable profile fetching function
+  // Track user ID whose profile has successfully loaded
+  const loadedUserRef = useRef<string | null>(null);
+
+  // Stable profile fetching function (callable on-demand by refresh actions)
   const fetchProfileData = useCallback(async (signal?: AbortSignal) => {
     try {
-      let data: any;
+      setLoading(true);
+      let data: any = null;
       try {
         data = await fetchWithAuth('/profile', { signal });
       } catch (err: any) {
@@ -32,31 +36,66 @@ export default function Profile() {
         data = await fetchWithAuth('/auth/me', { signal });
       }
 
-      setProfile(data);
+      if (data) {
+        setProfile(data);
+        if (userId) {
+          loadedUserRef.current = userId;
+        }
+      }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       toast.error(err.message ?? 'Failed to load profile data');
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Track initial fetch strictly per authenticated user ID
-  const hasFetchedForUserRef = useRef<string | null>(null);
+  }, [userId]);
 
   useEffect(() => {
-    if (!userId) return;
-    // If profile has already been loaded for this authenticated user, do not refetch
-    if (hasFetchedForUserRef.current === userId) return;
-    hasFetchedForUserRef.current = userId;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
+    // If profile is already loaded for this authenticated user, avoid redundant refetch
+    if (loadedUserRef.current === userId && profile) return;
+
+    let isMounted = true;
     const controller = new AbortController();
-    fetchProfileData(controller.signal);
+
+    const loadInitialProfile = async () => {
+      try {
+        setLoading(true);
+        let data: any = null;
+        try {
+          data = await fetchWithAuth('/profile', { signal: controller.signal });
+        } catch (err: any) {
+          if (err.name === 'AbortError') return;
+          data = await fetchWithAuth('/auth/me', { signal: controller.signal });
+        }
+
+        if (isMounted && data) {
+          setProfile(data);
+          loadedUserRef.current = userId;
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+        if (isMounted) {
+          toast.error(err.message ?? 'Failed to load profile data');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadInitialProfile();
 
     return () => {
+      isMounted = false;
       controller.abort();
     };
-  }, [userId, fetchProfileData]);
+  }, [userId]);
 
   // Controlled, intentional refresh handler (passed to Address CRUD and EditProfileModal)
   const handleRefresh = useCallback(async () => {

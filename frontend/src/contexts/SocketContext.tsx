@@ -32,8 +32,9 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
     const newSocket = io(apiUrl, {
-      auth: {
-        token: token,
+      auth: (cb) => {
+        const activeToken = localStorage.getItem('edrops_token') || token;
+        cb({ token: activeToken });
       },
       reconnectionDelay: 2000,
       reconnectionDelayMax: 10000,
@@ -53,6 +54,13 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
 
     newSocket.on('connect_error', () => {
       setIsConnected(false);
+    });
+
+    newSocket.on('auth:error', (err: any) => {
+      setIsConnected(false);
+      if (err?.code === 'TOKEN_EXPIRED') {
+        newSocket.disconnect();
+      }
     });
 
     setSocket(newSocket);

@@ -67,15 +67,30 @@ export default function DeliveryPartnersList() {
   const [detailPartner, setDetailPartner] = useState<any | null>(null);
   const [priceEditPartner, setPriceEditPartner] = useState<any | null>(null);
 
-  const { data: partners = [], isLoading, isError, error, isFetching, refetch } = useQuery({
+  const { data: rawPartners, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['adminDeliveryPartners'],
-    queryFn: () => fetchWithAuth('/admin/delivery-partners'),
+    queryFn: async () => {
+      const res = await fetchWithAuth('/admin/delivery-partners');
+      if (Array.isArray(res)) return res;
+      if (Array.isArray(res?.data)) return res.data;
+      if (Array.isArray(res?.deliveryPartners)) return res.deliveryPartners;
+      return [];
+    },
   });
 
+  const partners: any[] = useMemo(() => {
+    if (Array.isArray(rawPartners)) return rawPartners;
+    if (Array.isArray((rawPartners as any)?.data)) return (rawPartners as any).data;
+    if (Array.isArray((rawPartners as any)?.deliveryPartners)) return (rawPartners as any).deliveryPartners;
+    return [];
+  }, [rawPartners]);
+
   const filteredPartners = useMemo(() => {
+    if (!Array.isArray(partners)) return [];
     const term = search.toLowerCase().trim();
 
     return partners.filter((p: any) => {
+      if (!p) return false;
       const fullName = (p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).toLowerCase();
       const phone = p.phone || '';
       const email = (p.email || '').toLowerCase();
@@ -269,7 +284,7 @@ export default function DeliveryPartnersList() {
 
             {/* Results Count Badge */}
             <span className="text-[11px] font-semibold text-[#64748B] ml-auto md:ml-2">
-              Showing <span className="font-bold text-[#16324F]">{filteredPartners.length}</span> of {partners.length}
+              Showing <span className="font-bold text-[#16324F]">{filteredPartners.length}</span> of {partners?.length ?? 0}
             </span>
           </div>
 

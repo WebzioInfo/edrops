@@ -72,15 +72,30 @@ export default function UsersList() {
   const [detailUser, setDetailUser] = useState<any | null>(null);
   const [priceEditUser, setPriceEditUser] = useState<any | null>(null);
 
-  const { data: users = [], isLoading, isError, error, isFetching, refetch } = useQuery({
+  const { data: rawUsers, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['adminUsers'],
-    queryFn: () => fetchWithAuth('/admin/users'),
+    queryFn: async () => {
+      const res = await fetchWithAuth('/admin/users');
+      if (Array.isArray(res)) return res;
+      if (Array.isArray(res?.data)) return res.data;
+      if (Array.isArray(res?.users)) return res.users;
+      return [];
+    },
   });
 
+  const users: any[] = useMemo(() => {
+    if (Array.isArray(rawUsers)) return rawUsers;
+    if (Array.isArray((rawUsers as any)?.data)) return (rawUsers as any).data;
+    if (Array.isArray((rawUsers as any)?.users)) return (rawUsers as any).users;
+    return [];
+  }, [rawUsers]);
+
   const filteredUsers = useMemo(() => {
+    if (!Array.isArray(users)) return [];
     const term = search.toLowerCase().trim();
 
     return users.filter((u: any) => {
+      if (!u) return false;
       const fullName = (u.fullName || `${u.firstName || ''} ${u.lastName || ''}`).toLowerCase();
       const phone = u.phone || '';
       const altPhone = u.alternatePhone || '';
@@ -310,7 +325,7 @@ export default function UsersList() {
 
             {/* Results Count Badge */}
             <span className="text-[11px] font-semibold text-[#64748B] ml-auto md:ml-2">
-              Showing <span className="font-bold text-[#16324F]">{filteredUsers.length}</span> of {users.length}
+              Showing <span className="font-bold text-[#16324F]">{filteredUsers.length}</span> of {users?.length ?? 0}
             </span>
           </div>
 

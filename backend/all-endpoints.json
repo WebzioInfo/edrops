@@ -1,0 +1,2942 @@
+[
+  {
+    "file": "src/address/address.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/address/serviceability",
+    "signature": "checkServiceability(@Query('pincode') pincode: string) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/address/address.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/address/check-delivery",
+    "signature": "checkDelivery(@Query('pincode') pincode: string) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/address/address.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/address",
+    "signature": "create(@Req() req, @Body() createAddressDto: CreateAddressDto) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/address/address.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/address",
+    "signature": "findAll(@Req() req) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/address/address.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/address/:id",
+    "signature": "remove(@Req() req, @Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/address/address.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/address/:id/default",
+    "signature": "setDefault(@Req() req, @Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-checkout.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/admin/checkout/:customerId/validate",
+    "signature": "validateCheckout(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-checkout.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/admin/checkout/:customerId/initiate",
+    "signature": "initiateCheckout(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-checkout.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/admin/checkout/:customerId/confirm",
+    "signature": "confirmCheckout(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-customers.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/customers/search",
+    "signature": "searchCustomers(@Query('q') query: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-customers.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/admin/customers/walk-in",
+    "signature": "createWalkInCustomer(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-customers.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/customers/:id",
+    "signature": "getCustomerProfile(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-users.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/users",
+    "signature": "findAllUsers(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-users.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/users/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-users.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/admin/users",
+    "signature": "create(@Body() body: any) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-users.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/admin/users/:id/jar-unit-price",
+    "signature": "updateJarUnitPrice(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-users.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/admin/users/:id",
+    "signature": "update(@Param('id') id: string, @Body() body: any) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-users.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/admin/users/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-users.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/users",
+    "signature": "findDeliveryPartners(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-users.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/users/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin-users.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/admin/users/:id/jar-unit-price",
+    "signature": "updateJarUnitPrice(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/admin/system",
+    "signature": "create(@Body() createAdminDto: CreateAdminDto) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/system",
+    "signature": "findAll() {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/system/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/admin/system/:id",
+    "signature": "update(@Param('id') id: string, @Body() updateAdminDto: UpdateAdminDto) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/admin/admin.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/admin/system/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/analytics/analytics.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/analytics",
+    "signature": "create(@Body() createAnalyticsDto: CreateAnalyticsDto) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/analytics/analytics.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/analytics/snapshot",
+    "signature": "getSnapshot() {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/analytics/analytics.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/analytics",
+    "signature": "findAll() {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/analytics/analytics.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/analytics/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/analytics/analytics.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/analytics/:id",
+    "signature": "update(",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/analytics/analytics.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/analytics/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/app.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/",
+    "signature": "getHello(): string {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/audit/audit.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/audit",
+    "signature": "create(@Body() createAuditDto: CreateAuditDto) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/audit/audit.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/audit",
+    "signature": "findAll() {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/audit/audit.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/audit/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/audit/audit.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/audit/:id",
+    "signature": "update(@Param('id') id: string, @Body() updateAuditDto: UpdateAuditDto) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/audit/audit.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/audit/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/register",
+    "signature": "register(@Body() registerDto: RegisterDto) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/login",
+    "signature": "login(@Body() loginDto: LoginDto) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/auth/setup-password/validate",
+    "signature": "validateSetupToken(@Query('token') token: string) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/setup-password",
+    "signature": "setupPassword(@Body() dto: SetupPasswordDto) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/resend-activation",
+    "signature": "resendActivation(@Body() dto: ResendActivationDto) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/forgot-password",
+    "signature": "forgotPassword(@Body() body: { email: string }) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/reset-password",
+    "signature": "resetPassword(@Body() body: { token: string; password: string }) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/auth/me",
+    "signature": "getProfile(@Request() req) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/update-profile",
+    "signature": "updateProfile(@Request() req, @Body() body: any) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/remove-avatar",
+    "signature": "removeAvatarPost(@Request() req: any) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/request-password-otp",
+    "signature": "requestPasswordOtp(@Request() req) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/change-password",
+    "signature": "changePassword(",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/refresh",
+    "signature": "refresh(@Request() req) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/logout",
+    "signature": "logout() {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/google",
+    "signature": "googleAuth(@Body() body: { idToken?: string; token?: string }) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/auth/auth.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/auth/complete-phone",
+    "signature": "completePhone(@Body() body: { tempToken?: string; temp_token?: string; phone: string }) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/branch/branch.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/branch",
+    "signature": "create(@Body() createBranchDto: CreateBranchDto) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/branch/branch.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/branch",
+    "signature": "findAll() {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/branch/branch.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/branch/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/branch/branch.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/branch/:id",
+    "signature": "update(@Param('id') id: string, @Body() updateBranchDto: UpdateBranchDto) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/branch/branch.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/branch/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/catalog/access-check",
+    "signature": "async checkAccess() {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/catalog/brands",
+    "signature": "async getBrands() {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/catalog/brands",
+    "signature": "async createBrand(",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/catalog/brands/:id",
+    "signature": "async updateBrand(",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/catalog/brands/:id",
+    "signature": "async deleteBrand(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/catalog/brands/:id",
+    "signature": "async getBrandById(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/catalog/categories",
+    "signature": "async getCategories() {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/catalog/categories",
+    "signature": "async createCategory(",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/catalog/categories/:id",
+    "signature": "async updateCategory(",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/catalog/categories/:id",
+    "signature": "async deleteCategory(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/catalog/categories/:id",
+    "signature": "async getCategoryById(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/catalog/products",
+    "signature": "async getProducts(",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/catalog/products",
+    "signature": "async createProduct(",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/catalog/products/:id",
+    "signature": "async updateProduct(",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/catalog/products/:id",
+    "signature": "async deleteProduct(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/catalog/catalog.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/catalog/products/:id",
+    "signature": "async getProductById(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/checkout/checkout.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/checkout/slots",
+    "signature": "getDeliverySlots() {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/checkout/checkout.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/checkout/validate",
+    "signature": "validateCheckout(@Req() req, @Body() dto: ValidateCheckoutDto) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/checkout/checkout.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/checkout/initiate",
+    "signature": "initiateCheckout(@Req() req, @Body() dto: InitiateCheckoutDto) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/checkout/checkout.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/checkout/confirm",
+    "signature": "confirmCheckout(@Req() req, @Body() dto: ConfirmCheckoutDto) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/customer/customer.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/customer/dashboard",
+    "signature": "getDashboard() {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/customer/customer.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/customer",
+    "signature": "create(@Body() createCustomerDto: CreateCustomerDto, @Request() req) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/customer/customer.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/customer/onboarding/resend",
+    "signature": "resendOnboarding(@Body() body: { customerId: string }, @Request() req) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/customer/customer.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/customer/:id/resend-setup-link",
+    "signature": "resendSetupLink(@Param('id') id: string, @Request() req) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/customer/customer.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/customer",
+    "signature": "findAll() {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/customer/customer.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/customer/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/customer/customer.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/customer/:id",
+    "signature": "update(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/customer/customer.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/customer/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/",
+    "signature": "create(@Body() data: any) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/generate",
+    "signature": "generateToday() {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/today",
+    "signature": "findToday() {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/history",
+    "signature": "findMyHistory(@Request() req) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/weekly-summary",
+    "signature": "findMyWeeklySummary(",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/customer/:customerId/weekly-summary",
+    "signature": "getWeeklySummary(",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/customer/:customerId",
+    "signature": "findByCustomer(@Param('customerId') customerId: string) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/:id/status",
+    "signature": "updateStatus(",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/:id/assign",
+    "signature": "assign(@Param('id') id: string, @Body() body: { deliveryPartnerId: string }) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/:id/report",
+    "signature": "submitReport(",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/:id/confirm",
+    "signature": "confirmDelivery(",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/",
+    "signature": "findAll() {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/delivery/delivery.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/distributor/inventory",
+    "signature": "getInventory(@Req() req: { user: { id: string } }) {",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/distributor/inventory/items",
+    "signature": "getJarItems(@Req() req: { user: { id: string } }) {",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/inventory/items",
+    "signature": "createJarItem(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/distributor/inventory/items/:id",
+    "signature": "updateJarItem(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/distributor/inventory/items/:id",
+    "signature": "deleteJarItem(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/inventory/items/:id/adjustment",
+    "signature": "adjustItemStock(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/inventory/items/:id/image",
+    "signature": "uploadJarItemImage(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/distributor/inventory/transactions",
+    "signature": "getTransactions(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/inventory/move",
+    "signature": "moveJarState(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/inventory/customer-return",
+    "signature": "customerJarReturn(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/inventory/adjust",
+    "signature": "adjustJarStock(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/distributor/inventory/reconciliation",
+    "signature": "getReconciliation(@Req() req: { user: { id: string } }) {",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/inventory/image",
+    "signature": "uploadImage(",
+    "roles": "UserRole.DISTRIBUTOR",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-service-area.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/distributor/service-areas/lookup",
+    "signature": "lookup(@Query('pincode') pincode: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-service-area.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/distributor/service-areas",
+    "signature": "findAll(@Req() req: any) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-service-area.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/service-areas",
+    "signature": "create(@Req() req: any, @Body() dto: CreateServiceAreaDto) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-service-area.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/distributor/service-areas/:id",
+    "signature": "remove(@Req() req: any, @Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/distributor/distributor-service-area.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/distributor/service-areas/:id/toggle",
+    "signature": "toggleActive(@Req() req: any, @Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/drivers",
+    "signature": "findAll(@Req() req: any, @Query() query: DriverQueryDto) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/drivers/:id",
+    "signature": "findOne(@Req() req: any, @Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/drivers",
+    "signature": "create(@Req() req: any, @Body() dto: CreateDriverDto) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "PUT",
+    "fullRoute": "/drivers/:id",
+    "signature": "update(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/drivers/:id/status",
+    "signature": "toggleStatus(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/drivers/:id",
+    "signature": "delete(@Req() req: any, @Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/drivers",
+    "signature": "findAll(@Query() query: DriverQueryDto) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/drivers/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/drivers",
+    "signature": "create(@Body() dto: CreateDriverDto) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "PUT",
+    "fullRoute": "/drivers/:id",
+    "signature": "update(@Param('id') id: string, @Body() dto: UpdateDriverDto) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/drivers/:id/status",
+    "signature": "toggleStatus(@Param('id') id: string, @Body('isActive') isActive: boolean) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/driver/driver.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/drivers/:id",
+    "signature": "delete(@Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/health/health.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/health",
+    "signature": "getStatus() {",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/health/health.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/health/database",
+    "signature": "'Database is connected (or connected with pending migrations).',",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/inventory/central-dashboard",
+    "signature": "getCentralDashboard() {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/inventory/status",
+    "signature": "getStatus() {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/inventory/distributors",
+    "signature": "getDistributorStockList(@Query('search') search?: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/inventory/distributors/:distributorId",
+    "signature": "getDistributorDetail(@Param('distributorId') distributorId: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/inventory/movements",
+    "signature": "getMovementHistory(@Query() query: CentralInventoryMovementQueryDto) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/inventory/logs",
+    "signature": "getLogs() {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/inventory/transfer",
+    "signature": "transferStock(@Body() dto: TransferStockDto, @Req() req: any) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/inventory/return",
+    "signature": "receiveReturn(@Body() dto: ReturnStockDto, @Req() req: any) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/inventory/adjust-distributor",
+    "signature": "adjustDistributorStock(@Body() dto: AdjustDistributorStockDto, @Req() req: any) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/inventory/adjust-company",
+    "signature": "adjustCompanyStock(@Body() dto: AdjustCompanyStockDto, @Req() req: any) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/inventory/production",
+    "signature": "addProduction(@Body() body: { qty: number }, @Req() req: any) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/inventory/replenish",
+    "signature": "replenish(@Body() body: { qty: number }, @Req() req: any) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/inventory/inventory.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/inventory/damage",
+    "signature": "reportDamage(",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/push/public-key",
+    "signature": "getPushPublicKey() {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/push/status",
+    "signature": "getPushStatus(@Req() req: any) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/push/subscribe",
+    "signature": "subscribePush(@Req() req: any, @Body() dto: SubscribePushDto) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/push/unsubscribe",
+    "signature": "unsubscribePush(",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/push/unsubscribe",
+    "signature": "unsubscribePush(",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/",
+    "signature": "async getMyNotifications(",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/unread-count",
+    "signature": "async getUnreadCount(@Req() req: any) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/read-all",
+    "signature": "async markAllAsRead(@Req() req: any) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/:id/read",
+    "signature": "async markAsRead(@Req() req: any, @Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/",
+    "signature": "create(@Body() createNotificationDto: CreateNotificationDto) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/all",
+    "signature": "findAll() {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/:id",
+    "signature": "update(",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/notification.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/staff-notification.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff-notifications/unread",
+    "signature": "async getUnread() {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/staff-notification.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff-notifications/:id/read",
+    "signature": "async markAsRead(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/notification/staff-notification.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff-notifications/read-all",
+    "signature": "async markAllAsRead() {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/distributor/all",
+    "signature": "findDistributorAll(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/distributor/new-orders",
+    "signature": "findDistributorNewOrders(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/:id/skip",
+    "signature": "skipDistributorOrder(@Param('id') id: string, @Req() req: any) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/:id/accept",
+    "signature": "acceptDistributorOrder(@Param('id') id: string, @Req() req: any) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/distributor/:id",
+    "signature": "findDistributorOne(@Param('id') id: string, @Req() req: any) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor",
+    "signature": "createDistributorOrder(@Body() dto: CreateDistributorOrderDto, @Req() req: any) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/distributor/:id/status",
+    "signature": "updateDistributorStatus(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/:id/delivery/verify-pin",
+    "signature": "verifyDistributorDeliveryPin(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/:id/delivery/complete",
+    "signature": "completeDistributorDelivery(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/distributor/:id/driver",
+    "signature": "assignDistributorDriver(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/:id/payments",
+    "signature": "recordDistributorPayment(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/:id/release",
+    "signature": "releaseDistributorOrder(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/distributor/:id/cancel",
+    "signature": "cancelDistributorOrder(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/distributor/:id",
+    "signature": "deleteDistributorOrder(@Param('id') id: string, @Req() req: any) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/",
+    "signature": "async findAll(@Req() req: any, @Query() query: any) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/all",
+    "signature": "findStaffAll(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/all",
+    "signature": "findAdminAll(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/partner/all",
+    "signature": "findPartnerAll(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/",
+    "signature": "createDirectOrder(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/:id",
+    "signature": "findOne(@Param('id') id: string, @Req() req: any) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/:id/status",
+    "signature": "updateStatus(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/:id/delivery/verify-pin",
+    "signature": "verifyDeliveryPin(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/:id/delivery/complete",
+    "signature": "completeDelivery(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/:id/assign",
+    "signature": "assignPartner(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/order/order.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/:id/payments",
+    "signature": "",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/payment/payment.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/payment/create-intent",
+    "signature": "async createIntent(",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/payment/payment.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/payment/create-order",
+    "signature": "async createOrder(",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/payment/payment.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/payment/verify",
+    "signature": "async verifyPayment(",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/permission/permission.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/permission",
+    "signature": "create(@Body() createPermissionDto: CreatePermissionDto) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/permission/permission.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/permission",
+    "signature": "findAll() {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/permission/permission.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/permission/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/permission/permission.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/permission/:id",
+    "signature": "update(",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/permission/permission.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/permission/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/profile",
+    "signature": "getProfile(@Req() req: any) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/profile",
+    "signature": "updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/profile/addresses",
+    "signature": "getAddresses(@Req() req: any) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/profile/addresses",
+    "signature": "createAddress(@Req() req: any, @Body() dto: ProfileAddressDto) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/profile/addresses/:id",
+    "signature": "updateAddress(@Req() req: any, @Param('id') id: string, @Body() dto: UpdateProfileAddressDto) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/profile/addresses/:id",
+    "signature": "deleteAddress(@Req() req: any, @Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/profile/addresses/:id/primary",
+    "signature": "setDefaultAddress(@Req() req: any, @Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/profile/avatar",
+    "signature": "uploadAvatar(@Req() req: any, @UploadedFile() file: MulterFile) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/profile/avatar/status/:jobId",
+    "signature": "getAvatarStatus(@Req() req: any, @Param('jobId') jobId: string) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/profile/profile.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/profile/avatar",
+    "signature": "removeAvatar(@Req() req: any) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/promo/promo.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/promo/validate",
+    "signature": "async validateCode(",
+    "roles": "UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/promo/promo.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/promo/redeem",
+    "signature": "async redeemCode(",
+    "roles": "UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/promo/promo.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/promo/admin/list",
+    "signature": "async listAllCodes() {",
+    "roles": "UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/promo/promo.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/promo/admin/stats",
+    "signature": "async getPromoStats() {",
+    "roles": "UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/promo/promo.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/promo/admin",
+    "signature": "async createCode(@Req() req, @Body() body: any) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/promo/promo.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/promo/admin/:id",
+    "signature": "async updateCode(@Param('id') id: string, @Body() body: any) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/promo/promo.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/promo/admin/:id",
+    "signature": "async deleteCode(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/purchase/purchase.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/purchases",
+    "signature": "findAll(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/purchase/purchase.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/purchases/:id",
+    "signature": "findOne(@Req() req: any, @Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/purchase/purchase.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/purchases",
+    "signature": "create(@Req() req: any, @Body() dto: CreatePurchaseDto) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/purchase/purchase.controller.ts",
+    "httpMethod": "PUT",
+    "fullRoute": "/purchases/:id",
+    "signature": "update(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/purchase/purchase.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/purchases/:id/payments",
+    "signature": "recordPayment(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/purchase/purchase.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/purchases/:id",
+    "signature": "delete(@Req() req: any, @Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/recharge/recharge.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/recharge/purchase",
+    "signature": "purchase(",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/recharge/recharge.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/recharge/package",
+    "signature": "createPackage(@Body() body: any) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/recharge/recharge.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/recharge/packages",
+    "signature": "getPackages() {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/recharge/recharge.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/recharge/packages/all",
+    "signature": "getAllPackages() {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/recharge/recharge.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/recharge/package/:id",
+    "signature": "getPackageById(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/recharge/recharge.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/recharge/package/:id",
+    "signature": "updatePackage(@Param('id') id: string, @Body() body: any) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/recharge/recharge.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/recharge/package/:id",
+    "signature": "removePackage(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/recharge/recharge.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/recharge/purchases",
+    "signature": "getPurchases(@Request() req) {",
+    "roles": "UserRole.ADMIN, UserRole.STAFF, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/report/report.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/report",
+    "signature": "create(@Body() createReportDto: CreateReportDto) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/report/report.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/report/admin/analytics",
+    "signature": "getAdminAnalytics(@Query() query: any) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/report/report.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/report",
+    "signature": "findAll() {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/report/report.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/report/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/report/report.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/report/:id",
+    "signature": "update(@Param('id') id: string, @Body() updateReportDto: UpdateReportDto) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/report/report.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/report/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/role/role.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/role",
+    "signature": "create(@Body() createRoleDto: CreateRoleDto) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/role/role.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/role",
+    "signature": "findAll() {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/role/role.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/role/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/role/role.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/role/:id",
+    "signature": "update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/role/role.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/role/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/schedule/schedule.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/schedule",
+    "signature": "getSchedule(@Request() req) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/schedule/schedule.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/schedule",
+    "signature": "updateSchedule(@Request() req, @Body() body: ScheduleUpdateInput) {",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/schedule/schedule.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/schedule/:customerId",
+    "signature": "updateCustomerSchedule(",
+    "roles": "NONE",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/settings/settings.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/settings/bulk",
+    "signature": "updateBulk(@Body() body: Record<string, string>) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/settings/settings.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/settings",
+    "signature": "create(@Body() createSettingDto: CreateSettingDto) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/settings/settings.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/settings",
+    "signature": "findAll() {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/settings/settings.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/settings/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/settings/settings.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/settings/:id",
+    "signature": "update(@Param('id') id: string, @Body() updateSettingDto: UpdateSettingDto) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/settings/settings.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/settings/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff-checkout.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/staff/checkout/:customerId/validate",
+    "signature": "validateCheckout(",
+    "roles": "UserRole.STAFF",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff-checkout.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/staff/checkout/:customerId/initiate",
+    "signature": "initiateCheckout(",
+    "roles": "UserRole.STAFF",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff-checkout.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/staff/checkout/:customerId/confirm",
+    "signature": "confirmCheckout(",
+    "roles": "UserRole.STAFF",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/staff",
+    "signature": "create(@Body() createStaffDto: CreateStaffDto) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/reports/summary",
+    "signature": "getStaffReports(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/reports",
+    "signature": "getStaffReportsAlias(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/distributors/summary",
+    "signature": "getDistributorsSummary() {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/distributors",
+    "signature": "getDistributors(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/distributors/:id",
+    "signature": "getDistributorById(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/staff/distributors",
+    "signature": "createDistributor(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff/distributors/:id",
+    "signature": "updateDistributor(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff/distributors/:id/status",
+    "signature": "updateDistributorStatus(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/delivery-partners",
+    "signature": "getDeliveryPartners() {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff/orders/:orderId/status",
+    "signature": "updateOrderStatus(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff/orders/:orderId/assign",
+    "signature": "assignDeliveryPartner(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/drivers",
+    "signature": "getStaffDrivers(@Query() query: DriverQueryDto) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/drivers/:id",
+    "signature": "getStaffDriverById(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/staff/drivers",
+    "signature": "createStaffDriver(@Body() dto: CreateDriverDto) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "PUT",
+    "fullRoute": "/staff/drivers/:id",
+    "signature": "updateStaffDriver(@Param('id') id: string, @Body() dto: UpdateDriverDto) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff/drivers/:id/status",
+    "signature": "toggleStaffDriverStatus(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/staff/drivers/:id",
+    "signature": "deleteStaffDriver(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff",
+    "signature": "findAll() {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/:id",
+    "signature": "findOne(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff/:id",
+    "signature": "update(@Param('id') id: string, @Body() updateStaffDto: UpdateStaffDto) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/staff/staff.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/staff/:id",
+    "signature": "remove(@Param('id') id: string) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/supplier/supplier.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/suppliers",
+    "signature": "findAll(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/supplier/supplier.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/suppliers/:id",
+    "signature": "findOne(@Req() req: any, @Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/supplier/supplier.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/suppliers",
+    "signature": "create(@Req() req: any, @Body() dto: CreateSupplierDto) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/supplier/supplier.controller.ts",
+    "httpMethod": "PUT",
+    "fullRoute": "/suppliers/:id",
+    "signature": "update(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/supplier/supplier.controller.ts",
+    "httpMethod": "DELETE",
+    "fullRoute": "/suppliers/:id",
+    "signature": "delete(@Req() req: any, @Param('id') id: string) {",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/supplier/supplier.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/suppliers/:id/payments",
+    "signature": "recordPayment(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/supplier/supplier.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/suppliers/:id/adjust-balance",
+    "signature": "adjustBalance(",
+    "roles": "UserRole.DISTRIBUTOR, UserRole.ADMIN",
+    "guards": "AuthGuard('jwt'",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/support/admin-support.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/admin/support/analytics",
+    "signature": "getAnalytics() {",
+    "roles": "'ADMIN'",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/support/staff-support.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/staff/support/tickets",
+    "signature": "getTickets(@Query() query: any) {",
+    "roles": "'STAFF', 'MANAGER', 'ADMIN'",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/support/staff-support.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff/support/tickets/:id/status",
+    "signature": "updateStatus(",
+    "roles": "'STAFF', 'MANAGER', 'ADMIN'",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/support/staff-support.controller.ts",
+    "httpMethod": "PATCH",
+    "fullRoute": "/staff/support/tickets/:id/assign",
+    "signature": "assignTicket(",
+    "roles": "'STAFF', 'MANAGER', 'ADMIN'",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/support/support.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/support/tickets",
+    "signature": "findMyTickets(@Req() req) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/support/support.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/support/tickets",
+    "signature": "createTicket(@Req() req, @Body() body: CreateSupportTicketDto) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/support/support.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/support/tickets/:id",
+    "signature": "getTicket(@Req() req, @Param('id') id: string) {",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/support/support.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/support/tickets/:id/messages",
+    "signature": "replyTicket(",
+    "roles": "NONE",
+    "guards": "JwtAuthGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/wallet/wallet.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/wallet",
+    "signature": "async getWallet(@Req() req) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/wallet/wallet.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/wallet/admin/ledger",
+    "signature": "async getAdminLedger() {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/wallet/wallet.controller.ts",
+    "httpMethod": "GET",
+    "fullRoute": "/wallet/transactions",
+    "signature": "async getTransactions(@Req() req) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/wallet/wallet.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/wallet/own-jar",
+    "signature": "async ownJar(@Req() req, @Body() body: { brandId: string }) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/wallet/wallet.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/wallet/recharge/initiate",
+    "signature": "async initiateRecharge(@Req() req, @Body() dto: RechargeWalletDto) {",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/wallet/wallet.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/wallet/recharge/confirm",
+    "signature": "async confirmRecharge(",
+    "roles": "UserRole.ADMIN, UserRole.MANAGER",
+    "guards": "JwtAuthGuard, RolesGuard",
+    "perms": "NONE",
+    "isPublic": false
+  },
+  {
+    "file": "src/webhook/webhook.controller.ts",
+    "httpMethod": "POST",
+    "fullRoute": "/webhooks/razorpay",
+    "signature": "async handleRazorpayWebhook(",
+    "roles": "NONE",
+    "guards": "NONE",
+    "perms": "NONE",
+    "isPublic": false
+  }
+]

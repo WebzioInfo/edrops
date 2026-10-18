@@ -16,7 +16,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
       },
       defaults: {
         from: `"Edrops Support" <${process.env.SMTP_FROM || 'noreply@edrops.in'}>`,
-      },
+      } as any,
     }),
   ],
   providers: [MailService],

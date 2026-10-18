@@ -69,12 +69,39 @@ const TOKEN_KEY = 'edrops_token';
 const USER_KEY = 'edrops_user';
 const SESSION_WELCOME_KEY = 'edrops_session_welcomed';
 
+export function isTokenExpired(token: string | null | undefined): boolean {
+  if (!token || typeof token !== 'string') return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const jsonStr = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const payload = JSON.parse(jsonStr);
+    if (!payload.exp) return false;
+    // Buffer by 5 seconds to prevent race conditions at expiry boundary
+    return payload.exp * 1000 <= Date.now() + 5000;
+  } catch {
+    return true;
+  }
+}
+
 const getInitialSession = (): { user: User | null; token: string | null; status: AuthStatus } => {
   try {
     const storedToken = localStorage.getItem(TOKEN_KEY);
     const storedUser = localStorage.getItem(USER_KEY);
 
     if (storedToken && storedUser) {
+      if (isTokenExpired(storedToken)) {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        return { token: null, user: null, status: 'unauthenticated' };
+      }
+
       const parsed = JSON.parse(storedUser);
       if (parsed && typeof parsed === 'object' && parsed.id && parsed.role) {
         if (
@@ -116,6 +143,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const storedUser = localStorage.getItem(USER_KEY);
 
       if (storedToken && storedUser) {
+        if (isTokenExpired(storedToken)) {
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(USER_KEY);
+          setToken(null);
+          setUser(null);
+          setAuthStatus('unauthenticated');
+          return;
+        }
+
         const parsed = JSON.parse(storedUser);
         if (parsed && parsed.id && parsed.role) {
           if (

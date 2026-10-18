@@ -110,12 +110,30 @@ export class EventsGateway
       } else {
         client.join('general');
       }
-    } catch (error) {
-      this.logger.error(
-        `Client ${client.id} disconnected: Invalid token`,
-        error,
-      );
-      client.disconnect();
+    } catch (error: any) {
+      if (error?.name === 'TokenExpiredError') {
+        this.logger.warn(
+          `Client ${client.id} disconnected: Token expired (${error.expiredAt ? new Date(error.expiredAt).toISOString() : 'expired'})`,
+        );
+      } else if (error?.name === 'JsonWebTokenError') {
+        this.logger.warn(
+          `Client ${client.id} disconnected: Invalid token (${error.message})`,
+        );
+      } else {
+        this.logger.error(
+          `Client ${client.id} connection authentication error: ${error?.message || error}`,
+          error?.stack,
+        );
+      }
+
+      try {
+        client.emit('auth:error', {
+          code: error?.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'AUTH_FAILED',
+          message: 'Authentication failed. Please renew your session.',
+        });
+      } catch {}
+
+      client.disconnect(true);
     }
   }
 
