@@ -5,10 +5,18 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { CloudinaryService, MulterFile } from '../config/cloudinary.service';
 import { AvatarProcessingQueueService } from './avatar-processing-queue.service';
-import { UpdateProfileDto, ProfileAddressDto, UpdateProfileAddressDto } from './dto/profile.dto';
+import {
+  UpdateProfileDto,
+  RequestProfileUpdateOtpDto,
+  VerifyProfileUpdateOtpDto,
+  ProfileAddressDto,
+  UpdateProfileAddressDto,
+} from './dto/profile.dto';
 import { normalizePhoneNumber, isValidPhoneNumber } from '../common/phone-utils';
 
 @Injectable()
@@ -19,6 +27,7 @@ export class ProfileService {
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
     private avatarQueue: AvatarProcessingQueueService,
+    private mailService: MailService,
   ) {}
 
   /**
@@ -167,46 +176,88 @@ export class ProfileService {
     };
   }
 
+  maskEmail(email: string): string {
+    if (!email || !email.includes('@')) return 'registered email';
+    const [name, domain] = email.split('@');
+    if (!domain) return 'registered email';
+    if (name.length <= 2) {
+      return `${name[0]}*@${domain}`;
+    }
+    return `${name[0]}***${name[name.length - 1]}@${domain}`;
+  }
+
   /**
-   * Update personal and role-specific profile details
+   * Request an email OTP for profile updates.
+   * Compares requested changes with current DB state; if no changes exist, returns noChanges: true.
+   * OTP is ALWAYS sent to the currently registered email in the database.
    */
-  async updateProfile(userId: string, dto: UpdateProfileDto) {
+  async requestProfileUpdateOtp(userId: string, dto: RequestProfileUpdateOtpDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: { customer: true, distributor: true },
+      include: {
+        customer: true,
+        distributor: true,
+        staff: true,
+        deliveryPartner: true,
+      },
     });
 
     if (!user) {
       throw new NotFoundException('User profile not found');
     }
 
-    const userDataToUpdate: any = {};
+    if (!user.email) {
+      throw new BadRequestException(
+        'No registered email address found for your account. Please contact support.',
+      );
+    }
 
+    const pendingData: any = {};
+    let hasChanges = false;
+
+    // First Name
     if (dto.firstName !== undefined) {
-      userDataToUpdate.firstName = dto.firstName.trim();
-    }
-    if (dto.lastName !== undefined) {
-      userDataToUpdate.lastName = dto.lastName.trim();
+      const cleanFirst = dto.firstName.trim();
+      if (!cleanFirst) {
+        throw new BadRequestException('First name cannot be empty.');
+      }
+      if (cleanFirst !== (user.firstName || '')) {
+        pendingData.firstName = cleanFirst;
+        hasChanges = true;
+      }
     }
 
-    // Email check & normalization
+    // Last Name
+    if (dto.lastName !== undefined) {
+      const cleanLast = dto.lastName.trim();
+      if (!cleanLast) {
+        throw new BadRequestException('Last name cannot be empty.');
+      }
+      if (cleanLast !== (user.lastName || '')) {
+        pendingData.lastName = cleanLast;
+        hasChanges = true;
+      }
+    }
+
+    // Email
     if (dto.email !== undefined) {
-      const normalizedEmail = dto.email.trim().toLowerCase();
-      if (normalizedEmail !== user.email) {
+      const cleanEmail = dto.email.trim().toLowerCase();
+      if (cleanEmail && cleanEmail !== (user.email || '').toLowerCase()) {
         const conflict = await this.prisma.user.findFirst({
           where: {
-            email: { equals: normalizedEmail, mode: 'insensitive' },
+            email: { equals: cleanEmail, mode: 'insensitive' },
             NOT: { id: userId },
           },
         });
         if (conflict) {
           throw new ConflictException('This email address is already in use by another account');
         }
-        userDataToUpdate.email = normalizedEmail;
+        pendingData.email = cleanEmail;
+        hasChanges = true;
       }
     }
 
-    // Phone check & normalization
+    // Phone
     if (dto.phone !== undefined) {
       const rawPhone = dto.phone.trim();
       if (!isValidPhoneNumber(rawPhone)) {
@@ -216,7 +267,7 @@ export class ProfileService {
       if (!canonicalPhone) {
         throw new BadRequestException('Invalid phone number format.');
       }
-      if (canonicalPhone !== user.phone) {
+      if (canonicalPhone !== (user.phone || '')) {
         const conflict = await this.prisma.user.findFirst({
           where: {
             phone: canonicalPhone,
@@ -226,62 +277,352 @@ export class ProfileService {
         if (conflict) {
           throw new ConflictException('This phone number is already registered to another account');
         }
-        userDataToUpdate.phone = canonicalPhone;
+        pendingData.phone = canonicalPhone;
+        hasChanges = true;
       }
     }
 
-    // Update user base record
-    if (Object.keys(userDataToUpdate).length > 0) {
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: userDataToUpdate,
-      });
+    // Role-specific: Customer fields
+    if (dto.customerType !== undefined) {
+      const cleanType = dto.customerType.trim();
+      if (cleanType && cleanType !== (user.customer?.customerType || '')) {
+        pendingData.customerType = cleanType;
+        hasChanges = true;
+      }
+    }
+    if (dto.companyName !== undefined) {
+      const cleanCompany = dto.companyName.trim();
+      if (cleanCompany !== (user.customer?.companyName || '')) {
+        pendingData.companyName = cleanCompany || null;
+        hasChanges = true;
+      }
+    }
+    if (dto.gstNumber !== undefined) {
+      const cleanGst = dto.gstNumber.trim();
+      if (cleanGst !== (user.customer?.gstNumber || '')) {
+        pendingData.gstNumber = cleanGst || null;
+        hasChanges = true;
+      }
     }
 
-    // Role-specific: Customer updates
-    if (dto.customerType || dto.companyName !== undefined || dto.gstNumber !== undefined) {
-      const customerId = await this.getOrCreateCustomerId(userId);
-      const customerData: any = {};
-      if (dto.customerType) customerData.customerType = dto.customerType;
-      if (dto.companyName !== undefined) customerData.companyName = dto.companyName.trim() || null;
-      if (dto.gstNumber !== undefined) customerData.gstNumber = dto.gstNumber.trim() || null;
-
-      await this.prisma.customer.update({
-        where: { id: customerId },
-        data: customerData,
-      });
+    // Role-specific: Distributor fields
+    if (dto.agencyName !== undefined) {
+      const cleanAgency = dto.agencyName.trim();
+      if (cleanAgency !== (user.distributor?.agencyName || '')) {
+        pendingData.agencyName = cleanAgency || null;
+        hasChanges = true;
+      }
+    }
+    if (dto.address !== undefined) {
+      const cleanAddr = dto.address.trim();
+      if (cleanAddr !== (user.distributor?.address || '')) {
+        pendingData.address = cleanAddr || null;
+        hasChanges = true;
+      }
+    }
+    if (dto.routeOrArea !== undefined) {
+      const cleanRoute = dto.routeOrArea.trim();
+      if (cleanRoute !== (user.distributor?.routeOrArea || '')) {
+        pendingData.routeOrArea = cleanRoute || null;
+        hasChanges = true;
+      }
+    }
+    if (dto.vehicleType !== undefined) {
+      const cleanVehType = dto.vehicleType.trim();
+      const currentVehType =
+        user.distributor?.vehicleType ||
+        user.staff?.vehicleType ||
+        user.deliveryPartner?.vehicleType ||
+        '';
+      if (cleanVehType !== currentVehType) {
+        pendingData.vehicleType = cleanVehType || null;
+        hasChanges = true;
+      }
+    }
+    if (dto.vehiclePlate !== undefined) {
+      const cleanVehPlate = dto.vehiclePlate.trim();
+      const currentVehPlate =
+        user.distributor?.vehiclePlate ||
+        user.staff?.vehiclePlate ||
+        user.deliveryPartner?.vehiclePlate ||
+        '';
+      if (cleanVehPlate !== currentVehPlate) {
+        pendingData.vehiclePlate = cleanVehPlate || null;
+        hasChanges = true;
+      }
     }
 
-    // Role-specific: Distributor updates
-    if (
-      dto.agencyName !== undefined ||
-      dto.address !== undefined ||
-      dto.routeOrArea !== undefined ||
-      dto.vehicleType !== undefined ||
-      dto.vehiclePlate !== undefined
-    ) {
-      await this.prisma.distributor.upsert({
-        where: { userId },
-        create: {
+    if (!hasChanges || Object.keys(pendingData).length === 0) {
+      return {
+        noChanges: true,
+        message: 'No changes detected to update.',
+      };
+    }
+
+    // Rate-limiting check: 45 seconds cooldown
+    const recent = await this.prisma.profileUpdateVerification.findFirst({
+      where: {
+        userId,
+        createdAt: { gt: new Date(Date.now() - 45 * 1000) },
+        usedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (recent && recent.expiresAt > new Date()) {
+      const secondsLeft = Math.ceil((45 * 1000 - (Date.now() - recent.createdAt.getTime())) / 1000);
+      throw new BadRequestException(
+        `Please wait ${secondsLeft > 0 ? secondsLeft : 45} seconds before requesting another verification code.`,
+      );
+    }
+
+    // Invalidate existing unused verifications for this user
+    await this.prisma.profileUpdateVerification.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    // Generate cryptographically secure 6-digit OTP
+    const rawOtp = crypto.randomInt(100000, 1000000).toString();
+    const otpHash = crypto.createHash('sha256').update(rawOtp).digest('hex');
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    const verification = await this.prisma.profileUpdateVerification.create({
+      data: {
+        userId,
+        otpHash,
+        pendingData,
+        expiresAt,
+        attempts: 0,
+        maxAttempts: 5,
+      },
+    });
+
+    // Send email to CURRENT registered email
+    const emailSent = await this.mailService.sendProfileUpdateOtp(
+      { email: user.email, firstName: user.firstName },
+      rawOtp,
+    );
+    if (!emailSent) {
+      await this.prisma.profileUpdateVerification.delete({ where: { id: verification.id } }).catch(() => {});
+      throw new BadRequestException(
+        'Unable to deliver verification code to your registered email. Please try again later.',
+      );
+    }
+
+    return {
+      success: true,
+      verificationId: verification.id,
+      maskedEmail: this.maskEmail(user.email),
+      message: 'Verification code sent to your registered email.',
+    };
+  }
+
+  /**
+   * Verify OTP and atomically apply pending profile updates.
+   */
+  async verifyProfileUpdateOtp(userId: string, dto: VerifyProfileUpdateOtpDto) {
+    if (!dto.verificationId) {
+      throw new BadRequestException('Verification ID is required.');
+    }
+    const cleanOtp = (dto.otp || '').trim();
+    if (!cleanOtp || cleanOtp.length !== 6 || !/^\d{6}$/.test(cleanOtp)) {
+      throw new BadRequestException('Please enter a valid 6-digit verification code.');
+    }
+
+    const verification = await this.prisma.profileUpdateVerification.findFirst({
+      where: { id: dto.verificationId, userId },
+    });
+
+    if (!verification) {
+      throw new NotFoundException('Verification request not found.');
+    }
+
+    if (verification.usedAt) {
+      throw new BadRequestException('This verification code has already been used.');
+    }
+
+    if (verification.expiresAt < new Date()) {
+      throw new BadRequestException('Verification code has expired. Please request a new code.');
+    }
+
+    if (verification.attempts >= verification.maxAttempts) {
+      throw new BadRequestException('Maximum verification attempts reached. Please request a new code.');
+    }
+
+    const submittedHash = crypto.createHash('sha256').update(cleanOtp).digest('hex');
+    if (submittedHash !== verification.otpHash) {
+      const updated = await this.prisma.profileUpdateVerification.update({
+        where: { id: verification.id },
+        data: { attempts: { increment: 1 } },
+      });
+      const remaining = updated.maxAttempts - updated.attempts;
+      if (remaining <= 0) {
+        throw new BadRequestException(
+          'Invalid verification code. Maximum attempts reached. Please request a new code.',
+        );
+      }
+      throw new BadRequestException(
+        `Invalid verification code. ${remaining} attempt(s) remaining.`,
+      );
+    }
+
+    const pendingData = verification.pendingData as any;
+
+    // Apply changes in transaction
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Mark verification as used
+      await tx.profileUpdateVerification.update({
+        where: { id: verification.id },
+        data: { usedAt: new Date() },
+      });
+
+      // 2. Re-verify email uniqueness if email changed
+      if (pendingData.email) {
+        const conflict = await tx.user.findFirst({
+          where: {
+            email: { equals: pendingData.email, mode: 'insensitive' },
+            NOT: { id: userId },
+          },
+        });
+        if (conflict) {
+          throw new ConflictException('This email address is already in use by another account');
+        }
+      }
+
+      // 3. Re-verify phone uniqueness if phone changed
+      if (pendingData.phone) {
+        const conflict = await tx.user.findFirst({
+          where: {
+            phone: pendingData.phone,
+            NOT: { id: userId },
+          },
+        });
+        if (conflict) {
+          throw new ConflictException('This phone number is already registered to another account');
+        }
+      }
+
+      // 4. Update User base fields
+      const userUpdates: any = {};
+      if (pendingData.firstName) userUpdates.firstName = pendingData.firstName;
+      if (pendingData.lastName) userUpdates.lastName = pendingData.lastName;
+      if (pendingData.email) userUpdates.email = pendingData.email;
+      if (pendingData.phone) userUpdates.phone = pendingData.phone;
+
+      if (Object.keys(userUpdates).length > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: userUpdates,
+        });
+      }
+
+      // 5. Update Customer fields if applicable
+      if (
+        pendingData.customerType !== undefined ||
+        pendingData.companyName !== undefined ||
+        pendingData.gstNumber !== undefined
+      ) {
+        const customer = await tx.customer.findUnique({ where: { userId } });
+        if (customer) {
+          const custUpdates: any = {};
+          if (pendingData.customerType !== undefined) custUpdates.customerType = pendingData.customerType;
+          if (pendingData.companyName !== undefined) custUpdates.companyName = pendingData.companyName;
+          if (pendingData.gstNumber !== undefined) custUpdates.gstNumber = pendingData.gstNumber;
+
+          await tx.customer.update({
+            where: { id: customer.id },
+            data: custUpdates,
+          });
+        }
+      }
+
+      // 6. Update Distributor fields if applicable
+      if (
+        pendingData.agencyName !== undefined ||
+        pendingData.address !== undefined ||
+        pendingData.routeOrArea !== undefined ||
+        pendingData.vehicleType !== undefined ||
+        pendingData.vehiclePlate !== undefined
+      ) {
+        await tx.distributor.upsert({
+          where: { userId },
+          create: {
+            userId,
+            referralCode: `EDR-${Math.floor(1000 + Math.random() * 9000)}`,
+            agencyName: pendingData.agencyName || null,
+            address: pendingData.address || null,
+            routeOrArea: pendingData.routeOrArea || null,
+            vehicleType: pendingData.vehicleType || null,
+            vehiclePlate: pendingData.vehiclePlate || null,
+          },
+          update: {
+            agencyName: pendingData.agencyName !== undefined ? pendingData.agencyName : undefined,
+            address: pendingData.address !== undefined ? pendingData.address : undefined,
+            routeOrArea: pendingData.routeOrArea !== undefined ? pendingData.routeOrArea : undefined,
+            vehicleType: pendingData.vehicleType !== undefined ? pendingData.vehicleType : undefined,
+            vehiclePlate: pendingData.vehiclePlate !== undefined ? pendingData.vehiclePlate : undefined,
+          },
+        });
+      }
+
+      // 7. Update Delivery Partner / Staff fields if applicable
+      if (
+        pendingData.vehicleType !== undefined ||
+        pendingData.vehiclePlate !== undefined
+      ) {
+        const dp = await tx.deliveryPartner.findUnique({ where: { userId } });
+        if (dp) {
+          await tx.deliveryPartner.update({
+            where: { userId },
+            data: {
+              vehicleType: pendingData.vehicleType !== undefined ? pendingData.vehicleType : undefined,
+              vehiclePlate: pendingData.vehiclePlate !== undefined ? pendingData.vehiclePlate : undefined,
+            },
+          });
+        }
+        const staff = await tx.staff.findUnique({ where: { userId } });
+        if (staff) {
+          await tx.staff.update({
+            where: { userId },
+            data: {
+              vehicleType: pendingData.vehicleType !== undefined ? pendingData.vehicleType : undefined,
+              vehiclePlate: pendingData.vehiclePlate !== undefined ? pendingData.vehiclePlate : undefined,
+            },
+          });
+        }
+      }
+
+      // 8. Audit log
+      await tx.auditLog.create({
+        data: {
           userId,
-          referralCode: `EDR-${Math.floor(1000 + Math.random() * 9000)}`,
-          agencyName: dto.agencyName?.trim() || null,
-          address: dto.address?.trim() || null,
-          routeOrArea: dto.routeOrArea?.trim() || null,
-          vehicleType: dto.vehicleType?.trim() || null,
-          vehiclePlate: dto.vehiclePlate?.trim() || null,
-        },
-        update: {
-          agencyName: dto.agencyName !== undefined ? dto.agencyName.trim() || null : undefined,
-          address: dto.address !== undefined ? dto.address.trim() || null : undefined,
-          routeOrArea: dto.routeOrArea !== undefined ? dto.routeOrArea.trim() || null : undefined,
-          vehicleType: dto.vehicleType !== undefined ? dto.vehicleType.trim() || null : undefined,
-          vehiclePlate: dto.vehiclePlate !== undefined ? dto.vehiclePlate.trim() || null : undefined,
+          action: 'PROFILE_UPDATED_WITH_EMAIL_OTP',
+          entityType: 'USER',
+          entityId: userId,
+          newValues: pendingData,
         },
       });
-    }
+    });
 
     return this.getProfile(userId);
+  }
+
+  /**
+   * Update personal and role-specific profile details.
+   * Requires valid email OTP verification.
+   */
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    if (dto.verificationId && dto.otp) {
+      return this.verifyProfileUpdateOtp(userId, {
+        verificationId: dto.verificationId,
+        otp: dto.otp,
+      });
+    }
+
+    throw new BadRequestException(
+      'Email OTP verification is required to update profile details. Please request a verification code via /profile/request-update-otp.',
+    );
   }
 
   // ────────────────────────────────────────────────────────────────

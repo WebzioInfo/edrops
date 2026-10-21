@@ -24,6 +24,8 @@ describe('Production Inventory Redesign Invariants (Section 31 Test Cases)', () 
           companyOwnedJars: 91,
           distributorOwnedJars: 100,
           jarImageUrl: null,
+          canManufacture: true,
+          jarDepositRate: 150.0,
         }),
         update: jest.fn(),
       },
@@ -775,4 +777,44 @@ describe('Production Inventory Redesign Invariants (Section 31 Test Cases)', () 
       inventoryService.deleteJarItem(mockDistributorUserId, item.id),
     ).rejects.toThrow(/Company owned item cannot be deleted or archived/i);
   });
+
+  // =========================================================================
+  // TEST 17: Distributor without manufacturing authorization is blocked from washing or filling
+  // =========================================================================
+  it('TEST 17: Distributor without manufacturing authorization is blocked from washing or filling with ForbiddenException', async () => {
+    prisma.distributor.findUnique.mockResolvedValueOnce({
+      id: mockDistributorId,
+      userId: mockDistributorUserId,
+      companyOwnedJars: 91,
+      distributorOwnedJars: 100,
+      jarImageUrl: null,
+      canManufacture: false, // NOT AUTHORIZED
+      jarDepositRate: 150.0,
+    });
+
+    const item = {
+      id: 'dist-item-1',
+      distributorId: mockDistributorId,
+      name: 'Distributor Jar',
+      ownershipType: 'DISTRIBUTOR',
+      ownedQuantity: 100,
+      emptyYardQuantity: 100,
+      washingQuantity: 0,
+      fillingQuantity: 0,
+      filledYardQuantity: 0,
+      reservedQuantity: 0,
+    };
+
+    prisma.jarInventoryItem.findFirst.mockResolvedValue(item);
+
+    await expect(
+      inventoryService.moveJarState(mockDistributorUserId, {
+        jarItemId: item.id,
+        fromState: JarPhysicalState.EMPTY_YARD,
+        toState: JarPhysicalState.WASHING,
+        quantity: 10,
+      }),
+    ).rejects.toThrow(ForbiddenException);
+  });
 });
+

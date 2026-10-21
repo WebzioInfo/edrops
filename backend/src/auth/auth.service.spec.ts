@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../mail/mail.service';
+import { CloudinaryService } from '../config/cloudinary.service';
 import * as bcrypt from 'bcrypt';
 
 describe('AuthService - Authentication Error Handling', () => {
@@ -11,6 +12,7 @@ describe('AuthService - Authentication Error Handling', () => {
   let prismaService: any;
   let jwtService: any;
   let mailService: any;
+  let cloudinaryService: any;
 
   const mockUser = {
     id: 'user-123',
@@ -53,12 +55,18 @@ describe('AuthService - Authentication Error Handling', () => {
       sendPasswordOtp: jest.fn(),
     };
 
+    cloudinaryService = {
+      uploadImage: jest.fn().mockResolvedValue({ secure_url: 'https://cloudinary.com/test.jpg' }),
+      deleteImage: jest.fn().mockResolvedValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: prismaService },
         { provide: JwtService, useValue: jwtService },
         { provide: MailService, useValue: mailService },
+        { provide: CloudinaryService, useValue: cloudinaryService },
       ],
     }).compile();
 
@@ -80,13 +88,13 @@ describe('AuthService - Authentication Error Handling', () => {
         const res = err.getResponse();
         expect(res).toEqual({
           statusCode: 401,
-          code: 'USER_NOT_FOUND',
-          message: 'User not found with this email or username.',
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email/phone number or password.',
         });
       }
     });
 
-    it('should throw UnauthorizedException with code USER_NOT_FOUND when username is not found', async () => {
+    it('should throw UnauthorizedException with code INVALID_CREDENTIALS when username is not found', async () => {
       prismaService.user.findFirst.mockResolvedValue(null);
 
       try {
@@ -100,13 +108,13 @@ describe('AuthService - Authentication Error Handling', () => {
         const res = err.getResponse();
         expect(res).toEqual({
           statusCode: 401,
-          code: 'USER_NOT_FOUND',
-          message: 'User not found with this email or username.',
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email/phone number or password.',
         });
       }
     });
 
-    it('should throw UnauthorizedException with code USER_NOT_FOUND when phone is not found', async () => {
+    it('should throw UnauthorizedException with code INVALID_CREDENTIALS when phone is not found', async () => {
       prismaService.user.findFirst.mockResolvedValue(null);
 
       try {
@@ -120,15 +128,15 @@ describe('AuthService - Authentication Error Handling', () => {
         const res = err.getResponse();
         expect(res).toEqual({
           statusCode: 401,
-          code: 'USER_NOT_FOUND',
-          message: 'User not found with this email or username.',
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email/phone number or password.',
         });
       }
     });
   });
 
   describe('2. Existing User with Wrong Password (INCORRECT PASSWORD)', () => {
-    it('should throw UnauthorizedException with code INCORRECT_PASSWORD when password is wrong (email)', async () => {
+    it('should throw UnauthorizedException with code INVALID_CREDENTIALS when password is wrong (email)', async () => {
       prismaService.user.findFirst.mockResolvedValue(mockUser);
 
       try {
@@ -142,13 +150,13 @@ describe('AuthService - Authentication Error Handling', () => {
         const res = err.getResponse();
         expect(res).toEqual({
           statusCode: 401,
-          code: 'INCORRECT_PASSWORD',
-          message: 'Incorrect password. Please try again.',
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email/phone number or password.',
         });
       }
     });
 
-    it('should throw UnauthorizedException with code INCORRECT_PASSWORD when password is wrong (username)', async () => {
+    it('should throw UnauthorizedException with code INVALID_CREDENTIALS when password is wrong (username)', async () => {
       prismaService.user.findFirst.mockResolvedValue(mockUser);
 
       try {
@@ -162,13 +170,13 @@ describe('AuthService - Authentication Error Handling', () => {
         const res = err.getResponse();
         expect(res).toEqual({
           statusCode: 401,
-          code: 'INCORRECT_PASSWORD',
-          message: 'Incorrect password. Please try again.',
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email/phone number or password.',
         });
       }
     });
 
-    it('should throw UnauthorizedException with code INCORRECT_PASSWORD when password is wrong (phone)', async () => {
+    it('should throw UnauthorizedException with code INVALID_CREDENTIALS when password is wrong (phone)', async () => {
       prismaService.user.findFirst.mockResolvedValue(mockUser);
 
       try {
@@ -182,8 +190,8 @@ describe('AuthService - Authentication Error Handling', () => {
         const res = err.getResponse();
         expect(res).toEqual({
           statusCode: 401,
-          code: 'INCORRECT_PASSWORD',
-          message: 'Incorrect password. Please try again.',
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email/phone number or password.',
         });
       }
     });
@@ -206,6 +214,8 @@ describe('AuthService - Authentication Error Handling', () => {
         firstName: mockUser.firstName,
         lastName: mockUser.lastName,
         role: mockUser.role,
+        avatarUrl: null,
+        permissions: [],
       });
     });
 
@@ -225,6 +235,8 @@ describe('AuthService - Authentication Error Handling', () => {
         firstName: mockUser.firstName,
         lastName: mockUser.lastName,
         role: mockUser.role,
+        avatarUrl: null,
+        permissions: [],
       });
     });
 
@@ -244,6 +256,8 @@ describe('AuthService - Authentication Error Handling', () => {
         firstName: mockUser.firstName,
         lastName: mockUser.lastName,
         role: mockUser.role,
+        avatarUrl: null,
+        permissions: [],
       });
     });
   });

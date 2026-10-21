@@ -1,5 +1,6 @@
 import { Calendar, Clock, ShieldCheck, Wallet, Tag } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import CopyReferralCodeButton from '../common/CopyReferralCodeButton';
 
 interface AccountInformationCardProps {
   profile: any;
@@ -24,6 +25,7 @@ export default function AccountInformationCard({ profile }: AccountInformationCa
   const isDistributor = profile.role === 'DISTRIBUTOR';
   const walletBalance = profile.customer?.wallet?.balance ?? null;
   const jarsHeld = profile.customer?.jarBalances?.[0]?.availableJars ?? profile.customer?.jarsAtCustomer ?? null;
+  const referralCode = profile.distributor?.referralCode || profile.customer?.referralCode;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6 space-y-4">
@@ -110,13 +112,18 @@ export default function AccountInformationCard({ profile }: AccountInformationCa
           )}
 
           {/* Referral Code (Customer / Distributor) */}
-          {(profile.customer?.referralCode || profile.distributor?.referralCode) && (
+          {referralCode && (
             <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/60 font-mono">
-              <Tag className="w-3.5 h-3.5 text-slate-400" />
+              <Tag className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span className="text-slate-500 font-sans font-medium text-[11px]">Referral Code:</span>
               <span className="font-bold text-slate-800">
-                {profile.distributor?.referralCode || profile.customer?.referralCode}
+                {referralCode}
               </span>
+              <CopyReferralCodeButton
+                code={referralCode}
+                iconClassName="w-3.5 h-3.5"
+                className="p-1 -mr-0.5 rounded-lg text-slate-400 hover:text-[#1677C8] hover:bg-slate-200/60 transition-colors ml-0.5"
+              />
             </div>
           )}
         </div>

@@ -5,9 +5,10 @@ import { DistributorServiceAreaService } from './distributor-service-area.servic
 import { DistributorInventoryController } from './distributor-inventory.controller';
 import { DistributorInventoryService } from './distributor-inventory.service';
 import { CatalogModule } from '../catalog/catalog.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
-  imports: [PrismaModule, CatalogModule],
+  imports: [PrismaModule, CatalogModule, InventoryModule],
   controllers: [
     DistributorServiceAreaController,
     DistributorInventoryController,

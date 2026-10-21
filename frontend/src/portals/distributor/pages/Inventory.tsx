@@ -7,8 +7,10 @@ import {
   Building2,
   CheckCircle2,
   ChevronDown,
+  Coins,
   Droplets,
   Edit3,
+  Factory,
   History,
   ImagePlus,
   Package,
@@ -79,6 +81,10 @@ type Stock = {
 
 type InventoryData = {
   total: number;
+  physicalStock?: number;
+  canManufacture?: boolean;
+  jarDepositRate?: number;
+  pendingSettlementAmount?: number;
   companyOwned: Stock;
   distributorOwned: Stock & { imageUrl: string | null };
   items?: JarInventoryItemRecord[];
@@ -112,6 +118,14 @@ const button =
 const PHYSICAL_STATES = [
   { value: "FILLED_YARD", label: "Filled in Yard", icon: Droplets, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
   { value: "EMPTY_YARD", label: "Empty in Yard", icon: Boxes, color: "text-slate-700 bg-slate-50 border-slate-200" },
+  { value: "CUSTOMER", label: "With Customers", icon: UserCheck, color: "text-blue-700 bg-blue-50 border-blue-200" },
+] as const;
+
+const MFG_PHYSICAL_STATES = [
+  { value: "FILLED_YARD", label: "Filled in Yard", icon: Droplets, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+  { value: "EMPTY_YARD", label: "Empty in Yard", icon: Boxes, color: "text-slate-700 bg-slate-50 border-slate-200" },
+  { value: "WASHING", label: "Washing Station", icon: Droplets, color: "text-cyan-700 bg-cyan-50 border-cyan-200" },
+  { value: "FILLING", label: "Filling Station", icon: Factory, color: "text-purple-700 bg-purple-50 border-purple-200" },
   { value: "CUSTOMER", label: "With Customers", icon: UserCheck, color: "text-blue-700 bg-blue-50 border-blue-200" },
 ] as const;
 
@@ -189,8 +203,42 @@ export default function Inventory() {
   const [isSavingEditItem, setIsSavingEditItem] = useState<boolean>(false);
   const [isDeletingItem, setIsDeletingItem] = useState<boolean>(false);
 
+  // Settle Modal State
+  const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
+  const [settleQuantity, setSettleQuantity] = useState<number>(10);
+  const [settleNotes, setSettleNotes] = useState("");
+  const [settlePaymentMethod, setSettlePaymentMethod] = useState("BANK_TRANSFER");
+  const [isSettling, setIsSettling] = useState(false);
+
+  // Raw Materials & Production Batches (for manufacturing plants)
+  const [distRawMaterials, setDistRawMaterials] = useState<any[]>([]);
+  const [productionBatches, setProductionBatches] = useState<any[]>([]);
+  const [mfgLoading, setMfgLoading] = useState(false);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [batchJarsProduced, setBatchJarsProduced] = useState<number>(50);
+  const [batchMaterialUsage, setBatchMaterialUsage] = useState<{ [materialCode: string]: number }>({});
+  const [batchWastage, setBatchWastage] = useState<number>(0);
+  const [batchNotes, setBatchNotes] = useState("");
+  const [isRecordingBatch, setIsRecordingBatch] = useState(false);
+
   const request = useRef(0);
   const { socket } = useSocket();
+
+  const loadMfgData = useCallback(async () => {
+    try {
+      setMfgLoading(true);
+      const [rawStock, batches] = await Promise.all([
+        fetchWithAuth("/distributor/inventory/raw-materials").catch(() => []),
+        fetchWithAuth("/distributor/inventory/production-batches").catch(() => []),
+      ]);
+      setDistRawMaterials(rawStock || []);
+      setProductionBatches(batches || []);
+    } catch (e) {
+      console.error("Failed to load mfg data", e);
+    } finally {
+      setMfgLoading(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     const id = ++request.current;
@@ -203,6 +251,9 @@ export default function Inventory() {
       if (id !== request.current) return;
       setData(invRes);
       if (reconRes) setReconciliation(reconRes);
+      if (invRes?.canManufacture) {
+        void loadMfgData();
+      }
       setError("");
       setRevision((value) => value + 1);
     } catch (err) {
@@ -213,7 +264,7 @@ export default function Inventory() {
     } finally {
       if (id === request.current) setLoading(false);
     }
-  }, []);
+  }, [loadMfgData]);
 
   useEffect(() => {
     void load();
@@ -393,6 +444,74 @@ export default function Inventory() {
       toast.error(err instanceof Error ? err.message : "Failed to record customer return.");
     } finally {
       setIsReturning(false);
+    }
+  };
+
+  const handleSettleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (settleQuantity <= 0) {
+      toast.error("Please enter a valid quantity of company jars to settle.");
+      return;
+    }
+    const maxCompanyJars = companyOwnedStock.total;
+    if (settleQuantity > maxCompanyJars) {
+      toast.error(`Cannot settle more than currently company-owned jars (${maxCompanyJars}).`);
+      return;
+    }
+
+    try {
+      setIsSettling(true);
+      const rate = data?.jarDepositRate ?? 150.0;
+      const paymentAmount = settleQuantity * rate;
+      await fetchWithAuth("/distributor/inventory/settle", {
+        method: "POST",
+        body: JSON.stringify({
+          quantity: settleQuantity,
+          paymentAmount,
+          notes: settleNotes.trim() || undefined,
+          paymentMethod: settlePaymentMethod,
+        }),
+      });
+      toast.success(`Successfully settled ${settleQuantity} jars! Ownership transferred to distributor.`);
+      setIsSettleModalOpen(false);
+      void load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to settle jars.");
+    } finally {
+      setIsSettling(false);
+    }
+  };
+
+  const handleBatchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (batchJarsProduced <= 0) {
+      toast.error("Jars produced count must be at least 1.");
+      return;
+    }
+
+    try {
+      setIsRecordingBatch(true);
+      const materialsUsed = Object.entries(batchMaterialUsage)
+        .filter(([_, q]) => Number(q) > 0)
+        .map(([code, q]) => ({ materialCode: code, quantity: Number(q) }));
+
+      await fetchWithAuth("/distributor/inventory/production-batch", {
+        method: "POST",
+        body: JSON.stringify({
+          jarsProduced: batchJarsProduced,
+          materialsUsed,
+          wastageCount: batchWastage || 0,
+          notes: batchNotes.trim() || undefined,
+        }),
+      });
+      toast.success(`Production batch recorded: ${batchJarsProduced} jars filled!`);
+      setIsBatchModalOpen(false);
+      void load();
+      void loadMfgData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to record production batch.");
+    } finally {
+      setIsRecordingBatch(false);
     }
   };
 
@@ -655,6 +774,35 @@ export default function Inventory() {
         icon={Boxes}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            {companyOwnedStock.total > 0 && (
+              <button
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 shadow-2xs"
+                onClick={() => {
+                  setSettleQuantity(Math.min(companyOwnedStock.total, 25));
+                  setSettleNotes("");
+                  setSettlePaymentMethod("BANK_TRANSFER");
+                  setIsSettleModalOpen(true);
+                }}
+              >
+                <Coins className="h-3.5 w-3.5" />
+                Settle Company Jars
+              </button>
+            )}
+            {data?.canManufacture && (
+              <button
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 shadow-2xs"
+                onClick={() => {
+                  setBatchJarsProduced(50);
+                  setBatchMaterialUsage({});
+                  setBatchWastage(0);
+                  setBatchNotes("");
+                  setIsBatchModalOpen(true);
+                }}
+              >
+                <Factory className="h-3.5 w-3.5" />
+                Record Production
+              </button>
+            )}
             <button
               className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#1677C8] hover:bg-[#1264A8] text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 shadow-2xs"
               onClick={() => handleOpenMoveModal()}
@@ -710,16 +858,57 @@ export default function Inventory() {
             <>
               {/* ─── SECTION 1: MASTER OWNERSHIP OVERVIEW ─────────────── */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xs font-black uppercase tracking-wider text-slate-500">
-                    1. Authoritative Jar Ownership
-                  </h2>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                      1. Authoritative Jar Ownership & Settlement Ledger
+                    </h2>
+                    {data?.canManufacture ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                        <Factory className="w-3 h-3" /> Manufacturing Plant Authorized
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                        <Building2 className="w-3 h-3" /> Distribution Only Hub
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[11px] text-slate-400 font-medium">
-                    Ownership is master · Physical locations reconcile to total owned
+                    Physical Total ({totalOwnedKpi}) = Edrops Owned ({companyOwnedStock.total}) + Distributor Owned ({distributorOwnedStockTotal})
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                {companyOwnedStock.total > 0 && (
+                  <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/70 text-amber-900 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <Coins className="w-5 h-5 text-amber-600 shrink-0" />
+                      <div>
+                        <h4 className="text-xs font-bold leading-tight">
+                          Pending Company Jar Settlement: ₹{((data?.pendingSettlementAmount ?? (companyOwnedStock.total * (data?.jarDepositRate ?? 150.0)))).toLocaleString()}
+                        </h4>
+                        <p className="text-[11px] opacity-80 mt-0.5">
+                          {companyOwnedStock.total} Edrops-owned jars eligible for ownership transfer at ₹{data?.jarDepositRate ?? 150.0} deposit rate. Settling transfers ownership to you without changing physical stock.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSettleQuantity(Math.min(companyOwnedStock.total, 25));
+                        setSettleNotes("");
+                        setSettlePaymentMethod("BANK_TRANSFER");
+                        setIsSettleModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Coins className="w-3.5 h-3.5" />
+                      Settle & Transfer Ownership
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
                   <ReportKpiCard
                     label="Total Owned Jars"
                     value={inventoryQuantity(totalOwnedKpi)}
@@ -745,7 +934,6 @@ export default function Inventory() {
                     colorVariant="emerald"
                   />
                 </div>
-              </div>
 
               {/* ─── RECONCILIATION INVARIANT BANNER ────────────────────── */}
               <div className={`p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 transition-colors ${
@@ -1274,6 +1462,137 @@ export default function Inventory() {
                 )}
               </div>
 
+              {/* ─── SECTION 4: RAW MATERIALS & MANUFACTURING (IF PERMITTED) ─── */}
+              {data.canManufacture && (
+                <div className="space-y-3 pt-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                        <Factory className="w-4 h-4 text-purple-600" />
+                        4. Plant Raw Materials & Production Batches
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Caps, preforms, labels, and production batches authorized for this manufacturing plant
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBatchJarsProduced(50);
+                          setBatchMaterialUsage({});
+                          setBatchWastage(0);
+                          setBatchNotes("");
+                          setIsBatchModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
+                      >
+                        <Factory className="w-3.5 h-3.5" />
+                        Record Production Batch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void loadMfgData()}
+                        disabled={mfgLoading}
+                        className={button}
+                        title="Refresh Raw Materials"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${mfgLoading ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Raw Materials Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {distRawMaterials.length > 0 ? (
+                      distRawMaterials.map((rm) => (
+                        <div key={rm.id} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                              {rm.material?.name || 'Raw Material'}
+                            </span>
+                            <span className="text-[9px] font-mono px-1 bg-slate-100 rounded text-slate-600">
+                              {rm.material?.code}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline justify-between mt-1">
+                            <span className="text-xl font-extrabold text-[#16324F]">
+                              {rm.currentStock.toLocaleString()}
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-400">
+                              {rm.material?.unit}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-purple-600 font-semibold block mt-1">
+                            Held at plant
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="col-span-full p-4 bg-white border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                        No raw materials currently held at this plant. Edrops central warehouse can issue materials to your plant.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Production Batches History Table */}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+                    <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Recent Manufacturing Batches
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50/80 text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[11px]">
+                          <tr>
+                            <th className="py-2.5 px-3">Batch Number</th>
+                            <th className="py-2.5 px-3">Timestamp</th>
+                            <th className="py-2.5 px-3 text-emerald-700">Jars Produced</th>
+                            <th className="py-2.5 px-3 text-rose-600">Wastage Count</th>
+                            <th className="py-2.5 px-3">Status</th>
+                            <th className="py-2.5 px-3">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-medium">
+                          {productionBatches.length > 0 ? (
+                            productionBatches.map((b) => (
+                              <tr key={b.id} className="hover:bg-slate-50/60 transition">
+                                <td className="py-2.5 px-3 font-mono font-bold text-purple-700">{b.batchNumber}</td>
+                                <td className="py-2.5 px-3 text-slate-500 text-[11px]">
+                                  {new Date(b.createdAt).toLocaleDateString('en-IN', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </td>
+                                <td className="py-2.5 px-3 font-extrabold text-emerald-700">{b.jarsProduced} jars</td>
+                                <td className="py-2.5 px-3 text-rose-600 font-semibold">{b.wastageCount ?? 0} jars</td>
+                                <td className="py-2.5 px-3">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    {b.status}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 text-slate-500 text-[11px]">{b.notes || '—'}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="py-6 text-center text-slate-400">
+                                No production batches recorded yet. Click "Record Production Batch" to start.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Informational Guidance */}
               <div className="p-4 bg-sky-50/60 border border-sky-100 rounded-xl text-xs text-sky-900 space-y-1">
                 <p className="font-bold flex items-center gap-1.5">
@@ -1283,7 +1602,8 @@ export default function Inventory() {
                 <p className="text-[11px] text-sky-800 leading-relaxed">
                   1. Ownership is the master invariant. Jar movements across physical states (Filled Yard, Empty Yard, Customer custody) never change legal ownership quantities.<br />
                   2. Dispatches to customers move jars from Filled Yard to With Customer without reducing total owned stock.<br />
-                  3. Customer empty jar returns move jars into Empty Yard and automatically credit the customer deposit ledger.
+                  3. Customer empty jar returns move jars into Empty Yard and automatically credit the customer deposit ledger.<br />
+                  4. Jar settlement transfers ownership from Edrops Company to Distributor without altering total physical stock.
                 </p>
               </div>
             </>
@@ -1346,7 +1666,7 @@ export default function Inventory() {
                     onChange={(e) => setMoveFromState(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8] focus:bg-white transition"
                   >
-                    {PHYSICAL_STATES.map((s) => (
+                    {(data?.canManufacture ? MFG_PHYSICAL_STATES : PHYSICAL_STATES).map((s) => (
                       <option key={s.value} value={s.value}>
                         {s.label}
                       </option>
@@ -1366,7 +1686,7 @@ export default function Inventory() {
                     onChange={(e) => setMoveToState(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8] focus:bg-white transition"
                   >
-                    {PHYSICAL_STATES.map((s) => (
+                    {(data?.canManufacture ? MFG_PHYSICAL_STATES : PHYSICAL_STATES).map((s) => (
                       <option key={s.value} value={s.value}>
                         {s.label}
                       </option>
@@ -2258,6 +2578,255 @@ export default function Inventory() {
                     {isSavingEditItem ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 6: SETTLE COMPANY JARS & TRANSFER OWNERSHIP ───────── */}
+      {isSettleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-100 text-amber-700">
+                  <Coins className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">
+                    Settle Jars & Transfer Ownership
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Settle company-owned jars to become distributor-owned
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSettleModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSettleSubmit} className="space-y-3.5">
+              <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl space-y-1">
+                <div className="flex items-center justify-between text-xs text-amber-900">
+                  <span>Company-Owned Jars Available:</span>
+                  <strong className="font-bold">{companyOwnedStock.total} jars</strong>
+                </div>
+                <div className="flex items-center justify-between text-xs text-amber-900">
+                  <span>Jar Deposit Rate:</span>
+                  <strong className="font-bold">₹{data?.jarDepositRate ?? 150.0} / jar</strong>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Quantity of Jars to Settle <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={companyOwnedStock.total}
+                  required
+                  value={settleQuantity}
+                  onChange={(e) => setSettleQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-amber-500 focus:bg-white transition"
+                />
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-600">Total Settlement Amount:</span>
+                <span className="text-base font-extrabold text-amber-700">
+                  ₹{((settleQuantity || 0) * (data?.jarDepositRate ?? 150.0)).toLocaleString()}
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Payment Method <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={settlePaymentMethod}
+                  onChange={(e) => setSettlePaymentMethod(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-amber-500 focus:bg-white transition"
+                >
+                  <option value="BANK_TRANSFER">Bank Transfer / NEFT / RTGS</option>
+                  <option value="UPI">UPI / QR Code</option>
+                  <option value="CASH">Cash Deposit</option>
+                  <option value="CHEQUE">Cheque / Demand Draft</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Payment Reference / Transaction ID / Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. UTR / Transaction #12345678"
+                  value={settleNotes}
+                  onChange={(e) => setSettleNotes(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-amber-500 focus:bg-white transition"
+                />
+              </div>
+
+              <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-[11px] text-emerald-800 flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Strict ERP Invariant:</strong> Settle transfers ownership from Edrops Company to Distributor. Total physical stock ({totalOwnedKpi}) remains 100% constant.
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsSettleModalOpen(false)}
+                  className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSettling || settleQuantity <= 0}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
+                >
+                  {isSettling ? "Processing Settlement..." : "Confirm & Transfer Ownership"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 7: RECORD PRODUCTION BATCH ────────────────────────── */}
+      {isBatchModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-purple-100 text-purple-700">
+                  <Factory className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">
+                    Record Plant Production Batch
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Log finished jars filled and raw materials consumed
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBatchModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBatchSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Finished Jars Produced (Filled) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  placeholder="e.g. 50"
+                  value={batchJarsProduced}
+                  onChange={(e) => setBatchJarsProduced(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-purple-600 focus:bg-white transition"
+                />
+              </div>
+
+              {distRawMaterials.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Raw Materials Consumed
+                  </label>
+                  <div className="space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                    {distRawMaterials.map((rm) => (
+                      <div key={rm.id} className="flex items-center justify-between gap-2 bg-white p-2 rounded-lg border border-slate-200/80">
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-slate-800 block truncate">{rm.material?.name}</span>
+                          <span className="text-[10px] text-slate-400">Plant Stock: {rm.currentStock} {rm.material?.unit}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <input
+                            type="number"
+                            min="0"
+                            max={rm.currentStock}
+                            placeholder="0"
+                            value={batchMaterialUsage[rm.material?.code] ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0);
+                              setBatchMaterialUsage((prev) => ({ ...prev, [rm.material?.code]: val }));
+                            }}
+                            className="w-20 text-right px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-purple-600"
+                          />
+                          <span className="text-[11px] text-slate-500 w-8">{rm.material?.unit}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Wastage / Damaged Count (Optional)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={batchWastage || ''}
+                  onChange={(e) => setBatchWastage(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-purple-600 focus:bg-white transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Batch Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Morning filling run line #1"
+                  value={batchNotes}
+                  onChange={(e) => setBatchNotes(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-purple-600 focus:bg-white transition"
+                />
+              </div>
+
+              <div className="p-3 bg-purple-50 border border-purple-100 rounded-xl text-[11px] text-purple-900 flex items-start gap-2">
+                <Factory className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                <span>
+                  Recording production atomically transitions empty jars to filled yard, deducts consumed materials from plant holding, and logs an auditable production batch.
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsBatchModalOpen(false)}
+                  className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRecordingBatch || batchJarsProduced <= 0}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
+                >
+                  {isRecordingBatch ? "Logging Production..." : "Record Batch"}
+                </button>
               </div>
             </form>
           </div>

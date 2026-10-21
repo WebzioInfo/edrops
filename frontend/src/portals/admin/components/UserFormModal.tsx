@@ -13,7 +13,9 @@ import {
   Tag,
   MapPin,
   Building2,
-  Loader2
+  Loader2,
+  Factory,
+  Coins,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -62,6 +64,8 @@ export interface UserRecord {
     jarOwnership?: string | null;
     companyOwnedJars?: number;
     distributorOwnedJars?: number;
+    canManufacture?: boolean;
+    jarDepositRate?: number;
     totalJars?: number;
     servicePincodes?: any[];
     pincodesList?: string[];
@@ -126,6 +130,8 @@ export default function UserFormModal({
   const [referralCode, setReferralCode] = useState('');
   const [agencyName, setAgencyName] = useState('');
   const [routeOrArea, setRouteOrArea] = useState('');
+  const [canManufacture, setCanManufacture] = useState(false);
+  const [jarDepositRate, setJarDepositRate] = useState(150);
   const [isActive, setIsActive] = useState(true);
   const [hasCatalogAccess, setHasCatalogAccess] = useState(false);
 
@@ -174,6 +180,8 @@ export default function UserFormModal({
         setRouteOrArea(
           userToEdit.distributor?.routeOrArea || userToEdit.routeOrArea || ''
         );
+        setCanManufacture(userToEdit.distributor?.canManufacture ?? false);
+        setJarDepositRate(userToEdit.distributor?.jarDepositRate ?? 150);
         setIsActive(userToEdit.isActive !== false);
 
         const perms = Array.isArray(userToEdit.permissions) ? userToEdit.permissions : [];
@@ -199,6 +207,8 @@ export default function UserFormModal({
         setServicePincodes('');
         setAgencyName('');
         setRouteOrArea('');
+        setCanManufacture(false);
+        setJarDepositRate(150);
         setIsActive(true);
         setHasCatalogAccess(false);
       }
@@ -284,6 +294,8 @@ export default function UserFormModal({
         if (rawPins.length > 0) {
           payload.servicePincodes = rawPins;
         }
+        payload.canManufacture = canManufacture;
+        payload.jarDepositRate = Number(jarDepositRate) || 150.0;
       }
 
       if (role === 'STAFF' || role === 'MANAGER') {
@@ -630,6 +642,65 @@ export default function UserFormModal({
                     onChange={(e) => setVehiclePlate(e.target.value)}
                     placeholder="e.g. KL 10 AZ 4521"
                     className="w-full px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg outline-none text-[#16324F] font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Manufacturing Authorization & Settlement Rate */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <div
+                  onClick={() => setCanManufacture(!canManufacture)}
+                  className={`p-2.5 rounded-lg border cursor-pointer transition flex items-start gap-2.5 select-none ${
+                    canManufacture
+                      ? 'bg-emerald-50/80 border-emerald-300'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div
+                    className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
+                      canManufacture
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <Factory className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-800">
+                        Manufacturing Permission
+                      </span>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
+                          canManufacture
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {canManufacture ? 'Authorized' : 'Disabled'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                      {canManufacture
+                        ? 'Authorized for plant washing, filling & raw materials.'
+                        : 'Distribution only (sales, deliveries & holding stock).'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200 flex flex-col justify-between">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5 flex items-center gap-1">
+                    <Coins className="w-3 h-3 text-amber-500" />
+                    Jar Settlement Rate (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={jarDepositRate}
+                    onChange={(e) => setJarDepositRate(parseFloat(e.target.value) || 0)}
+                    placeholder="150.00"
+                    className="w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-1 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-[#1677C8]"
                   />
                 </div>
               </div>

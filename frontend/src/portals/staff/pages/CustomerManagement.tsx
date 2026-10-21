@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import { MobileFilterSheet } from '../../../components/common/MobileFilterSheet';
+import CopyReferralCodeButton from '../../../components/common/CopyReferralCodeButton';
 
 export default function CustomerManagement() {
   const navigate = useNavigate();
@@ -541,7 +542,7 @@ export default function CustomerManagement() {
                       </td>
 
                       {/* Referral / Distributor */}
-                      <td className="py-2.5 px-3 whitespace-nowrap">
+                      <td className="py-2.5 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         {cust.referralInfo?.code ? (
                           <div>
                             <span className="text-[11px] text-slate-800 block truncate max-w-[150px] font-bold">
@@ -549,7 +550,12 @@ export default function CustomerManagement() {
                             </span>
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-50 text-[#1677C8] border border-sky-200 mt-0.5">
                               <Tag className="w-2.5 h-2.5" />
-                              {cust.referralInfo.code}
+                              <span>{cust.referralInfo.code}</span>
+                              <CopyReferralCodeButton
+                                code={cust.referralInfo.code}
+                                iconClassName="w-2.5 h-2.5"
+                                className="p-0.5 hover:bg-sky-100 rounded text-[#1677C8] transition cursor-pointer"
+                              />
                             </span>
                           </div>
                         ) : (
@@ -868,9 +874,15 @@ export default function CustomerManagement() {
                         )}
                       </div>
                       {selectedCust?.referralCode ? (
-                        <p className="text-[11px] font-semibold text-[#1677C8] truncate">
-                          Code: <span className="font-mono">{selectedCust.referralCode}</span>
-                        </p>
+                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#1677C8]">
+                          <span>Code:</span>
+                          <span className="font-mono">{selectedCust.referralCode}</span>
+                          <CopyReferralCodeButton
+                            code={selectedCust.referralCode}
+                            iconClassName="w-3 h-3"
+                            className="p-0.5 hover:bg-sky-100 rounded text-[#1677C8] transition cursor-pointer"
+                          />
+                        </div>
                       ) : (
                         <p className="text-[11px] text-slate-400 truncate">
                           {selectedCust?.customerType ? selectedCust.customerType.replace('_', ' ') : 'Customer'}
@@ -1055,9 +1067,16 @@ export default function CustomerManagement() {
                               </div>
                               <div>
                                 <span className="text-[10px] text-slate-500 block">Referral Code</span>
-                                <span className="font-mono font-extrabold text-[#1677C8] text-sm mt-0.5 block">
-                                  {selectedCust.referralInfo.code}
-                                </span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="font-mono font-extrabold text-[#1677C8] text-sm">
+                                    {selectedCust.referralInfo.code}
+                                  </span>
+                                  <CopyReferralCodeButton
+                                    code={selectedCust.referralInfo.code}
+                                    iconClassName="w-3 h-3"
+                                    className="p-1 hover:bg-sky-100 rounded text-[#1677C8] transition cursor-pointer"
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>

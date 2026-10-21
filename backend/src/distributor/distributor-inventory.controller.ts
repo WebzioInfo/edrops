@@ -20,6 +20,11 @@ import { Roles, RolesGuard } from '../auth/roles.guard';
 import { multerOptions } from '../config/multer.config';
 import type { MulterFile } from '../config/cloudinary.service';
 import { DistributorInventoryService } from './distributor-inventory.service';
+import { RawMaterialService } from '../inventory/raw-material.service';
+import {
+  RecordProductionBatchDto,
+  SettleJarsDto,
+} from '../inventory/dto/raw-material.dto';
 import { CreateJarItemDto, UpdateJarItemDto } from './dto/distributor-jar-item.dto';
 import {
   MoveJarStateDto,
@@ -31,7 +36,10 @@ import {
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.DISTRIBUTOR)
 export class DistributorInventoryController {
-  constructor(private readonly inventory: DistributorInventoryService) {}
+  constructor(
+    private readonly inventory: DistributorInventoryService,
+    private readonly rawMaterials: RawMaterialService,
+  ) {}
 
   @Get()
   getInventory(@Req() req: { user: { id: string } }) {
@@ -131,8 +139,39 @@ export class DistributorInventoryController {
   @UseInterceptors(FileInterceptor('file', multerOptions))
   uploadImage(
     @Req() req: { user: { id: string } },
-    @UploadedFile() file: MulterFile,
+    @UploadedFile() file: any,
   ) {
     return this.inventory.uploadImage(req.user.id, file);
+  }
+
+  @Get('raw-materials')
+  getMyRawMaterials(@Req() req: { user: { id: string } }) {
+    return this.rawMaterials.getDistributorStock(req.user.id);
+  }
+
+  @Post('production-batch')
+  recordProductionBatch(
+    @Req() req: { user: { id: string } },
+    @Body() dto: RecordProductionBatchDto,
+  ) {
+    return this.rawMaterials.recordProductionBatch(req.user.id, dto, req.user.id);
+  }
+
+  @Get('production-batches')
+  getMyProductionBatches(@Req() req: { user: { id: string } }) {
+    return this.rawMaterials.getProductionBatches(req.user.id);
+  }
+
+  @Post('settle')
+  settleJars(
+    @Req() req: { user: { id: string } },
+    @Body() dto: SettleJarsDto,
+  ) {
+    return this.rawMaterials.settleJars(req.user.id, dto, req.user.id);
+  }
+
+  @Get('settlements')
+  getMySettlements(@Req() req: { user: { id: string } }) {
+    return this.rawMaterials.getSettlements(req.user.id);
   }
 }

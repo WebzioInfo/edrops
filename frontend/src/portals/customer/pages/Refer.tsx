@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Award, Copy, Share2, Award as AwardIcon, Users, CheckCircle } from 'lucide-react';
+import { Award, Share2, Award as AwardIcon, Users, CheckCircle } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import CopyReferralCodeButton from '../../../components/common/CopyReferralCodeButton';
 
 interface ReferralRecord {
   id: string;
@@ -32,12 +33,6 @@ export default function ReferPage() {
     }
     loadReferralData();
   }, []);
-
-  const handleCopyLink = () => {
-    const link = `https://edrops.in/join?ref=${referralCode}`;
-    navigator.clipboard.writeText(link);
-    toast.success('Referral link copied to clipboard!');
-  };
 
   const handleShareWhatsApp = () => {
     const message = `Get pure water jars delivered instantly! Join Edrops using my code "${referralCode}" and get 2 free jars on your first recharge: https://edrops.in/join?ref=${referralCode}`;
@@ -87,9 +82,12 @@ export default function ReferPage() {
           <div className="relative mt-6 flex flex-col sm:flex-row gap-3">
             <div className="bg-white/80 rounded-2xl px-5 py-3.5 flex items-center justify-between border border-[#BBDFF2] flex-1">
               <span className="text-base font-black tracking-widest text-[#245361]">{referralCode}</span>
-              <button onClick={handleCopyLink} className="text-[#2D79A8] hover:text-[#245361] transition">
-                <Copy className="h-5 w-5" />
-              </button>
+              <CopyReferralCodeButton
+                code={referralCode}
+                iconClassName="h-5 w-5"
+                className="text-[#2D79A8] hover:text-[#245361] p-1.5 rounded-lg hover:bg-sky-50 transition cursor-pointer"
+                title="Copy referral code"
+              />
             </div>
             <button
               onClick={handleShareWhatsApp}

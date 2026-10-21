@@ -49,6 +49,72 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   vehiclePlate?: string;
+
+  @IsOptional()
+  @IsString()
+  verificationId?: string;
+
+  @IsOptional()
+  @IsString()
+  otp?: string;
+}
+
+export class RequestProfileUpdateOtpDto {
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Must be a valid email address' })
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  customerType?: string;
+
+  @IsOptional()
+  @IsString()
+  companyName?: string;
+
+  @IsOptional()
+  @IsString()
+  gstNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  agencyName?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  routeOrArea?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleType?: string;
+
+  @IsOptional()
+  @IsString()
+  vehiclePlate?: string;
+}
+
+export class VerifyProfileUpdateOtpDto {
+  @IsString()
+  verificationId: string;
+
+  @IsString()
+  otp: string;
 }
 
 export class ProfileAddressDto {

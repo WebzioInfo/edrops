@@ -54,6 +54,10 @@ model User {
   verifiedDeliveries    OrderDeliveryVerification[] @relation("VerifiedDeliveries")
   pushSubscriptions     PushSubscription[]
   createdInventoryLogs  InventoryLog[]         @relation("InventoryLogCreator")
+  profileUpdateVerifications ProfileUpdateVerification[]
+  rawMaterialMovementsCreated RawMaterialMovement[] @relation("RawMaterialMovementCreator")
+  productionBatchesCreated    DistributorProductionBatch[] @relation("ProductionBatchCreator")
+  jarSettlementsCreated       DistributorJarSettlement[] @relation("JarSettlementCreator")
 
   @@index([email])
   @@index([phone])
@@ -158,12 +162,18 @@ model Distributor {
   jarOwnership         String?  @default("COMPANY_OWNED")
   companyOwnedJars     Int      @default(0)
   distributorOwnedJars Int      @default(0)
+  canManufacture       Boolean  @default(false)
+  jarDepositRate       Float    @default(150.0)
   inventoryLogs       InventoryLog[]
   jarImageUrl         String?
   createdById          String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   jarItems            JarInventoryItem[]
+  rawMaterialStocks   DistributorRawMaterialStock[]
+  rawMaterialMovements RawMaterialMovement[]
+  productionBatches   DistributorProductionBatch[]
+  settlements         DistributorJarSettlement[]
 
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdBy            User?    @relation("DistributorCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1485,4 +1495,124 @@ model PasswordSetupToken {
   @@index([expiresAt])
   @@map("password_setup_tokens")
 }
+
+model ProfileUpdateVerification {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  otpHash     String
+  pendingData Json
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("profile_update_verifications")
+}
+
+model RawMaterialItem {
+  id           String                        @id @default(uuid())
+  name         String
+  code         String                        @unique
+  category     String                        @default("PACKAGING") // 'PACKAGING', 'PREFORM', 'CAP', 'LABEL', 'WATER_TREATMENT'
+  unit         String                        @default("PCS")
+  centralStock Int                           @default(0)
+  reorderLevel Int                           @default(100)
+  unitCost     Float                         @default(0.0)
+  isActive     Boolean                       @default(true)
+  createdAt    DateTime                      @default(now())
+  updatedAt    DateTime                      @updatedAt
+  stocks       DistributorRawMaterialStock[]
+  movements    RawMaterialMovement[]
+
+  @@map("raw_material_items")
+}
+
+model DistributorRawMaterialStock {
+  id            String          @id @default(uuid())
+  distributorId String
+  materialId    String
+  quantity      Int             @default(0)
+  updatedAt     DateTime        @updatedAt
+
+  distributor   Distributor     @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  material      RawMaterialItem @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([distributorId, materialId])
+  @@index([distributorId])
+  @@map("distributor_raw_material_stocks")
+}
+
+model RawMaterialMovement {
+  id            String           @id @default(uuid())
+  materialId    String
+  distributorId String?
+  type          String           // 'CENTRAL_RECEIPT', 'ISSUED_TO_DISTRIBUTOR', 'CONSUMED_IN_PRODUCTION', 'WASTAGE_REJECT', 'RETURNED_TO_EDROPS', 'MANUAL_ADJUSTMENT'
+  quantity      Int
+  balanceAfter  Int
+  referenceId   String
+  batchNumber   String?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime         @default(now())
+
+  material      RawMaterialItem  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  distributor   Distributor?     @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  createdBy     User?            @relation("RawMaterialMovementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([materialId, createdAt])
+  @@index([distributorId, createdAt])
+  @@index([referenceId])
+  @@map("raw_material_movements")
+}
+
+model DistributorProductionBatch {
+  id               String       @id @default(uuid())
+  batchNumber      String       @unique
+  distributorId    String
+  outputQuantity   Int          @default(0)
+  rejectedQuantity Int          @default(0)
+  status           String       @default("COMPLETED")
+  consumptions     Json?
+  notes            String?
+  createdById      String?
+  createdAt        DateTime     @default(now())
+
+  distributor      Distributor  @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  createdBy        User?        @relation("ProductionBatchCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([distributorId, createdAt])
+  @@map("distributor_production_batches")
+}
+
+model DistributorJarSettlement {
+  id                    String       @id @default(uuid())
+  settlementNumber      String       @unique
+  distributorId         String
+  jarsSettled           Int
+  unitPrice             Float
+  totalAmount           Float
+  paymentStatus         String       @default("PAID")
+  paymentMethod         String       @default("BANK_TRANSFER")
+  paymentReference      String?
+  companyJarsBefore     Int
+  companyJarsAfter      Int
+  distributorJarsBefore Int
+  distributorJarsAfter  Int
+  physicalJarsTotal     Int
+  notes                 String?
+  createdById           String?
+  createdAt             DateTime     @default(now())
+
+  distributor           Distributor  @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  createdBy             User?        @relation("JarSettlementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([distributorId, createdAt])
+  @@index([settlementNumber])
+  @@map("distributor_jar_settlements")
+}
+
 

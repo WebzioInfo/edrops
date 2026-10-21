@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../api/client';
 import { formatOrderId, formatOrderStatus } from '../../utils/orderFormatters';
+import CopyReferralCodeButton from '../../components/common/CopyReferralCodeButton';
 
 export default function CustomerProfile({ basePath }: { basePath: string }) {
   const { id } = useParams();
@@ -40,9 +41,18 @@ export default function CustomerProfile({ basePath }: { basePath: string }) {
               </div>
             </div>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-500">Customer Code</span>
-                <span className="font-mono text-gray-800">{customer.referralCode || '—'}</span>
+                <div className="flex items-center gap-1.5 font-mono text-gray-800">
+                  <span>{customer.referralCode || '—'}</span>
+                  {customer.referralCode && (
+                    <CopyReferralCodeButton
+                      code={customer.referralCode}
+                      iconClassName="w-3 h-3"
+                      className="p-0.5 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-800 transition cursor-pointer"
+                    />
+                  )}
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Phone</span>

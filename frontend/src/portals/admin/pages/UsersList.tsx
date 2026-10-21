@@ -28,6 +28,7 @@ import UserDetailModal from '../components/UserDetailModal';
 import QuickJarPriceEditModal from '../components/QuickJarPriceEditModal';
 import { AdminTopbar } from '../components/AdminTopbar';
 import { toast } from 'react-hot-toast';
+import CopyReferralCodeButton from '../../../components/common/CopyReferralCodeButton';
 
 function UserAvatar({
   avatarUrl,
@@ -488,6 +489,11 @@ export default function UsersList() {
                             <span className="inline-flex items-center gap-1.5 font-mono font-bold text-[11px] px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs">
                               <Tag className="w-3 h-3 text-amber-600 shrink-0" />
                               <span>{u.referralCode}</span>
+                              <CopyReferralCodeButton
+                                code={u.referralCode}
+                                iconClassName="w-3 h-3"
+                                className="p-0.5 hover:bg-amber-100 rounded text-amber-700 transition"
+                              />
                             </span>
                           ) : (
                             <span className="text-gray-400 font-semibold text-xs pl-2">—</span>
@@ -754,7 +760,14 @@ export default function UsersList() {
                           <Tag className="w-3 h-3 text-amber-600" />
                           <span>Referral Code:</span>
                         </span>
-                        <span className="font-mono font-bold text-amber-900 text-xs">{u.referralCode}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-amber-900 text-xs">{u.referralCode}</span>
+                          <CopyReferralCodeButton
+                            code={u.referralCode}
+                            iconClassName="w-3 h-3"
+                            className="p-0.5 hover:bg-amber-100 rounded text-amber-700 transition"
+                          />
+                        </div>
                       </div>
                     )}
 

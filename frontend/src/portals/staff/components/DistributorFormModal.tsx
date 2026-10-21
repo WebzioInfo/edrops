@@ -13,6 +13,8 @@ import {
   AlertCircle,
   RotateCw,
   Plus,
+  Factory,
+  Coins,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -28,6 +30,8 @@ export interface DistributorRecord {
   avatarUrl?: string | null;
   role?: string;
   isActive?: boolean;
+  canManufacture?: boolean;
+  jarDepositRate?: number;
   referralCode?: string;
   agencyName?: string;
   address?: string;
@@ -63,6 +67,8 @@ export default function DistributorFormModal({
   const [jarOwnership, setJarOwnership] = useState('COMPANY_OWNED');
   const [companyOwnedJars, setCompanyOwnedJars] = useState(0);
   const [distributorOwnedJars, setDistributorOwnedJars] = useState(0);
+  const [canManufacture, setCanManufacture] = useState(false);
+  const [jarDepositRate, setJarDepositRate] = useState(150);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isActive, setIsActive] = useState(true);
@@ -90,6 +96,8 @@ export default function DistributorFormModal({
         setJarOwnership(distributorToEdit.jarOwnership || 'COMPANY_OWNED');
         setCompanyOwnedJars(distributorToEdit.companyOwnedJars || 0);
         setDistributorOwnedJars(distributorToEdit.distributorOwnedJars || 0);
+        setCanManufacture(distributorToEdit.canManufacture ?? false);
+        setJarDepositRate(distributorToEdit.jarDepositRate ?? 150);
         setPassword('');
         setIsActive(distributorToEdit.isActive !== false);
 
@@ -125,6 +133,8 @@ export default function DistributorFormModal({
         setJarOwnership('COMPANY_OWNED');
         setCompanyOwnedJars(0);
         setDistributorOwnedJars(0);
+        setCanManufacture(false);
+        setJarDepositRate(150);
         setPassword('');
         setIsActive(true);
         setPincodes([]);
@@ -203,6 +213,8 @@ export default function DistributorFormModal({
         jarOwnership,
         companyOwnedJars: Number(companyOwnedJars) || 0,
         distributorOwnedJars: Number(distributorOwnedJars) || 0,
+        canManufacture,
+        jarDepositRate: Number(jarDepositRate) || 150.0,
         servicePincodes: pincodes,
         isActive,
       };
@@ -434,6 +446,85 @@ export default function DistributorFormModal({
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:border-[#1677C8]"
                 />
               </div>
+            </div>
+
+            {/* Manufacturing Authorization & Settlement Rate */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* Can Manufacture Toggle */}
+              <div
+                onClick={() => setCanManufacture(!canManufacture)}
+                className={`p-3 rounded-xl border cursor-pointer transition flex items-start gap-3 select-none ${
+                  canManufacture
+                    ? 'bg-emerald-50/70 border-emerald-300'
+                    : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    canManufacture
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-200 text-slate-500'
+                  }`}
+                >
+                  <Factory className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800">
+                      Manufacturing Permission
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        canManufacture
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {canManufacture ? 'Authorized' : 'Disabled'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    {canManufacture
+                      ? 'Permits washing, filling, production batches, and raw material issuance.'
+                      : 'Restricted to distribution only. Washing & filling are blocked.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Jar Settlement Rate */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col justify-between">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                    <Coins className="w-3.5 h-3.5 text-amber-500" />
+                    Settlement Rate / Jar (₹)
+                  </label>
+                  <p className="text-[10px] text-slate-500 mb-2">
+                    Unit rate applied when converting company jars to distributor-owned stock.
+                  </p>
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={jarDepositRate}
+                  onChange={(e) => setJarDepositRate(parseFloat(e.target.value) || 0)}
+                  placeholder="150.00"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:border-[#1677C8]"
+                />
+              </div>
+            </div>
+
+            {/* Invariant Note */}
+            <div className="bg-sky-50/60 border border-sky-200/60 rounded-xl p-2.5 text-[11px] text-sky-800 flex items-center gap-2">
+              <Package className="w-4 h-4 text-[#1677C8] shrink-0" />
+              <span>
+                <strong>Ownership Invariant:</strong> Physical stock = Company-owned (
+                {companyOwnedJars}) + Distributor-owned ({distributorOwnedJars}) ={' '}
+                <span className="font-bold text-slate-900">
+                  {Number(companyOwnedJars) + Number(distributorOwnedJars)} Total Jars
+                </span>
+                . Settlement transfers ownership without duplicating physical jars.
+              </span>
             </div>
           </div>
 

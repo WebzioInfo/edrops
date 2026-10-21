@@ -11,8 +11,10 @@ import {
   Tag,
   MapPin,
   Building2,
-  Users
+  Users,
+  Factory,
 } from 'lucide-react';
+import CopyReferralCodeButton from '../../../components/common/CopyReferralCodeButton';
 import type { UserRecord } from './UserFormModal';
 
 interface UserDetailModalProps {
@@ -147,9 +149,16 @@ export default function UserDetailModal({
                 <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
                   Referral Code
                 </span>
-                <span className="text-base font-mono font-black text-amber-900 mt-0.5 block">
-                  {referralCode}
-                </span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-base font-mono font-black text-amber-900 block">
+                    {referralCode}
+                  </span>
+                  <CopyReferralCodeButton
+                    code={referralCode}
+                    iconClassName="w-3.5 h-3.5"
+                    className="p-1 hover:bg-amber-200/60 text-amber-800 rounded-md transition"
+                  />
+                </div>
               </div>
               <div className="w-9 h-9 rounded-xl bg-amber-100/80 border border-amber-300/60 flex items-center justify-center text-amber-800">
                 <Tag className="w-4 h-4" />
@@ -190,9 +199,21 @@ export default function UserDetailModal({
           {/* Distributor Specific Operational Profile */}
           {isDistributor && (
             <div className="p-3.5 bg-emerald-50/40 rounded-xl border border-emerald-100 space-y-3 text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-emerald-800">
-                <Building2 className="w-4 h-4 text-emerald-600" />
-                <span>Distributor Operational Profile</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                  <Building2 className="w-4 h-4 text-emerald-600" />
+                  <span>Distributor Operational Profile</span>
+                </div>
+                {user.distributor?.canManufacture ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200">
+                    <Factory className="w-3 h-3 text-teal-700" />
+                    Manufacturing Authorized
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                    Distribution Only
+                  </span>
+                )}
               </div>
 
               {user.distributor?.agencyName && (
@@ -242,19 +263,33 @@ export default function UserDetailModal({
                 </div>
               )}
 
-              {/* Jar Inventory */}
-              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-100/60">
-                <div className="p-2 bg-white rounded-lg border border-emerald-100">
-                  <span className="text-[10px] text-[#64748B] block">Company Jars</span>
-                  <span className="text-sm font-bold text-[#16324F]">
-                    {user.distributor?.companyOwnedJars ?? 0}
+              {/* Jar Inventory & Settlement Details */}
+              <div className="space-y-2 pt-1 border-t border-emerald-100/60">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700">Jar Ownership Breakdown</span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    Total: {(user.distributor?.companyOwnedJars ?? 0) + (user.distributor?.distributorOwnedJars ?? 0)} Physical Jars
                   </span>
                 </div>
-                <div className="p-2 bg-white rounded-lg border border-emerald-100">
-                  <span className="text-[10px] text-[#64748B] block">Distributor Jars</span>
-                  <span className="text-sm font-bold text-[#16324F]">
-                    {user.distributor?.distributorOwnedJars ?? 0}
-                  </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-2 bg-white rounded-lg border border-emerald-100 text-center">
+                    <span className="text-[10px] text-[#64748B] block">Company-Owned</span>
+                    <span className="text-sm font-bold text-[#1677C8]">
+                      {user.distributor?.companyOwnedJars ?? 0}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-emerald-100 text-center">
+                    <span className="text-[10px] text-[#64748B] block">Partner-Owned</span>
+                    <span className="text-sm font-bold text-purple-700">
+                      {user.distributor?.distributorOwnedJars ?? 0}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-emerald-100 text-center">
+                    <span className="text-[10px] text-[#64748B] block">Settlement Rate</span>
+                    <span className="text-sm font-bold text-amber-700">
+                      ₹{user.distributor?.jarDepositRate ?? 150}
+                    </span>
+                  </div>
                 </div>
               </div>
 

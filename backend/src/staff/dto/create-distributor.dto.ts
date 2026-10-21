@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsBoolean,
   IsInt,
+  IsNumber,
   Min,
   Matches,
   IsArray,
@@ -75,6 +76,15 @@ export class CreateDistributorDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  canManufacture?: boolean;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  jarDepositRate?: number;
 
   @IsArray()
   @IsString({ each: true })

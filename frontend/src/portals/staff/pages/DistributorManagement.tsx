@@ -5,14 +5,13 @@ import {
   Plus,
   RefreshCw,
   Tag,
-  Copy,
-  Check,
   Package,
   Edit2,
   X,
   MapPin,
   Truck,
   SlidersHorizontal,
+  Factory,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -21,6 +20,7 @@ import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import { MobileFilterSheet } from '../../../components/common/MobileFilterSheet';
 import DistributorFormModal, { type DistributorRecord } from '../components/DistributorFormModal';
 import DistributorDetailDrawer from '../components/DistributorDetailDrawer';
+import CopyReferralCodeButton from '../../../components/common/CopyReferralCodeButton';
 
 function DistributorAvatar({
   avatarUrl,
@@ -61,7 +61,6 @@ export default function DistributorManagement() {
   // Search & Filter
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   // Modal / Drawer state
@@ -88,13 +87,6 @@ export default function DistributorManagement() {
     loadDistributors();
   }, []);
 
-  const handleCopyCode = (e: React.MouseEvent, code: string, id: string) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(code);
-    setCopiedCodeId(id);
-    toast.success(`Copied code: ${code}`);
-    setTimeout(() => setCopiedCodeId(null), 2500);
-  };
 
   const handleOpenCreate = () => {
     setDistributorToEdit(null);
@@ -122,6 +114,8 @@ export default function DistributorManagement() {
       jarOwnership: dist.jarOwnership,
       companyOwnedJars: dist.companyOwnedJars,
       distributorOwnedJars: dist.distributorOwnedJars,
+      canManufacture: dist.canManufacture,
+      jarDepositRate: dist.jarDepositRate,
       servicePincodes: dist.servicePincodes || dist.distributorPincodes || [],
     });
     setFormModalOpen(true);
@@ -479,7 +473,6 @@ export default function DistributorManagement() {
                     `${dist.firstName || ''} ${dist.lastName || ''}`.trim() ||
                     'Distributor';
                   const isActive = dist.isActive !== false;
-                  const isCopied = copiedCodeId === dist.id;
 
                   return (
                     <tr
@@ -516,40 +509,45 @@ export default function DistributorManagement() {
                         <div className="inline-flex items-center gap-1 bg-sky-50 border border-sky-200 hover:border-sky-300 rounded-md px-2 py-0.5 text-xs font-mono font-bold text-[#1677C8] shadow-2xs">
                           <Tag className="w-3 h-3 text-[#1677C8]" />
                           <span>{dist.referralCode}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => handleCopyCode(e, dist.referralCode, dist.id)}
+                          <CopyReferralCodeButton
+                            code={dist.referralCode}
+                            iconClassName="w-3 h-3"
                             className="p-0.5 hover:bg-sky-100 rounded text-[#1677C8] transition cursor-pointer"
-                            title="Copy Referral Code"
-                          >
-                            {isCopied ? (
-                              <Check className="w-3 h-3 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
+                          />
                         </div>
                       </td>
 
                       {/* Status */}
                       <td className="py-2.5 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(dist)}
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer ${
-                            isActive
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
-                          }`}
-                          title={`Click to ${isActive ? 'deactivate' : 'activate'}`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                        <div className="flex flex-col gap-1 items-start">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(dist)}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer ${
+                              isActive
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
                             }`}
-                          />
-                          {isActive ? 'Active' : 'Inactive'}
-                        </button>
+                            title={`Click to ${isActive ? 'deactivate' : 'activate'}`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                              }`}
+                            />
+                            {isActive ? 'Active' : 'Inactive'}
+                          </button>
+                          {dist.canManufacture ? (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                              <Factory className="w-2.5 h-2.5 text-teal-600" />
+                              Mfg Plant
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                              Dist Only
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Route / Area */}
@@ -677,19 +675,17 @@ export default function DistributorManagement() {
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5 flex-wrap">
                         <span className="font-mono">{dist.phone || 'No phone'}</span>
                         <span>•</span>
-                        <button
-                          type="button"
-                          onClick={(e) => handleCopyCode(e, dist.referralCode, dist.id)}
-                          className="inline-flex items-center gap-1 font-mono font-bold text-[#1677C8] bg-sky-50 px-1 py-0.5 rounded text-[10px] hover:bg-sky-100"
-                        >
+                        <div className="inline-flex items-center gap-1 font-mono font-bold text-[#1677C8] bg-sky-50 px-1.5 py-0.5 rounded text-[10px]">
                           <Tag className="w-2.5 h-2.5" />
                           <span>{dist.referralCode || '—'}</span>
-                          {copiedCodeId === dist.id ? (
-                            <Check className="w-2.5 h-2.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-2.5 h-2.5 text-slate-400" />
+                          {dist.referralCode && (
+                            <CopyReferralCodeButton
+                              code={dist.referralCode}
+                              iconClassName="w-2.5 h-2.5"
+                              className="p-0.5 hover:bg-sky-100 rounded text-[#1677C8] transition cursor-pointer"
+                            />
                           )}
-                        </button>
+                        </div>
                         <span>•</span>
                         <span>{allocatedJars} Jars</span>
                       </div>
@@ -740,6 +736,10 @@ export default function DistributorManagement() {
         onClose={() => setDrawerOpen(false)}
         onEdit={handleOpenEdit}
         onToggleStatus={handleToggleStatus}
+        onRefresh={async () => {
+          await loadDistributors();
+          setDrawerOpen(false);
+        }}
       />
     </div>
   );

@@ -1,17 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { ProfileService } from './profile.service';
-import { ProfileController } from './profile.controller';
 import { AvatarProcessingQueueService } from './avatar-processing-queue.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../config/cloudinary.service';
+import { MailService } from '../mail/mail.service';
 const sharp = require('sharp');
 
-describe('Profile Module: ProfileService, Address CRUD, and Avatar Queue', () => {
+describe('Profile Module: ProfileService, Address CRUD, and Email OTP Profile Verification', () => {
   let profileService: ProfileService;
   let avatarQueue: AvatarProcessingQueueService;
   let prisma: any;
   let cloudinary: any;
+  let mailService: any;
 
   const mockUserId = 'user-uuid-1';
   const mockCustomerId = 'cust-uuid-1';
@@ -34,6 +36,9 @@ describe('Profile Module: ProfileService, Address CRUD, and Avatar Queue', () =>
       wallet: { balance: 500 },
       addresses: [],
     },
+    distributor: null,
+    staff: null,
+    deliveryPartner: null,
   };
 
   beforeEach(async () => {
@@ -60,6 +65,25 @@ describe('Profile Module: ProfileService, Address CRUD, and Avatar Queue', () =>
       distributor: {
         upsert: jest.fn(),
       },
+      deliveryPartner: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+      staff: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+      profileUpdateVerification: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
+        delete: jest.fn(),
+      },
+      auditLog: {
+        create: jest.fn(),
+      },
+      $transaction: jest.fn().mockImplementation((cb) => cb(prisma)),
     };
 
     cloudinary = {
@@ -70,12 +94,17 @@ describe('Profile Module: ProfileService, Address CRUD, and Avatar Queue', () =>
       deleteImage: jest.fn().mockResolvedValue(true),
     };
 
+    mailService = {
+      sendProfileUpdateOtp: jest.fn().mockResolvedValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProfileService,
         AvatarProcessingQueueService,
         { provide: PrismaService, useValue: prisma },
         { provide: CloudinaryService, useValue: cloudinary },
+        { provide: MailService, useValue: mailService },
       ],
     }).compile();
 
@@ -103,46 +132,194 @@ describe('Profile Module: ProfileService, Address CRUD, and Avatar Queue', () =>
     });
   });
 
-  describe('2. Profile Update with Email & Phone Normalization', () => {
-    it('should update name without changing email or phone', async () => {
+  describe('2. Email OTP Profile Verification Flow', () => {
+    it('should detect no changes and return noChanges: true without sending OTP', async () => {
       prisma.user.findUnique.mockResolvedValue(mockUser);
-      prisma.user.update.mockResolvedValue({ ...mockUser, firstName: 'Jane' });
 
-      await profileService.updateProfile(mockUserId, { firstName: 'Jane' });
-      expect(prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: mockUserId },
-          data: expect.objectContaining({ firstName: 'Jane' }),
-        }),
+      const result = await profileService.requestProfileUpdateOtp(mockUserId, {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'user@example.com',
+        phone: '+919876543210',
+      });
+
+      expect(result).toHaveProperty('noChanges', true);
+      expect(mailService.sendProfileUpdateOtp).not.toHaveBeenCalled();
+      expect(prisma.profileUpdateVerification.create).not.toHaveBeenCalled();
+    });
+
+    it('should initiate OTP verification and send code to OLD registered email when email is changing', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(null); // No collision on new email
+      prisma.profileUpdateVerification.findFirst.mockResolvedValue(null); // Not rate limited
+      prisma.profileUpdateVerification.create.mockResolvedValue({
+        id: 'verif-123',
+        userId: mockUserId,
+      });
+
+      const result = await profileService.requestProfileUpdateOtp(mockUserId, {
+        email: 'newemail@example.com',
+      });
+
+      expect(result).toHaveProperty('success', true);
+      expect(result).toHaveProperty('verificationId', 'verif-123');
+      expect(result).toHaveProperty('maskedEmail');
+
+      // Crucial: OTP must go to OLD registered email (user@example.com), not newemail@example.com
+      expect(mailService.sendProfileUpdateOtp).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'user@example.com' }),
+        expect.stringMatching(/^\d{6}$/),
       );
     });
 
-    it('should normalize and update Indian phone number (+91 canonical)', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
-      prisma.user.findFirst.mockResolvedValue(null); // No collision
-
-      await profileService.updateProfile(mockUserId, { phone: '9812345678' });
-      expect(prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ phone: '+919812345678' }),
-        }),
-      );
-    });
-
-    it('should reject invalid phone numbers', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
-      await expect(profileService.updateProfile(mockUserId, { phone: '123' })).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should reject email if already used by another account', async () => {
+    it('should reject email change if new email is already taken by another account', async () => {
       prisma.user.findUnique.mockResolvedValue(mockUser);
       prisma.user.findFirst.mockResolvedValue({ id: 'other-user', email: 'taken@example.com' });
 
       await expect(
-        profileService.updateProfile(mockUserId, { email: 'taken@example.com' }),
+        profileService.requestProfileUpdateOtp(mockUserId, { email: 'taken@example.com' }),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('should rate-limit rapid repeated OTP requests within 45 seconds', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.profileUpdateVerification.findFirst.mockResolvedValue({
+        id: 'recent-verif',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 200000),
+      });
+
+      await expect(
+        profileService.requestProfileUpdateOtp(mockUserId, { firstName: 'Johnny' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should successfully verify valid OTP and apply updates atomically', async () => {
+      const rawOtp = '654321';
+      const otpHash = crypto.createHash('sha256').update(rawOtp).digest('hex');
+
+      prisma.profileUpdateVerification.findFirst.mockResolvedValue({
+        id: 'verif-123',
+        userId: mockUserId,
+        otpHash,
+        pendingData: { firstName: 'Johnny', phone: '+919999988888' },
+        expiresAt: new Date(Date.now() + 60000),
+        attempts: 0,
+        maxAttempts: 5,
+        usedAt: null,
+      });
+
+      prisma.user.findFirst.mockResolvedValue(null); // No collision
+      prisma.user.update.mockResolvedValue({
+        ...mockUser,
+        firstName: 'Johnny',
+        phone: '+919999988888',
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        firstName: 'Johnny',
+        phone: '+919999988888',
+      });
+
+      const updated = await profileService.verifyProfileUpdateOtp(mockUserId, {
+        verificationId: 'verif-123',
+        otp: rawOtp,
+      });
+
+      expect(prisma.profileUpdateVerification.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'verif-123' },
+          data: expect.objectContaining({ usedAt: expect.any(Date) }),
+        }),
+      );
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: mockUserId },
+          data: expect.objectContaining({ firstName: 'Johnny', phone: '+919999988888' }),
+        }),
+      );
+      expect(updated.firstName).toBe('Johnny');
+    });
+
+    it('should reject invalid OTP and increment attempt count', async () => {
+      const rawOtp = '111111';
+      const otpHash = crypto.createHash('sha256').update(rawOtp).digest('hex');
+
+      prisma.profileUpdateVerification.findFirst.mockResolvedValue({
+        id: 'verif-123',
+        userId: mockUserId,
+        otpHash,
+        pendingData: { firstName: 'Johnny' },
+        expiresAt: new Date(Date.now() + 60000),
+        attempts: 1,
+        maxAttempts: 5,
+        usedAt: null,
+      });
+
+      prisma.profileUpdateVerification.update.mockResolvedValue({
+        id: 'verif-123',
+        attempts: 2,
+        maxAttempts: 5,
+      });
+
+      await expect(
+        profileService.verifyProfileUpdateOtp(mockUserId, {
+          verificationId: 'verif-123',
+          otp: '999999', // Wrong OTP
+        }),
+      ).rejects.toThrow(/Invalid verification code/);
+
+      expect(prisma.profileUpdateVerification.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { attempts: { increment: 1 } },
+        }),
+      );
+    });
+
+    it('should reject expired OTP challenge', async () => {
+      prisma.profileUpdateVerification.findFirst.mockResolvedValue({
+        id: 'verif-expired',
+        userId: mockUserId,
+        otpHash: 'hash',
+        pendingData: { firstName: 'Johnny' },
+        expiresAt: new Date(Date.now() - 1000), // Expired
+        attempts: 0,
+        maxAttempts: 5,
+        usedAt: null,
+      });
+
+      await expect(
+        profileService.verifyProfileUpdateOtp(mockUserId, {
+          verificationId: 'verif-expired',
+          otp: '123456',
+        }),
+      ).rejects.toThrow(/expired/);
+    });
+
+    it('should reject already used OTP challenge (prevent replay)', async () => {
+      prisma.profileUpdateVerification.findFirst.mockResolvedValue({
+        id: 'verif-used',
+        userId: mockUserId,
+        otpHash: 'hash',
+        pendingData: { firstName: 'Johnny' },
+        expiresAt: new Date(Date.now() + 60000),
+        attempts: 0,
+        maxAttempts: 5,
+        usedAt: new Date(), // Already used
+      });
+
+      await expect(
+        profileService.verifyProfileUpdateOtp(mockUserId, {
+          verificationId: 'verif-used',
+          otp: '123456',
+        }),
+      ).rejects.toThrow(/already been used/);
+    });
+
+    it('should reject direct updateProfile calls without OTP verification', async () => {
+      await expect(
+        profileService.updateProfile(mockUserId, { firstName: 'Bypasser' }),
+      ).rejects.toThrow(/Email OTP verification is required/);
     });
   });
 
@@ -257,9 +434,8 @@ describe('Profile Module: ProfileService, Address CRUD, and Avatar Queue', () =>
 
   describe('4. Image Upload & HEIC Conversion Pipeline', () => {
     it('should detect HEIC/HEIF format from extension, mimetype, and magic bytes', () => {
-      // Create a simulated ISO BMFF HEIC buffer header
       const heicBuffer = Buffer.alloc(16);
-      heicBuffer.writeUInt32BE(16, 0); // box size
+      heicBuffer.writeUInt32BE(16, 0);
       heicBuffer.write('ftyp', 4, 'ascii');
       heicBuffer.write('heic', 8, 'ascii');
 
@@ -307,7 +483,6 @@ describe('Profile Module: ProfileService, Address CRUD, and Avatar Queue', () =>
     });
 
     it('should convert and optimize a real PNG/JPEG buffer to progressive JPEG under 1024x1024', async () => {
-      // Create a 1200x800 sample PNG buffer using sharp
       const samplePng = await sharp({
         create: {
           width: 1200,
@@ -322,7 +497,6 @@ describe('Profile Module: ProfileService, Address CRUD, and Avatar Queue', () =>
       const processedJpeg = await avatarQueue.processToJpeg(samplePng, 'png');
       expect(processedJpeg).toBeInstanceOf(Buffer);
 
-      // Verify dimensions are constrained to max 1024 and format is jpeg
       const meta = await sharp(processedJpeg).metadata();
       expect(meta.format).toBe('jpeg');
       expect(meta.width).toBeLessThanOrEqual(1024);

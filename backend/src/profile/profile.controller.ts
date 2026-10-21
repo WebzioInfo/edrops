@@ -16,7 +16,13 @@ import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ProfileService } from './profile.service';
-import { UpdateProfileDto, ProfileAddressDto, UpdateProfileAddressDto } from './dto/profile.dto';
+import {
+  UpdateProfileDto,
+  RequestProfileUpdateOtpDto,
+  VerifyProfileUpdateOtpDto,
+  ProfileAddressDto,
+  UpdateProfileAddressDto,
+} from './dto/profile.dto';
 import { MulterFile } from '../config/cloudinary.service';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -63,6 +69,18 @@ export class ProfileController {
   getProfile(@Req() req: any) {
     const userId = req.user.id || req.user.sub;
     return this.profileService.getProfile(userId);
+  }
+
+  @Post('request-update-otp')
+  requestUpdateOtp(@Req() req: any, @Body() dto: RequestProfileUpdateOtpDto) {
+    const userId = req.user.id || req.user.sub;
+    return this.profileService.requestProfileUpdateOtp(userId, dto);
+  }
+
+  @Post('verify-update-otp')
+  verifyUpdateOtp(@Req() req: any, @Body() dto: VerifyProfileUpdateOtpDto) {
+    const userId = req.user.id || req.user.sub;
+    return this.profileService.verifyProfileUpdateOtp(userId, dto);
   }
 
   @Patch()

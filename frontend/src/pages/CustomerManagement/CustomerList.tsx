@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../api/client';
 import { useNavigate } from 'react-router-dom';
+import CopyReferralCodeButton from '../../components/common/CopyReferralCodeButton';
 
 export default function CustomerList({ basePath }: { basePath: string }) {
   const navigate = useNavigate();
@@ -65,7 +66,20 @@ export default function CustomerList({ basePath }: { basePath: string }) {
               <tbody className="divide-y divide-gray-100">
                 {filteredCustomers?.map((customer: any) => (
                   <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-xs font-mono text-gray-500">{customer.referralCode || '—'}</td>
+                    <td className="px-6 py-4 text-xs font-mono text-gray-500 whitespace-nowrap">
+                      {customer.referralCode ? (
+                        <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-md px-2 py-0.5">
+                          <span>{customer.referralCode}</span>
+                          <CopyReferralCodeButton
+                            code={customer.referralCode}
+                            iconClassName="w-3 h-3"
+                            className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition cursor-pointer"
+                          />
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-gray-800">{customer.user.firstName} {customer.user.lastName}</div>
                     </td>

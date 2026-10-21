@@ -312,6 +312,8 @@ export class AdminUsersService {
     routeOrArea?: string;
     pincode?: string;
     servicePincodes?: string[];
+    canManufacture?: boolean;
+    jarDepositRate?: number | string;
   }) {
     // Validate phone unique
     const existingPhone = await this.prisma.user.findUnique({
@@ -382,6 +384,8 @@ export class AdminUsersService {
             routeOrArea: data.routeOrArea?.trim() || null,
             vehicleType: data.vehicleType?.trim() || null,
             vehiclePlate: data.vehiclePlate?.trim() || null,
+            canManufacture: Boolean(data.canManufacture ?? false),
+            jarDepositRate: Number(data.jarDepositRate ?? 150.0),
           },
         });
 
@@ -445,6 +449,8 @@ export class AdminUsersService {
       routeOrArea?: string;
       pincode?: string;
       servicePincodes?: string[];
+      canManufacture?: boolean;
+      jarDepositRate?: number | string;
     },
   ) {
     const existing = await this.prisma.user.findFirst({
@@ -547,6 +553,8 @@ export class AdminUsersService {
         if (data.routeOrArea !== undefined) distData.routeOrArea = data.routeOrArea?.trim() || null;
         if (data.vehicleType !== undefined) distData.vehicleType = data.vehicleType?.trim() || null;
         if (data.vehiclePlate !== undefined) distData.vehiclePlate = data.vehiclePlate?.trim() || null;
+        if (data.canManufacture !== undefined) distData.canManufacture = Boolean(data.canManufacture);
+        if (data.jarDepositRate !== undefined) distData.jarDepositRate = Number(data.jarDepositRate);
         if (data.referralCode !== undefined && data.referralCode?.trim()) {
           distData.referralCode = data.referralCode.trim().toUpperCase();
         }
@@ -560,6 +568,8 @@ export class AdminUsersService {
               routeOrArea: distData.routeOrArea || null,
               vehicleType: distData.vehicleType || null,
               vehiclePlate: distData.vehiclePlate || null,
+              canManufacture: distData.canManufacture ?? false,
+              jarDepositRate: distData.jarDepositRate ?? 150.0,
             },
           });
         } else if (Object.keys(distData).length > 0) {
@@ -837,6 +847,8 @@ export class AdminUsersService {
             jarOwnership: user.distributor.jarOwnership || 'COMPANY_OWNED',
             companyOwnedJars: user.distributor.companyOwnedJars ?? 0,
             distributorOwnedJars: user.distributor.distributorOwnedJars ?? 0,
+            canManufacture: user.distributor.canManufacture ?? false,
+            jarDepositRate: user.distributor.jarDepositRate ?? 150.0,
             totalJars:
               (user.distributor.companyOwnedJars ?? 0) +
               (user.distributor.distributorOwnedJars ?? 0),

@@ -374,63 +374,130 @@ export class AuthService {
       vehiclePlate?: string;
       vehicleType?: string;
       routeOrArea?: string;
+      verificationId?: string;
+      otp?: string;
     },
   ) {
-    if (data.email) {
+    if (!data.verificationId || !data.otp) {
+      throw new BadRequestException(
+        'Email OTP verification is required to update profile details. Please request a verification code via /profile/request-update-otp.',
+      );
+    }
+
+    const cleanOtp = (data.otp || '').trim();
+    const verification = await this.prisma.profileUpdateVerification.findFirst({
+      where: { id: data.verificationId, userId },
+    });
+
+    if (!verification) {
+      throw new NotFoundException('Verification request not found.');
+    }
+
+    if (verification.usedAt) {
+      throw new BadRequestException('This verification code has already been used.');
+    }
+
+    if (verification.expiresAt < new Date()) {
+      throw new BadRequestException('Verification code has expired. Please request a new code.');
+    }
+
+    if (verification.attempts >= verification.maxAttempts) {
+      throw new BadRequestException('Maximum verification attempts reached. Please request a new code.');
+    }
+
+    const submittedHash = crypto.createHash('sha256').update(cleanOtp).digest('hex');
+    if (submittedHash !== verification.otpHash) {
+      const updated = await this.prisma.profileUpdateVerification.update({
+        where: { id: verification.id },
+        data: { attempts: { increment: 1 } },
+      });
+      const remaining = updated.maxAttempts - updated.attempts;
+      if (remaining <= 0) {
+        throw new BadRequestException(
+          'Invalid verification code. Maximum attempts reached. Please request a new code.',
+        );
+      }
+      throw new BadRequestException(
+        `Invalid verification code. ${remaining} attempt(s) remaining.`,
+      );
+    }
+
+    const pendingData = (verification.pendingData || data) as any;
+
+    if (pendingData.email) {
       const existing = await this.prisma.user.findFirst({
-        where: { email: data.email, NOT: { id: userId } },
+        where: { email: pendingData.email, NOT: { id: userId } },
       });
       if (existing) {
         throw new ConflictException('Email already in use');
       }
     }
 
-    if (data.phone) {
+    if (pendingData.phone) {
       const existing = await this.prisma.user.findFirst({
-        where: { phone: data.phone, NOT: { id: userId } },
+        where: { phone: pendingData.phone, NOT: { id: userId } },
       });
       if (existing) {
         throw new ConflictException('Phone number already in use');
       }
     }
 
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: data.phone,
-      },
-    });
+    const user = await this.prisma.$transaction(async (tx) => {
+      await tx.profileUpdateVerification.update({
+        where: { id: verification.id },
+        data: { usedAt: new Date() },
+      });
 
-    if (
-      data.agencyName !== undefined ||
-      data.address !== undefined ||
-      data.vehiclePlate !== undefined ||
-      data.vehicleType !== undefined ||
-      data.routeOrArea !== undefined
-    ) {
-      await this.prisma.distributor.upsert({
-        where: { userId },
-        create: {
-          userId,
-          referralCode: `EDR-${Math.floor(1000 + Math.random() * 9000)}`,
-          agencyName: data.agencyName,
-          address: data.address,
-          vehiclePlate: data.vehiclePlate,
-          vehicleType: data.vehicleType,
-          routeOrArea: data.routeOrArea,
-        },
-        update: {
-          agencyName: data.agencyName,
-          address: data.address,
-          vehiclePlate: data.vehiclePlate,
-          vehicleType: data.vehicleType,
-          routeOrArea: data.routeOrArea,
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          firstName: pendingData.firstName,
+          lastName: pendingData.lastName,
+          email: pendingData.email,
+          phone: pendingData.phone,
         },
       });
-    }
+
+      if (
+        pendingData.agencyName !== undefined ||
+        pendingData.address !== undefined ||
+        pendingData.vehiclePlate !== undefined ||
+        pendingData.vehicleType !== undefined ||
+        pendingData.routeOrArea !== undefined
+      ) {
+        await tx.distributor.upsert({
+          where: { userId },
+          create: {
+            userId,
+            referralCode: `EDR-${Math.floor(1000 + Math.random() * 9000)}`,
+            agencyName: pendingData.agencyName,
+            address: pendingData.address,
+            vehiclePlate: pendingData.vehiclePlate,
+            vehicleType: pendingData.vehicleType,
+            routeOrArea: pendingData.routeOrArea,
+          },
+          update: {
+            agencyName: pendingData.agencyName,
+            address: pendingData.address,
+            vehiclePlate: pendingData.vehiclePlate,
+            vehicleType: pendingData.vehicleType,
+            routeOrArea: pendingData.routeOrArea,
+          },
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'PROFILE_UPDATED_WITH_EMAIL_OTP',
+          entityType: 'USER',
+          entityId: userId,
+          newValues: pendingData,
+        },
+      });
+
+      return updatedUser;
+    });
 
     return {
       success: true,

@@ -258,6 +258,8 @@ export class StaffService {
           jarOwnership: dto.jarOwnership?.trim() || 'COMPANY_OWNED',
           companyOwnedJars: dto.companyOwnedJars ?? 0,
           distributorOwnedJars: dto.distributorOwnedJars ?? 0,
+          canManufacture: dto.canManufacture ?? false,
+          jarDepositRate: dto.jarDepositRate ?? 150.0,
           createdById: staffUserId || null,
         },
       });
@@ -371,6 +373,8 @@ export class StaffService {
       if (dto.jarOwnership !== undefined) distData.jarOwnership = dto.jarOwnership.trim();
       if (dto.companyOwnedJars !== undefined) distData.companyOwnedJars = Number(dto.companyOwnedJars);
       if (dto.distributorOwnedJars !== undefined) distData.distributorOwnedJars = Number(dto.distributorOwnedJars);
+      if (dto.canManufacture !== undefined) distData.canManufacture = Boolean(dto.canManufacture);
+      if (dto.jarDepositRate !== undefined) distData.jarDepositRate = Number(dto.jarDepositRate);
 
       if (existingUser.distributor) {
         await tx.distributor.update({
@@ -475,6 +479,8 @@ export class StaffService {
       jarOwnership: u.distributor?.jarOwnership || 'COMPANY_OWNED',
       companyOwnedJars: u.distributor?.companyOwnedJars ?? 0,
       distributorOwnedJars: u.distributor?.distributorOwnedJars ?? 0,
+      canManufacture: u.distributor?.canManufacture ?? false,
+      jarDepositRate: u.distributor?.jarDepositRate ?? 150.0,
       totalJars:
         (u.distributor?.companyOwnedJars ?? 0) +
         (u.distributor?.distributorOwnedJars ?? 0),

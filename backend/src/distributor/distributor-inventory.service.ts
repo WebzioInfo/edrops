@@ -45,6 +45,8 @@ export class DistributorInventoryService {
         companyOwnedJars: true,
         distributorOwnedJars: true,
         jarImageUrl: true,
+        canManufacture: true,
+        jarDepositRate: true,
       },
     });
     if (!distributor)
@@ -273,6 +275,9 @@ export class DistributorInventoryService {
         totalPhysical,
         variance: totalVariance,
       },
+      canManufacture: profile.canManufacture ?? false,
+      jarDepositRate: profile.jarDepositRate ?? 150.0,
+      pendingSettlementAmount: companyTotal * (profile.jarDepositRate ?? 150.0),
       items: mappedItems,
     };
   }
@@ -459,6 +464,18 @@ export class DistributorInventoryService {
 
     if (!fromCol || !toCol) {
       throw new BadRequestException('Invalid state specified');
+    }
+
+    const isWashingOrFilling =
+      dto.fromState === JarPhysicalState.WASHING ||
+      dto.toState === JarPhysicalState.WASHING ||
+      dto.fromState === JarPhysicalState.FILLING ||
+      dto.toState === JarPhysicalState.FILLING;
+
+    if (isWashingOrFilling && !profile.canManufacture) {
+      throw new ForbiddenException(
+        'Distributor is not authorized for manufacturing operations (washing/filling). Manufacturing permission is required.',
+      );
     }
 
     return this.prisma.$transaction(

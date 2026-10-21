@@ -14,12 +14,15 @@ import {
   History,
   X,
   Users,
+  Factory,
+  Droplets,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
+import CopyReferralCodeButton from '../../../components/common/CopyReferralCodeButton';
 
-type ActiveTab = 'COMPANY' | 'DISTRIBUTORS' | 'MOVEMENTS';
+type ActiveTab = 'COMPANY' | 'DISTRIBUTORS' | 'RAW_MATERIALS' | 'MOVEMENTS';
 
 export default function InventoryAudit() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('COMPANY');
@@ -58,7 +61,17 @@ export default function InventoryAudit() {
     | 'REPLENISH'
     | 'DAMAGE'
     | 'DIST_DETAIL'
+    | 'ISSUE_MATERIALS'
   >(null);
+
+  // Raw Materials state
+  const [rawMaterials, setRawMaterials] = useState<any[]>([]);
+  const [rawMovements, setRawMovements] = useState<any[]>([]);
+  const [rawLoading, setRawLoading] = useState(false);
+  const [issueDistributorId, setIssueDistributorId] = useState('');
+  const [issueItems, setIssueItems] = useState<{ [materialCode: string]: number }>({});
+  const [issueReference, setIssueReference] = useState('');
+  const [issueNotes, setIssueNotes] = useState('');
 
   // Selected distributor for modal actions / detail
   const [selectedDistributor, setSelectedDistributor] = useState<any>(null);
@@ -141,8 +154,25 @@ export default function InventoryAudit() {
     }
   };
 
+  const loadRawMaterials = async () => {
+    try {
+      setRawLoading(true);
+      const [mats, movs] = await Promise.all([
+        fetchWithAuth('/inventory/raw-materials'),
+        fetchWithAuth('/inventory/raw-materials/movements'),
+      ]);
+      setRawMaterials(mats || []);
+      setRawMovements(movs || []);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load raw materials');
+    } finally {
+      setRawLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadRawMaterials();
   }, []);
 
   const handleOpenDistDetail = async (dist: any) => {
@@ -208,6 +238,27 @@ export default function InventoryAudit() {
     setCompReason('');
     setCompNotes('');
     setActiveModal('ADJUST_COMPANY');
+  };
+
+  // Open Issue Materials Modal
+  const openIssueMaterialsModal = (dist?: any) => {
+    const mfgDists = distributors.filter((d) => d.canManufacture);
+    if (mfgDists.length === 0) {
+      toast.error('No distributors are currently authorized for manufacturing. Enable manufacturing permission in Distributor Management first.');
+      return;
+    }
+    if (dist && dist.canManufacture) {
+      setIssueDistributorId(dist.id);
+    } else {
+      setIssueDistributorId(mfgDists[0].id);
+    }
+    setIssueItems({});
+    setIssueReference('');
+    setIssueNotes('');
+    setActiveModal('ISSUE_MATERIALS');
+    if (rawMaterials.length === 0) {
+      loadRawMaterials();
+    }
   };
 
   // =========================================================================
@@ -375,6 +426,38 @@ export default function InventoryAudit() {
       await loadData(true);
     } catch (err: any) {
       toast.error(err.message || 'Action failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleIssueMaterialsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!issueDistributorId) {
+      toast.error('Please select an authorized manufacturing distributor.');
+      return;
+    }
+    const selectedEntries = Object.entries(issueItems).filter(([_, qty]) => Number(qty) > 0);
+    if (selectedEntries.length === 0) {
+      toast.error('Please specify positive quantities for at least one raw material.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await fetchWithAuth('/inventory/raw-materials/issue', {
+        method: 'POST',
+        body: JSON.stringify({
+          distributorId: issueDistributorId,
+          items: selectedEntries.map(([code, qty]) => ({ materialCode: code, quantity: Number(qty) })),
+          reference: issueReference.trim() || undefined,
+          notes: issueNotes.trim() || undefined,
+        }),
+      });
+      toast.success('Raw materials issued to manufacturing plant successfully!');
+      setActiveModal(null);
+      await Promise.all([loadRawMaterials(), loadData(true)]);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to issue raw materials');
     } finally {
       setSubmitting(false);
     }
@@ -595,6 +678,22 @@ export default function InventoryAudit() {
 
         <button
           type="button"
+          onClick={() => {
+            setActiveTab('RAW_MATERIALS');
+            loadRawMaterials();
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeTab === 'RAW_MATERIALS'
+              ? 'bg-[#16324F] text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Droplets className="w-4 h-4" />
+          <span>Raw Materials & Mfg Issuance</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('MOVEMENTS')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             activeTab === 'MOVEMENTS'
@@ -784,26 +883,48 @@ export default function InventoryAudit() {
                       <tr key={d.id} className="hover:bg-slate-50/70 transition">
                         <td className="py-3.5 px-4">
                           <div className="font-bold text-slate-800 text-sm">{d.agencyName}</div>
-                          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5 flex-wrap">
                             <span>{d.name}</span>
                             <span>•</span>
                             <span className="font-mono text-slate-600">{d.phone}</span>
-                            <span>•</span>
-                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-mono text-slate-700 font-bold">
-                              {d.referralCode}
-                            </span>
+                            {d.referralCode && (
+                              <>
+                                <span>•</span>
+                                <span className="inline-flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-mono text-slate-700 font-bold">
+                                  <span>{d.referralCode}</span>
+                                  <CopyReferralCodeButton
+                                    code={d.referralCode}
+                                    iconClassName="w-2.5 h-2.5"
+                                    className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition cursor-pointer"
+                                  />
+                                </span>
+                              </>
+                            )}
                           </div>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                              d.status === 'ACTIVE'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {d.status}
-                          </span>
+                        <td className="py-3.5 px-4 space-y-1">
+                          <div>
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                d.status === 'ACTIVE'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {d.status}
+                            </span>
+                          </div>
+                          <div>
+                            {d.canManufacture ? (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                <Factory className="w-2.5 h-2.5" /> Mfg Plant
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
+                                Dist Only
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3.5 px-4 font-bold text-emerald-700 text-sm">
                           {d.companyOwned.available.toLocaleString()}
@@ -817,8 +938,13 @@ export default function InventoryAudit() {
                         <td className="py-3.5 px-4 font-semibold text-rose-600">
                           {d.companyOwned.damaged.toLocaleString()}
                         </td>
-                        <td className="py-3.5 px-4 font-extrabold text-[#16324F] text-sm">
-                          {d.totalManaged.toLocaleString()}
+                        <td className="py-3.5 px-4">
+                          <div className="font-extrabold text-[#16324F] text-sm">
+                            {d.totalManaged.toLocaleString()}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-medium">
+                            {d.companyOwnedJars ?? d.totalManaged} Co · {d.distributorOwnedJars ?? 0} Dist
+                          </div>
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="inline-flex items-center gap-1.5">
@@ -831,6 +957,18 @@ export default function InventoryAudit() {
                               <Eye className="w-3 h-3" />
                               <span>View</span>
                             </button>
+
+                            {d.canManufacture && (
+                              <button
+                                type="button"
+                                onClick={() => openIssueMaterialsModal(d)}
+                                className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-lg text-[11px] transition cursor-pointer flex items-center gap-1"
+                                title="Issue raw materials for manufacturing"
+                              >
+                                <Droplets className="w-3 h-3" />
+                                <span>Issue Materials</span>
+                              </button>
+                            )}
 
                             <button
                               type="button"
@@ -879,7 +1017,217 @@ export default function InventoryAudit() {
         </div>
       )}
 
-      {/* ─── TAB 3: MOVEMENT HISTORY ─────────────────────────────── */}
+      {/* ─── TAB 3: RAW MATERIALS & MFG ISSUANCE ─────────────────── */}
+      {activeTab === 'RAW_MATERIALS' && (
+        <div className="space-y-4">
+          {/* Header & Global Action */}
+          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#16324F] uppercase tracking-wider flex items-center gap-2">
+                <Droplets className="w-4 h-4 text-[#1677C8]" />
+                Central Raw Material & Packaging Catalog
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Central storage inventory of caps, preforms, labels, and empty jars for manufacturing plants
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openIssueMaterialsModal()}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Issue Materials to Plant</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => loadRawMaterials()}
+                disabled={rawLoading}
+                className="inline-flex items-center justify-center p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer"
+                title="Refresh Raw Materials"
+              >
+                <RefreshCw className={`w-4 h-4 ${rawLoading ? 'animate-spin text-[#1677C8]' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Raw Materials Stock Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {rawMaterials.map((mat) => (
+              <div key={mat.id} className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                    {mat.name}
+                  </span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 bg-slate-100 rounded text-slate-600">
+                    {mat.code}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-xl sm:text-2xl font-extrabold text-[#16324F]">
+                    {mat.centralStock.toLocaleString()}
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-400">{mat.unit}</span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                  <span>Issued: {mat.totalIssued.toLocaleString()}</span>
+                  <span className={mat.centralStock < mat.minThreshold ? 'text-amber-600 font-bold' : 'text-emerald-600'}>
+                    {mat.centralStock < mat.minThreshold ? 'Low Stock' : 'Optimal'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Raw Materials Inventory Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="p-4 border-b border-slate-100">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Raw Materials Master Ledger
+              </h4>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50/80 text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="py-3 px-4">Material Name</th>
+                    <th className="py-3 px-4">Code</th>
+                    <th className="py-3 px-4">Category</th>
+                    <th className="py-3 px-4">Unit</th>
+                    <th className="py-3 px-4 text-emerald-700">Central Warehouse Stock</th>
+                    <th className="py-3 px-4 text-purple-700">Issued to Plants</th>
+                    <th className="py-3 px-4 text-slate-500">Min Threshold</th>
+                    <th className="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {rawMaterials.length > 0 ? (
+                    rawMaterials.map((mat) => (
+                      <tr key={mat.id} className="hover:bg-slate-50/70 transition">
+                        <td className="py-3 px-4 font-bold text-slate-800">{mat.name}</td>
+                        <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{mat.code}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            {mat.category}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600">{mat.unit}</td>
+                        <td className="py-3 px-4 font-extrabold text-emerald-700 text-sm">
+                          {mat.centralStock.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-purple-700 text-sm">
+                          {mat.totalIssued.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-slate-500">
+                          {mat.minThreshold.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => openIssueMaterialsModal()}
+                            className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-lg text-[11px] transition cursor-pointer"
+                          >
+                            Issue to Plant
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-slate-400">
+                        {rawLoading ? 'Loading raw materials...' : 'No raw materials configured.'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Raw Materials Movements Ledger */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="p-4 border-b border-slate-100">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Raw Materials Movement & Production Consumption Audit Trail
+              </h4>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50/80 text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="py-3 px-4">Timestamp</th>
+                    <th className="py-3 px-4">Movement Type</th>
+                    <th className="py-3 px-4">Material</th>
+                    <th className="py-3 px-4">Plant / Hub</th>
+                    <th className="py-3 px-4 text-center">Quantity</th>
+                    <th className="py-3 px-4">Balance After</th>
+                    <th className="py-3 px-4">Reference / Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {rawMovements.length > 0 ? (
+                    rawMovements.map((mov) => {
+                      const isNegative = mov.movementType === 'PRODUCTION_CONSUMPTION' || mov.movementType === 'PRODUCTION_WASTAGE';
+                      return (
+                        <tr key={mov.id} className="hover:bg-slate-50/70 transition">
+                          <td className="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap">
+                            {new Date(mov.createdAt).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                              {mov.movementType}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-bold text-slate-800">
+                            {mov.material?.name || 'Raw Material'} ({mov.material?.unit})
+                          </td>
+                          <td className="py-3 px-4 text-slate-700 font-semibold">
+                            {mov.distributor?.agencyName || 'Central Warehouse'}
+                          </td>
+                          <td className="py-3 px-4 text-center font-bold text-sm">
+                            {isNegative ? (
+                              <span className="text-rose-600">-{mov.quantity}</span>
+                            ) : (
+                              <span className="text-emerald-600">+{mov.quantity}</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-slate-700">
+                            {mov.balanceAfter.toLocaleString()}
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 text-[11px]">
+                            {mov.reference && (
+                              <span className="font-mono bg-slate-100 px-1 rounded mr-1">
+                                {mov.reference}
+                              </span>
+                            )}
+                            {mov.notes}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-400">
+                        No raw material movements recorded yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB 4: MOVEMENT HISTORY ─────────────────────────────── */}
       {activeTab === 'MOVEMENTS' && (
         <div className="space-y-3.5">
           {/* Filter Bar */}
@@ -1678,14 +2026,23 @@ export default function InventoryAudit() {
                     <h3 className="text-base font-bold text-[#16324F]">
                       {selectedDistributor.agencyName}
                     </h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 flex-wrap">
                       <span>{selectedDistributor.name}</span>
                       <span>•</span>
                       <span>{selectedDistributor.phone}</span>
-                      <span>•</span>
-                      <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
-                        {selectedDistributor.referralCode}
-                      </span>
+                      {selectedDistributor.referralCode && (
+                        <>
+                          <span>•</span>
+                          <span className="inline-flex items-center gap-1 font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+                            <span>{selectedDistributor.referralCode}</span>
+                            <CopyReferralCodeButton
+                              code={selectedDistributor.referralCode}
+                              iconClassName="w-2.5 h-2.5"
+                              className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition cursor-pointer"
+                            />
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1825,6 +2182,152 @@ export default function InventoryAudit() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+
+        {/* ─── MODAL: ISSUE RAW MATERIALS ────────────────────────── */}
+        {activeModal === 'ISSUE_MATERIALS' && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-purple-100 text-purple-700">
+                    <Factory className="w-5 h-5" />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-bold text-[#16324F]">Issue Raw Materials to Plant</h3>
+                    <p className="text-xs text-slate-500">Atomic allocation from central inventory to manufacturing distributor</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleIssueMaterialsSubmit} className="space-y-4">
+                {/* Target Manufacturing Distributor */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Select Authorized Manufacturing Plant <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={issueDistributorId}
+                    onChange={(e) => setIssueDistributorId(e.target.value)}
+                    required
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-semibold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-purple-600"
+                  >
+                    <option value="" disabled>Select manufacturing hub...</option>
+                    {distributors.filter((d) => d.canManufacture).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.agencyName} ({d.name}) — {d.phone} [Authorized Mfg Plant]
+                      </option>
+                    ))}
+                  </select>
+                  {distributors.filter((d) => d.canManufacture).length === 0 && (
+                    <p className="text-[11px] text-rose-600 mt-1">
+                      No distributors are authorized for manufacturing. Enable manufacturing permission first.
+                    </p>
+                  )}
+                </div>
+
+                {/* Materials Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Materials & Quantities to Dispatch <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                    {rawMaterials.map((mat) => (
+                      <div key={mat.id} className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-lg border border-slate-200/80">
+                        <div className="min-w-0">
+                          <div className="font-bold text-xs text-slate-800">{mat.name}</div>
+                          <div className="text-[10px] text-slate-500">
+                            Central Stock: <span className="font-bold text-emerald-700">{mat.centralStock.toLocaleString()} {mat.unit}</span> · Code: {mat.code}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <input
+                            type="number"
+                            min="0"
+                            max={mat.centralStock}
+                            placeholder="0"
+                            value={issueItems[mat.code] ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0);
+                              setIssueItems((prev) => ({ ...prev, [mat.code]: val }));
+                            }}
+                            className="w-24 text-right px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-purple-600"
+                          />
+                          <span className="text-xs text-slate-500 w-10">{mat.unit}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reference & Notes */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Dispatch Ref / Challan # (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. DC-2026-0042"
+                      value={issueReference}
+                      onChange={(e) => setIssueReference(e.target.value)}
+                      className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-purple-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Notes / Instructions (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. For weekly 20L production run"
+                      value={issueNotes}
+                      onChange={(e) => setIssueNotes(e.target.value)}
+                      className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-purple-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl text-[11px] text-purple-900 flex items-start gap-2">
+                  <Factory className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                  <span>
+                    Issuing materials automatically decrements Central Warehouse stock and increments the authorized distributor's raw material ledger in an atomic PostgreSQL transaction.
+                  </span>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal(null)}
+                    className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    {submitting ? 'Issuing Materials...' : 'Confirm Issuance & Decrement Stock'}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

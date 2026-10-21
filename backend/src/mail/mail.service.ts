@@ -373,6 +373,67 @@ export class MailService {
     }
   }
 
+  async sendProfileUpdateOtp(
+    user: { email: string; firstName?: string | null },
+    otp: string,
+  ): Promise<boolean> {
+    if (!user.email) return false;
+
+    const frontendUrl = this.getFrontendUrl();
+    const firstName =
+      user.firstName && user.firstName.trim() ? user.firstName.trim() : 'there';
+
+    const bodyHtml = `
+      <h1 style="font-size: 22px; font-weight: 800; color: #16324F; margin: 0 0 16px; letter-spacing: -0.3px;">
+        Profile Verification Code
+      </h1>
+      <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 12px;">
+        Hi <strong>${firstName}</strong>,
+      </p>
+      <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+        A request was made to update your eDrops account profile details. Please use the verification code below to authorize this change:
+      </p>
+
+      <div style="text-align: center; margin: 24px 0; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px;">
+        <span style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #00AEEF; font-family: monospace;">
+          ${otp}
+        </span>
+      </div>
+
+      <p style="font-size: 13px; color: #64748B; margin: 0 0 16px 0;">
+        This code is valid for <strong>5 minutes</strong> and can only be used once.
+      </p>
+
+      <div style="background-color: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 14px 18px; margin: 16px 0 0 0;">
+        <p style="font-size: 12px; color: #991B1B; font-weight: 700; margin: 0 0 4px 0;">
+          Security Notice
+        </p>
+        <p style="font-size: 12px; color: #B91C1C; line-height: 1.5; margin: 0;">
+          If you did not initiate this change, someone may be attempting to modify your account. Please contact eDrops support immediately.
+        </p>
+      </div>
+    `;
+
+    const html = this.renderEmailShell({
+      title: 'Your eDrops Profile Verification Code',
+      bodyHtml,
+      frontendUrl,
+    });
+
+    try {
+      await this.mailerService.sendMail({
+        to: user.email,
+        subject: 'Your eDrops Profile Verification Code',
+        html,
+      });
+      this.logger.log(`Profile update OTP sent to ${user.email}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send profile update OTP to ${user.email}`, error);
+      return false;
+    }
+  }
+
   async sendWelcomeEmail(user: User) {
     if (!user.email) return;
 

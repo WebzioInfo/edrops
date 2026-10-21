@@ -3,10 +3,11 @@ import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
 import { AvatarProcessingQueueService } from './avatar-processing-queue.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { MailModule } from '../mail/mail.module';
 import { CloudinaryService } from '../config/cloudinary.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, MailModule],
   controllers: [ProfileController],
   providers: [ProfileService, AvatarProcessingQueueService, CloudinaryService],
   exports: [ProfileService, AvatarProcessingQueueService],

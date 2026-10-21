@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
+import CopyReferralCodeButton from '../../../components/common/CopyReferralCodeButton';
 
 interface QuickCustomerModalProps {
   isOpen: boolean;
@@ -278,9 +279,16 @@ export default function QuickCustomerModal({
                   readOnly
                   disabled
                   value={referralCode!}
-                  className="w-full px-3 py-2 bg-white/90 border border-sky-300/80 rounded-xl font-mono text-base font-extrabold text-[#16324F] tracking-wider cursor-not-allowed select-all"
+                  className="w-full pl-3 pr-20 py-2 bg-white/90 border border-sky-300/80 rounded-xl font-mono text-base font-extrabold text-[#16324F] tracking-wider cursor-not-allowed select-all"
                 />
-                <Lock className="w-4 h-4 text-sky-500 absolute right-3 top-1/2 -translate-y-1/2" />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                  <CopyReferralCodeButton
+                    code={referralCode!}
+                    iconClassName="w-3.5 h-3.5"
+                    className="p-1 hover:bg-sky-100 rounded-md text-[#1677C8] transition cursor-pointer"
+                  />
+                  <Lock className="w-4 h-4 text-sky-400" />
+                </div>
               </div>
             ) : (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
