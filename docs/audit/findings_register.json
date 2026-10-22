@@ -1,18 +1,18 @@
 {
   "auditMetadata": {
     "product": "Edrops ERP",
-    "auditDate": "2026-10-21",
-    "version": "1.0.0",
+    "auditDate": "2026-10-22",
+    "version": "1.1.0",
     "auditorRole": "Independent ERP, Financial Controls, Security & Integrity Auditor",
-    "scope": "Full Product Audit (Backend, Frontend, Portals, Invariants, Security, Accounting)",
+    "scope": "Full Product Whole-Product Audit (Backend, Frontend, Portals, Invariants, Security, Accounting, Operations)",
     "auditMode": "READ_ONLY_AUDIT"
   },
   "summary": {
-    "totalFindings": 15,
-    "critical": 3,
-    "high": 5,
-    "medium": 5,
-    "low": 2
+    "totalFindings": 24,
+    "critical": 5,
+    "high": 8,
+    "medium": 8,
+    "low": 3
   },
   "findings": [
     {
@@ -209,6 +209,123 @@
       "actualBehavior": "30 suites pass (220 tests), 8 suites fail (7 tests) due to missing service dependencies in test builders.",
       "businessImpact": "CI/CD failure and regression blind spots.",
       "remediation": "Update test module providers to supply RawMaterialService and PrismaService mocks."
+    },
+    {
+      "id": "SEC-08",
+      "area": "Security & Administration",
+      "severity": "CRITICAL",
+      "confidence": "CONFIRMED",
+      "module": "AnalyticsModule",
+      "filePath": "backend/src/analytics/analytics.controller.ts",
+      "title": "Public Unauthenticated Access to Live Analytics KPI Snapshot & CRUD",
+      "expectedBehavior": "Analytics KPIs and snapshot aggregations must be restricted to authenticated Admin and Manager roles.",
+      "actualBehavior": "AnalyticsController has zero authentication guards. Unauthenticated callers can call GET /analytics/snapshot to read live commercial metrics, or execute POST/PATCH/DELETE on analytics records.",
+      "businessImpact": "Public leak of company revenue, active order volume, customer counts, and commercial performance.",
+      "remediation": "Apply @UseGuards(AuthGuard('jwt'), RolesGuard) and @Roles(UserRole.ADMIN, UserRole.MANAGER) to AnalyticsController."
+    },
+    {
+      "id": "SEC-09",
+      "area": "Security & Administration",
+      "severity": "CRITICAL",
+      "confidence": "CONFIRMED",
+      "module": "ReportModule",
+      "filePath": "backend/src/report/report.controller.ts",
+      "title": "Public Unauthenticated CRUD on Report Endpoints",
+      "expectedBehavior": "System reports must be restricted to authenticated administrative staff.",
+      "actualBehavior": "Only getAdminAnalytics has auth guards. POST /report, GET /report, GET /report/:id, PATCH /report/:id, and DELETE /report/:id are completely unauthenticated.",
+      "businessImpact": "Unauthorized creation, modification, or deletion of business reports.",
+      "remediation": "Move @UseGuards(AuthGuard('jwt'), RolesGuard) and @Roles(UserRole.ADMIN, UserRole.MANAGER) to class level on ReportController."
+    },
+    {
+      "id": "FIN-04",
+      "area": "Financial Controls",
+      "severity": "MEDIUM",
+      "confidence": "CONFIRMED",
+      "module": "WalletModule",
+      "filePath": "backend/src/wallet/wallet.service.ts",
+      "title": "Admin Financial Ledger Calculates Deposits Refunded from Wrong Table",
+      "expectedBehavior": "Admin ledger should aggregate deposit refunds from DepositTransaction table with type DEPOSIT_REFUNDED.",
+      "actualBehavior": "wallet.service.ts queries generic Transaction table for type REFUND, which contains zero deposit records. Always returns 0 for refunded deposits.",
+      "businessImpact": "Distorted executive financial summaries of company deposit liabilities.",
+      "remediation": "Update aggregate query in wallet.service.ts to query prisma.depositTransaction."
+    },
+    {
+      "id": "ARCH-01",
+      "area": "System Architecture",
+      "severity": "HIGH",
+      "confidence": "CONFIRMED",
+      "module": "InvoiceModule",
+      "filePath": "backend/prisma/schema.prisma",
+      "title": "Orphaned InvoiceRecord Model in Database Schema",
+      "expectedBehavior": "Invoices generated for customer orders should be recorded in backend database and signed server-side.",
+      "actualBehavior": "InvoiceRecord model exists in Prisma schema but is completely unreferenced across all backend services. Invoices are generated client-side only via jsPDF.",
+      "businessImpact": "Zero server-side audit trail of downloaded tax invoices; inability to verify authentic invoice contents post-delivery.",
+      "remediation": "Implement backend invoice generation and persist records to InvoiceRecord."
+    },
+    {
+      "id": "ARCH-02",
+      "area": "Tenant Architecture",
+      "severity": "HIGH",
+      "confidence": "CONFIRMED",
+      "module": "TenantIsolation",
+      "filePath": "backend/prisma/schema.prisma",
+      "title": "Absence of Multi-Tenant Database Isolation",
+      "expectedBehavior": "Multi-tenant platforms require strict tenant identification and query filtering by tenant context.",
+      "actualBehavior": "Customer.tenantId is an orphaned optional string. The entire backend runs as a single-tenant monolith with zero tenant-scoping middleware.",
+      "businessImpact": "System cannot safely host multiple independent franchise brands or separate corporate legal entities.",
+      "remediation": "Implement tenant context middleware and apply mandatory tenant filtering across all repository queries."
+    },
+    {
+      "id": "ARCH-03",
+      "area": "Product Completeness",
+      "severity": "MEDIUM",
+      "confidence": "CONFIRMED",
+      "module": "QC / WaterTestModule",
+      "filePath": "backend/prisma/schema.prisma",
+      "title": "Complete Absence of Quality Control (QC) and Water Testing Subsystem",
+      "expectedBehavior": "Packaged water manufacturing ERP specification mentions QC water test reports, incubation, and microbiology certificates.",
+      "actualBehavior": "Zero models, zero tables, zero controllers, and zero services exist for QC, microbiology, or water tests.",
+      "businessImpact": "Plant operators cannot record lab test results, TDS, or microbial clearance inside Edrops.",
+      "remediation": "Design and implement QC test report schema if required by product roadmap."
+    },
+    {
+      "id": "ARCH-04",
+      "area": "Product Completeness",
+      "severity": "LOW",
+      "confidence": "CONFIRMED",
+      "module": "AssetModule",
+      "filePath": "backend/prisma/schema.prisma",
+      "title": "Complete Absence of Fixed Asset Management and Depreciation Engine",
+      "expectedBehavior": "Plant equipment, blowing machines, and delivery vehicles require fixed asset tracking and depreciation.",
+      "actualBehavior": "Zero models, zero tables, zero controllers, and zero services exist for Fixed Assets or Depreciation.",
+      "businessImpact": "Equipment assets and vehicles must be tracked in external spreadsheets.",
+      "remediation": "Design Fixed Asset module if required by product roadmap."
+    },
+    {
+      "id": "QA-02",
+      "area": "Code Quality & Testing",
+      "severity": "LOW",
+      "confidence": "CONFIRMED",
+      "module": "FrontendTesting",
+      "filePath": "frontend/package.json",
+      "title": "Zero Automated Unit or Integration Test Coverage in Frontend",
+      "expectedBehavior": "React frontend should have component unit tests (Vitest/Jest) and integration tests for critical order flows.",
+      "actualBehavior": "frontend/package.json has no test runner, no test scripts, and zero test files.",
+      "businessImpact": "High risk of UI regressions and runtime crashes going undetected before production deployment.",
+      "remediation": "Install Vitest and React Testing Library; configure CI test pipeline."
+    },
+    {
+      "id": "OPS-01",
+      "area": "Operations & Disaster Recovery",
+      "severity": "HIGH",
+      "confidence": "CONFIRMED",
+      "module": "DisasterRecovery",
+      "filePath": "backend/src/",
+      "title": "Absence of Automated Database Backup Scripts & Disaster Recovery Runbooks",
+      "expectedBehavior": "Production ERP systems require automated daily database dumps, WAL archiving for Point-In-Time-Recovery (PITR), and documented recovery runbooks.",
+      "actualBehavior": "Zero database backup automation scripts, backup cron jobs, or disaster recovery documentation exist in the repository.",
+      "businessImpact": "Catastrophic data loss risk in the event of production server failure or database corruption.",
+      "remediation": "Author automated backup scripts (pg_dump to S3) and draft operational disaster recovery SOP."
     }
   ]
 }
