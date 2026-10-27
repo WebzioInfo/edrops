@@ -1,0 +1,14 @@
+[
+    {
+        "relation": [
+            "delegate_permission/common.handle_all_urls"
+        ],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "in.edrops.app",
+            "sha256_cert_fingerprints": [
+                "5D:55:04:03:59:04:E6:7C:14:DD:49:58:C8:D3:03:71:A2:D5:92:30:56:CC:23:F0:C7:61:B7:81:24:37:2E:59"
+            ]
+        }
+    }
+]
