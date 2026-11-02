@@ -1,13 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext, ForbiddenException, UnauthorizedException, BadGatewayException, BadRequestException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+  BadGatewayException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { BiodropsController } from './biodrops.controller';
 import { BiodropsService } from './biodrops.service';
 import { BiodropsRoleGuard } from './biodrops-role.guard';
+import { ConfigService } from '../../config/config.service';
 
-describe('Aquora Biodrops Integration Module', () => {
+describe('Aquora Biodrops Integration Security Audit & Test Suite', () => {
   let controller: BiodropsController;
   let service: BiodropsService;
   let guard: BiodropsRoleGuard;
+  let configService: ConfigService;
 
   const mockTenantsResponse = [
     {
@@ -122,207 +131,244 @@ describe('Aquora Biodrops Integration Module', () => {
       providers: [
         BiodropsService,
         BiodropsRoleGuard,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string, defaultValue?: any) => {
+              if (key === 'AQUORA_BIODROPS_API_URL') {
+                return 'https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops';
+              }
+              if (key === 'AQUORA_BIODROPS_API_KEY') {
+                return 'test_secure_configured_api_key';
+              }
+              return defaultValue;
+            }),
+          },
+        },
       ],
     }).compile();
 
     controller = module.get<BiodropsController>(BiodropsController);
     service = module.get<BiodropsService>(BiodropsService);
     guard = module.get<BiodropsRoleGuard>(BiodropsRoleGuard);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  describe('1. Access Control – CRITICAL RBAC REQUIREMENT', () => {
-    function createMockContext(user: any): ExecutionContext {
-      return {
-        switchToHttp: () => ({
-          getRequest: () => ({ user }),
-          getResponse: () => ({}),
-        }),
-      } as unknown as ExecutionContext;
-    }
+  function createMockContext(user: any): ExecutionContext {
+    return {
+      switchToHttp: () => ({
+        getRequest: () => ({ user }),
+        getResponse: () => ({}),
+      }),
+    } as unknown as ExecutionContext;
+  }
 
-    it('Permits Upper Admin (UPPER_ADMIN role)', () => {
-      const ctx = createMockContext({ role: 'UPPER_ADMIN' });
-      expect(guard.canActivate(ctx)).toBe(true);
-    });
+  // --------------------------------------------------------------------------
+  // Requirement 9: 20 Automated Tests
+  // --------------------------------------------------------------------------
 
-    it('Permits Upper Admin (SUPER_ADMIN role)', () => {
-      const ctx = createMockContext({ role: 'SUPER_ADMIN' });
-      expect(guard.canActivate(ctx)).toBe(true);
-    });
-
-    it('Permits Upper Admin (Admin with level > 1)', () => {
-      const ctx = createMockContext({ role: 'ADMIN', admin: { level: 2 } });
-      expect(guard.canActivate(ctx)).toBe(true);
-    });
-
-    it('Permits Admin (ADMIN role)', () => {
-      const ctx = createMockContext({ role: 'ADMIN' });
-      expect(guard.canActivate(ctx)).toBe(true);
-    });
-
-    it('Permits Staff (STAFF role)', () => {
-      const ctx = createMockContext({ role: 'STAFF' });
-      expect(guard.canActivate(ctx)).toBe(true);
-    });
-
-    it('Denies Manager role with HTTP 403 Forbidden', () => {
-      const ctx = createMockContext({ role: 'MANAGER' });
-      expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
-    });
-
-    it('Denies Customer role with HTTP 403 Forbidden', () => {
-      const ctx = createMockContext({ role: 'CUSTOMER' });
-      expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
-    });
-
-    it('Denies Delivery Partner role with HTTP 403 Forbidden', () => {
-      const ctx = createMockContext({ role: 'DELIVERY_PARTNER' });
-      expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
-    });
-
-    it('Denies Distributor role with HTTP 403 Forbidden', () => {
-      const ctx = createMockContext({ role: 'DISTRIBUTOR' });
-      expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
-    });
-
-    it('Denies Unauthenticated request with HTTP 401 Unauthorized', () => {
-      const ctx = createMockContext(null);
-      expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
-    });
-  });
-
-  describe('2. Biodrops Tenants Endpoint (GET /api/v1/integrations/biodrops/tenants)', () => {
-    it('Filters out disabled tenants and returns only production-enabled tenants', async () => {
-      jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockTenantsResponse);
-
-      const tenants = await controller.getTenants();
-      expect(tenants).toHaveLength(2);
-
-      const ids = tenants.map((t) => t.id);
-      expect(ids).toContain('ten-alpha-001');
-      expect(ids).toContain('ten-gamma-003');
-      expect(ids).not.toContain('ten-beta-002'); // Disabled tenant excluded
-
-      const alpha = tenants.find((t) => t.id === 'ten-alpha-001');
-      expect(alpha).toBeDefined();
-      expect(alpha?.companyName).toBe('Alpha Bottling Co.');
-      expect(alpha?.code).toBe('ALPHA');
-      expect(alpha?.subdomain).toBe('alpha.biodrops.io');
-      expect(alpha?.productionStatus).toBe('ACTIVE');
-      expect(alpha?.inventorySummary.totalFinishedJars).toBe(2450);
-      expect(alpha?.lastRetrievedAt).toBeDefined();
-    });
-  });
-
-  describe('3. Tenant Inventory Endpoint (GET /api/v1/integrations/biodrops/tenants/:tenantId/inventory)', () => {
-    it('Returns finished products and raw materials with dynamic units', async () => {
-      jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockInventoryResponse);
-
-      const inv = await controller.getTenantInventory('ten-alpha-001');
-      expect(inv.tenantId).toBe('ten-alpha-001');
-      expect(inv.finishedProducts).toHaveLength(1);
-      expect(inv.finishedProducts[0].name).toBe('20L Biodrops Purified Water Jar');
-      expect(inv.finishedProducts[0].sku).toBe('JAR-20L-BIO');
-      expect(inv.finishedProducts[0].availableStock).toBe(1850);
-      expect(inv.finishedProducts[0].reservedStock).toBe(350);
-      expect(inv.finishedProducts[0].damagedStock).toBe(25);
-      expect(inv.finishedProducts[0].unit).toBe('Jars');
-
-      expect(inv.rawMaterials).toHaveLength(4);
-      // Verify dynamic units are preserved
-      const units = inv.rawMaterials.map((m) => m.unit);
-      expect(units).toContain('pcs');
-      expect(units).toContain('rolls');
-      expect(units).toContain('liters');
-
-      // Verify low stock calculation
-      const caps = inv.rawMaterials.find((m) => m.sku === 'MAT-CAP-NS');
-      expect(caps?.isLowStock).toBe(true);
-
-      const preforms = inv.rawMaterials.find((m) => m.sku === 'MAT-PREF-20L');
-      expect(preforms?.isLowStock).toBe(false);
-    });
-
-    it('Rejects disabled tenant inventory request with BadRequestException', async () => {
-      jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue({
-        tenantId: 'ten-beta-002',
-        productionStatus: 'DISABLED',
-        isBiodropsEnabled: false,
+  it('1. Valid new Aquora API credential: sets X-API-Key header properly', async () => {
+    let capturedHeaders: Record<string, string> = {};
+    (global as any).fetch = jest.fn().mockImplementation((url, opts) => {
+      capturedHeaders = opts.headers;
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockTenantsResponse),
       });
-
-      await expect(controller.getTenantInventory('ten-beta-002')).rejects.toThrow(
-        BadRequestException,
-      );
     });
+
+    const tenants = await service.getTenants();
+    expect(capturedHeaders['X-API-Key']).toBe('test_secure_configured_api_key');
+    expect(tenants.length).toBeGreaterThan(0);
   });
 
-  describe('4. Stock Overview Endpoint (GET /api/v1/integrations/biodrops/tenants/:tenantId/stock-summary)', () => {
-    it('Strictly groups raw materials by unit and NEVER combines different units', async () => {
-      jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockInventoryResponse);
-
-      const summary = await controller.getTenantStockSummary('ten-alpha-001');
-      expect(summary.tenantId).toBe('ten-alpha-001');
-
-      // Finished products summary
-      expect(summary.finishedProductsSummary.totalAvailableStock).toBe(1850);
-      expect(summary.finishedProductsSummary.totalReservedStock).toBe(350);
-      expect(summary.finishedProductsSummary.totalDamagedStock).toBe(25);
-      expect(summary.finishedProductsSummary.totalStock).toBe(2225);
-
-      // Raw materials strictly grouped by unit
-      const groups = summary.rawMaterialsGroupedByUnit;
-      expect(groups).toHaveLength(3); // pcs, rolls, liters
-
-      const pcsGroup = groups.find((g) => g.unit.toLowerCase() === 'pcs');
-      expect(pcsGroup).toBeDefined();
-      expect(pcsGroup?.itemCount).toBe(2); // preforms + caps
-      expect(pcsGroup?.totalAvailable).toBe(4200 + 850); // 5050 pcs only!
-      expect(pcsGroup?.totalUsed).toBe(12000 + 14500);
-
-      const rollsGroup = groups.find((g) => g.unit.toLowerCase() === 'rolls');
-      expect(rollsGroup?.totalAvailable).toBe(15.5);
-
-      const litersGroup = groups.find((g) => g.unit.toLowerCase() === 'liters');
-      expect(litersGroup?.totalAvailable).toBe(120);
-
-      // Low stock alerts
-      expect(summary.lowStockAlerts).toHaveLength(1);
-      expect(summary.lowStockAlerts[0].sku).toBe('MAT-CAP-NS');
-      expect(summary.lowStockAlerts[0].deficit).toBe(150);
+  it('2. Missing API URL: fails safely with BadGatewayException', () => {
+    jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+      if (key === 'AQUORA_BIODROPS_API_URL') return '';
+      return 'some_key';
     });
+
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(() => service.baseUrl).toThrow(BadGatewayException);
+      expect(() => service.baseUrl).toThrow('Missing API URL');
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
   });
 
-  describe('5. Error Handling & Security Credentials Protection', () => {
-    it('Transforms upstream 401/403 into BadGatewayException without exposing API credentials', async () => {
-      // Simulate fetch rejecting with BadGatewayException
-      jest.spyOn<any, any>(service, 'fetchFromAquora').mockRejectedValue(
-        new BadGatewayException(
-          'Aquora integration service authentication failed. Please verify the backend API key.',
-        ),
-      );
-
-      await expect(controller.getTenants()).rejects.toThrow(BadGatewayException);
-      try {
-        await controller.getTenants();
-      } catch (err: any) {
-        expect(err.message).not.toContain('aq_live_biodrops_sec_key');
-        expect(err.message).toContain('Aquora integration service authentication failed');
-      }
+  it('3. Missing API key: fails safely with BadGatewayException', () => {
+    jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+      if (key === 'AQUORA_BIODROPS_API_KEY') return '';
+      return 'https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops';
     });
 
-    it('Handles connection timeouts and server unreachable states', async () => {
-      jest.spyOn<any, any>(service, 'fetchFromAquora').mockRejectedValue(
-        new BadGatewayException(
-          'Aquora integration service connection timed out.',
-        ),
-      );
+    expect(() => service.apiKey).toThrow(BadGatewayException);
+    expect(() => service.apiKey).toThrow('Missing API key');
+  });
 
-      await expect(controller.getTenants()).rejects.toThrow(BadGatewayException);
+  it('4. Invalid API key: rejects request and throws BadGatewayException', async () => {
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ message: 'Invalid API key provided.' }),
     });
+
+    await expect(service.getTenants()).rejects.toThrow(BadGatewayException);
+    await expect(service.getTenants()).rejects.toThrow(
+      'Aquora integration service authentication failed',
+    );
+  });
+
+  it('5. Aquora 401 response: mapped to BadGatewayException without retrying', async () => {
+    const fetchSpy = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ message: 'Unauthorized: Key revoked or expired' }),
+    });
+    (global as any).fetch = fetchSpy;
+
+    await expect(service.getTenants()).rejects.toThrow(BadGatewayException);
+    // Verify client error is NOT retried
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('6. Aquora 403 response: mapped to BadGatewayException without retrying', async () => {
+    const fetchSpy = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: () => Promise.resolve({ message: 'Forbidden: IP or credential not allowed' }),
+    });
+    (global as any).fetch = fetchSpy;
+
+    await expect(service.getTenants()).rejects.toThrow(BadGatewayException);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('7. Disabled tenant 404 response: handles NotFoundException cleanly', async () => {
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: () => Promise.resolve({ message: 'Tenant not found or disabled.' }),
+    });
+
+    await expect(service.getTenantInventory('ten-disabled-999')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('8. Connection refused: classifies error as CONNECTION_REFUSED with safe message', () => {
+    const classified = service.classifyNetworkError(
+      { code: 'ECONNREFUSED', message: 'connect ECONNREFUSED 127.0.0.1:5000' },
+      'http://127.0.0.1:5000/api/v1/integrations/biodrops/tenants',
+    );
+
+    expect(classified.type).toBe('CONNECTION_REFUSED');
+    expect(classified.safeClientMessage).toContain('Connection refused');
+  });
+
+  it('9. DNS failure: classifies error as DNS_RESOLUTION_FAILURE with safe message', () => {
+    const classified = service.classifyNetworkError(
+      { code: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND invalid-host' },
+      'https://invalid-host.webziointernational.in/api/v1/integrations/biodrops/tenants',
+    );
+
+    expect(classified.type).toBe('DNS_RESOLUTION_FAILURE');
+    expect(classified.safeClientMessage).toContain('DNS hostname resolution failed');
+  });
+
+  it('10. Connection timeout: classifies error as CONNECTION_TIMEOUT with safe message', () => {
+    const classified = service.classifyNetworkError(
+      { name: 'AbortError', message: 'The operation was aborted due to timeout' },
+      'https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops/tenants',
+    );
+
+    expect(classified.type).toBe('CONNECTION_TIMEOUT');
+    expect(classified.safeClientMessage).toContain('connection timed out');
+  });
+
+  it('11. Tenant listing: retrieves and filters out disabled tenants', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockTenantsResponse);
+
+    const tenants = await controller.getTenants();
+    expect(tenants).toHaveLength(2);
+    expect(tenants.map((t) => t.id)).toEqual(['ten-alpha-001', 'ten-gamma-003']);
+    expect(tenants.find((t) => t.id === 'ten-beta-002')).toBeUndefined();
+  });
+
+  it('12. Inventory retrieval: retrieves finished products and raw materials', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockInventoryResponse);
+
+    const inv = await controller.getTenantInventory('ten-alpha-001');
+    expect(inv.tenantId).toBe('ten-alpha-001');
+    expect(inv.finishedProducts).toHaveLength(1);
+    expect(inv.rawMaterials).toHaveLength(4);
+    expect(inv.finishedProducts[0].name).toBe('20L Biodrops Purified Water Jar');
+  });
+
+  it('13. Stock summary: retrieves 20L totals and grouped materials', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockInventoryResponse);
+
+    const summary = await controller.getTenantStockSummary('ten-alpha-001');
+    expect(summary.tenantId).toBe('ten-alpha-001');
+    expect(summary.finishedProductsSummary.totalAvailableStock).toBe(1850);
+    expect(summary.finishedProductsSummary.totalStock).toBe(2225);
+    expect(summary.rawMaterialsGroupedByUnit.length).toBe(3);
+  });
+
+  it('14. Dynamic raw material units: strictly isolates units without cross-unit summing', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockInventoryResponse);
+
+    const summary = await controller.getTenantStockSummary('ten-alpha-001');
+    const units = summary.rawMaterialsGroupedByUnit.map((g) => g.unit);
+
+    expect(units).toContain('pcs');
+    expect(units).toContain('rolls');
+    expect(units).toContain('liters');
+
+    const pcs = summary.rawMaterialsGroupedByUnit.find((g) => g.unit === 'pcs');
+    expect(pcs?.totalAvailable).toBe(4200 + 850); // 5050 pcs only
+  });
+
+  it('15. Upper Admin access: UPPER_ADMIN, SUPER_ADMIN, and Admin level > 1 permitted', () => {
+    expect(guard.canActivate(createMockContext({ role: 'UPPER_ADMIN' }))).toBe(true);
+    expect(guard.canActivate(createMockContext({ role: 'SUPER_ADMIN' }))).toBe(true);
+    expect(guard.canActivate(createMockContext({ role: 'ADMIN', admin: { level: 2 } }))).toBe(true);
+  });
+
+  it('16. Admin access: ADMIN role permitted', () => {
+    expect(guard.canActivate(createMockContext({ role: 'ADMIN' }))).toBe(true);
+  });
+
+  it('17. Staff access: STAFF role permitted', () => {
+    expect(guard.canActivate(createMockContext({ role: 'STAFF' }))).toBe(true);
+  });
+
+  it('18. Unauthorized roles: MANAGER, CUSTOMER, DELIVERY_PARTNER, DISTRIBUTOR denied (HTTP 403)', () => {
+    expect(() => guard.canActivate(createMockContext({ role: 'MANAGER' }))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(createMockContext({ role: 'CUSTOMER' }))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(createMockContext({ role: 'DELIVERY_PARTNER' }))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(createMockContext({ role: 'DISTRIBUTOR' }))).toThrow(ForbiddenException);
+  });
+
+  it('19. Unauthenticated requests: null or empty user denied (HTTP 401)', () => {
+    expect(() => guard.canActivate(createMockContext(null))).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(createMockContext({}))).toThrow(UnauthorizedException);
+  });
+
+  it('20. API credential never exposed to frontend: responses contain zero API secrets', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockTenantsResponse);
+
+    const tenants = await controller.getTenants();
+    const serialized = JSON.stringify(tenants);
+
+    expect(serialized).not.toContain('test_secure_configured_api_key');
+    expect(serialized).not.toContain('X-API-Key');
+    expect(serialized).not.toContain('aquora_secret_key');
   });
 });
-

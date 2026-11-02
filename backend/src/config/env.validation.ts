@@ -158,6 +158,33 @@ export function validateEnvironment(): void {
     );
   }
 
+  const isProd =
+    process.env.NODE_ENV === 'production' ||
+    process.env.VERCEL_ENV === 'production' ||
+    process.env.VERCEL === '1' ||
+    Boolean(process.env.RAILWAY_ENVIRONMENT);
+
+  const aquoraUrl = process.env.AQUORA_BIODROPS_API_URL?.trim();
+  const aquoraKey = process.env.AQUORA_BIODROPS_API_KEY?.trim();
+
+  if (isProd && aquoraUrl) {
+    if (aquoraUrl.includes('localhost') || aquoraUrl.includes('127.0.0.1')) {
+      errors.push(
+        '  [invalid] AQUORA_BIODROPS_API_URL - loopback address (localhost/127.0.0.1) is not permitted in production',
+      );
+    }
+    if (!aquoraUrl.startsWith('https://')) {
+      errors.push(
+        '  [invalid] AQUORA_BIODROPS_API_URL - secure HTTPS protocol is required in production',
+      );
+    }
+    if (!aquoraKey) {
+      warnings.push(
+        '  [warning] AQUORA_BIODROPS_API_KEY - not configured while AQUORA_BIODROPS_API_URL is set (integration will be inactive)',
+      );
+    }
+  }
+
   if (warnings.length > 0) {
     console.warn('\nEnvironment warnings (non-fatal):');
     warnings.forEach((warning) => console.warn(warning));

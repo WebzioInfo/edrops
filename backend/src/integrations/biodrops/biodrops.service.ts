@@ -6,7 +6,9 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '../../config/config.service';
 import {
   BiodropsTenant,
   TenantInventoryResponse,
@@ -17,31 +19,130 @@ import {
 } from './biodrops.types';
 
 @Injectable()
-export class BiodropsService {
+export class BiodropsService implements OnModuleInit {
   private readonly logger = new Logger(BiodropsService.name);
 
   /**
-   * Base URL for the Aquora Biodrops API from environment configuration.
+   * Expected default production endpoint for the Aquora Biodrops API.
    */
-  private get baseUrl(): string {
-    return (
-      process.env.AQUORA_BIODROPS_API_URL?.trim().replace(/\/$/, '') ||
-      'http://127.0.0.1:5000/api/v1/integrations/biodrops'
-    );
+  public static readonly DEFAULT_PRODUCTION_URL =
+    'https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops';
+
+  constructor(private readonly configService: ConfigService) {}
+
+  /**
+   * Startup configuration validation.
+   * Runs during NestJS bootstrap to verify configuration safety without leaking secrets.
+   */
+  onModuleInit() {
+    const isProd =
+      process.env.NODE_ENV === 'production' ||
+      process.env.VERCEL_ENV === 'production' ||
+      process.env.VERCEL === '1' ||
+      Boolean(process.env.RAILWAY_ENVIRONMENT);
+
+    const rawUrl = this.configService.get<string>('AQUORA_BIODROPS_API_URL')?.trim();
+    const rawKey = this.configService.get<string>('AQUORA_BIODROPS_API_KEY')?.trim();
+
+    if (!rawUrl && !rawKey) {
+      this.logger.log('Aquora Biodrops Integration: Unconfigured (optional module idle)');
+      return;
+    }
+
+    if (rawUrl && !rawKey) {
+      this.logger.warn(
+        'Aquora Biodrops Integration: AQUORA_BIODROPS_API_URL is configured but AQUORA_BIODROPS_API_KEY is missing.',
+      );
+    } else if (!rawUrl && rawKey) {
+      this.logger.warn(
+        'Aquora Biodrops Integration: AQUORA_BIODROPS_API_KEY is configured but AQUORA_BIODROPS_API_URL is missing.',
+      );
+    } else {
+      try {
+        const parsed = new URL(rawUrl!);
+        if (isProd && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')) {
+          this.logger.error(
+            '[CONFIG_VALIDATION] Loopback address detected in production for AQUORA_BIODROPS_API_URL.',
+          );
+        } else {
+          this.logger.log(
+            `Aquora Biodrops Integration: Ready (Target host: ${parsed.hostname}, Key: Configured)`,
+          );
+        }
+      } catch {
+        this.logger.error('[CONFIG_VALIDATION] AQUORA_BIODROPS_API_URL is an invalid URL format.');
+      }
+    }
   }
 
   /**
-   * Secret API key sent strictly server-side via X-API-Key header.
+   * Base URL for the Aquora Biodrops API read from ConfigService.
+   * In production, protects against accidental loopback address misconfigurations and enforces HTTPS.
    */
-  private get apiKey(): string {
-    return process.env.AQUORA_BIODROPS_API_KEY?.trim() || '';
+  public get baseUrl(): string {
+    const raw = this.configService.get<string>('AQUORA_BIODROPS_API_URL')?.trim();
+    const isProd =
+      process.env.NODE_ENV === 'production' ||
+      process.env.VERCEL_ENV === 'production' ||
+      process.env.VERCEL === '1' ||
+      Boolean(process.env.RAILWAY_ENVIRONMENT);
+
+    if (!raw) {
+      if (isProd) {
+        this.logger.error('[CONFIG_ERROR] AQUORA_BIODROPS_API_URL is missing in production.');
+        throw new BadGatewayException(
+          'Aquora integration service is not configured. Missing API URL.',
+        );
+      }
+      return BiodropsService.DEFAULT_PRODUCTION_URL;
+    }
+
+    const clean = raw.replace(/\/$/, '');
+
+    // In production environments, loopback addresses are unreachable and insecure
+    if (isProd) {
+      if (clean.includes('localhost') || clean.includes('127.0.0.1')) {
+        this.logger.error(
+          `[CONFIG_ERROR] Loopback address "${clean}" cannot be used in a production environment.`,
+        );
+        throw new BadGatewayException(
+          'Invalid Aquora configuration: Loopback address is not permitted in production.',
+        );
+      }
+      if (!clean.startsWith('https://')) {
+        this.logger.error(
+          `[CONFIG_ERROR] Production requires secure HTTPS protocol for Aquora integration.`,
+        );
+        throw new BadGatewayException(
+          'Invalid Aquora configuration: HTTPS protocol is required in production.',
+        );
+      }
+    }
+
+    return clean;
+  }
+
+  /**
+   * Secret API key read from ConfigService.
+   * Sent strictly server-side via X-API-Key header.
+   * Never falls back to a hardcoded key.
+   */
+  public get apiKey(): string {
+    const key = this.configService.get<string>('AQUORA_BIODROPS_API_KEY')?.trim();
+    if (!key) {
+      this.logger.error('[CONFIG_ERROR] AQUORA_BIODROPS_API_KEY is not configured on the backend.');
+      throw new BadGatewayException(
+        'Aquora integration service is not configured. Missing API key.',
+      );
+    }
+    return key;
   }
 
   /**
    * Normalizes upstream endpoint URL.
-   * Supports base URLs with or without '/api/v1/integrations/biodrops'.
+   * Handles bases with or without '/api/v1/integrations/biodrops'.
    */
-  private buildUrl(endpoint: string): string {
+  public buildUrl(endpoint: string): string {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     let base = this.baseUrl;
 
@@ -57,12 +158,22 @@ export class BiodropsService {
   }
 
   /**
-   * Classifies network-level errors to log precise diagnostic reasons.
+   * Classifies network-level errors to log precise diagnostic reasons without leaking secrets.
    */
-  private classifyNetworkError(
+  public classifyNetworkError(
     err: any,
-    sanitizedUrl: string,
+    targetUrl: string,
   ): { type: string; message: string; safeClientMessage: string } {
+    let hostname = 'unknown-host';
+    let pathname = 'unknown-path';
+    try {
+      const parsed = new URL(targetUrl);
+      hostname = parsed.hostname;
+      pathname = parsed.pathname;
+    } catch {
+      // URL parsing failed
+    }
+
     const msg = String(err?.message || '');
     const code = String(err?.code || err?.cause?.code || '');
     const name = String(err?.name || err?.cause?.name || '');
@@ -75,7 +186,7 @@ export class BiodropsService {
     ) {
       return {
         type: 'CONNECTION_TIMEOUT',
-        message: `Connection timed out after 10000ms while reaching Aquora API at ${sanitizedUrl}.`,
+        message: `Connection timed out after 10000ms reaching host "${hostname}" on path "${pathname}".`,
         safeClientMessage:
           'Aquora integration service connection timed out. Upstream server may be slow or overloaded.',
       };
@@ -84,7 +195,7 @@ export class BiodropsService {
     if (code === 'ECONNREFUSED' || msg.includes('ECONNREFUSED')) {
       return {
         type: 'CONNECTION_REFUSED',
-        message: `Connection refused at ${sanitizedUrl}. Ensure Aquora backend is running and listening on the configured address/port.`,
+        message: `Connection refused by host "${hostname}" on path "${pathname}". Verify that Aquora backend is running and reachable from this network environment.`,
         safeClientMessage:
           'Unable to connect to Aquora service: Connection refused. Verify that the Aquora server is active and reachable.',
       };
@@ -98,7 +209,7 @@ export class BiodropsService {
     ) {
       return {
         type: 'DNS_RESOLUTION_FAILURE',
-        message: `DNS resolution failed for ${sanitizedUrl}. Hostname could not be resolved.`,
+        message: `DNS resolution failed for host "${hostname}" on path "${pathname}". Hostname could not be resolved.`,
         safeClientMessage:
           'Unable to reach Aquora service: DNS hostname resolution failed. Verify AQUORA_BIODROPS_API_URL.',
       };
@@ -115,7 +226,7 @@ export class BiodropsService {
     ) {
       return {
         type: 'TLS_SSL_FAILURE',
-        message: `TLS/SSL handshake failure for ${sanitizedUrl}: ${msg}`,
+        message: `TLS/SSL handshake failure for host "${hostname}" on path "${pathname}": ${msg}`,
         safeClientMessage:
           'TLS/SSL connection failure when connecting to Aquora service. Verify HTTPS certificates.',
       };
@@ -123,19 +234,26 @@ export class BiodropsService {
 
     return {
       type: 'NETWORK_FAILURE',
-      message: `Network communication failure with Aquora API at ${sanitizedUrl}: ${msg || 'fetch failed'} (code: ${code || 'UNKNOWN'})`,
+      message: `Network communication failure with host "${hostname}" on path "${pathname}": ${msg || 'fetch failed'} (code: ${code || 'UNKNOWN'})`,
       safeClientMessage:
         'Unable to communicate with Aquora Biodrops integration service. Network failure.',
     };
   }
 
   /**
-   * Internal HTTP proxy helper to connect securely to Aquora Biodrops API.
-   * Sends X-API-Key server-side, logs diagnostics, and enforces timeouts.
+   * Internal execution of an individual HTTP request attempt.
    */
-  private async fetchFromAquora<T>(endpoint: string): Promise<T> {
+  public async executeFetch<T>(endpoint: string): Promise<T> {
     const url = this.buildUrl(endpoint);
-    const sanitizedUrl = url.split('?')[0];
+    let hostname = 'unknown-host';
+    let pathname = 'unknown-path';
+    try {
+      const parsed = new URL(url);
+      hostname = parsed.hostname;
+      pathname = parsed.pathname;
+    } catch {
+      // URL parsing failed
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
@@ -143,15 +261,14 @@ export class BiodropsService {
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      'User-Agent': 'eDrops-Backend-Integration/1.0',
+      'User-Agent': 'eDrops-Backend-Production/1.0',
     };
 
-    if (this.apiKey) {
-      headers['X-API-Key'] = this.apiKey;
-    }
+    // Forward API key via X-API-Key (Aquora hardened auth)
+    headers['X-API-Key'] = this.apiKey;
 
     try {
-      this.logger.log(`Dispatching Aquora API request: GET ${sanitizedUrl}`);
+      this.logger.log(`Dispatching Aquora API request: GET https://${hostname}${pathname}`);
       const response = await fetch(url, {
         method: 'GET',
         headers,
@@ -175,17 +292,19 @@ export class BiodropsService {
         // 1. HTTP 401 / 403: Invalid or revoked API key
         if (response.status === 401 || response.status === 403) {
           this.logger.error(
-            `[HTTP_AUTH_FAILURE] Aquora rejected API key with status ${response.status} at ${sanitizedUrl}. Message: ${upstreamMessage}`,
+            `[HTTP_AUTH_FAILURE] Aquora rejected API key with status ${response.status} from host "${hostname}" on path "${pathname}". Message: ${upstreamMessage}`,
           );
-          throw new BadGatewayException(
+          const authErr = new BadGatewayException(
             'Aquora integration service authentication failed. Invalid or revoked API key.',
           );
+          (authErr as any).upstreamStatus = response.status;
+          throw authErr;
         }
 
         // 2. HTTP 404: Resource not found
         if (response.status === 404) {
           this.logger.warn(
-            `[HTTP_NOT_FOUND] Aquora resource not found at ${sanitizedUrl}: ${upstreamMessage}`,
+            `[HTTP_NOT_FOUND] Aquora resource not found from host "${hostname}" on path "${pathname}": ${upstreamMessage}`,
           );
           throw new NotFoundException(
             upstreamMessage || 'Requested tenant or inventory resource not found in Aquora.',
@@ -195,7 +314,7 @@ export class BiodropsService {
         // 3. HTTP 429: Rate limit exceeded
         if (response.status === 429) {
           this.logger.warn(
-            `[HTTP_RATE_LIMITED] Aquora API rate limit exceeded at ${sanitizedUrl}. Upstream message: ${upstreamMessage}`,
+            `[HTTP_RATE_LIMITED] Aquora API rate limit exceeded from host "${hostname}" on path "${pathname}". Upstream message: ${upstreamMessage}`,
           );
           throw new HttpException(
             'Aquora integration service rate limit exceeded. Please retry shortly.',
@@ -206,14 +325,14 @@ export class BiodropsService {
         // 4. HTTP 400: Bad Request
         if (response.status === 400) {
           this.logger.warn(
-            `[HTTP_BAD_REQUEST] Aquora rejected request at ${sanitizedUrl}: ${upstreamMessage}`,
+            `[HTTP_BAD_REQUEST] Aquora rejected request from host "${hostname}" on path "${pathname}": ${upstreamMessage}`,
           );
           throw new BadRequestException(upstreamMessage);
         }
 
         // 5. HTTP 500 / 5xx: Server Error
         this.logger.error(
-          `[HTTP_SERVER_ERROR] Aquora internal server error (${response.status}) at ${sanitizedUrl}: ${upstreamMessage}`,
+          `[HTTP_SERVER_ERROR] Aquora internal server error (${response.status}) from host "${hostname}" on path "${pathname}": ${upstreamMessage}`,
         );
         throw new BadGatewayException(
           `Aquora integration service returned an error (${response.status}).`,
@@ -232,12 +351,48 @@ export class BiodropsService {
         throw err;
       }
 
-      const classified = this.classifyNetworkError(err, sanitizedUrl);
+      const classified = this.classifyNetworkError(err, url);
       this.logger.error(`[${classified.type}] ${classified.message}`);
       throw new BadGatewayException(classified.safeClientMessage);
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  /**
+   * Internal HTTP proxy helper with single transient retry for network hiccups.
+   * Client errors (400, 401, 403, 404, 429) are never retried.
+   */
+  public async fetchFromAquora<T>(endpoint: string): Promise<T> {
+    let lastError: any = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        return await this.executeFetch<T>(endpoint);
+      } catch (err: any) {
+        lastError = err;
+        // Do not retry client errors (400, 401, 403, 404, 429)
+        if (
+          err?.upstreamStatus === 401 ||
+          err?.upstreamStatus === 403 ||
+          err instanceof NotFoundException ||
+          err instanceof BadRequestException ||
+          (err instanceof HttpException &&
+            (err.getStatus() === 401 ||
+              err.getStatus() === 403 ||
+              err.getStatus() === 429))
+        ) {
+          throw err;
+        }
+
+        if (attempt < 2) {
+          this.logger.warn(
+            `Aquora request attempt ${attempt} encountered transient error (${err.message}). Retrying in 500ms...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+    }
+    throw lastError;
   }
 
   /**
@@ -379,9 +534,10 @@ export class BiodropsService {
 
     const materials: RawMaterialItem[] = rawMaterials.map((item) => {
       const available = Number(item.availableQuantity ?? item.availableStock ?? item.available ?? 0);
-      const reorder = item.reorderLevel !== null && item.reorderLevel !== undefined
-        ? Number(item.reorderLevel)
-        : 0;
+      const reorder =
+        item.reorderLevel !== null && item.reorderLevel !== undefined
+          ? Number(item.reorderLevel)
+          : 0;
 
       return {
         id: item.materialId || item.id ? String(item.materialId || item.id) : undefined,

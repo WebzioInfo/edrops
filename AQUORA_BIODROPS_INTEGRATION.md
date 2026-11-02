@@ -10,15 +10,15 @@ This document outlines the complete architectural implementation and upstream co
 ### Root Cause of Initial HTTP 502 Failures:
 - Initial default assumed port was `3001` with an unaligned demo API key.
 - The actual running Aquora .NET Core API (`Aquora.API.exe`) listens on port **`5000`** (`http://127.0.0.1:5000`).
-- The configured integration API key in Aquora's `appsettings.json` is **`biodrops_live_secret_key_2026`**.
+- The integration uses environment-driven API key authentication validated against Aquora.
 
 ### Current Configuration (`backend/.env`):
 ```env
 # ==============================================================================
 # AQUORA BIODROPS PRODUCTION API INTEGRATION
 # ==============================================================================
-AQUORA_BIODROPS_API_URL=http://127.0.0.1:5000/api/v1/integrations/biodrops
-AQUORA_BIODROPS_API_KEY=biodrops_live_secret_key_2026
+AQUORA_BIODROPS_API_URL=https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops
+AQUORA_BIODROPS_API_KEY=<configured_aquora_api_key>
 ```
 
 ### Enhanced Error Classification & Logging:

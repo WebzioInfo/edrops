@@ -27,7 +27,7 @@ export class BiodropsRoleGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user) {
+    if (!user || Object.keys(user).length === 0) {
       throw new UnauthorizedException('Authentication required');
     }
 
