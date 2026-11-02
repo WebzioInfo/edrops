@@ -26,9 +26,9 @@ export class BiodropsService implements OnModuleInit {
    * Expected default production endpoint for the Aquora Biodrops API.
    */
   public static readonly DEFAULT_PRODUCTION_URL =
-    'https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops';
+    'https://aquzio-backend.webziotech.in/api/v1/integrations/biodrops';
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   /**
    * Startup configuration validation.
@@ -80,7 +80,7 @@ export class BiodropsService implements OnModuleInit {
    * In production, protects against accidental loopback address misconfigurations and enforces HTTPS.
    */
   public get baseUrl(): string {
-    const raw = this.configService.get<string>('AQUORA_BIODROPS_API_URL')?.trim();
+    const raw = (this.configService.get<string>('AQUZIO_BIODROPS_API_URL') || this.configService.get<string>('AQUORA_BIODROPS_API_URL'))?.trim();
     const isProd =
       process.env.NODE_ENV === 'production' ||
       process.env.VERCEL_ENV === 'production' ||
@@ -128,7 +128,7 @@ export class BiodropsService implements OnModuleInit {
    * Never falls back to a hardcoded key.
    */
   public get apiKey(): string {
-    const key = this.configService.get<string>('AQUORA_BIODROPS_API_KEY')?.trim();
+    const key = (this.configService.get<string>('AQUZIO_BIODROPS_API_KEY') || this.configService.get<string>('AQUORA_BIODROPS_API_KEY'))?.trim();
     if (!key) {
       this.logger.error('[CONFIG_ERROR] AQUORA_BIODROPS_API_KEY is not configured on the backend.');
       throw new BadGatewayException(
@@ -295,7 +295,7 @@ export class BiodropsService implements OnModuleInit {
             `[HTTP_AUTH_FAILURE] Aquora rejected API key with status ${response.status} from host "${hostname}" on path "${pathname}". Message: ${upstreamMessage}`,
           );
           const authErr = new BadGatewayException(
-            'Aquora integration service authentication failed. Invalid or revoked API key.',
+            'Aquzio integration service authentication failed (formerly Aquora integration service authentication failed). Invalid or revoked API key.',
           );
           (authErr as any).upstreamStatus = response.status;
           throw authErr;
@@ -363,7 +363,49 @@ export class BiodropsService implements OnModuleInit {
    * Internal HTTP proxy helper with single transient retry for network hiccups.
    * Client errors (400, 401, 403, 404, 429) are never retried.
    */
+  /**
+   * Primary Aquzio HTTP client proxy with transient retry support.
+   */
+  public async fetchFromAquzio<T>(endpoint: string): Promise<T> {
+    let lastError: any = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        return await this.executeFetch<T>(endpoint);
+      } catch (err: any) {
+        lastError = err;
+        // Do not retry client errors (400, 401, 403, 404, 429)
+        if (
+          err?.upstreamStatus === 401 ||
+          err?.upstreamStatus === 403 ||
+          err instanceof NotFoundException ||
+          err instanceof BadRequestException ||
+          (err instanceof HttpException &&
+            (err.getStatus() === 401 ||
+              err.getStatus() === 403 ||
+              err.getStatus() === 429))
+        ) {
+          throw err;
+        }
+
+        if (attempt < 2) {
+          this.logger.warn(
+            `Aquzio request attempt ${attempt} encountered transient error (${err.message}). Retrying in 500ms...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Backward-compatible alias for existing test suites and internal callers.
+   */
   public async fetchFromAquora<T>(endpoint: string): Promise<T> {
+    return this.fetchFromAquzio<T>(endpoint);
+  }
+
+  private async fetchWithRetryLegacy<T>(endpoint: string): Promise<T> {
     let lastError: any = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {

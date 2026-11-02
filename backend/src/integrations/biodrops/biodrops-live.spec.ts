@@ -16,7 +16,7 @@ describe('Live Aquora Production Backend Connectivity & Verification', () => {
     // Explicitly configure production Aquora API URL & Key for verification if set in environment
     process.env.AQUORA_BIODROPS_API_URL =
       process.env.AQUORA_BIODROPS_API_URL ||
-      'https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops';
+      'https://aquzio-backend.webziotech.in/api/v1/integrations/biodrops';
 
     const module: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule],

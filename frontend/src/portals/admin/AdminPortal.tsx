@@ -23,6 +23,7 @@ const CustomerForm = React.lazy(() => import('../../pages/CustomerManagement/Cus
 const CreateOrderPOS = React.lazy(() => import('./pages/CreateOrderPOS'));
 const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
 const CentralInventory = React.lazy(() => import('../staff/pages/InventoryAudit'));
+const BiodropsEcosystem = React.lazy(() => import('./pages/BiodropsEcosystem'));
 
 const AdminLoader = () => (
   <div className="flex h-96 items-center justify-center">
@@ -146,6 +147,7 @@ export default function AdminPortal() {
                 <Route path="settings" element={<BusinessSettings />} />
                 <Route path="reports" element={<ReportsCenter />} />
                 <Route path="inventory" element={<CentralInventory />} />
+                <Route path="biodrops/*" element={<BiodropsEcosystem />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="promos" element={<PromoManager />} />
                 <Route path="" element={<Navigate to="customers" replace />} />

@@ -45,7 +45,7 @@ export const AccessDenied: React.FC = () => {
         </h1>
 
         <p className="text-xs text-[#64748B] leading-relaxed mb-6 font-medium">
-          The Aquora Biodrops Integration module is strictly accessible to{' '}
+          The Aquzio Biodrops Integration module is strictly accessible to{' '}
           <strong className="text-[#16324F]">Upper Admin</strong>,{' '}
           <strong className="text-[#16324F]">Admin</strong>, and{' '}
           <strong className="text-[#16324F]">Staff</strong> roles. Your account (

@@ -14,11 +14,11 @@ import {
 import {
   fetchBiodropsTenants,
   fetchTenantStockSummary,
-} from '../../../api/aquora';
+} from '../../../api/aquzio';
 import type {
   BiodropsTenant,
   StockSummaryResponse,
-} from '../../../api/aquora';
+} from '../../../api/aquzio';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { toast } from '../../../utils/toast';
@@ -125,14 +125,14 @@ export const StockOverview: React.FC = () => {
             </span>
           ) : undefined
         }
-        backLink={{ to: '/aquora-integration/biodrops-tenants', label: 'Tenants' }}
+        backLink={{ to: '/aquzio-integration/biodrops-tenants', label: 'Tenants' }}
         secondaryActions={[
           {
             label: 'View Detailed Inventory',
             icon: Package,
             onClick: () =>
               navigate(
-                `/aquora-integration/tenant-inventory?tenantId=${encodeURIComponent(selectedTenantId)}`,
+                `/aquzio-integration/tenant-inventory?tenantId=${encodeURIComponent(selectedTenantId)}`,
               ),
           },
           {

@@ -18,6 +18,7 @@ import {
   ShoppingBag,
   MapPin,
   Award,
+  ShieldCheck,
 } from 'lucide-react';
 
 export interface SidebarNavItem {
@@ -139,6 +140,16 @@ export function getPortalSidebarConfig(
             ],
           },
           {
+            title: 'BIODROPS COMMERCE',
+            items: [
+              {
+                to: '/distributor/biodrops',
+                label: 'Biodrops & Ownership',
+                icon: ShieldCheck,
+              },
+            ],
+          },
+          {
             title: 'PROCUREMENT',
             items: [
               {
@@ -232,6 +243,16 @@ export function getPortalSidebarConfig(
             ],
           },
           {
+            title: 'BIODROPS ECOSYSTEM',
+            items: [
+              {
+                to: '/admin/biodrops',
+                label: 'Biodrops Ecosystem',
+                icon: ShieldCheck,
+              },
+            ],
+          },
+          {
             title: 'MANAGEMENT',
             items: [
               {
@@ -262,20 +283,20 @@ export function getPortalSidebarConfig(
             ],
           },
                     {
-            title: 'AQUORA INTEGRATION',
+            title: 'AQUZIO INTEGRATION',
             items: [
               {
-                to: '/aquora-integration/biodrops-tenants',
+                to: '/aquzio-integration/biodrops-tenants',
                 label: 'Biodrops Tenants',
                 icon: Building2,
               },
               {
-                to: '/aquora-integration/tenant-inventory',
+                to: '/aquzio-integration/tenant-inventory',
                 label: 'Tenant Inventory',
                 icon: ClipboardList,
               },
               {
-                to: '/aquora-integration/stock-overview',
+                to: '/aquzio-integration/stock-overview',
                 label: 'Stock Overview',
                 icon: BarChart3,
               },
@@ -391,23 +412,23 @@ export function getPortalSidebarConfig(
         },
       ];
 
-      // CRITICAL: Aquora Integration menu is displayed ONLY to Staff (not Manager or Operator)
+      // CRITICAL: Aquzio Integration menu is displayed ONLY to Staff (not Manager or Operator)
       if (normalizedKey === 'STAFF') {
         staffSections.push({
-          title: 'AQUORA INTEGRATION',
+          title: 'AQUZIO INTEGRATION',
           items: [
             {
-              to: '/aquora-integration/biodrops-tenants',
+              to: '/aquzio-integration/biodrops-tenants',
               label: 'Biodrops Tenants',
               icon: Building2,
             },
             {
-              to: '/aquora-integration/tenant-inventory',
+              to: '/aquzio-integration/tenant-inventory',
               label: 'Tenant Inventory',
               icon: ClipboardList,
             },
             {
-              to: '/aquora-integration/stock-overview',
+              to: '/aquzio-integration/stock-overview',
               label: 'Stock Overview',
               icon: BarChart3,
             },

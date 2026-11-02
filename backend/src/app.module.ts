@@ -40,6 +40,7 @@ import { DriverModule } from './driver/driver.module';
 import { ProfileModule } from './profile/profile.module';
 import { ConfigModule } from './config/config.module';
 import { BiodropsModule } from './integrations/biodrops/biodrops.module';
+import { BiodropsEcosystemModule } from './biodrops/biodrops.module';
 import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
@@ -83,6 +84,7 @@ import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
     EventsModule,
     ConfigModule,
     BiodropsModule,
+    BiodropsEcosystemModule,
   ],
   controllers: [AppController],
   providers: [AppService],

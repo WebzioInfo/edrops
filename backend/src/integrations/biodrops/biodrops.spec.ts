@@ -136,7 +136,7 @@ describe('Aquora Biodrops Integration Security Audit & Test Suite', () => {
           useValue: {
             get: jest.fn((key: string, defaultValue?: any) => {
               if (key === 'AQUORA_BIODROPS_API_URL') {
-                return 'https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops';
+                return 'https://aquzio-backend.webziotech.in/api/v1/integrations/biodrops';
               }
               if (key === 'AQUORA_BIODROPS_API_KEY') {
                 return 'test_secure_configured_api_key';
@@ -188,7 +188,7 @@ describe('Aquora Biodrops Integration Security Audit & Test Suite', () => {
 
   it('2. Missing API URL: fails safely with BadGatewayException', () => {
     jest.spyOn(configService, 'get').mockImplementation((key: string) => {
-      if (key === 'AQUORA_BIODROPS_API_URL') return '';
+      if (key === 'AQUZIO_BIODROPS_API_URL' || key === 'AQUORA_BIODROPS_API_URL') return '';
       return 'some_key';
     });
 
@@ -204,8 +204,8 @@ describe('Aquora Biodrops Integration Security Audit & Test Suite', () => {
 
   it('3. Missing API key: fails safely with BadGatewayException', () => {
     jest.spyOn(configService, 'get').mockImplementation((key: string) => {
-      if (key === 'AQUORA_BIODROPS_API_KEY') return '';
-      return 'https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops';
+      if (key === 'AQUZIO_BIODROPS_API_KEY' || key === 'AQUORA_BIODROPS_API_KEY') return '';
+      return 'https://aquzio-backend.webziotech.in/api/v1/integrations/biodrops';
     });
 
     expect(() => service.apiKey).toThrow(BadGatewayException);
@@ -275,7 +275,7 @@ describe('Aquora Biodrops Integration Security Audit & Test Suite', () => {
   it('9. DNS failure: classifies error as DNS_RESOLUTION_FAILURE with safe message', () => {
     const classified = service.classifyNetworkError(
       { code: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND invalid-host' },
-      'https://invalid-host.webziointernational.in/api/v1/integrations/biodrops/tenants',
+      'https://invalid-host.webziotech.in/api/v1/integrations/biodrops/tenants',
     );
 
     expect(classified.type).toBe('DNS_RESOLUTION_FAILURE');
@@ -285,7 +285,7 @@ describe('Aquora Biodrops Integration Security Audit & Test Suite', () => {
   it('10. Connection timeout: classifies error as CONNECTION_TIMEOUT with safe message', () => {
     const classified = service.classifyNetworkError(
       { name: 'AbortError', message: 'The operation was aborted due to timeout' },
-      'https://aquora-backend.webziointernational.in/api/v1/integrations/biodrops/tenants',
+      'https://aquzio-backend.webziotech.in/api/v1/integrations/biodrops/tenants',
     );
 
     expect(classified.type).toBe('CONNECTION_TIMEOUT');
@@ -370,5 +370,30 @@ describe('Aquora Biodrops Integration Security Audit & Test Suite', () => {
     expect(serialized).not.toContain('test_secure_configured_api_key');
     expect(serialized).not.toContain('X-API-Key');
     expect(serialized).not.toContain('aquora_secret_key');
+  });
+  it('21. Canonical Aquzio configuration: AQUZIO_* takes precedence over AQUORA_*', () => {
+    jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+      if (key === 'AQUZIO_BIODROPS_API_URL') return 'https://aquzio.custom.in/api/v1/integrations/biodrops';
+      if (key === 'AQUORA_BIODROPS_API_URL') return 'https://legacy-aquora.in/api/v1/integrations/biodrops';
+      if (key === 'AQUZIO_BIODROPS_API_KEY') return 'aquzio_canonical_key';
+      if (key === 'AQUORA_BIODROPS_API_KEY') return 'aquora_legacy_key';
+      return '';
+    });
+
+    expect(service.baseUrl).toBe('https://aquzio.custom.in/api/v1/integrations/biodrops');
+    expect(service.apiKey).toBe('aquzio_canonical_key');
+  });
+
+  it('22. Backward compatibility fallback: AQUORA_* works when AQUZIO_* is unset', () => {
+    jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+      if (key === 'AQUZIO_BIODROPS_API_URL') return '';
+      if (key === 'AQUORA_BIODROPS_API_URL') return 'https://aquzio-backend.webziotech.in/api/v1/integrations/biodrops';
+      if (key === 'AQUZIO_BIODROPS_API_KEY') return '';
+      if (key === 'AQUORA_BIODROPS_API_KEY') return 'fallback_legacy_key';
+      return '';
+    });
+
+    expect(service.baseUrl).toBe('https://aquzio-backend.webziotech.in/api/v1/integrations/biodrops');
+    expect(service.apiKey).toBe('fallback_legacy_key');
   });
 });

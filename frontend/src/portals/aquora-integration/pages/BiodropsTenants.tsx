@@ -11,8 +11,8 @@ import {
   CheckCircle2,
   BarChart3,
 } from 'lucide-react';
-import { fetchBiodropsTenants } from '../../../api/aquora';
-import type { BiodropsTenant } from '../../../api/aquora';
+import { fetchBiodropsTenants } from '../../../api/aquzio';
+import type { BiodropsTenant } from '../../../api/aquzio';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { toast } from '../../../utils/toast';
@@ -76,7 +76,7 @@ export const BiodropsTenants: React.FC = () => {
       {/* ─── PAGE HEADER ────────────────────────────────────────── */}
       <PageHeader
         title="Biodrops Production Tenants"
-        subtitle="Live multi-tenant manufacturing facilities powered by Aquora Biodrops Production API."
+        subtitle="Live multi-tenant manufacturing facilities powered by Aquzio Biodrops Production API."
         badge={
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -333,7 +333,7 @@ export const BiodropsTenants: React.FC = () => {
                   <button
                     type="button"
                     onClick={() =>
-                      navigate(`/aquora-integration/tenant-inventory?tenantId=${encodeURIComponent(tenant.id)}`)
+                      navigate(`/aquzio-integration/tenant-inventory?tenantId=${encodeURIComponent(tenant.id)}`)
                     }
                     className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#1677C8] hover:bg-[#125fa0] text-white rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer active:scale-98"
                   >
@@ -345,7 +345,7 @@ export const BiodropsTenants: React.FC = () => {
                   <button
                     type="button"
                     onClick={() =>
-                      navigate(`/aquora-integration/stock-overview?tenantId=${encodeURIComponent(tenant.id)}`)
+                      navigate(`/aquzio-integration/stock-overview?tenantId=${encodeURIComponent(tenant.id)}`)
                     }
                     className="inline-flex items-center justify-center p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer"
                     title="Stock Overview"
