@@ -196,6 +196,7 @@ export function getPortalSidebarConfig(
         ],
       };
 
+    case 'UPPER_ADMIN':
     case 'SUPER_ADMIN':
     case 'ADMIN':
       return {
@@ -257,6 +258,26 @@ export function getPortalSidebarConfig(
                 to: '/admin/reports',
                 label: 'Reports',
                 icon: FileText,
+              },
+            ],
+          },
+                    {
+            title: 'AQUORA INTEGRATION',
+            items: [
+              {
+                to: '/aquora-integration/biodrops-tenants',
+                label: 'Biodrops Tenants',
+                icon: Building2,
+              },
+              {
+                to: '/aquora-integration/tenant-inventory',
+                label: 'Tenant Inventory',
+                icon: ClipboardList,
+              },
+              {
+                to: '/aquora-integration/stock-overview',
+                label: 'Stock Overview',
+                icon: BarChart3,
               },
             ],
           },
@@ -338,57 +359,84 @@ export function getPortalSidebarConfig(
         icon: BarChart3,
       });
 
+            const staffSections: SidebarNavSection[] = [
+        {
+          title: 'OPERATIONS',
+          items: [
+            {
+              to: '/staff/orders',
+              label: 'Orders',
+              icon: ShoppingCart,
+            },
+            {
+              to: '/staff/customers',
+              label: 'Customers',
+              icon: Users,
+            },
+            {
+              to: '/staff/distributors',
+              label: 'Distributors',
+              icon: Building2,
+            },
+            {
+              to: '/staff/drivers',
+              label: 'Drivers',
+              icon: Truck,
+            },
+          ],
+        },
+        {
+          title: 'MANAGEMENT',
+          items: managementItems,
+        },
+      ];
+
+      // CRITICAL: Aquora Integration menu is displayed ONLY to Staff (not Manager or Operator)
+      if (normalizedKey === 'STAFF') {
+        staffSections.push({
+          title: 'AQUORA INTEGRATION',
+          items: [
+            {
+              to: '/aquora-integration/biodrops-tenants',
+              label: 'Biodrops Tenants',
+              icon: Building2,
+            },
+            {
+              to: '/aquora-integration/tenant-inventory',
+              label: 'Tenant Inventory',
+              icon: ClipboardList,
+            },
+            {
+              to: '/aquora-integration/stock-overview',
+              label: 'Stock Overview',
+              icon: BarChart3,
+            },
+          ],
+        });
+      }
+
+      staffSections.push({
+        title: 'ACCOUNT',
+        items: [
+          {
+            to: '/staff/support',
+            label: 'Support',
+            icon: LifeBuoy,
+          },
+          {
+            to: '/staff/profile',
+            label: 'Profile',
+            icon: User,
+          },
+        ],
+      });
+
       return {
         portalKey: 'staff',
         portalLabel: normalizedKey === 'MANAGER' ? 'MANAGER' : normalizedKey === 'OPERATOR' ? 'OPERATOR' : 'STAFF',
         homePath: '/staff/orders',
         profilePath: '/staff/profile',
-        sections: [
-          {
-            title: 'OPERATIONS',
-            items: [
-              {
-                to: '/staff/orders',
-                label: 'Orders',
-                icon: ShoppingCart,
-              },
-              {
-                to: '/staff/customers',
-                label: 'Customers',
-                icon: Users,
-              },
-              {
-                to: '/staff/distributors',
-                label: 'Distributors',
-                icon: Building2,
-              },
-              {
-                to: '/staff/drivers',
-                label: 'Drivers',
-                icon: Truck,
-              },
-            ],
-          },
-          {
-            title: 'MANAGEMENT',
-            items: managementItems,
-          },
-          {
-            title: 'ACCOUNT',
-            items: [
-              {
-                to: '/staff/support',
-                label: 'Support',
-                icon: LifeBuoy,
-              },
-              {
-                to: '/staff/profile',
-                label: 'Profile',
-                icon: User,
-              },
-            ],
-          },
-        ],
+        sections: staffSections,
       };
     }
 

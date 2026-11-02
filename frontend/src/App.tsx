@@ -20,6 +20,13 @@ const ForgotPassword = React.lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = React.lazy(() => import('./pages/auth/ResetPassword'));
 const SetupPassword = React.lazy(() => import('./pages/auth/SetupPassword'));
 
+// Aquora Biodrops Integration
+const AquoraProtectedRoute = React.lazy(() => import('./components/AquoraProtectedRoute'));
+const AquoraIntegrationLayout = React.lazy(() => import('./portals/aquora-integration/AquoraIntegrationLayout'));
+const BiodropsTenants = React.lazy(() => import('./portals/aquora-integration/pages/BiodropsTenants'));
+const TenantInventory = React.lazy(() => import('./portals/aquora-integration/pages/TenantInventory'));
+const StockOverview = React.lazy(() => import('./portals/aquora-integration/pages/StockOverview'));
+
 import { GlobalCenteredPageLoader, CenteredPageLoader } from './components/common/CenteredPageLoader';
 import PullToRefresh from './components/pwa/PullToRefresh';
 
@@ -114,6 +121,17 @@ export default function App() {
 
                     <Route element={<ProtectedRoute allowedRoles={['DISTRIBUTOR']} />}>
                       <Route path="/distributor/*" element={<DistributorPortal />} />
+                    </Route>
+
+                                        {/* Aquora Biodrops Integration Routes (Upper Admin, Admin, Staff only) */}
+                    <Route element={<AquoraProtectedRoute />}>
+                      <Route path="/aquora-integration" element={<AquoraIntegrationLayout />}>
+                        <Route path="biodrops-tenants" element={<BiodropsTenants />} />
+                        <Route path="tenant-inventory" element={<TenantInventory />} />
+                        <Route path="stock-overview" element={<StockOverview />} />
+                        <Route path="" element={<Navigate to="biodrops-tenants" replace />} />
+                        <Route path="*" element={<Navigate to="biodrops-tenants" replace />} />
+                      </Route>
                     </Route>
 
                     <Route path="/" element={<RootRedirect />} />

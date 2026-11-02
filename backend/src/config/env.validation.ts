@@ -90,6 +90,16 @@ const ENV_SPEC: EnvSpec[] = [
     description: 'WhatsApp API token for business messages',
     required: false,
   },
+  {
+    key: 'AQUORA_BIODROPS_API_URL',
+    description: 'Aquora Biodrops Production API Base URL',
+    required: false,
+  },
+  {
+    key: 'AQUORA_BIODROPS_API_KEY',
+    description: 'Aquora Biodrops Production API Key for server-side auth',
+    required: false,
+  },
 ];
 
 const PLACEHOLDER_PATTERNS = [

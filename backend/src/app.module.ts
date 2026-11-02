@@ -38,6 +38,7 @@ import { SupplierModule } from './supplier/supplier.module';
 import { DistributorModule } from './distributor/distributor.module';
 import { DriverModule } from './driver/driver.module';
 import { ProfileModule } from './profile/profile.module';
+import { BiodropsModule } from './integrations/biodrops/biodrops.module';
 import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
@@ -79,6 +80,7 @@ import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
     DistributorModule,
     DriverModule,
     EventsModule,
+    BiodropsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
