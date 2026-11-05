@@ -142,7 +142,7 @@ export const TenantInventory: React.FC = () => {
     <div className="space-y-5">
       {/* ─── PAGE HEADER ────────────────────────────────────────── */}
       <PageHeader
-        title="Tenant Live Inventory"
+        title="Plant Inventory"
         subtitle="Real-time stock of 20L jars and manufacturing raw materials with dynamic unit tracking."
         badge={
           selectedTenant ? (
@@ -182,7 +182,7 @@ export const TenantInventory: React.FC = () => {
               htmlFor="tenant-select"
               className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block"
             >
-              Selected Production Tenant
+              Selected Production Plant
             </label>
             <div className="relative mt-0.5 min-w-[240px]">
               <select
@@ -230,7 +230,7 @@ export const TenantInventory: React.FC = () => {
       {/* ─── ERROR STATE ────────────────────────────────────────── */}
       {error && (
         <DataErrorState
-          title="Unable to Retrieve Tenant Inventory"
+          title="Unable to Retrieve Plant Inventory"
           message={error}
           onRetry={() => loadInventory(selectedTenantId, true)}
         />

@@ -292,7 +292,7 @@ export function getPortalSidebarConfig(
               // },
               {
                 to: '/aquzio-integration/tenant-inventory',
-                label: 'Tenant Inventory',
+                label: 'Plant Inventory',
                 icon: ClipboardList,
               },
               // {
@@ -424,7 +424,7 @@ export function getPortalSidebarConfig(
             // },
             {
               to: '/aquzio-integration/tenant-inventory',
-              label: 'Tenant Inventory',
+              label: 'Plant Inventory',
               icon: ClipboardList,
             },
             // {
