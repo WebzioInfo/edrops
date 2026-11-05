@@ -123,15 +123,17 @@ export default function App() {
                       <Route path="/distributor/*" element={<DistributorPortal />} />
                     </Route>
 
-                                        {/* Aquora Biodrops Integration Routes (Upper Admin, Admin, Staff only) */}
+                                        {/* Aquzio Biodrops Integration Routes (Upper Admin, Admin, Staff only) */}
                     <Route element={<AquoraProtectedRoute />}>
-                      <Route path="/aquora-integration" element={<AquoraIntegrationLayout />}>
+                      <Route path="/aquzio-integration" element={<AquoraIntegrationLayout />}>
                         <Route path="biodrops-tenants" element={<BiodropsTenants />} />
                         <Route path="tenant-inventory" element={<TenantInventory />} />
                         <Route path="stock-overview" element={<StockOverview />} />
                         <Route path="" element={<Navigate to="biodrops-tenants" replace />} />
                         <Route path="*" element={<Navigate to="biodrops-tenants" replace />} />
                       </Route>
+                      {/* Backward compatibility for legacy /aquora-integration path */}
+                      <Route path="/aquora-integration/*" element={<Navigate to="/aquzio-integration/biodrops-tenants" replace />} />
                     </Route>
 
                     <Route path="/" element={<RootRedirect />} />
