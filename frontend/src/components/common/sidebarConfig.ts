@@ -282,24 +282,24 @@ export function getPortalSidebarConfig(
               },
             ],
           },
-                    {
+          {
             title: 'AQUZIO INTEGRATION',
             items: [
-              {
-                to: '/aquzio-integration/biodrops-tenants',
-                label: 'Biodrops Tenants',
-                icon: Building2,
-              },
+              // {
+              //   to: '/aquzio-integration/biodrops-tenants',
+              //   label: 'Biodrops Tenants',
+              //   icon: Building2,
+              // },
               {
                 to: '/aquzio-integration/tenant-inventory',
                 label: 'Tenant Inventory',
                 icon: ClipboardList,
               },
-              {
-                to: '/aquzio-integration/stock-overview',
-                label: 'Stock Overview',
-                icon: BarChart3,
-              },
+              // {
+              //   to: '/aquzio-integration/stock-overview',
+              //   label: 'Stock Overview',
+              //   icon: BarChart3,
+              // },
             ],
           },
           {
@@ -417,21 +417,21 @@ export function getPortalSidebarConfig(
         staffSections.push({
           title: 'AQUZIO INTEGRATION',
           items: [
-            {
-              to: '/aquzio-integration/biodrops-tenants',
-              label: 'Biodrops Tenants',
-              icon: Building2,
-            },
+            // {
+            //   to: '/aquzio-integration/biodrops-tenants',
+            //   label: 'Biodrops Tenants',
+            //   icon: Building2,
+            // },
             {
               to: '/aquzio-integration/tenant-inventory',
               label: 'Tenant Inventory',
               icon: ClipboardList,
             },
-            {
-              to: '/aquzio-integration/stock-overview',
-              label: 'Stock Overview',
-              icon: BarChart3,
-            },
+            // {
+            //   to: '/aquzio-integration/stock-overview',
+            //   label: 'Stock Overview',
+            //   icon: BarChart3,
+            // },
           ],
         });
       }

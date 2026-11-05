@@ -129,11 +129,11 @@ export default function App() {
                         <Route path="biodrops-tenants" element={<BiodropsTenants />} />
                         <Route path="tenant-inventory" element={<TenantInventory />} />
                         <Route path="stock-overview" element={<StockOverview />} />
-                        <Route path="" element={<Navigate to="biodrops-tenants" replace />} />
-                        <Route path="*" element={<Navigate to="biodrops-tenants" replace />} />
+                        <Route path="" element={<Navigate to="tenant-inventory" replace />} />
+                        <Route path="*" element={<Navigate to="tenant-inventory" replace />} />
                       </Route>
                       {/* Backward compatibility for legacy /aquora-integration path */}
-                      <Route path="/aquora-integration/*" element={<Navigate to="/aquzio-integration/biodrops-tenants" replace />} />
+                      <Route path="/aquora-integration/*" element={<Navigate to="/aquzio-integration/tenant-inventory" replace />} />
                     </Route>
 
                     <Route path="/" element={<RootRedirect />} />
