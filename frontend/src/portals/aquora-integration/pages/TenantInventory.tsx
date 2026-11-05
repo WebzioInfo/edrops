@@ -11,6 +11,10 @@ import {
   ChevronDown,
   BarChart3,
   Boxes,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  AlertOctagon,
 } from 'lucide-react';
 import {
   fetchBiodropsTenants,
@@ -19,10 +23,22 @@ import {
 import type {
   BiodropsTenant,
   TenantInventoryResponse,
+  RawMaterialItem,
 } from '../../../api/aquzio';
 import { PageHeader } from '../../../components/common/PageHeader';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { toast } from '../../../utils/toast';
+
+type SortField =
+  | 'name'
+  | 'sku'
+  | 'category'
+  | 'availableQuantity'
+  | 'usedQuantity'
+  | 'wastedQuantity'
+  | 'reorderLevel'
+  | 'status';
+type SortDirection = 'asc' | 'desc';
 
 export const TenantInventory: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,6 +58,10 @@ export const TenantInventory: React.FC = () => {
   // Search & category filter for raw materials
   const [materialSearch, setMaterialSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+
+  // Frontend-only sorting for raw materials
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   // Load available tenants first
   useEffect(() => {
@@ -89,7 +109,7 @@ export const TenantInventory: React.FC = () => {
         toast.success('Inventory refreshed successfully');
       }
     } catch (err: any) {
-      const msg = err.message || 'Failed to retrieve tenant inventory';
+      const msg = err.message || 'Failed to retrieve plant inventory';
       setError(msg);
       toast.error(msg);
     } finally {
@@ -136,7 +156,71 @@ export const TenantInventory: React.FC = () => {
     });
   }, [inventory, selectedCategory, materialSearch]);
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedMaterials = useMemo(() => {
+    const list = [...filteredMaterials];
+    list.sort((a, b) => {
+      let valA: any = a[sortField as keyof RawMaterialItem];
+      let valB: any = b[sortField as keyof RawMaterialItem];
+
+      if (sortField === 'status') {
+        const isLowA = a.isLowStock ?? a.availableQuantity <= a.reorderLevel;
+        const isLowB = b.isLowStock ?? b.availableQuantity <= b.reorderLevel;
+        valA = isLowA ? 1 : 0;
+        valB = isLowB ? 1 : 0;
+      }
+
+      if (typeof valA === 'string') {
+        const cmp = valA.localeCompare(String(valB || ''));
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+      if (typeof valA === 'number') {
+        const numA = Number(valA) || 0;
+        const numB = Number(valB) || 0;
+        return sortDirection === 'asc' ? numA - numB : numB - numA;
+      }
+      return 0;
+    });
+    return list;
+  }, [filteredMaterials, sortField, sortDirection]);
+
   const finishedProducts = inventory?.finishedProducts || [];
+
+  // KPI summary metrics computed strictly from current state
+  const summaryMetrics = useMemo(() => {
+    const rawList = inventory?.rawMaterials || [];
+    const totalFinishedJars = finishedProducts.reduce(
+      (sum, p) => sum + (p.availableStock || 0),
+      0,
+    );
+    const totalSkus = finishedProducts.length + rawList.length;
+
+    let lowStockCount = 0;
+    let outOfStockCount = 0;
+
+    for (const m of rawList) {
+      if (m.availableQuantity === 0) {
+        outOfStockCount++;
+      } else if (m.isLowStock ?? m.availableQuantity <= m.reorderLevel) {
+        lowStockCount++;
+      }
+    }
+
+    return {
+      totalSkus,
+      totalFinishedJars,
+      lowStockCount,
+      outOfStockCount,
+    };
+  }, [finishedProducts, inventory]);
 
   return (
     <div className="space-y-5">
@@ -171,26 +255,26 @@ export const TenantInventory: React.FC = () => {
         ]}
       />
 
-      {/* ─── TENANT SELECTION CONTROLLER ────────────────────────── */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="w-10 h-10 rounded-xl bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center shrink-0">
-            <Building2 className="w-5 h-5" />
+      {/* ─── COMPACT PLANT TOOLBAR & FEED STATUS ───────────────── */}
+      <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center shrink-0">
+            <Building2 className="w-4 h-4" />
           </div>
-          <div>
+          <div className="flex items-center gap-2">
             <label
               htmlFor="tenant-select"
-              className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block"
+              className="text-xs font-bold text-slate-700 whitespace-nowrap"
             >
-              Selected Production Plant
+              Plant:
             </label>
-            <div className="relative mt-0.5 min-w-[240px]">
+            <div className="relative min-w-[220px] sm:min-w-[260px]">
               <select
                 id="tenant-select"
                 value={selectedTenantId}
                 onChange={(e) => handleTenantChange(e.target.value)}
                 disabled={loadingTenants || tenants.length === 0}
-                className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] transition-all cursor-pointer"
+                className="w-full appearance-none bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] transition-all cursor-pointer"
               >
                 {tenants.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -198,18 +282,18 @@ export const TenantInventory: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
         </div>
 
         {inventory && (
-          <div className="flex items-center gap-4 text-xs text-slate-500 self-end sm:self-center font-medium">
+          <div className="flex items-center gap-3 text-xs text-slate-600 font-medium self-end md:self-center">
             <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <Clock className="w-3.5 h-3.5 text-slate-500" />
               <span>
                 Retrieved:{' '}
-                <strong className="text-slate-700">
+                <strong className="text-slate-800">
                   {new Date(inventory.retrievedAt).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -219,8 +303,8 @@ export const TenantInventory: React.FC = () => {
               </span>
             </div>
             <span className="text-slate-300">|</span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              <CheckCircle2 className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-300">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               Verified Feed
             </span>
           </div>
@@ -239,17 +323,18 @@ export const TenantInventory: React.FC = () => {
       {/* ─── LOADING SKELETON ───────────────────────────────────── */}
       {(loadingTenants || loadingInventory) && !error && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs animate-pulse">
-            <div className="h-4 bg-slate-200 rounded w-1/4 mb-4" />
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              {[1, 2, 3, 4].map((n) => (
-                <div key={n} className="h-20 bg-slate-100 rounded-xl" />
-              ))}
-            </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="h-24 bg-white rounded-2xl border border-slate-200 p-4 animate-pulse" />
+            ))}
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs animate-pulse">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs animate-pulse">
+            <div className="h-4 bg-slate-200 rounded w-1/4 mb-4" />
+            <div className="h-32 bg-slate-100 rounded-xl" />
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs animate-pulse">
             <div className="h-4 bg-slate-200 rounded w-1/3 mb-4" />
-            <div className="h-40 bg-slate-100 rounded-xl" />
+            <div className="h-48 bg-slate-100 rounded-xl" />
           </div>
         </div>
       )}
@@ -257,8 +342,60 @@ export const TenantInventory: React.FC = () => {
       {/* ─── INVENTORY DATA VIEWS ───────────────────────────────── */}
       {!loadingTenants && !loadingInventory && !error && (
         <div className="space-y-6">
+          {/* Summary KPI Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1677C8] flex items-center justify-center shrink-0">
+                <Boxes className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Total SKUs</p>
+                <p className="text-xl font-extrabold text-[#16324F] mt-0.5">{summaryMetrics.totalSkus}</p>
+                <p className="text-xs text-slate-600 truncate mt-0.5">
+                  {finishedProducts.length} finished, {inventory?.rawMaterials?.length || 0} materials
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <Package className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Finished Stock</p>
+                <p className="text-xl font-extrabold text-emerald-700 mt-0.5">
+                  {summaryMetrics.totalFinishedJars.toLocaleString()}{' '}
+                  <span className="text-xs font-semibold text-slate-600">Jars</span>
+                </p>
+                <p className="text-xs text-slate-600 truncate mt-0.5">Ready for dispatch</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Low Stock</p>
+                <p className="text-xl font-extrabold text-amber-700 mt-0.5">{summaryMetrics.lowStockCount}</p>
+                <p className="text-xs text-slate-600 truncate mt-0.5">At or below reorder level</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertOctagon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Out of Stock</p>
+                <p className="text-xl font-extrabold text-rose-700 mt-0.5">{summaryMetrics.outOfStockCount}</p>
+                <p className="text-xs text-slate-600 truncate mt-0.5">0 balance available</p>
+              </div>
+            </div>
+          </div>
+
           {/* 1. FINISHED PRODUCTS – 20L JAR ──────────────────────── */}
-          <section className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -268,62 +405,65 @@ export const TenantInventory: React.FC = () => {
                   <h2 className="text-sm sm:text-base font-bold text-[#16324F]">
                     Finished Products – 20L Jar
                   </h2>
-                  <p className="text-[11px] text-slate-400 font-medium">
+                  <p className="text-xs text-slate-600 font-medium">
                     Commercial ready-to-dispatch water jar stock
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+              <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
                 {finishedProducts.length} Product SKU{finishedProducts.length === 1 ? '' : 's'}
               </span>
             </div>
 
             {finishedProducts.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400 font-medium">
-                No finished product stock reported for this tenant.
+              <div className="py-8 px-4 text-center">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-500 mb-2">
+                  <Package className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-semibold text-slate-700">No Finished 20L Water Jars Reported</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Commercial finished stock will appear here when ready batches are logged.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-xs">
                       <th className="py-3 px-4 sm:px-6">Product Name</th>
                       <th className="py-3 px-4">SKU</th>
                       <th className="py-3 px-4 text-right">Available Stock</th>
                       <th className="py-3 px-4 text-right">Reserved Stock</th>
                       <th className="py-3 px-4 text-right">Damaged Stock</th>
-                      <th className="py-3 px-4 text-center">Unit</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                     {finishedProducts.map((p, idx) => (
-                      <tr key={p.id || idx} className="hover:bg-slate-50/50 transition-colors">
+                      <tr key={p.id || idx} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-3.5 px-4 sm:px-6">
                           <span className="font-bold text-[#16324F] block">{p.name}</span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                          <span className="font-mono text-xs text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
                             {p.sku}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <span className="text-sm font-extrabold text-emerald-600">
-                            {p.availableStock.toLocaleString()}
+                          <span className="text-sm font-extrabold text-emerald-700">
+                            {p.availableStock.toLocaleString()}{' '}
+                            <span className="text-xs font-semibold text-slate-600">{p.unit}</span>
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <span className="font-bold text-sky-600">
-                            {p.reservedStock.toLocaleString()}
+                          <span className="font-bold text-sky-700">
+                            {p.reservedStock.toLocaleString()}{' '}
+                            <span className="text-xs font-normal text-slate-600">{p.unit}</span>
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <span className="font-bold text-rose-600">
-                            {p.damagedStock.toLocaleString()}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                            {p.unit}
+                          <span className="font-bold text-rose-700">
+                            {p.damagedStock.toLocaleString()}{' '}
+                            <span className="text-xs font-normal text-slate-600">{p.unit}</span>
                           </span>
                         </td>
                       </tr>
@@ -335,7 +475,7 @@ export const TenantInventory: React.FC = () => {
           </section>
 
           {/* 2. RAW MATERIALS ────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
@@ -345,7 +485,7 @@ export const TenantInventory: React.FC = () => {
                   <h2 className="text-sm sm:text-base font-bold text-[#16324F]">
                     Raw Materials & Packaging
                   </h2>
-                  <p className="text-[11px] text-slate-400 font-medium">
+                  <p className="text-xs text-slate-600 font-medium">
                     Preforms, caps, labels, shrink film, and treatment supplies with dynamic units
                   </p>
                 </div>
@@ -354,20 +494,20 @@ export const TenantInventory: React.FC = () => {
               {/* Filters */}
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={materialSearch}
                     onChange={(e) => setMaterialSearch(e.target.value)}
                     placeholder="Search materials..."
-                    className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] w-40 sm:w-48"
+                    className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] w-40 sm:w-48"
                   />
                 </div>
 
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20"
+                  className="py-1.5 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20"
                 >
                   {categories.map((c) => (
                     <option key={c} value={c}>
@@ -378,85 +518,204 @@ export const TenantInventory: React.FC = () => {
               </div>
             </div>
 
-            {filteredMaterials.length === 0 ? (
-              <div className="p-10 text-center text-xs text-slate-400 font-medium">
-                {materialSearch || selectedCategory !== 'ALL'
-                  ? 'No raw materials matched your search criteria.'
-                  : 'No raw materials reported for this tenant.'}
+            {sortedMaterials.length === 0 ? (
+              <div className="py-10 px-4 text-center">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-500 mb-2">
+                  <Boxes className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-semibold text-slate-700">
+                  {materialSearch || selectedCategory !== 'ALL'
+                    ? 'No raw materials matched your search criteria.'
+                    : 'No raw materials reported for this plant.'}
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                      <th className="py-3 px-4 sm:px-6">Material Name</th>
-                      <th className="py-3 px-4">SKU</th>
-                      <th className="py-3 px-4">Category</th>
-                      <th className="py-3 px-4 text-right">Available Qty</th>
-                      <th className="py-3 px-4 text-right">Used Qty</th>
-                      <th className="py-3 px-4 text-right">Wasted Qty</th>
-                      <th className="py-3 px-4 text-center">Unit</th>
-                      <th className="py-3 px-4 text-right">Reorder Level</th>
-                      <th className="py-3 px-4 text-center">Status</th>
+                    <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-xs">
+                      <th
+                        onClick={() => handleSort('name')}
+                        className="py-3 px-4 sm:px-6 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5">
+                          <span>Material Name</span>
+                          {sortField === 'name' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('sku')}
+                        className="py-3 px-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5">
+                          <span>SKU</span>
+                          {sortField === 'sku' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('category')}
+                        className="py-3 px-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5">
+                          <span>Category</span>
+                          {sortField === 'category' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('availableQuantity')}
+                        className="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end w-full">
+                          <span>Available Qty</span>
+                          {sortField === 'availableQuantity' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('usedQuantity')}
+                        className="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end w-full">
+                          <span>Used Qty</span>
+                          {sortField === 'usedQuantity' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('wastedQuantity')}
+                        className="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end w-full">
+                          <span>Wasted Qty</span>
+                          {sortField === 'wastedQuantity' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('reorderLevel')}
+                        className="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-end w-full">
+                          <span>Reorder Level</span>
+                          {sortField === 'reorderLevel' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('status')}
+                        className="py-3 px-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-center">
+                          <span>Status</span>
+                          {sortField === 'status' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {filteredMaterials.map((m, idx) => {
-                      const isLow =
-                        m.isLowStock ?? m.availableQuantity <= m.reorderLevel;
+                    {sortedMaterials.map((m, idx) => {
+                      const isOutOfStock = m.availableQuantity === 0;
+                      const isLow = m.isLowStock ?? m.availableQuantity <= m.reorderLevel;
+
+                      const rowHighlightClass = isOutOfStock
+                        ? 'border-l-4 border-l-rose-500 bg-rose-50/30 hover:bg-rose-50/50'
+                        : isLow
+                        ? 'border-l-4 border-l-amber-500 bg-amber-50/30 hover:bg-amber-50/50'
+                        : 'border-l-4 border-l-transparent hover:bg-slate-50/70';
 
                       return (
                         <tr
                           key={m.id || idx}
-                          className={`hover:bg-slate-50/50 transition-colors ${
-                            isLow ? 'bg-rose-50/30' : ''
-                          }`}
+                          className={`transition-colors ${rowHighlightClass}`}
                         >
                           <td className="py-3.5 px-4 sm:px-6">
                             <span className="font-bold text-[#16324F] block">{m.name}</span>
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                            <span className="font-mono text-xs text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
                               {m.sku}
                             </span>
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                            <span className="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200/60 px-2.5 py-1 rounded-md">
                               {m.category}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <span
                               className={`text-sm font-extrabold ${
-                                isLow ? 'text-rose-600' : 'text-[#16324F]'
+                                isOutOfStock
+                                  ? 'text-rose-600'
+                                  : isLow
+                                  ? 'text-amber-700'
+                                  : 'text-[#16324F]'
                               }`}
                             >
-                              {m.availableQuantity.toLocaleString()}
+                              {m.availableQuantity.toLocaleString()}{' '}
+                              <span className="text-xs font-semibold text-slate-600">{m.unit}</span>
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-right font-medium text-slate-600">
-                            {m.usedQuantity.toLocaleString()}
+                          <td className="py-3.5 px-4 text-right font-medium">
+                            {m.usedQuantity === 0 ? (
+                              <span className="text-xs font-normal text-slate-300">0</span>
+                            ) : (
+                              <span className="font-semibold text-slate-700">
+                                {m.usedQuantity.toLocaleString()}{' '}
+                                <span className="text-xs font-normal text-slate-500">{m.unit}</span>
+                              </span>
+                            )}
                           </td>
-                          <td className="py-3.5 px-4 text-right font-medium text-slate-500">
-                            {m.wastedQuantity.toLocaleString()}
+                          <td className="py-3.5 px-4 text-right font-medium">
+                            {m.wastedQuantity === 0 ? (
+                              <span className="text-xs font-normal text-slate-300">0</span>
+                            ) : (
+                              <span className="font-semibold text-rose-700">
+                                {m.wastedQuantity.toLocaleString()}{' '}
+                                <span className="text-xs font-normal text-slate-500">{m.unit}</span>
+                              </span>
+                            )}
                           </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="text-[11px] font-bold text-[#1677C8] bg-sky-50 px-2 py-0.5 rounded border border-sky-100">
-                              {m.unit}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-medium text-slate-600">
-                            {m.reorderLevel.toLocaleString()} {m.unit}
+                          <td className="py-3.5 px-4 text-right font-medium text-slate-700">
+                            {m.reorderLevel.toLocaleString()}{' '}
+                            <span className="text-xs font-normal text-slate-500">{m.unit}</span>
                           </td>
                           <td className="py-3.5 px-4 text-center">
                             {isLow ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                                <AlertTriangle className="w-3 h-3 text-rose-600" />
+                              <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-300">
+                                <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                                 Reorder
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                 Optimal
                               </span>
                             )}
