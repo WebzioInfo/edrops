@@ -1,8 +1,11 @@
 import {
   Controller,
   Get,
+  Post,
+  Body,
   Param,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
@@ -12,6 +15,9 @@ import {
   BiodropsTenant,
   TenantInventoryResponse,
   StockSummaryResponse,
+  AdjustTenantStockDto,
+  AdjustTenantStockResponse,
+  BiodropsSale,
 } from './biodrops.types';
 
 @ApiTags('Aquora Biodrops Integration')
@@ -82,5 +88,39 @@ export class BiodropsController {
   ): Promise<StockSummaryResponse> {
     return this.biodropsService.getTenantStockSummary(tenantId);
   }
-}
 
+  @Get('tenants/:tenantId/sales')
+  @ApiOperation({
+    summary: 'Get 20L finished product sales for a specific Aquora Biodrops tenant',
+    description:
+      'Accessible strictly to Upper Admin, Admin, and Staff roles. Returns 20L Jar sales transactions with Aquzio origin badge.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tenant sales transactions',
+  })
+  async getTenantSales(
+    @Param('tenantId') tenantId: string,
+  ): Promise<BiodropsSale[]> {
+    return this.biodropsService.getTenantSales(tenantId);
+  }
+
+  @Post('tenants/:tenantId/stock/adjust')
+  @ApiOperation({
+    summary: 'Adjust or update stock for a tenant product or raw material',
+    description:
+      'Accessible to Upper Admin, Admin, and Staff roles. Validates tenant existence, updates stock atomically, and records audit trail.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Stock updated successfully',
+  })
+  async adjustTenantStock(
+    @Param('tenantId') tenantId: string,
+    @Body() body: AdjustTenantStockDto,
+    @Request() req,
+  ): Promise<AdjustTenantStockResponse> {
+    const userId = req.user?.sub || req.user?.id;
+    return this.biodropsService.adjustTenantStock(tenantId, body, userId);
+  }
+}

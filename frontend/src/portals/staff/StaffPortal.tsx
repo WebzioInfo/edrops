@@ -8,8 +8,10 @@ import { SharedSidebar, SharedMobileDrawer } from '../../components/common/Share
 import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 
 const OrderManagement = React.lazy(() => import('./pages/OrderManagement'));
+const DailyDeliveries = React.lazy(() => import('./pages/DailyDeliveries'));
 const CustomerManagement = React.lazy(() => import('./pages/CustomerManagement'));
 const DistributorManagement = React.lazy(() => import('./pages/DistributorManagement'));
+const DistributorSales = React.lazy(() => import('./pages/DistributorSales'));
 const Drivers = React.lazy(() => import('./pages/Drivers'));
 const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
 const Catalog = React.lazy(() => import('./pages/Catalog'));
@@ -38,10 +40,12 @@ export default function StaffPortal() {
 
   const getPageTitle = () => {
     const path = location.pathname;
+    if (path.includes('/daily-deliveries')) return 'Daily Deliveries & Verification';
     if (path.includes('/orders')) return 'Order Management';
     if (path.includes('/customers/add')) return 'Add Customer';
     if (path.includes('/customers/') && path.includes('/edit')) return 'Edit Customer';
     if (path.includes('/customers')) return 'Customer Management';
+    if (path.includes('/sales')) return 'Distributor Sales & Invoicing';
     if (path.includes('/distributors')) return 'Distributor Management';
     if (path.includes('/drivers')) return 'Driver Management';
     if (path.includes('/catalog')) return 'Catalog Management';
@@ -175,11 +179,13 @@ export default function StaffPortal() {
             <Suspense fallback={<StaffLoader />}>
               <Routes>
                 <Route path="orders" element={<OrderManagement />} />
+                <Route path="daily-deliveries" element={<DailyDeliveries />} />
                 <Route path="operations" element={<Navigate to="/staff/orders" replace />} />
                 <Route path="customers/add" element={<CustomerForm basePath="/staff/customers" />} />
                 <Route path="customers/:id/edit" element={<CustomerForm basePath="/staff/customers" />} />
                 <Route path="customers/*" element={<CustomerManagement />} />
                 <Route path="distributors/*" element={<DistributorManagement />} />
+                <Route path="sales" element={<DistributorSales />} />
                 <Route path="drivers" element={<Drivers />} />
                 <Route path="memberships" element={<PackageManagement />} />
                 <Route path="packages" element={<Navigate to="/staff/memberships" replace />} />

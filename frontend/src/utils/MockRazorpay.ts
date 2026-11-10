@@ -170,10 +170,12 @@ export class MockRazorpay {
     brandIcon.style.height = '24px';
     brandIcon.style.objectFit = 'contain';
 
+    const brandName = this.options.name || 'Edrops Pay';
+    const brandDesc = this.options.description || 'Payment Checkout';
     const brandText = document.createElement('div');
     brandText.innerHTML = `
-      <div style="font-size: 11px; font-weight: 700; color: #0284c7; letter-spacing: 0.05em; text-transform: uppercase;">Edrops Wallet</div>
-      <div style="font-size: 13px; font-weight: 600; color: #0f172a;">Add Money</div>
+      <div style="font-size: 11px; font-weight: 700; color: #0284c7; letter-spacing: 0.05em; text-transform: uppercase;">${brandName}</div>
+      <div style="font-size: 13px; font-weight: 600; color: #0f172a;">${brandDesc}</div>
     `;
 
     brandBadge.appendChild(brandIcon);
@@ -248,7 +250,7 @@ export class MockRazorpay {
         <line x1="12" y1="16" x2="12" y2="12"></line>
         <line x1="12" y1="8" x2="12.01" y2="8"></line>
       </svg>
-      <span>Wallet balance will be updated after successful payment.</span>
+      <span>Payment will be verified and processed securely.</span>
     `;
 
     amountCard.appendChild(amountLabel);
@@ -327,18 +329,6 @@ export class MockRazorpay {
         iconSvg: `
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 21h18M3 10h18M5 10v11M19 10v11M9 10v11M15 10v11M12 2L2 7h20L12 2z"></path>
-          </svg>
-        `,
-      },
-      {
-        id: 'wallet',
-        name: 'Wallet',
-        desc: 'Use wallet balance',
-        iconSvg: `
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path>
-            <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path>
-            <path d="M18 12a2 2 0 0 0 0 4h4v-4z"></path>
           </svg>
         `,
       },

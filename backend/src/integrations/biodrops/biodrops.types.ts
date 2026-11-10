@@ -86,3 +86,52 @@ export interface StockSummaryResponse {
   }>;
 }
 
+export interface AdjustTenantStockDto {
+  sku: string;
+  itemType?: 'RAW_MATERIAL' | 'FINISHED_PRODUCT';
+  action: 'ADD' | 'SET' | 'DEDUCT';
+  quantity: number;
+  reason: string;
+  notes?: string;
+}
+
+export interface AdjustTenantStockResponse {
+  success: boolean;
+  tenantId: string;
+  sku: string;
+  previousQuantity: number;
+  newQuantity: number;
+  unit: string;
+  action: 'ADD' | 'SET' | 'DEDUCT';
+  message: string;
+  updatedAt: string;
+}
+
+export interface BiodropsSale {
+  transactionId: string;
+  transactionNumber: string;
+  transactionDate: string;
+  customerId?: string;
+  customerName: string;
+  productId: string;
+  productName: string;
+  sku?: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalAmount: number;
+  amountPaid: number;
+  outstandingAmount: number;
+  paymentStatus: string;
+  paymentMethod?: string;
+  status: string;
+  remarks?: string;
+  source: string;
+  badgeLabel: string;
+  createdAtUtc: string;
+  updatedAtUtc?: string;
+  tenantId?: string;
+  tenantName?: string;
+}
+
+

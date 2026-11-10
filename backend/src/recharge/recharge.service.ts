@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RechargeEngine } from '../engines/recharge.engine';
-import { PaymentStatus } from '@prisma/client';
+import { PaymentStatus, WalletTransactionType } from '@prisma/client';
 import { PromoService } from '../promo/promo.service';
 
 @Injectable()
@@ -20,13 +20,15 @@ export class RechargeService {
     userId: string,
     data: {
       packageId: string;
-      paymentId: string;
+      paymentId?: string;
+      paymentMethod?: 'ONLINE' | 'WALLET';
       amountPaid?: number;
       promoCode?: string | null;
     },
   ) {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
+      include: { wallet: true },
     });
     if (!customer) throw new NotFoundException('Customer profile not found');
 
@@ -36,6 +38,83 @@ export class RechargeService {
     if (!pkg) throw new NotFoundException('Package not found');
     if (!pkg.isActive)
       throw new BadRequestException('Package is no longer available');
+
+    const discount = data.promoCode
+      ? (
+          await this.promoService.validateCode(
+            data.promoCode,
+            customer.id,
+            pkg.price,
+            undefined,
+            undefined,
+            true,
+          )
+        ).calculatedDiscount
+      : 0;
+    const requiredAmount = Math.max(0, pkg.price - discount);
+
+    // 1. Handle Wallet Payment
+    if (data.paymentMethod === 'WALLET') {
+      let wallet = customer.wallet;
+      if (!wallet) {
+        wallet = await this.prisma.wallet.create({
+          data: { customerId: customer.id, balance: 0.0 },
+        });
+      }
+
+      if (wallet.balance < requiredAmount) {
+        throw new BadRequestException(
+          `Insufficient wallet balance. You need ₹${requiredAmount.toFixed(2)}, but your wallet balance is ₹${wallet.balance.toFixed(2)}.`,
+        );
+      }
+
+      return this.prisma.$transaction(async (tx) => {
+        const balanceBefore = wallet.balance;
+        const balanceAfter = balanceBefore - requiredAmount;
+
+        await tx.wallet.update({
+          where: { id: wallet.id },
+          data: { balance: balanceAfter },
+        });
+
+        await tx.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            type: WalletTransactionType.DEDUCTION,
+            amount: requiredAmount,
+            balanceBefore,
+            balanceAfter,
+            referenceId: `PKG-${pkg.id.slice(0, 8)}`,
+            description: `Package recharge: ${pkg.name} (${pkg.jarCount} jars)`,
+          },
+        });
+
+        const purchase = await this.rechargeEngine.processRecharge(
+          customer.id,
+          pkg.id,
+          requiredAmount,
+          pkg.jarCount,
+          null,
+          tx,
+        );
+
+        if (data.promoCode) {
+          await this.promoService.redeemCode(
+            data.promoCode,
+            customer.id,
+            pkg.price,
+            undefined,
+            undefined,
+            true,
+            tx,
+          );
+        }
+
+        return purchase;
+      });
+    }
+
+    // 2. Handle Online (Razorpay) Payment
     if (!data.paymentId)
       throw new BadRequestException(
         'Successful payment is required before recharge',
@@ -50,19 +129,6 @@ export class RechargeService {
     if (payment.status !== PaymentStatus.SUCCESS) {
       throw new BadRequestException('Payment has not been captured yet');
     }
-    const discount = data.promoCode
-      ? (
-          await this.promoService.validateCode(
-            data.promoCode,
-            customer.id,
-            pkg.price,
-            undefined,
-            undefined,
-            true,
-          )
-        ).calculatedDiscount
-      : 0;
-    const requiredAmount = Math.max(0, pkg.price - discount);
 
     if (payment.amount < requiredAmount) {
       throw new BadRequestException(

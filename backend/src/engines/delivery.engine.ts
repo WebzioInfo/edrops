@@ -105,6 +105,26 @@ export class DeliveryEngine {
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
     );
 
+    // Calculate Indian Standard Time (IST = UTC+5:30) to evaluate operational daily cutoff
+    const nowIST = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+    const currentHourIST = nowIST.getUTCHours();
+    const isPastTodayCutoff = currentHourIST >= 14; // Past 2:00 PM IST (daily dispatch cutoff)
+
+    // Check if customer already has a delivery today that is active or completed
+    const existingTodayDelivery = await this.prisma.delivery.findFirst({
+      where: { customerId, scheduledFor: today },
+    });
+    const isTodayUnderwayOrDone =
+      existingTodayDelivery &&
+      [
+        'OUT_FOR_DELIVERY',
+        'IN_TRANSIT',
+        'DELIVERED',
+        'COMPLETED',
+        'CANCELLED',
+        'FAILED',
+      ].includes(existingTodayDelivery.status);
+
     // Calculate the start of the current week (Monday)
     const day = today.getUTCDay();
     const diff = today.getUTCDate() - day + (day === 0 ? -6 : 1);
@@ -123,11 +143,17 @@ export class DeliveryEngine {
       },
     });
 
-    // We must safely clear all FUTURE and CURRENT pending/assigned deliveries to regenerate them cleanly
+    // If today is past cutoff or today's delivery is already underway/completed,
+    // protect today's delivery and only clear future pending deliveries from tomorrow onwards.
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const deleteFromDate =
+      isPastTodayCutoff || isTodayUnderwayOrDone ? tomorrow : today;
+
+    // Safely clear pending/assigned deliveries from deleteFromDate onwards
     await this.prisma.delivery.deleteMany({
       where: {
         customerId,
-        scheduledFor: { gte: startOfWeek },
+        scheduledFor: { gte: deleteFromDate },
         status: { in: [OrderStatus.PENDING_ASSIGNMENT, OrderStatus.ASSIGNED] },
       },
     });
@@ -149,6 +175,21 @@ export class DeliveryEngine {
       const targetDate = new Date(startOfWeek.getTime());
       targetDate.setUTCDate(startOfWeek.getUTCDate() + i);
       const dayOfWeek = targetDate.getUTCDay();
+
+      // 1. Skip past days (before today)
+      if (targetDate.getTime() < today.getTime()) {
+        continue;
+      }
+
+      // 2. If targetDate is today:
+      // If cutoff has passed OR today's delivery is already underway/done/exists:
+      // Do NOT create or overwrite today's delivery!
+      // The new quantity will naturally apply starting from next week's occurrence!
+      if (targetDate.getTime() === today.getTime()) {
+        if (isPastTodayCutoff || isTodayUnderwayOrDone || existingTodayDelivery) {
+          continue;
+        }
+      }
 
       let dailyQty = 0;
 
@@ -332,16 +373,17 @@ export class DeliveryEngine {
         });
       }
 
-      // Check balance limit (negative balance protection)
-      if (jarBalance.availableJars < confirmedDeliveredQty) {
-        throw new BadRequestException(
-          'Insufficient customer jar balance to complete this quantity.',
-        );
-      }
-
       // 2. Perform math calculations
       const balanceBefore = jarBalance.availableJars;
-      const balanceAfter = balanceBefore - confirmedDeliveredQty;
+      // Deduct from prepaid jar balance if available
+      const balanceAfter = Math.max(0, balanceBefore - confirmedDeliveredQty);
+
+      // Only enforce strict package balance limit if customer is an active package subscriber
+      if (jarBalance.totalPurchased > 0 && jarBalance.availableJars < confirmedDeliveredQty) {
+        throw new BadRequestException(
+          'Insufficient customer jar balance to complete this quantity. Please recharge your package.',
+        );
+      }
 
       // Jars in possession updates:
       // companyJarsHeld = companyJarsHeld + delivered - emptyCollected

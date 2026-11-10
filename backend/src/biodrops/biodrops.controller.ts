@@ -229,6 +229,16 @@ export class BiodropsController {
     return this.biodropsService.createDistributorSale(dto, req.user.id);
   }
 
+  @Post('distributor/sales/:id/payments')
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  recordDistributorSalePayment(
+    @Req() req: { user: { id: string } },
+    @Param('id') id: string,
+    @Body() dto: { amount: number; paymentMethod?: string; notes?: string },
+  ) {
+    return this.biodropsService.recordDistributorSalePayment(id, dto, req.user.id);
+  }
+
   // ============================================================================
   // EMPTY JAR OWNERSHIP TRANSFER ENGINE (₹250 RULE)
   // ============================================================================

@@ -15,23 +15,43 @@ export class RechargeEngine {
     packageId: string,
     amount: number,
     jarsAdded: number,
-    paymentId: string,
+    paymentId?: string | null,
     tx?: any,
   ) {
     const execute = async (prismaTx: any) => {
-      const existing = await prismaTx.packagePurchase.findUnique({
-        where: { paymentId },
-      });
-      if (existing) {
-        throw new BadRequestException(
-          'This payment has already been processed.',
-        );
+      if (paymentId) {
+        const existing = await prismaTx.packagePurchase.findUnique({
+          where: { paymentId },
+        });
+        if (existing) {
+          throw new BadRequestException(
+            'This payment has already been processed.',
+          );
+        }
       }
+
+      // Resolve active or default Brand for multi-brand JarBalance
+      let brand = await prismaTx.brand.findFirst({
+        where: { isActive: true },
+      });
+      if (!brand) {
+        brand = await prismaTx.brand.findFirst();
+      }
+      if (!brand) {
+        brand = await prismaTx.brand.create({
+          data: {
+            name: 'Biodrops',
+            description: 'Default Water Brand',
+          },
+        });
+      }
+      const brandId = brand.id;
 
       // Lock the customer's JarBalance row to prevent concurrent updates
       await prismaTx.$executeRawUnsafe(
-        `SELECT id FROM "JarBalance" WHERE "customerId" = $1 FOR UPDATE`,
+        `SELECT id FROM "JarBalance" WHERE "customerId" = $1 AND "brandId" = $2 FOR UPDATE`,
         customerId,
+        brandId,
       );
 
       const order = await prismaTx.packagePurchase.create({
@@ -40,16 +60,42 @@ export class RechargeEngine {
           packageId,
           amount,
           paymentStatus: PaymentStatus.SUCCESS,
-          paymentId,
+          paymentId: paymentId || null,
         },
       });
 
       let jarBalance = await prismaTx.jarBalance.findUnique({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
       });
       if (!jarBalance) {
         jarBalance = await prismaTx.jarBalance.create({
-          data: { customerId, availableJars: 0, totalPurchased: 0 },
+          data: { customerId, brandId, availableJars: 0, totalPurchased: 0 },
+        });
+      }
+
+      // Ensure jar ownership record exists
+      let jarOwnership = await prismaTx.jarOwnership.findUnique({
+        where: { customerId_brandId: { customerId, brandId } },
+      });
+      if (!jarOwnership) {
+        await prismaTx.jarOwnership.create({
+          data: { customerId, brandId, companyJarsHeld: 0, ownedJars: 0 },
+        });
+      }
+
+      // Ensure jar deposit record exists
+      let jarDeposit = await prismaTx.jarDeposit.findUnique({
+        where: { customerId_brandId: { customerId, brandId } },
+      });
+      if (!jarDeposit) {
+        await prismaTx.jarDeposit.create({
+          data: {
+            customerId,
+            brandId,
+            maxActiveJars: 0,
+            depositPaid: 0.0,
+            depositDue: 0.0,
+          },
         });
       }
 
@@ -57,7 +103,7 @@ export class RechargeEngine {
       const balanceAfter = balanceBefore + jarsAdded;
 
       await prismaTx.jarBalance.update({
-        where: { customerId },
+        where: { customerId_brandId: { customerId, brandId } },
         data: {
           availableJars: balanceAfter,
           totalPurchased: { increment: jarsAdded },

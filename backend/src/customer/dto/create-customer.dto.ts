@@ -73,4 +73,5 @@ export class CreateCustomerDto {
   @IsString() @IsOptional() password?: string;
   @IsBoolean() @IsOptional() generateRandomPassword?: boolean;
   @IsBoolean() @IsOptional() sendSetupLink?: boolean;
+  @IsBoolean() @IsOptional() isActive?: boolean;
 }

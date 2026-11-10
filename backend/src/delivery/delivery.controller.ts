@@ -37,6 +37,59 @@ export class DeliveryController {
     return this.deliveryService.findToday();
   }
 
+  @Get('daily')
+  getDailyDeliveries(@Query('date') date?: string) {
+    return this.deliveryService.getDailyDeliveries(date);
+  }
+
+  @Post('quick-dispatch')
+  quickDispatch(
+    @Body()
+    body: {
+      customerId: string;
+      scheduledFor?: string;
+      deliveredQty: number;
+      emptyCollected: number;
+      notes?: string;
+      requireVerification?: boolean;
+    },
+    @Request() req,
+  ) {
+    return this.deliveryService.quickDispatch(body, req.user);
+  }
+
+  @Post(':id/request-verification')
+  requestVerification(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      deliveredQty: number;
+      emptyCollected: number;
+      notes?: string;
+      requireVerification?: boolean;
+    },
+  ) {
+    return this.deliveryService.requestDeliveryVerification(id, body);
+  }
+
+  @Post(':id/customer-verify')
+  customerVerify(
+    @Param('id') id: string,
+    @Body() body: { verified: boolean; feedback?: string; reason?: string },
+    @Request() req,
+  ) {
+    return this.deliveryService.verifyDeliveryByCustomer(id, body, req.user);
+  }
+
+  @Post(':id/force-verify')
+  forceVerify(
+    @Param('id') id: string,
+    @Body() body: { deliveredQty: number; emptyCollected: number; notes?: string },
+    @Request() req,
+  ) {
+    return this.deliveryService.forceVerifyByStaff(id, body, req.user);
+  }
+
   @Get(['partner/my-tasks', 'my-tasks'])
   findMyTasks(@Request() req) {
     const userId = req.user?.sub || req.user?.id || req.user?.userId;

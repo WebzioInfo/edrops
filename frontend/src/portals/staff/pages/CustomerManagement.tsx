@@ -14,6 +14,8 @@ import {
   Building2,
   SlidersHorizontal,
   Mail,
+  Power,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -43,6 +45,95 @@ export default function CustomerManagement() {
   const [isScheduleActive, setIsScheduleActive] = useState(true);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [resendingCustId, setResendingCustId] = useState<string | null>(null);
+
+  const [updatingCustStatus, setUpdatingCustStatus] = useState<string | null>(null);
+  const [updatingScheduleStatus, setUpdatingScheduleStatus] = useState<string | null>(null);
+
+  const handleToggleCustomerActive = async (cust: any, targetActive?: boolean) => {
+    if (!cust?.id) return;
+    const currentActive = cust.user?.isActive !== false;
+    const nextActive = targetActive !== undefined ? targetActive : !currentActive;
+
+    try {
+      setUpdatingCustStatus(cust.id);
+      await fetchWithAuth(`/customer/${cust.id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: nextActive }),
+      });
+
+      toast.success(`Customer account marked as ${nextActive ? 'Active' : 'Inactive'}`);
+
+      // Update state locally
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === cust.id
+            ? { ...c, user: { ...(c.user || {}), isActive: nextActive } }
+            : c
+        )
+      );
+
+      if (selectedCust?.id === cust.id) {
+        setSelectedCust((prev: any) =>
+          prev ? { ...prev, user: { ...(prev.user || {}), isActive: nextActive } } : prev
+        );
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update customer status');
+    } finally {
+      setUpdatingCustStatus(null);
+    }
+  };
+
+  const handleToggleScheduleActiveQuick = async (cust: any) => {
+    if (!cust?.id) return;
+    const currentActive = cust.deliverySchedule?.isActive ?? true;
+    const nextActive = !currentActive;
+
+    try {
+      setUpdatingScheduleStatus(cust.id);
+      await fetchWithAuth(`/schedule/${cust.id}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          isActive: nextActive,
+          rules: cust.deliverySchedule?.rules || [],
+        }),
+      });
+
+      toast.success(`Delivery schedule ${nextActive ? 'Resumed (Active)' : 'Paused'}`);
+
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === cust.id
+            ? {
+                ...c,
+                deliverySchedule: {
+                  ...(c.deliverySchedule || {}),
+                  isActive: nextActive,
+                },
+              }
+            : c
+        )
+      );
+
+      if (selectedCust?.id === cust.id) {
+        setSelectedCust((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                deliverySchedule: {
+                  ...(prev.deliverySchedule || {}),
+                  isActive: nextActive,
+                },
+              }
+            : prev
+        );
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update schedule status');
+    } finally {
+      setUpdatingScheduleStatus(null);
+    }
+  };
 
   const handleResendSetupLink = async (cust: any) => {
     if (!cust?.id) return;
@@ -564,27 +655,35 @@ export default function CustomerManagement() {
                       </td>
 
                       {/* Status */}
-                      <td className="py-2.5 px-3 whitespace-nowrap">
+                      <td className="py-2.5 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         {cust.user?.accountStatus === 'PENDING_PASSWORD_SETUP' ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                             Pending Setup
                           </span>
                         ) : (
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCustomerActive(cust)}
+                            disabled={updatingCustStatus === cust.id}
+                            title={isActive ? 'Click to mark as Inactive' : 'Click to mark as Active'}
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition cursor-pointer hover:shadow-xs disabled:opacity-50 ${
                               isActive
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                             }`}
                           >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                isActive ? 'bg-emerald-500' : 'bg-rose-500'
-                              }`}
-                            />
-                            {isActive ? 'Active' : 'Inactive'}
-                          </span>
+                            {updatingCustStatus === cust.id ? (
+                              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                            ) : (
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                                }`}
+                              />
+                            )}
+                            <span>{isActive ? 'Active' : 'Inactive'}</span>
+                          </button>
                         )}
                       </td>
 
@@ -862,15 +961,31 @@ export default function CustomerManagement() {
                             Pending Setup
                           </span>
                         ) : (
-                          <span
-                            className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCustomerActive(selectedCust)}
+                            disabled={updatingCustStatus === selectedCust?.id}
+                            title={selectedCust?.user?.isActive !== false ? 'Click to mark customer as Inactive' : 'Click to mark customer as Active'}
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border transition cursor-pointer hover:shadow-xs disabled:opacity-50 ${
                               selectedCust?.user?.isActive !== false
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-rose-50 text-rose-700'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                                : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
                             }`}
                           >
-                            {selectedCust?.user?.isActive !== false ? 'Active' : 'Inactive'}
-                          </span>
+                            {updatingCustStatus === selectedCust?.id ? (
+                              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                            ) : (
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  selectedCust?.user?.isActive !== false
+                                    ? 'bg-emerald-500'
+                                    : 'bg-rose-500'
+                                }`}
+                              />
+                            )}
+                            <span>{selectedCust?.user?.isActive !== false ? 'Active' : 'Inactive'}</span>
+                            <span className="text-[9px] text-slate-400 font-normal underline ml-0.5">change</span>
+                          </button>
                         )}
                       </div>
                       {selectedCust?.referralCode ? (
@@ -1009,6 +1124,26 @@ export default function CustomerManagement() {
                                 : '—'}
                             </span>
                           </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 block">Account Status</span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className={`text-xs font-bold ${selectedCust.user?.isActive !== false ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                {selectedCust.user?.isActive !== false ? 'Active' : 'Inactive'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleCustomerActive(selectedCust)}
+                                disabled={updatingCustStatus === selectedCust.id}
+                                className="text-[11px] font-bold text-[#1677C8] hover:underline cursor-pointer disabled:opacity-50"
+                              >
+                                {updatingCustStatus === selectedCust.id
+                                  ? 'Updating...'
+                                  : selectedCust.user?.isActive !== false
+                                  ? 'Set Inactive'
+                                  : 'Set Active'}
+                              </button>
+                            </div>
+                          </div>
                           {selectedCust.companyName && (
                             <div className="col-span-2">
                               <span className="text-[10px] font-bold text-slate-400 block">Company / Agency</span>
@@ -1110,16 +1245,25 @@ export default function CustomerManagement() {
 
                         <div className="bg-slate-50 p-2.5 rounded-lg text-xs space-y-1.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-500 font-semibold">Status:</span>
-                            <span
-                              className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                            <span className="text-slate-500 font-semibold">Schedule Status:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleScheduleActiveQuick(selectedCust)}
+                              disabled={updatingScheduleStatus === selectedCust.id}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer flex items-center gap-1 disabled:opacity-50 ${
                                 selectedCust.deliverySchedule?.isActive
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : 'bg-rose-100 text-rose-700'
+                                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                  : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
                               }`}
+                              title={selectedCust.deliverySchedule?.isActive ? 'Click to Pause Schedule' : 'Click to Resume Schedule'}
                             >
-                              {selectedCust.deliverySchedule?.isActive ? 'Active' : 'Paused'}
-                            </span>
+                              {updatingScheduleStatus === selectedCust.id ? (
+                                <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                              ) : (
+                                <Power className="w-2.5 h-2.5" />
+                              )}
+                              <span>{selectedCust.deliverySchedule?.isActive ? 'Active (Click to Pause)' : 'Paused (Click to Resume)'}</span>
+                            </button>
                           </div>
                           {selectedCust.deliverySchedule?.rules?.map((rule: any, i: number) => (
                             <div key={i} className="flex items-center justify-between text-slate-700">

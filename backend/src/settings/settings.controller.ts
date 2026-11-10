@@ -33,11 +33,13 @@ export class SettingsController {
   }
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
   findAll() {
     return this.settingsService.findAll();
   }
 
   @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
   findOne(@Param('id') id: string) {
     return this.settingsService.findOne(+id);
   }

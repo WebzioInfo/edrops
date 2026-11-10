@@ -1,12 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CalendarDays, 
   Truck, 
   CheckCircle2, 
-  Clock3, 
   AlertCircle, 
-  XCircle, 
   Minus, 
   Plus, 
   Save, 
@@ -17,7 +16,10 @@ import {
   ChevronDown, 
   ChevronUp, 
   FilterX, 
-  RefreshCw 
+  RefreshCw,
+  Loader2,
+  Zap,
+  ArrowRight,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useDialog } from '../../../hooks/useDialog';
@@ -44,11 +46,17 @@ interface Schedule {
 interface Delivery {
   id: string;
   scheduledFor: string;
-  status: 'PENDING' | 'ASSIGNED' | 'IN_TRANSIT' | 'DELIVERED' | 'SKIPPED' | 'FAILED' | 'CANCELLED';
+  status: string;
   quantity: number;
   requiredQuantity: number;
   timeSlot?: string;
   notes: string | null;
+  report?: {
+    partnerDeliveredQty?: number;
+    partnerEmptyCollected?: number;
+    staffNotes?: string;
+  };
+  verification?: any;
 }
 
 interface GlobalStats {
@@ -138,12 +146,38 @@ function getStatusBadgeStyle(status: string): { bg: string; text: string; border
   }
 }
 
+function getLocalDateStr(dInput: string | Date): string {
+  const d = new Date(dInput);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function formatWeekDateGap(startDateInput: string | Date, endDateInput: string | Date): string {
+  const s = new Date(startDateInput);
+  const e = new Date(endDateInput);
+
+  const startDay = s.getDate();
+  const endDay = e.getDate();
+  const startMonth = s.toLocaleDateString('en-US', { month: 'short' });
+  const endMonth = e.toLocaleDateString('en-US', { month: 'short' });
+  const startYear = s.getFullYear();
+  const endYear = e.getFullYear();
+
+  if (startYear !== endYear) {
+    return `${startDay} ${startMonth} ${startYear} – ${endDay} ${endMonth} ${endYear}`;
+  }
+  if (startMonth !== endMonth) {
+    return `${startDay} ${startMonth} – ${endDay} ${endMonth} ${startYear}`;
+  }
+  return `${startDay} ${startMonth} – ${endDay} ${startMonth} ${startYear}`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; customerId?: string }) {
-  const { confirm, toast } = useDialog();
+  const navigate = useNavigate();
+  const { toast } = useDialog();
 
   // ── Schedule State ──
   const [schedule, setSchedule] = useState<Schedule | null>(null);
@@ -162,6 +196,8 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
   const [todayDelivery, setTodayDelivery] = useState<Delivery | null>(null);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
+  const [viewTab, setViewTab] = useState<'UPCOMING' | 'HISTORY' | 'ALL'>('UPCOMING');
+  const [apiPendingVerification, setApiPendingVerification] = useState<Delivery | null>(null);
 
   // ── History Filters State ──
   const currentDate = new Date();
@@ -182,8 +218,8 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
             qtys[r.dayOfWeek] = r.quantity || 0;
           }
         });
-        setWeeklyQtys(qtys);
-        setInitialQtys(qtys);
+        setWeeklyQtys({ ...qtys });
+        setInitialQtys({ ...qtys });
       }
     } catch {
       toast.error('Failed to load delivery schedule');
@@ -209,12 +245,13 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
       if (data) {
         setWeeks(data.weeks || []);
         setSummary(data.summary || null);
+        setApiPendingVerification(data.pendingVerification || null);
 
         let foundToday: Delivery | null = null;
-        const nowStr = new Date().toISOString().split('T')[0];
+        const nowStr = getLocalDateStr(new Date());
         for (const w of (data.weeks || [])) {
           for (const d of w.deliveries) {
-            if (d.scheduledFor.startsWith(nowStr)) {
+            if (getLocalDateStr(d.scheduledFor) === nowStr) {
               foundToday = d;
               break;
             }
@@ -250,11 +287,15 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     loadHistory(true);
   }, [selectedYear, selectedMonth, selectedStatus]);
 
+  // ── Auto-Save & Debounce References ──
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialMount = useRef(true);
+
   // ── Schedule Handlers ──
   const handleWeeklyQtyChange = (day: number, delta: number) => {
     setWeeklyQtys((prev) => ({
       ...prev,
-      [day]: Math.max(0, Math.min(10, prev[day] + delta)),
+      [day]: Math.max(0, Math.min(10, (prev[day] ?? 0) + delta)),
     }));
   };
 
@@ -264,14 +305,13 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     );
   }, [weeklyQtys, initialQtys]);
 
-  const handleSaveSchedule = async () => {
-    if (!schedule) return;
+  const persistSchedule = async (targetQtys: Record<number, number>, showToast = false) => {
     setSavingSchedule(true);
 
     const rules: ScheduleRule[] = [];
-    Object.keys(weeklyQtys).forEach((dayKey) => {
+    Object.keys(targetQtys).forEach((dayKey) => {
       const day = parseInt(dayKey, 10);
-      const qty = weeklyQtys[day];
+      const qty = targetQtys[day] || 0;
       if (qty > 0) {
         rules.push({
           type: 'WEEKLY',
@@ -285,13 +325,17 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
       const updated = await fetchWithAuth('/schedule', {
         method: 'POST',
         body: JSON.stringify({
-          isActive: schedule.isActive,
+          isActive: schedule ? schedule.isActive : true,
           rules,
         }),
       });
-      setSchedule(updated);
-      setInitialQtys(weeklyQtys);
-      toast.success('Delivery schedule saved successfully!');
+      if (updated) {
+        setSchedule(updated);
+      }
+      setInitialQtys({ ...targetQtys });
+      if (showToast) {
+        toast.success('Delivery schedule saved successfully!');
+      }
       // Refresh history to pick up newly planned deliveries
       loadHistory(false);
     } catch (err: any) {
@@ -301,48 +345,264 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     }
   };
 
+  const handleSaveSchedule = async () => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    await persistSchedule(weeklyQtys, true);
+  };
+
+  // ── Auto-Save Effect (Debounced 1s after last change) ──
+  useEffect(() => {
+    if (scheduleLoading) return;
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    if (!isScheduleDirty) return;
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      persistSchedule(weeklyQtys, false);
+    }, 1000);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [weeklyQtys, isScheduleDirty, scheduleLoading]);
+
+  // ── Browser Refresh Protection (Warn if unsaved changes exist) ──
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isScheduleDirty || savingSchedule) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isScheduleDirty, savingSchedule]);
+
   const handleToggleScheduleActive = async () => {
-    if (!schedule) return;
-    const nextActive = !schedule.isActive;
+    const nextActive = schedule ? !schedule.isActive : true;
+
+    const rules: ScheduleRule[] = [];
+    Object.keys(weeklyQtys).forEach((dayKey) => {
+      const day = parseInt(dayKey, 10);
+      const qty = weeklyQtys[day] || 0;
+      if (qty > 0) {
+        rules.push({
+          type: 'WEEKLY',
+          dayOfWeek: day,
+          quantity: qty,
+        });
+      }
+    });
 
     try {
       const updated = await fetchWithAuth('/schedule', {
         method: 'POST',
         body: JSON.stringify({
           isActive: nextActive,
-          rules: schedule.rules,
+          rules,
         }),
       });
-      setSchedule(updated);
+      if (updated) {
+        setSchedule(updated);
+      }
+      setInitialQtys({ ...weeklyQtys });
       toast.success(`Schedule ${nextActive ? 'activated' : 'paused'}`);
+      loadHistory(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to update schedule status');
     }
   };
 
-  const updateDeliveryStatus = async (deliveryId: string, status: string) => {
-    const isConfirmed = await confirm({
-      title: 'Update Status',
-      description: `Are you sure you want to change this delivery status to ${formatDeliveryStatus(status)}?`,
-      confirmText: 'Update',
-      cancelText: 'Cancel',
-      variant: 'primary',
-    });
+  const getVerificationInfo = (delivery: Delivery): any => {
+    if ((delivery as any).verification) return (delivery as any).verification;
+    if (delivery.report?.staffNotes) {
+      try {
+        const parsed = JSON.parse(delivery.report.staffNotes);
+        if (parsed && typeof parsed === 'object' && parsed.verificationStatus) {
+          return parsed;
+        }
+      } catch {
+        // not json
+      }
+    }
+    return null;
+  };
 
-    if (!isConfirmed) return;
+  const [verifyingDeliveryId, setVerifyingDeliveryId] = useState<string | null>(null);
 
+  const handleCustomerVerify = async (deliveryId: string, verified: boolean, reason?: string) => {
     try {
-      await fetchWithAuth(`/delivery/${deliveryId}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
+      setVerifyingDeliveryId(deliveryId);
+      await fetchWithAuth(`/delivery/${deliveryId}/customer-verify`, {
+        method: 'POST',
+        body: JSON.stringify({ verified, reason }),
       });
+
+      if (verified) {
+        toast.success('Thank you! Your water delivery has been confirmed and verified.');
+      } else {
+        toast.success('Your feedback was received. Staff will contact you shortly.');
+      }
+
       await loadHistory(false);
-      toast.success('Status updated successfully');
-    } catch (e: any) {
-      console.error('Failed to update status', e);
-      toast.error('Failed to update status. Please try again.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to verify delivery');
+    } finally {
+      setVerifyingDeliveryId(null);
     }
   };
+
+  // ── Date Helpers & Calculations ──
+  const todayDayIndex = new Date().getDay();
+  const tomorrowDayIndex = (todayDayIndex + 1) % 7;
+
+  const todayStr = useMemo(() => getLocalDateStr(new Date()), []);
+
+  const tomorrowStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return getLocalDateStr(d);
+  }, []);
+
+  // ── Flattened & Sorted Deliveries ──
+  const allDeliveries = useMemo(() => {
+    const list: Delivery[] = [];
+    weeks.forEach((w) => {
+      (w.deliveries || []).forEach((d) => list.push(d));
+    });
+    return list.sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());
+  }, [weeks]);
+
+  // ── Next Upcoming Delivery (Prioritize Today, then Tomorrow, then Next) ──
+  const nextUpcomingDelivery = useMemo(() => {
+    if (todayDelivery) return todayDelivery;
+    return allDeliveries.find(
+      (d) =>
+        getLocalDateStr(d.scheduledFor) >= todayStr &&
+        ['PENDING', 'ASSIGNED', 'IN_TRANSIT', 'CONFIRMED', 'PROCESSING', 'ORDER_PLACED', 'NEW', 'PENDING_ASSIGNMENT', 'OUT_FOR_DELIVERY'].includes(
+          d.status.toUpperCase()
+        )
+    ) || null;
+  }, [todayDelivery, allDeliveries, todayStr]);
+
+  // ── Pending Customer Verification Delivery ──
+  const pendingVerificationDelivery = useMemo(() => {
+    if (apiPendingVerification && apiPendingVerification.status !== 'DELIVERED') {
+      const v = getVerificationInfo(apiPendingVerification);
+      if (v?.verificationStatus === 'PENDING_VERIFICATION') {
+        return apiPendingVerification;
+      }
+    }
+    return (
+      allDeliveries.find((d) => {
+        if (d.status === 'DELIVERED' || d.status === 'CANCELLED') return false;
+        const v = getVerificationInfo(d);
+        return v?.verificationStatus === 'PENDING_VERIFICATION';
+      }) || null
+    );
+  }, [apiPendingVerification, allDeliveries]);
+
+  // ── Delivery Counts (Upcoming vs Past History) ──
+  const { upcomingCount, historyCount, totalCount } = useMemo(() => {
+    let up = 0;
+    let hist = 0;
+    weeks.forEach((w) => {
+      (w.deliveries || []).forEach((d) => {
+        const dStr = getLocalDateStr(d.scheduledFor);
+        const isUp = dStr >= todayStr && !['DELIVERED', 'CANCELLED', 'FAILED'].includes(d.status.toUpperCase());
+        if (isUp) up++;
+        else hist++;
+      });
+    });
+    return { upcomingCount: up, historyCount: hist, totalCount: up + hist };
+  }, [weeks, todayStr]);
+
+  // ── Tab-Filtered Weeks ──
+  const filteredWeeks = useMemo(() => {
+    let list = weeks;
+    if (viewTab !== 'ALL') {
+      list = weeks
+        .map((w) => {
+          const filtered = (w.deliveries || []).filter((d) => {
+            const dStr = getLocalDateStr(d.scheduledFor);
+            const isUp = dStr >= todayStr && !['DELIVERED', 'CANCELLED', 'FAILED'].includes(d.status.toUpperCase());
+            return viewTab === 'UPCOMING' ? isUp : !isUp;
+          });
+          return {
+            ...w,
+            deliveries: filtered,
+          };
+        })
+        .filter((w) => w.deliveries.length > 0);
+    }
+
+    // Sort weeks & deliveries chronologically based on active tab
+    return [...list]
+      .sort((a, b) => {
+        const timeA = new Date(a.startDate).getTime();
+        const timeB = new Date(b.startDate).getTime();
+        if (viewTab === 'HISTORY') {
+          // Recent history on top
+          return timeB - timeA;
+        }
+        // Upcoming & All: nearest/current week first (ascending)
+        return timeA - timeB;
+      })
+      .map((w) => {
+        const sortedDeliveries = [...w.deliveries].sort((a, b) => {
+          const tA = new Date(a.scheduledFor).getTime();
+          const tB = new Date(b.scheduledFor).getTime();
+          return viewTab === 'HISTORY' ? tB - tA : tA - tB;
+        });
+        return {
+          ...w,
+          deliveries: sortedDeliveries,
+        };
+      });
+  }, [weeks, viewTab, todayStr]);
+
+  // Auto-expand the active week (prioritize current week, then top upcoming week)
+  useEffect(() => {
+    if (filteredWeeks.length > 0) {
+      const currentWeekItem = filteredWeeks.find((w) => {
+        const now = new Date();
+        const start = new Date(w.startDate);
+        const end = new Date(w.endDate);
+        end.setHours(23, 59, 59, 999);
+        return now >= start && now <= end;
+      });
+      const targetWeek = currentWeekItem ? currentWeekItem.startDate : filteredWeeks[0].startDate;
+      if (!expandedWeek || !filteredWeeks.some((w) => w.startDate === expandedWeek)) {
+        setExpandedWeek(targetWeek);
+      }
+    }
+  }, [filteredWeeks, expandedWeek]);
+
+  // When switching between Upcoming / History / All, auto-expand the top relevant week
+  useEffect(() => {
+    if (filteredWeeks.length > 0) {
+      const currentWeekItem = filteredWeeks.find((w) => {
+        const now = new Date();
+        const start = new Date(w.startDate);
+        const end = new Date(w.endDate);
+        end.setHours(23, 59, 59, 999);
+        return now >= start && now <= end;
+      });
+      setExpandedWeek(currentWeekItem ? currentWeekItem.startDate : filteredWeeks[0].startDate);
+    }
+  }, [viewTab]);
 
   // ── Calculations ──
   const weeklyTotal = useMemo(() => {
@@ -367,34 +627,15 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     return null;
   }, [weeklyQtys]);
 
-  const getStatusIcon = (status: Delivery['status']) => {
-    switch (status) {
-      case 'DELIVERED':
-        return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
-      case 'PENDING':
-      case 'ASSIGNED':
-      case 'IN_TRANSIT':
-        return <Clock3 className="h-4 w-4 text-[#2D79A8]" />;
-      case 'SKIPPED':
-      case 'CANCELLED':
-        return <AlertCircle className="h-4 w-4 text-amber-600" />;
-      case 'FAILED':
-        return <XCircle className="h-4 w-4 text-rose-600" />;
-      default:
-        return <Clock3 className="h-4 w-4 text-slate-400" />;
-    }
-  };
-
   const formatShortDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
-      timeZone: 'UTC',
     });
   };
 
-  if (scheduleLoading && historyLoading) {
+  if (scheduleLoading || (historyLoading && weeks.length === 0)) {
     return <LoadingSpinner fullPage label="Loading delivery workspace..." />;
   }
 
@@ -448,6 +689,73 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
             </button>
           </div>
         </div>
+
+        {/* ─── 1.5. PENDING DELIVERY VERIFICATION BANNER ──────────────── */}
+        {pendingVerificationDelivery && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 text-white rounded-2xl p-4 sm:p-5 shadow-md border border-amber-300"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 shadow-inner">
+                  <Truck className="w-6 h-6 text-white animate-bounce" />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/25 text-[11px] font-black uppercase tracking-wider">
+                    <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                    <span>Delivery Verification Needed</span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-white mt-1">
+                    Did you receive your water jars today?
+                  </h3>
+                  <p className="text-xs sm:text-sm text-amber-100 mt-0.5 leading-relaxed">
+                    Staff marked{' '}
+                    <strong className="text-white underline decoration-white/40">
+                      {getVerificationInfo(pendingVerificationDelivery)?.deliveredQty || pendingVerificationDelivery.requiredQuantity} Jar(s)
+                    </strong>{' '}
+                    delivered to your location
+                    {getVerificationInfo(pendingVerificationDelivery)?.emptyCollected !== undefined && (
+                      <span> (and collected {getVerificationInfo(pendingVerificationDelivery).emptyCollected} empty jar(s))</span>
+                    )}
+                    . Please confirm receipt below.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const reason = window.prompt('Please describe the issue (e.g. jars not received, wrong quantity):');
+                    if (reason) {
+                      handleCustomerVerify(pendingVerificationDelivery.id, false, reason);
+                    }
+                  }}
+                  disabled={verifyingDeliveryId === pendingVerificationDelivery.id}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/20 hover:bg-white/30 text-white border border-white/40 transition cursor-pointer disabled:opacity-50"
+                >
+                  Report Issue
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleCustomerVerify(pendingVerificationDelivery.id, true)}
+                  disabled={verifyingDeliveryId === pendingVerificationDelivery.id}
+                  className="px-5 py-2 rounded-xl text-xs font-extrabold bg-white text-amber-900 hover:bg-amber-50 shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {verifyingDeliveryId === pendingVerificationDelivery.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-900" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  )}
+                  <span>Yes, Received & Verified</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* ─── 2. TOP SUMMARY ROW (Compact Metric Strip) ─────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
@@ -563,27 +871,89 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                 {DAYS_OF_WEEK.map((day) => {
                   const qty = weeklyQtys[day.value];
                   const isActive = qty > 0;
+                  const isToday = day.value === todayDayIndex;
+                  const isTomorrow = day.value === tomorrowDayIndex;
+
+                  const isTodayUnderwayOrDone = !!(
+                    todayDelivery &&
+                    ['OUT_FOR_DELIVERY', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'FAILED'].includes(todayDelivery.status)
+                  );
+                  const isPastTodayCutoff = new Date().getHours() >= 14;
+                  const appliesNextWeek = isToday && (isTodayUnderwayOrDone || isPastTodayCutoff);
 
                   return (
                     <div 
                       key={day.value}
                       className={`px-4 py-2.5 sm:py-3 flex items-center justify-between gap-3 transition-colors ${
-                        isActive ? 'bg-[#F8FAFC]/60' : 'bg-white hover:bg-slate-50/50'
+                        isTomorrow && isActive
+                          ? 'bg-amber-50/50 border-l-4 border-l-amber-500'
+                          : isToday && isActive
+                          ? 'bg-blue-50/50 border-l-4 border-l-[#1E88E5]'
+                          : isTomorrow
+                          ? 'bg-amber-50/20 border-l-4 border-l-amber-300/80'
+                          : isToday
+                          ? 'bg-slate-50 border-l-4 border-l-slate-300'
+                          : isActive
+                          ? 'bg-[#F8FAFC]/60'
+                          : 'bg-white hover:bg-slate-50/50'
                       }`}
                     >
                       {/* Left: Day & Status subtext */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs sm:text-sm font-bold ${isActive ? 'text-[#0F172A]' : 'text-[#64748B]'}`}>
+                          <span className={`text-xs sm:text-sm font-bold ${
+                            isTomorrow ? 'text-amber-950 font-extrabold' : isToday ? 'text-[#0F172A]' : isActive ? 'text-[#0F172A]' : 'text-[#64748B]'
+                          }`}>
                             {day.label}
                           </span>
+                          {isTomorrow && (
+                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                              Tomorrow
+                            </span>
+                          )}
+                          {isToday && (
+                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                              Today
+                            </span>
+                          )}
+                          {appliesNextWeek && isActive && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                              Applies next {day.label}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] font-medium mt-0.5">
                           {isActive ? (
-                            <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                              {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled
-                            </span>
+                            isTomorrow ? (
+                              <span className="text-amber-800 font-bold flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+                                {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled (Arriving Tomorrow)
+                              </span>
+                            ) : isToday ? (
+                              appliesNextWeek ? (
+                                todayDelivery ? (
+                                  <span className="text-slate-700 font-semibold flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                    Today: {todayDelivery.requiredQuantity} {todayDelivery.requiredQuantity === 1 ? 'Jar' : 'Jars'} ({formatDeliveryStatus(todayDelivery.status)}) • Next week: {qty} Jars
+                                  </span>
+                                ) : (
+                                  <span className="text-amber-800 font-semibold flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                                    Today's cutoff passed • {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled from next {day.label}
+                                  </span>
+                                )
+                              ) : (
+                                <span className="text-blue-800 font-bold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#1E88E5] inline-block" />
+                                  {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled (Today)
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled
+                              </span>
+                            )
                           ) : (
                             <span className="text-[#94A3B8]">No Delivery</span>
                           )}
@@ -600,7 +970,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                           <button
                             type="button"
                             onClick={() => handleWeeklyQtyChange(day.value, -1)}
-                            disabled={qty === 0}
+                            disabled={scheduleLoading || qty === 0}
                             aria-label={`Decrease jars for ${day.label}`}
                             className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] disabled:opacity-30 disabled:hover:bg-transparent active:bg-slate-100 transition-colors cursor-pointer"
                           >
@@ -614,7 +984,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                           <button
                             type="button"
                             onClick={() => handleWeeklyQtyChange(day.value, 1)}
-                            disabled={qty >= 10}
+                            disabled={scheduleLoading || qty >= 10}
                             aria-label={`Increase jars for ${day.label}`}
                             className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] disabled:opacity-30 disabled:hover:bg-transparent active:bg-slate-100 transition-colors cursor-pointer"
                           >
@@ -629,16 +999,25 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
 
               {/* Card Footer: Save Schedule & Status Indicator */}
               <div className="px-4 py-3 bg-[#F8FAFC] border-t border-[#E2E8F0] flex items-center justify-between gap-3">
-                <div className="text-xs text-[#64748B]">
-                  {isScheduleDirty ? (
+                <div className="text-xs">
+                  {savingSchedule ? (
+                    <span className="text-blue-700 font-semibold flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      Saving schedule...
+                    </span>
+                  ) : isScheduleDirty ? (
                     <span className="text-amber-700 font-semibold flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                      Unsaved changes
+                      Unsaved changes (auto-saving...)
                     </span>
-                  ) : (
-                    <span className="text-[#64748B] flex items-center gap-1">
+                  ) : weeklyTotal > 0 ? (
+                    <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                       All changes saved
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 font-medium">
+                      No deliveries scheduled
                     </span>
                   )}
                 </div>
@@ -646,7 +1025,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                 <button
                   type="button"
                   onClick={handleSaveSchedule}
-                  disabled={savingSchedule || (!isScheduleDirty && weeklyTotal > 0)}
+                  disabled={savingSchedule || !isScheduleDirty}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1E88E5] hover:bg-[#1976D2] active:bg-[#1565C0] text-white text-xs sm:text-sm font-semibold shadow-xs disabled:opacity-50 disabled:hover:bg-[#1E88E5] transition-colors cursor-pointer"
                 >
                   {savingSchedule ? (
@@ -690,7 +1069,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
              ═════════════════════════════════════════════════════════════ */}
           <div className="lg:col-span-6 space-y-3.5">
             
-            {/* TODAY'S / CURRENT DELIVERY CARD */}
+            {/* TODAY'S / NEXT UPCOMING DELIVERY BANNER CARD */}
             {todayDelivery ? (
               <div className="bg-gradient-to-r from-[#16324F] to-[#2D79A8] text-white rounded-2xl p-4 shadow-xs border border-[#16324F]">
                 <div className="flex items-start justify-between gap-3">
@@ -700,7 +1079,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                        <span className="rounded-full bg-emerald-400/30 border border-emerald-300/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-100">
                           Today's Delivery
                         </span>
                         {todayDelivery.timeSlot && (
@@ -710,13 +1089,46 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                         )}
                       </div>
                       <h3 className="text-base sm:text-lg font-bold text-white mt-1">
-                        {todayDelivery.requiredQuantity} {todayDelivery.requiredQuantity === 1 ? 'Jar' : 'Jars'} — {formatShortDate(todayDelivery.scheduledFor)}
+                        {todayDelivery.requiredQuantity} {todayDelivery.requiredQuantity === 1 ? 'Jar' : 'Jars'} — Today ({formatShortDate(todayDelivery.scheduledFor)})
                       </h3>
                     </div>
                   </div>
 
                   <span className="rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-white text-[#16324F] shadow-2xs shrink-0">
                     {formatDeliveryStatus(todayDelivery.status)}
+                  </span>
+                </div>
+              </div>
+            ) : nextUpcomingDelivery ? (
+              <div className="bg-gradient-to-r from-[#1E3A8A] via-[#1E40AF] to-[#0284C7] text-white rounded-2xl p-4 shadow-sm border border-blue-400/30">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 shadow-inner">
+                      <Sparkles className="w-5 h-5 text-amber-300" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
+                          getLocalDateStr(nextUpcomingDelivery.scheduledFor) === tomorrowStr
+                            ? 'bg-amber-400 text-amber-950 shadow-xs'
+                            : 'bg-white/20 text-white'
+                        }`}>
+                          {getLocalDateStr(nextUpcomingDelivery.scheduledFor) === tomorrowStr ? 'Tomorrow' : 'Next Upcoming'}
+                        </span>
+                        <span className="text-[11px] text-blue-100 font-semibold">
+                          {new Date(nextUpcomingDelivery.scheduledFor).toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <h3 className="text-base sm:text-lg font-bold text-white mt-1 flex items-center gap-2">
+                        <span>{nextUpcomingDelivery.requiredQuantity} {nextUpcomingDelivery.requiredQuantity === 1 ? 'Jar' : 'Jars'} Scheduled</span>
+                        {getLocalDateStr(nextUpcomingDelivery.scheduledFor) === tomorrowStr && (
+                          <span className="text-xs font-semibold text-amber-200 hidden sm:inline">(Arriving Tomorrow)</span>
+                        )}
+                      </h3>
+                    </div>
+                  </div>
+                  <span className="rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-white/90 text-[#1E3A8A] shadow-xs shrink-0">
+                    {formatDeliveryStatus(nextUpcomingDelivery.status)}
                   </span>
                 </div>
               </div>
@@ -728,7 +1140,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                   </div>
                   <div>
                     <h3 className="text-xs sm:text-sm font-bold text-[#0F172A]">
-                      No delivery scheduled for today
+                      No upcoming deliveries scheduled
                     </h3>
                     <p className="text-[11px] text-[#64748B]">
                       {nextScheduledDayText ? `Next up: ${nextScheduledDayText}` : 'Set quantities on the weekly schedule to get started.'}
@@ -736,20 +1148,102 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                   </div>
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-1 rounded-md border border-slate-200/60 hidden sm:inline">
-                  Inactive Today
+                  No Active Orders
                 </span>
               </div>
             )}
 
+            {/* URGENT / INSTANT DELIVERY ACTION CARD */}
+            <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-amber-500/10 border border-amber-300 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs shadow-orange-500/30">
+                  <Zap className="w-5 h-5 fill-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="text-xs sm:text-sm font-extrabold text-amber-950">
+                      Need Water Urgently Today?
+                    </h4>
+                    <span className="bg-amber-100 text-amber-900 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-amber-300">
+                      Instant Drop
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-900/80 mt-0.5 leading-relaxed">
+                    Weekly schedule changes apply to upcoming cycles. Order on-demand jars for immediate priority dispatch.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/customer/shop')}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-sm shadow-orange-500/20 shrink-0 transition-all cursor-pointer active:scale-95"
+              >
+                <span>Order Instant Jars</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             {/* DELIVERY HISTORY & TRACKING LOG CARD */}
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
               
-              {/* Card Header & Inline Filters */}
+              {/* Card Header, View Tabs & Inline Filters */}
               <div className="px-4 py-3 border-b border-[#E2E8F0] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div>
-                  <h2 className="text-sm sm:text-base font-bold text-[#0F172A] flex items-center gap-1.5">
-                    <span>Delivery History & Log</span>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="text-sm sm:text-base font-bold text-[#0F172A]">
+                    Deliveries & Log
                   </h2>
+
+                  {/* View Filter Tabs: Upcoming / History / All */}
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setViewTab('UPCOMING')}
+                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        viewTab === 'UPCOMING'
+                          ? 'bg-white text-[#1E88E5] font-bold shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>Upcoming</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                        viewTab === 'UPCOMING' ? 'bg-blue-100 text-[#1E88E5]' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {upcomingCount}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewTab('HISTORY')}
+                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        viewTab === 'HISTORY'
+                          ? 'bg-white text-[#1E88E5] font-bold shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>History</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                        viewTab === 'HISTORY' ? 'bg-blue-100 text-[#1E88E5]' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {historyCount}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewTab('ALL')}
+                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        viewTab === 'ALL'
+                          ? 'bg-white text-[#1E88E5] font-bold shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>All</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                        viewTab === 'ALL' ? 'bg-blue-100 text-[#1E88E5]' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {totalCount}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Inline Compact Filters */}
@@ -819,19 +1313,27 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                   <div className="w-5 h-5 border-2 border-[#1E88E5]/30 border-t-[#1E88E5] rounded-full animate-spin mx-auto mb-2" />
                   <p className="text-xs text-[#64748B]">Loading delivery log...</p>
                 </div>
-              ) : weeks.length === 0 ? (
+              ) : filteredWeeks.length === 0 ? (
                 <div className="p-8 text-center flex flex-col items-center justify-center">
                   <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center mb-2 border border-slate-200/80">
                     <FilterX className="w-5 h-5" />
                   </div>
-                  <h4 className="text-xs sm:text-sm font-bold text-[#0F172A]">No deliveries found</h4>
+                  <h4 className="text-xs sm:text-sm font-bold text-[#0F172A]">
+                    {viewTab === 'UPCOMING'
+                      ? 'No upcoming deliveries found'
+                      : viewTab === 'HISTORY'
+                      ? 'No past delivery history found'
+                      : 'No deliveries found'}
+                  </h4>
                   <p className="text-[11px] text-[#64748B] mt-0.5 max-w-xs leading-relaxed">
-                    No records found for this period. Try adjusting filters or schedule new deliveries.
+                    {viewTab === 'UPCOMING'
+                      ? 'Set jar quantities on your weekly delivery schedule to generate upcoming deliveries.'
+                      : 'Completed or missed orders for this period will appear here.'}
                   </p>
                 </div>
               ) : (
                 <div className="divide-y divide-[#E2E8F0] max-h-[440px] overflow-y-auto">
-                  {weeks.map((week) => {
+                  {filteredWeeks.map((week) => {
                     const isExpanded = expandedWeek === week.startDate;
                     const isCurrentWeek = new Date() >= new Date(week.startDate) && new Date() <= new Date(week.endDate);
 
@@ -847,7 +1349,10 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                           <div className="flex items-center gap-2 min-w-0">
                             <CalendarDays className={`w-3.5 h-3.5 shrink-0 ${isCurrentWeek ? 'text-[#1E88E5]' : 'text-slate-400'}`} />
                             <span className="text-xs font-bold text-[#0F172A] truncate">
-                              {week.label}
+                              {formatWeekDateGap(week.startDate, week.endDate)}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              ({week.label})
                             </span>
                             {isCurrentWeek && (
                               <span className="rounded bg-blue-50 text-[#1E88E5] border border-blue-200/60 px-1.5 py-0.2 text-[9px] font-bold uppercase">
@@ -877,32 +1382,73 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                             >
                               {week.deliveries.length === 0 ? (
                                 <div className="px-4 py-3 text-center text-xs text-[#94A3B8] italic">
-                                  No scheduled deliveries in this week.
+                                  No deliveries found for this view.
                                 </div>
                               ) : (
                                 week.deliveries.map((delivery) => {
                                   const badge = getStatusBadgeStyle(delivery.status);
+                                  const delDate = new Date(delivery.scheduledFor);
+                                  const delDateStr = getLocalDateStr(delivery.scheduledFor);
+                                  const isDelToday = delDateStr === todayStr;
+                                  const isDelTomorrow = delDateStr === tomorrowStr;
+                                  const isNextUpcoming = nextUpcomingDelivery?.id === delivery.id;
 
                                   return (
                                     <div 
                                       key={delivery.id}
-                                      className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50/60 transition-colors"
+                                      className={`px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors ${
+                                        isDelTomorrow
+                                          ? 'bg-amber-50/40 border-l-4 border-l-amber-500'
+                                          : isDelToday
+                                          ? 'bg-emerald-50/40 border-l-4 border-l-emerald-500'
+                                          : isNextUpcoming
+                                          ? 'bg-blue-50/30 border-l-4 border-l-[#1E88E5]'
+                                          : 'hover:bg-slate-50/60'
+                                      }`}
                                     >
                                       {/* Left: Icon, Date, Day, Quantity */}
                                       <div className="flex items-center gap-2.5 min-w-0">
-                                        <div className="w-7 h-7 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center shrink-0">
-                                          {getStatusIcon(delivery.status)}
+                                        <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${
+                                          isDelTomorrow
+                                            ? 'bg-amber-100 border-amber-300 text-amber-800'
+                                            : isDelToday
+                                            ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                                            : 'bg-[#F8FAFC] border-[#E2E8F0]'
+                                        }`}>
+                                          <Droplets className={`w-3.5 h-3.5 ${
+                                            isDelTomorrow
+                                              ? 'text-amber-700'
+                                              : isDelToday
+                                              ? 'text-emerald-700'
+                                              : 'text-[#1E88E5]'
+                                          }`} />
                                         </div>
                                         <div className="min-w-0">
-                                          <div className="text-xs font-bold text-[#0F172A] flex items-center gap-1.5">
+                                          <div className="text-xs font-bold text-[#0F172A] flex items-center gap-1.5 flex-wrap">
                                             <span>
-                                              {new Date(delivery.scheduledFor).toLocaleDateString('en-US', {
+                                              {delDate.toLocaleDateString('en-US', {
                                                 day: 'numeric',
                                                 month: 'short',
                                                 weekday: 'short',
-                                                timeZone: 'UTC',
                                               })}
                                             </span>
+
+                                            {isDelTomorrow && (
+                                              <span className="rounded-full bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.2 text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                                                Tomorrow
+                                              </span>
+                                            )}
+                                            {isDelToday && (
+                                              <span className="rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.2 text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                                                Today
+                                              </span>
+                                            )}
+                                            {isNextUpcoming && !isDelToday && !isDelTomorrow && (
+                                              <span className="rounded-full bg-blue-100 text-[#1E88E5] border border-blue-200 px-2 py-0.2 text-[9px] font-bold uppercase tracking-wider">
+                                                Next Up
+                                              </span>
+                                            )}
+
                                             <span className="text-slate-300">•</span>
                                             <span className="text-[#1E88E5]">
                                               {delivery.requiredQuantity} {delivery.requiredQuantity === 1 ? 'Jar' : 'Jars'}
@@ -916,24 +1462,11 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                                         </div>
                                       </div>
 
-                                      {/* Right: Status Pill */}
+                                      {/* Right: Clean Read-Only Status Pill */}
                                       <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${badge.bg} ${badge.text} ${badge.border}`}>
+                                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border ${badge.bg} ${badge.text} ${badge.border}`}>
                                           {formatDeliveryStatus(delivery.status)}
                                         </span>
-
-                                        {/* Status Update Quick Control for customer testing/updating */}
-                                        <select
-                                          value={delivery.status}
-                                          onChange={(e) => updateDeliveryStatus(delivery.id, e.target.value)}
-                                          aria-label="Change status"
-                                          className="text-[10px] font-bold text-[#64748B] bg-slate-100 hover:bg-slate-200 border border-slate-200/80 rounded px-1 py-0.5 cursor-pointer focus:outline-none"
-                                        >
-                                          <option value="PENDING">Pending</option>
-                                          <option value="DELIVERED">Delivered</option>
-                                          <option value="FAILED">Missed</option>
-                                          <option value="CANCELLED">Cancelled</option>
-                                        </select>
                                       </div>
                                     </div>
                                   );

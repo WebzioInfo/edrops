@@ -1570,6 +1570,66 @@ export class BiodropsService {
     });
   }
 
+  async recordDistributorSalePayment(
+    saleId: string,
+    dto: { amount: number; paymentMethod?: string; notes?: string },
+    actingUserId?: string,
+  ) {
+    if (!dto.amount || dto.amount <= 0) {
+      throw new BadRequestException('Payment amount must be greater than zero');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const sale = await tx.distributorSale.findUnique({
+        where: { id: saleId },
+      });
+      if (!sale) {
+        throw new NotFoundException(`Distributor sale with ID ${saleId} not found`);
+      }
+
+      if (sale.outstandingAmount <= 0) {
+        throw new BadRequestException('This sale is already fully paid');
+      }
+
+      const amountToPay = Math.min(dto.amount, sale.outstandingAmount);
+      const newAmountPaid = Number(sale.amountPaid) + amountToPay;
+      const newOutstanding = Math.max(0, Number(sale.totalAmount) - newAmountPaid);
+      const newPaymentStatus = newOutstanding <= 0 ? 'PAID' : 'PARTIAL';
+
+      const existingPayments = Array.isArray(sale.payments) ? (sale.payments as any[]) : [];
+      const updatedPayments = [
+        ...existingPayments,
+        {
+          amount: amountToPay,
+          date: new Date().toISOString(),
+          method: dto.paymentMethod || 'CASH',
+          notes: dto.notes || null,
+          recordedById: actingUserId || null,
+        },
+      ];
+
+      return tx.distributorSale.update({
+        where: { id: saleId },
+        data: {
+          amountPaid: newAmountPaid,
+          outstandingAmount: newOutstanding,
+          paymentStatus: newPaymentStatus,
+          payments: updatedPayments,
+        },
+        include: {
+          distributor: {
+            select: {
+              id: true,
+              agencyName: true,
+              user: { select: { firstName: true, lastName: true, phone: true } },
+            },
+          },
+          items: { include: { product: true } },
+        },
+      });
+    });
+  }
+
   // ============================================================================
   // 7. EMPTY JAR OWNERSHIP & PAYMENT-BASED SETTLEMENT TRANSFER
   // ============================================================================

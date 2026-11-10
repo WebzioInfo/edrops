@@ -126,3 +126,79 @@ export async function fetchTenantStockSummary(
   );
 }
 
+export interface AdjustTenantStockPayload {
+  sku: string;
+  itemType?: 'RAW_MATERIAL' | 'FINISHED_PRODUCT';
+  action: 'ADD' | 'SET' | 'DEDUCT';
+  quantity: number;
+  reason: string;
+  notes?: string;
+}
+
+export interface AdjustTenantStockResponse {
+  success: boolean;
+  tenantId: string;
+  sku: string;
+  previousQuantity: number;
+  newQuantity: number;
+  unit: string;
+  action: 'ADD' | 'SET' | 'DEDUCT';
+  message: string;
+  updatedAt: string;
+}
+
+/**
+ * Adjust or update stock for a specific Aquzio tenant product or raw material.
+ */
+export async function adjustTenantStock(
+  tenantId: string,
+  payload: AdjustTenantStockPayload,
+): Promise<AdjustTenantStockResponse> {
+  return fetchWithAuth(
+    `/api/v1/integrations/biodrops/tenants/${encodeURIComponent(tenantId)}/stock/adjust`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export interface AquzioSale {
+  transactionId: string;
+  transactionNumber: string;
+  transactionDate: string;
+  customerId?: string;
+  customerName: string;
+  productId: string;
+  productName: string;
+  sku?: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalAmount: number;
+  amountPaid: number;
+  outstandingAmount: number;
+  paymentStatus: string;
+  paymentMethod?: string;
+  status: string;
+  remarks?: string;
+  source: string;
+  badgeLabel: string;
+  createdAtUtc: string;
+  updatedAtUtc?: string;
+  tenantId?: string;
+  tenantName?: string;
+}
+
+export type BiodropsSale = AquzioSale;
+
+/**
+ * Fetch 20L finished product sales for a specific Aquzio manufacturing tenant.
+ */
+export async function fetchTenantSales(tenantId: string): Promise<AquzioSale[]> {
+  return fetchWithAuth(
+    `/api/v1/integrations/biodrops/tenants/${encodeURIComponent(tenantId)}/sales`,
+  );
+}
+
+

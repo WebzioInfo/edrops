@@ -99,7 +99,6 @@ export class SupplierService {
           },
         },
         transactions: {
-          where: { type: { in: ['BALANCE_ADJUSTMENT', 'ADJUSTMENT'] } },
           orderBy: [
             { createdAt: 'desc' },
             { id: 'desc' },
@@ -131,12 +130,12 @@ export class SupplierService {
         return sum + Math.max(0, (Number(p.total) || 0) - paid);
       }, 0);
 
-      // Latest adjustment if any
-      const latestAdjustment = supplier.transactions[0];
+      // Latest transaction (adjustment, purchase, or payment) holds the continuous running balance (FIN-02)
+      const latestTx = supplier.transactions[0];
 
       const balance =
-        latestAdjustment !== undefined
-          ? latestAdjustment.balance
+        latestTx !== undefined
+          ? latestTx.balance
           : Math.round((openingPayable + totalPendingPurchases) * 100) / 100;
 
       return {

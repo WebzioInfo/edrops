@@ -43,9 +43,29 @@ export default function Dashboard() {
   }
 
   const customer = userProfile?.customer;
-  const jarBalance = customer?.jarBalance || { availableJars: 0, totalPurchased: 10 };
-  const jarDeposit = customer?.jarDeposit || { maxActiveJars: 0, depositPaid: 0, depositDue: 0 };
-  const jarOwnership = customer?.jarOwnership || { companyJarsHeld: 0, ownedJars: 0 };
+  const jarBalance =
+    customer?.jarBalances?.[0] ||
+    customer?.jarBalance || { availableJars: 0, totalPurchased: 0 };
+  const jarDeposit =
+    customer?.jarDeposits?.[0] ||
+    customer?.jarDeposit || { maxActiveJars: 0, depositPaid: 0, depositDue: 0 };
+  const jarOwnership =
+    customer?.jarOwnerships?.[0] ||
+    customer?.jarOwnership || { companyJarsHeld: 0, ownedJars: 0 };
+
+  const nextScheduledQty = (() => {
+    const rules = customer?.deliverySchedule?.rules || [];
+    if (!rules.length || !customer?.deliverySchedule?.isActive) return 0;
+    const today = new Date().getDay();
+    for (let i = 0; i <= 6; i++) {
+      const checkDay = (today + i) % 7;
+      const match = rules.find(
+        (r: any) => r.type === 'WEEKLY' && r.dayOfWeek === checkDay && r.quantity > 0,
+      );
+      if (match) return match.quantity;
+    }
+    return rules[0]?.quantity || 0;
+  })();
 
   const handleOwnJar = () => {
     if (jarDeposit.depositDue <= 0) {
@@ -156,7 +176,12 @@ export default function Dashboard() {
               </div>
               <p className="text-[13px] font-semibold text-[#64748B] uppercase tracking-wider">Next Delivery</p>
             </div>
-            <p className="text-[32px] font-bold text-[#0F172A] leading-none">2 <span className="text-[16px] text-[#64748B] font-medium">Jars</span></p>
+            <p className="text-[32px] font-bold text-[#0F172A] leading-none">
+              {nextScheduledQty}{' '}
+              <span className="text-[16px] text-[#64748B] font-medium">
+                {nextScheduledQty === 1 ? 'Jar' : 'Jars'}
+              </span>
+            </p>
           </div>
         </motion.section>
 
@@ -170,6 +195,14 @@ export default function Dashboard() {
             <div className="absolute top-6 left-6">
               <h2 className="text-[18px] font-bold text-[#0F172A]">Hydration Meter</h2>
               <p className="text-[13px] text-[#64748B]">Real-time jar tracking</p>
+            </div>
+            <div className="absolute top-6 right-6 text-right">
+              <span className="text-[22px] font-black text-[#0284C7] block leading-tight">
+                {jarBalance.availableJars} <span className="text-sm font-bold text-[#64748B]">Jars</span>
+              </span>
+              <span className="text-[11px] font-semibold text-[#64748B]">
+                of {jarBalance.totalPurchased || jarBalance.availableJars || 10} Available
+              </span>
             </div>
             <PremiumWaterJar currentBalance={jarBalance.availableJars} maxBalance={jarBalance.totalPurchased || 10} />
           </div>

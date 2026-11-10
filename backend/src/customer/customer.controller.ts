@@ -92,18 +92,18 @@ export class CustomerController {
 
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR)
-  findAll() {
-    return this.customerService.findAll();
+  findAll(@Request() req) {
+    return this.customerService.findAll(req.user);
   }
 
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER, UserRole.DISTRIBUTOR)
-  findOne(@Param('id') id: string) {
-    return this.customerService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.customerService.findOne(id, req.user);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   update(
     @Param('id') id: string,
     @Body() updateCustomerDto: UpdateCustomerDto,
@@ -116,8 +116,20 @@ export class CustomerController {
     );
   }
 
+  @Patch(':id/status')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { isActive: boolean },
+  ) {
+    if (typeof body.isActive !== 'boolean') {
+      throw new BadRequestException('isActive boolean is required');
+    }
+    return this.customerService.updateStatus(id, body.isActive);
+  }
+
   @Delete(':id')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.DELIVERY_PARTNER)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   remove(@Param('id') id: string) {
     return this.customerService.remove(id);
   }

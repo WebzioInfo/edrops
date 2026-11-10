@@ -93,7 +93,7 @@ describe('Distributor inventory', () => {
       Reflect.getMetadata(ROLES_KEY, DistributorInventoryController),
     ).toEqual([UserRole.DISTRIBUTOR]);
     const inventory = { getInventory: jest.fn(), uploadImage: jest.fn() };
-    const controller = new DistributorInventoryController(inventory as any);
+    const controller = new DistributorInventoryController(inventory as any, {} as any);
     const request = {
       user: { id: 'owner' },
       body: { userId: 'other' },

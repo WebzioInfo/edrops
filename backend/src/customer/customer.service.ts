@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -557,8 +557,27 @@ export class CustomerService {
     };
   }
 
-  async findAll() {
+  async findAll(currentUser?: any) {
+    const where: any = {};
+
+    // Multi-tenant territory scoping (SEC-03)
+    if (currentUser) {
+      if (currentUser.role === 'DISTRIBUTOR') {
+        where.OR = [
+          { createdById: currentUser.id },
+          { orders: { some: { distributorId: currentUser.id } } },
+        ];
+      } else if (currentUser.role === 'DELIVERY_PARTNER') {
+        where.orders = {
+          some: {
+            driver: { userId: currentUser.id },
+          },
+        };
+      }
+    }
+
     const customers = await this.prisma.customer.findMany({
+      where,
       include: {
         user: true,
         addresses: true,
@@ -651,7 +670,7 @@ export class CustomerService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, currentUser?: any) {
     const customer = await this.prisma.customer.findUnique({
       where: { id },
       include: {
@@ -669,6 +688,25 @@ export class CustomerService {
       },
     });
     if (!customer) return null;
+
+    // Multi-tenant territory verification (SEC-03)
+    if (currentUser) {
+      if (currentUser.role === 'DISTRIBUTOR') {
+        const belongsToDistributor =
+          customer.createdById === currentUser.id ||
+          customer.orders.some((o) => o.distributorId === currentUser.id);
+        if (!belongsToDistributor) {
+          throw new ForbiddenException('You do not have permission to view this customer.');
+        }
+      } else if (currentUser.role === 'DELIVERY_PARTNER') {
+        const belongsToDriver = customer.orders.some(
+          (o) => o.driverId === currentUser.id || (o as any).driver?.userId === currentUser.id,
+        );
+        if (!belongsToDriver) {
+          throw new ForbiddenException('You do not have permission to view this customer.');
+        }
+      }
+    }
 
     let referralInfo: { code: string; distributorId?: string; distributorName: string; isDistributor: boolean } | null = null;
     let distId: string | null = null;
@@ -783,7 +821,13 @@ export class CustomerService {
       }
 
       // 1. Update User
-      if (firstName || lastName || phone || email !== undefined) {
+      if (
+        firstName ||
+        lastName ||
+        phone ||
+        email !== undefined ||
+        updateCustomerDto.isActive !== undefined
+      ) {
         await tx.user.update({
           where: { id: existingCustomer.userId },
           data: {
@@ -791,6 +835,9 @@ export class CustomerService {
             ...(lastName ? { lastName } : {}),
             ...(phone ? { phone: normalizedPhone || phone } : {}),
             ...(email !== undefined ? { email } : {}),
+            ...(updateCustomerDto.isActive !== undefined
+              ? { isActive: Boolean(updateCustomerDto.isActive) }
+              : {}),
           },
         });
       }
@@ -867,6 +914,27 @@ export class CustomerService {
         jars_at_customer: updatedCustomer.jarsAtCustomer,
       };
     });
+  }
+
+  async updateStatus(id: string, isActive: boolean) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+    if (!customer) {
+      throw new BadRequestException('Customer not found');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: customer.userId },
+      data: { isActive: Boolean(isActive) },
+    });
+
+    return {
+      success: true,
+      customerId: id,
+      isActive: updatedUser.isActive,
+    };
   }
 
   remove(id: string) {

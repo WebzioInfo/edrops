@@ -390,6 +390,11 @@ export function getPortalSidebarConfig(
               icon: ShoppingCart,
             },
             {
+              to: '/staff/daily-deliveries',
+              label: 'Daily Deliveries',
+              icon: ShieldCheck,
+            },
+            {
               to: '/staff/customers',
               label: 'Customers',
               icon: Users,
@@ -398,6 +403,11 @@ export function getPortalSidebarConfig(
               to: '/staff/distributors',
               label: 'Distributors',
               icon: Building2,
+            },
+            {
+              to: '/staff/sales',
+              label: 'Sales',
+              icon: ShoppingBag,
             },
             {
               to: '/staff/drivers',

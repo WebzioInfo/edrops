@@ -192,6 +192,10 @@ export default function DistributorManagement() {
       0,
     );
     const totalJars = totalCompanyJars + totalPartnerJars;
+    const totalDue = distributors.reduce(
+      (sum, d) => sum + (Number(d.outstandingBalance) || 0),
+      0,
+    );
 
     return {
       total,
@@ -199,6 +203,7 @@ export default function DistributorManagement() {
       inactive,
       totalJars,
       totalCompanyJars,
+      totalDue,
     };
   }, [distributors]);
 
@@ -369,7 +374,7 @@ export default function DistributorManagement() {
       </MobileFilterSheet>
 
       {/* ─── 2. COMPACT SUMMARY CARDS (EXACT DISTRIBUTOR DENSITY) ────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
         <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">
             Total Distributors
@@ -405,6 +410,15 @@ export default function DistributorManagement() {
             {summaryMetrics.totalJars}
           </span>
         </div>
+
+        <div className="bg-white p-3 rounded-xl border border-[#E2E8F0] shadow-2xs flex flex-col justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 block truncate">
+            Total Balance Due
+          </span>
+          <span className="text-base sm:text-lg font-extrabold text-rose-700 leading-tight mt-1 block">
+            ₹{summaryMetrics.totalDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </span>
+        </div>
       </div>
 
       {/* ─── 3. DENSE DISTRIBUTORS DIRECTORY TABLE & MOBILE LIST ───── */}
@@ -425,6 +439,7 @@ export default function DistributorManagement() {
                     <th className="py-2.5 px-3">Route / Area</th>
                     <th className="py-2.5 px-3">Vehicle</th>
                     <th className="py-2.5 px-3">Jar Allocation</th>
+                    <th className="py-2.5 px-3">Balance Due</th>
                     <th className="py-2.5 px-3">Registered</th>
                     <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
@@ -433,14 +448,14 @@ export default function DistributorManagement() {
                   {error ? (
                 <DataErrorState
                   isTableRow
-                  colSpan={9}
+                  colSpan={10}
                   title="Unable to load distributors"
                   message={error}
                   onRetry={loadDistributors}
                 />
               ) : filteredDistributors.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-14 text-center">
+                  <td colSpan={10} className="py-14 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                       <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#1677C8] flex items-center justify-center mb-2">
                         <Building2 className="w-5 h-5" />
@@ -587,6 +602,21 @@ export default function DistributorManagement() {
                         </div>
                       </td>
 
+                      {/* Balance Due (Money distributor owes us) */}
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        {Number(dist.outstandingBalance || 0) > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                            ₹{Number(dist.outstandingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            ₹0.00 (Clear)
+                          </span>
+                        )}
+                      </td>
+
                       {/* Registered */}
                       <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap font-mono text-[11px]">
                         {dist.createdAt
@@ -688,6 +718,16 @@ export default function DistributorManagement() {
                         </div>
                         <span>•</span>
                         <span>{allocatedJars} Jars</span>
+                        <span>•</span>
+                        {Number(dist.outstandingBalance || 0) > 0 ? (
+                          <span className="font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded text-[10px]">
+                            Due: ₹{Number(dist.outstandingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px]">
+                            Clear
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

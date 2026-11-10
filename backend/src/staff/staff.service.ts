@@ -89,6 +89,16 @@ export class StaffService {
                 email: true,
               },
             },
+            distributorSales: {
+              include: {
+                items: {
+                  include: {
+                    product: true,
+                  },
+                },
+              },
+              orderBy: { saleDate: 'desc' },
+            },
           },
         },
         distributorPincodes: {
@@ -156,6 +166,16 @@ export class StaffService {
                 lastName: true,
                 email: true,
               },
+            },
+            distributorSales: {
+              include: {
+                items: {
+                  include: {
+                    product: true,
+                  },
+                },
+              },
+              orderBy: { saleDate: 'desc' },
             },
           },
         },
@@ -484,6 +504,22 @@ export class StaffService {
       totalJars:
         (u.distributor?.companyOwnedJars ?? 0) +
         (u.distributor?.distributorOwnedJars ?? 0),
+      totalSalesAmount:
+        u.distributor?.distributorSales?.reduce(
+          (sum: number, s: any) => sum + (Number(s.totalAmount) || 0),
+          0,
+        ) ?? 0,
+      totalPaidAmount:
+        u.distributor?.distributorSales?.reduce(
+          (sum: number, s: any) => sum + (Number(s.amountPaid) || 0),
+          0,
+        ) ?? 0,
+      outstandingBalance:
+        u.distributor?.distributorSales?.reduce(
+          (sum: number, s: any) => sum + (Number(s.outstandingAmount) || 0),
+          0,
+        ) ?? 0,
+      sales: u.distributor?.distributorSales || [],
       createdBy: u.distributor?.createdBy
         ? {
             id: u.distributor.createdBy.id,

@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, ForbiddenException,
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { EventsGateway } from '../events/events.gateway';
-import { OrderStatus, OrderSource, OrderType, PaymentStatus, UserRole, DeliveryVerificationStatus } from '@prisma/client';
+import { OrderStatus, OrderSource, OrderType, PaymentStatus, UserRole, DeliveryVerificationStatus, WalletTransactionType } from '@prisma/client';
 
 import { CreatePartnerOrderDto, CreatePartnerOrderItemDto } from './dto/create-partner-order.dto';
 import {
@@ -454,6 +454,11 @@ export class OrderService {
         currentUser.sub === order.customer?.user?.id ||
         currentUser.sub === order.customer?.userId ||
         currentUser.customerId === order.customerId);
+
+    // IDOR Protection (SEC-05): Customers are strictly forbidden from viewing other customers' orders
+    if (currentUser && currentUser.role === 'CUSTOMER' && !isCustomerOwner) {
+      throw new ForbiddenException('You do not have permission to view this order.');
+    }
 
     let sanitizedVerification = order.deliveryVerification;
     if (sanitizedVerification && !isCustomerOwner) {
@@ -3099,7 +3104,55 @@ export class OrderService {
           paymentHistoryNote = `Payment ₹${amountReceived} received via ${paymentMethodToRecord} (Settlement: ₹${settlement.calculatedAmount})`;
         } else if (netPayable === 0 && currentPaid >= settlement.calculatedAmount) {
           newPaymentStatus = PaymentStatus.PAID;
-          paymentHistoryNote = `Fully covered by advance payment (Settlement: ₹${settlement.calculatedAmount}, Paid: ₹${currentPaid})`;
+          const overpaidAmount = Number((currentPaid - settlement.calculatedAmount).toFixed(2));
+
+          if (overpaidAmount > 0) {
+            // Automatically refund the overpaid short-delivery amount back to customer's wallet
+            let wallet = await tx.wallet.findUnique({
+              where: { customerId: freshOrder.customerId },
+            });
+            if (!wallet) {
+              wallet = await tx.wallet.create({
+                data: { customerId: freshOrder.customerId, balance: 0 },
+              });
+            }
+
+            const balanceBefore = Number(wallet.balance || 0);
+            const balanceAfter = Number((balanceBefore + overpaidAmount).toFixed(2));
+
+            await tx.wallet.update({
+              where: { id: wallet.id },
+              data: {
+                balance: { increment: overpaidAmount },
+              },
+            });
+
+            await tx.walletTransaction.create({
+              data: {
+                walletId: wallet.id,
+                type: WalletTransactionType.REFUND,
+                amount: overpaidAmount,
+                balanceBefore,
+                balanceAfter,
+                referenceId: `REF-${freshOrder.id.slice(0, 8).toUpperCase()}`,
+                description: `Automatic wallet refund for short delivery: ₹${overpaidAmount} (Prepaid ₹${currentPaid}, Delivered ₹${settlement.calculatedAmount})`,
+              },
+            });
+
+            await tx.paymentAuditLog.create({
+              data: {
+                paymentId: freshOrder.payments?.[0]?.id || `ref-order-${freshOrder.id}`,
+                action: 'SHORT_DELIVERY_AUTO_REFUND',
+                previousStatus: freshOrder.paymentStatus,
+                newStatus: PaymentStatus.PAID,
+                notes: `Auto-refunded ₹${overpaidAmount} to customer wallet due to short delivery (${totalDelivered}/${totalOut} jars delivered).`,
+              },
+            });
+
+            paymentHistoryNote = `Covered by advance payment (Settlement: ₹${settlement.calculatedAmount}, Paid: ₹${currentPaid}). ₹${overpaidAmount} auto-refunded to wallet.`;
+          } else {
+            paymentHistoryNote = `Fully covered by advance payment (Settlement: ₹${settlement.calculatedAmount}, Paid: ₹${currentPaid})`;
+          }
         }
       }
 

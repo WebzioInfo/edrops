@@ -78,22 +78,24 @@ export class ScheduleService {
         });
       }
 
-      await tx.deliveryScheduleRule.deleteMany({
-        where: { deliveryScheduleId: schedule.id },
-      });
-
-      if (data.rules?.length) {
-        await tx.deliveryScheduleRule.createMany({
-          data: data.rules.map((rule) => ({
-            deliveryScheduleId: schedule.id,
-            type: rule.type,
-            dayOfWeek: rule.type === 'WEEKLY' ? rule.dayOfWeek : null,
-            quantity: rule.quantity ?? 1,
-            intervalDays: rule.type === 'INTERVAL' ? rule.intervalDays : null,
-            customNotes: rule.type === 'CUSTOM' ? rule.customNotes : null,
-            startDate: new Date(),
-          })),
+      if (data.rules !== undefined) {
+        await tx.deliveryScheduleRule.deleteMany({
+          where: { deliveryScheduleId: schedule.id },
         });
+
+        if (data.rules?.length) {
+          await tx.deliveryScheduleRule.createMany({
+            data: data.rules.map((rule) => ({
+              deliveryScheduleId: schedule.id,
+              type: rule.type,
+              dayOfWeek: rule.type === 'WEEKLY' ? rule.dayOfWeek : null,
+              quantity: rule.quantity ?? 1,
+              intervalDays: rule.type === 'INTERVAL' ? rule.intervalDays : null,
+              customNotes: rule.type === 'CUSTOM' ? rule.customNotes : null,
+              startDate: new Date(),
+            })),
+          });
+        }
       }
 
       // No need to return finalSchedule here anymore since we fetch it at the end

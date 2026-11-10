@@ -182,6 +182,9 @@ export class PurchaseService {
       });
     }
 
+    // Synchronize physical stock intake into inventory (INT-01)
+    await this.applyInventoryIntake(distributorId, purchaseNumber, dto.items);
+
     return purchase;
   }
 
@@ -324,6 +327,15 @@ export class PurchaseService {
   async delete(id: string, distributorId: string) {
     const existing = await this.findOne(id, distributorId);
 
+    if (existing.items && Array.isArray(existing.items)) {
+      await this.applyInventoryIntake(
+        distributorId,
+        existing.purchaseNumber,
+        existing.items as any,
+        true,
+      );
+    }
+
     await this.prisma.purchase.delete({
       where: { id: existing.id },
     });
@@ -332,5 +344,152 @@ export class PurchaseService {
       success: true,
       message: `Purchase ${existing.purchaseNumber} deleted successfully`,
     };
+  }
+
+  private async applyInventoryIntake(
+    distributorId: string,
+    purchaseNumber: string,
+    items: any[],
+    isReversal = false,
+  ) {
+    if (!items || !Array.isArray(items)) return;
+
+    const dist = await this.prisma.distributor.findFirst({
+      where: { OR: [{ id: distributorId }, { userId: distributorId }] },
+    });
+
+    for (const item of items) {
+      const qty = Number(item.quantity) || 0;
+      if (qty <= 0) continue;
+      const signedQty = isReversal ? -qty : qty;
+
+      let product: any = null;
+      if (item.productId) {
+        product = await this.prisma.product.findUnique({
+          where: { id: item.productId },
+        });
+      }
+      if (!product && item.productName) {
+        product = await this.prisma.product.findFirst({
+          where: { name: { equals: item.productName.trim(), mode: 'insensitive' } },
+        });
+      }
+
+      // 1. Water Jar Products -> Jar Inventory (Empty Yard / Owned Quantity)
+      if (product?.isJar || item.productName?.toLowerCase().includes('jar')) {
+        if (dist) {
+          let jarItem = await this.prisma.jarInventoryItem.findFirst({
+            where: { distributorId: dist.id, ownershipType: 'DISTRIBUTOR' },
+          });
+
+          if (!jarItem && !isReversal) {
+            jarItem = await this.prisma.jarInventoryItem.create({
+              data: {
+                distributorId: dist.id,
+                name: product ? `${product.name} (Distributor Owned)` : '20L Jar (Distributor Owned)',
+                ownershipType: 'DISTRIBUTOR',
+                ownedQuantity: qty,
+                emptyYardQuantity: qty,
+              },
+            });
+          } else if (jarItem) {
+            const newOwned = Math.max(0, jarItem.ownedQuantity + signedQty);
+            const newEmpty = Math.max(0, jarItem.emptyYardQuantity + signedQty);
+            await this.prisma.jarInventoryItem.update({
+              where: { id: jarItem.id },
+              data: {
+                ownedQuantity: newOwned,
+                emptyYardQuantity: newEmpty,
+              },
+            });
+          }
+
+          if (this.prisma.inventoryLog) {
+            await this.prisma.inventoryLog.create({
+              data: {
+                distributorId: dist.id,
+                ownership: 'DISTRIBUTOR',
+                jarItemId: jarItem?.id || null,
+                action: isReversal ? 'PURCHASE_CANCELLED' : 'PURCHASE_RECEIPT',
+                quantity: qty,
+                emptyQty: signedQty,
+                referenceId: purchaseNumber,
+                description: isReversal
+                  ? `Purchase reversal ${purchaseNumber} for ${qty} jars`
+                  : `Procured ${qty} jars via purchase ${purchaseNumber}`,
+              },
+            });
+          }
+        }
+      } else if (product && !product.isJar) {
+        // 2. Accessory Products (dispensers, bottle cradles, taps, stands)
+        if (dist) {
+          await this.prisma.distributorAccessoryStock.upsert({
+            where: {
+              distributorId_productId: {
+                distributorId: dist.id,
+                productId: product.id,
+              },
+            },
+            create: {
+              distributorId: dist.id,
+              productId: product.id,
+              quantity: Math.max(0, signedQty),
+            },
+            update: {
+              quantity: { increment: signedQty },
+            },
+          });
+        }
+      } else {
+        // 3. Raw Material Items (caps, labels, preforms, filters)
+        let rawMat: any = null;
+        if (item.productId) {
+          rawMat = await this.prisma.rawMaterialItem.findFirst({
+            where: { OR: [{ id: item.productId }, { code: item.productId }] },
+          });
+        }
+        if (!rawMat && item.productName) {
+          rawMat = await this.prisma.rawMaterialItem.findFirst({
+            where: { name: { equals: item.productName.trim(), mode: 'insensitive' } },
+          });
+        }
+
+        if (rawMat && dist) {
+          await this.prisma.distributorRawMaterialStock.upsert({
+            where: {
+              distributorId_materialId: {
+                distributorId: dist.id,
+                materialId: rawMat.id,
+              },
+            },
+            create: {
+              distributorId: dist.id,
+              materialId: rawMat.id,
+              quantity: Math.max(0, signedQty),
+            },
+            update: {
+              quantity: { increment: signedQty },
+            },
+          });
+
+          if (this.prisma.rawMaterialMovement) {
+            await this.prisma.rawMaterialMovement.create({
+              data: {
+                distributorId: dist.id,
+                materialId: rawMat.id,
+                type: isReversal ? 'RETURNED_TO_EDROPS' : 'CENTRAL_RECEIPT',
+                quantity: qty,
+                referenceId: purchaseNumber,
+                balanceAfter: 0,
+                notes: isReversal
+                  ? `Reversal for purchase ${purchaseNumber}`
+                  : `Intake from supplier purchase ${purchaseNumber}`,
+              },
+            });
+          }
+        }
+      }
+    }
   }
 }

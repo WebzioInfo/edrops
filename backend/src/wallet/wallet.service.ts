@@ -8,6 +8,7 @@ import {
   WalletTransactionType,
   TransactionType,
   PaymentStatus,
+  DepositTransactionType,
 } from '@prisma/client';
 import { SettingsService } from '../settings/settings.service';
 import { PaymentService } from '../payment/payment.service';
@@ -44,20 +45,19 @@ export class WalletService {
   }
 
   async getAdminLedger() {
-    const [wallets, deposits] = await Promise.all([
+    const [wallets, deposits, depositRefunds] = await Promise.all([
       this.prisma.wallet.aggregate({ _sum: { balance: true } }),
       this.prisma.jarDeposit.aggregate({ _sum: { depositPaid: true } }),
+      this.prisma.depositTransaction.aggregate({
+        _sum: { amount: true },
+        where: { type: DepositTransactionType.DEPOSIT_REFUNDED },
+      }),
     ]);
-
-    const refunded = await this.prisma.transaction.aggregate({
-      _sum: { amountMoney: true },
-      where: { type: TransactionType.REFUND },
-    });
 
     return {
       totalRechargeBalances: wallets._sum.balance ?? 0,
       totalDepositsHeld: deposits._sum.depositPaid ?? 0,
-      depositsRefunded: refunded._sum.amountMoney ?? 0,
+      depositsRefunded: depositRefunds._sum.amount ?? 0,
       pendingSettlements: 0,
     };
   }

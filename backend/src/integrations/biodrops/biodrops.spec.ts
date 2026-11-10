@@ -396,4 +396,204 @@ describe('Aquora Biodrops Integration Security Audit & Test Suite', () => {
     expect(service.baseUrl).toBe('https://aquzio-backend.webziotech.in/api/v1/integrations/biodrops');
     expect(service.apiKey).toBe('fallback_legacy_key');
   });
+
+  it('23. Available quantity 0 is always flagged as isLowStock even if reorderLevel is 0', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue({
+      tenantId: 'ten-alpha-001',
+      productionStatus: 'ACTIVE',
+      isBiodropsEnabled: true,
+      rawMaterials: [
+        {
+          id: 'rm-zero-stock',
+          name: 'Mineral Blend Salt',
+          sku: 'MAT-MIN-00',
+          category: 'Chemicals',
+          availableQuantity: 0,
+          usedQuantity: 10,
+          wastedQuantity: 0,
+          unit: 'kg',
+          reorderLevel: 0,
+        },
+      ],
+    });
+
+    const inv = await controller.getTenantInventory('ten-alpha-001');
+    expect(inv.rawMaterials[0].availableQuantity).toBe(0);
+    expect(inv.rawMaterials[0].reorderLevel).toBe(0);
+    expect(inv.rawMaterials[0].isLowStock).toBe(true);
+  });
+
+  it('24. Normalizes discrete packaging items mistakenly measured in liters to pcs', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue({
+      tenantId: 'ten-alpha-001',
+      productionStatus: 'ACTIVE',
+      isBiodropsEnabled: true,
+      rawMaterials: [
+        {
+          id: 'rm-discrete-bottle',
+          name: '20L Empty Water Bottle Container',
+          sku: 'JAR-20L-BOT',
+          category: 'Packaging',
+          availableQuantity: 500,
+          usedQuantity: 100,
+          wastedQuantity: 5,
+          unit: 'LITER',
+          reorderLevel: 200,
+        },
+      ],
+    });
+
+    const inv = await controller.getTenantInventory('ten-alpha-001');
+    expect(inv.rawMaterials[0].unit).toBe('PCS');
+  });
+
+  it('25. Corrects misclassified bottle/jar items from PREFORM to PACKAGING', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue({
+      tenantId: 'ten-alpha-001',
+      productionStatus: 'ACTIVE',
+      isBiodropsEnabled: true,
+      rawMaterials: [
+        {
+          id: 'rm-misclassified',
+          name: '20L Biodrops Molded Bottle Jar',
+          sku: 'JAR-20L-DISP',
+          category: 'PREFORM',
+          availableQuantity: 300,
+          usedQuantity: 50,
+          wastedQuantity: 2,
+          unit: 'pcs',
+          reorderLevel: 100,
+        },
+      ],
+    });
+
+    const inv = await controller.getTenantInventory('ten-alpha-001');
+    expect(inv.rawMaterials[0].category).toBe('PACKAGING');
+  });
+
+  it('26. Adjust stock (ADD): increases available quantity and updates shadow inventory', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockInventoryResponse);
+
+    const result = await controller.adjustTenantStock(
+      'ten-alpha-001',
+      {
+        sku: 'MAT-PREF-20L',
+        action: 'ADD',
+        quantity: 500,
+        reason: 'Received shipment from supplier',
+      },
+      { user: { id: 'staff-001' } },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.previousQuantity).toBe(4200);
+    expect(result.newQuantity).toBe(4700);
+    expect(result.action).toBe('ADD');
+
+    // Subsequent inventory get should reflect the new stock
+    const updatedInv = await controller.getTenantInventory('ten-alpha-001');
+    const updatedItem = updatedInv.rawMaterials.find((m) => m.sku === 'MAT-PREF-20L');
+    expect(updatedItem?.availableQuantity).toBe(4700);
+  });
+
+  it('27. Adjust stock (SET): sets absolute available quantity', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockInventoryResponse);
+
+    const result = await controller.adjustTenantStock(
+      'ten-alpha-001',
+      {
+        sku: 'MAT-CAP-NS',
+        action: 'SET',
+        quantity: 1500,
+        reason: 'Physical inventory count reconciliation',
+      },
+      { user: { id: 'staff-001' } },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.newQuantity).toBe(1500);
+
+    const updatedInv = await controller.getTenantInventory('ten-alpha-001');
+    const updatedCap = updatedInv.rawMaterials.find((m) => m.sku === 'MAT-CAP-NS');
+    expect(updatedCap?.availableQuantity).toBe(1500);
+    expect(updatedCap?.isLowStock).toBe(false); // 1500 > 1000 reorderLevel
+  });
+
+  it('28. Adjust stock (DEDUCT): decreases stock and prevents negative balance', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockInventoryResponse);
+
+    const result = await controller.adjustTenantStock(
+      'ten-alpha-001',
+      {
+        sku: 'MAT-MIN-SOL',
+        action: 'DEDUCT',
+        quantity: 20,
+        reason: 'Used for batch production test',
+      },
+      { user: { id: 'staff-001' } },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.previousQuantity).toBe(120);
+    expect(result.newQuantity).toBe(100);
+
+    // Should reject deduction greater than available
+    await expect(
+      controller.adjustTenantStock(
+        'ten-alpha-001',
+        {
+          sku: 'MAT-MIN-SOL',
+          action: 'DEDUCT',
+          quantity: 200,
+          reason: 'Excessive deduction attempt',
+        },
+        { user: { id: 'staff-001' } },
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('29. Adjust stock validation: rejects missing SKU or empty reason', async () => {
+    await expect(
+      controller.adjustTenantStock(
+        'ten-alpha-001',
+        {
+          sku: '',
+          action: 'ADD',
+          quantity: 10,
+          reason: 'Test',
+        },
+        { user: { id: 'staff-001' } },
+      ),
+    ).rejects.toThrow(BadRequestException);
+
+    await expect(
+      controller.adjustTenantStock(
+        'ten-alpha-001',
+        {
+          sku: 'MAT-CAP-NS',
+          action: 'ADD',
+          quantity: 10,
+          reason: '',
+        },
+        { user: { id: 'staff-001' } },
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('30. Adjust stock tenant isolation: throws NotFoundException for invalid SKU', async () => {
+    jest.spyOn<any, any>(service, 'fetchFromAquora').mockResolvedValue(mockInventoryResponse);
+
+    await expect(
+      controller.adjustTenantStock(
+        'ten-alpha-001',
+        {
+          sku: 'NON_EXISTENT_SKU_999',
+          action: 'ADD',
+          quantity: 50,
+          reason: 'Attempting invalid item',
+        },
+        { user: { id: 'staff-001' } },
+      ),
+    ).rejects.toThrow(NotFoundException);
+  });
 });

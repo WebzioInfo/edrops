@@ -28,6 +28,7 @@ export class RechargeController {
     body: {
       packageId: string;
       paymentId?: string;
+      paymentMethod?: 'ONLINE' | 'WALLET';
       amountPaid?: number;
       promoCode?: string | null;
     },

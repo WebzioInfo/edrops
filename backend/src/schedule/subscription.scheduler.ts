@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, PaymentStatus, WalletTransactionType } from '@prisma/client';
 import { generateDeliveryOtp } from '../order/utils/delivery-otp.util';
 
 @Injectable()
@@ -89,6 +89,54 @@ export class SubscriptionScheduler {
                 return;
               }
 
+              const unitPrice = Number(product.price || 0);
+              const totalAmount = unitPrice * todayQty;
+
+              // Check customer wallet and deduct atomically if sufficient balance exists
+              let wallet = await tx.wallet.findUnique({
+                where: { customerId: schedule.customerId },
+              });
+
+              if (!wallet) {
+                wallet = await tx.wallet.create({
+                  data: { customerId: schedule.customerId, balance: 0 },
+                });
+              }
+
+              const hasSufficientBalance = (wallet.balance ?? 0) >= totalAmount;
+              const paymentStatus = hasSufficientBalance
+                ? PaymentStatus.SUCCESS
+                : PaymentStatus.PENDING;
+              const paymentMethod = hasSufficientBalance ? 'WALLET' : 'CASH';
+
+              if (hasSufficientBalance && totalAmount > 0) {
+                const balanceBefore = wallet.balance;
+                const balanceAfter = balanceBefore - totalAmount;
+
+                await tx.wallet.update({
+                  where: { id: wallet.id },
+                  data: {
+                    balance: { decrement: totalAmount },
+                  },
+                });
+
+                await tx.walletTransaction.create({
+                  data: {
+                    walletId: wallet.id,
+                    type: WalletTransactionType.DEDUCTION,
+                    amount: totalAmount,
+                    balanceBefore,
+                    balanceAfter,
+                    referenceId: `SUB-${schedule.id.slice(0, 8)}`,
+                    description: `Subscription delivery: ${todayQty} jar(s)`,
+                  },
+                });
+              } else if (!hasSufficientBalance && totalAmount > 0) {
+                this.logger.warn(
+                  `Customer ${schedule.customerId} has insufficient wallet balance (₹${wallet.balance}) for subscription order ₹${totalAmount}. Order marked PENDING.`,
+                );
+              }
+
               const order = await tx.order.create({
                 data: {
                   customerId: schedule.customerId,
@@ -96,9 +144,10 @@ export class SubscriptionScheduler {
                   status: OrderStatus.NEW,
                   scheduledDate: today,
                   deliveryAddressId: defaultAddress.id,
-                  totalAmount: 0, // Prepaid, deduced from jarBalance
-                  paymentStatus: 'SUCCESS', // Prepaid via jar balance
-                  paymentMethod: 'PREPAID',
+                  subTotal: totalAmount,
+                  totalAmount,
+                  paymentStatus,
+                  paymentMethod,
                   deliveryVerification: {
                     create: {
                       otp: generateDeliveryOtp(),
@@ -108,8 +157,8 @@ export class SubscriptionScheduler {
                     create: {
                       productId: product.id,
                       quantity: todayQty,
-                      unitPrice: 0,
-                      total: 0,
+                      unitPrice,
+                      total: totalAmount,
                     },
                   },
                 },

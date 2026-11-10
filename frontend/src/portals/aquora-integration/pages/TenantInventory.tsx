@@ -15,10 +15,18 @@ import {
   ArrowUp,
   ArrowDown,
   AlertOctagon,
+  Plus,
+  SlidersHorizontal,
+  X,
+  TrendingDown,
+  Equal,
+  Check,
+  Edit3,
 } from 'lucide-react';
 import {
   fetchBiodropsTenants,
   fetchTenantInventory,
+  adjustTenantStock,
 } from '../../../api/aquzio';
 import type {
   BiodropsTenant,
@@ -62,6 +70,21 @@ export const TenantInventory: React.FC = () => {
   // Frontend-only sorting for raw materials
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  // Stock Adjustment Modal State
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [adjustItem, setAdjustItem] = useState<{
+    sku: string;
+    name: string;
+    unit: string;
+    currentQuantity: number;
+    itemType: 'RAW_MATERIAL' | 'FINISHED_PRODUCT';
+  } | null>(null);
+  const [adjustAction, setAdjustAction] = useState<'ADD' | 'SET' | 'DEDUCT'>('ADD');
+  const [adjustQuantity, setAdjustQuantity] = useState<string>('');
+  const [adjustReason, setAdjustReason] = useState<string>('Supplier Inward / Delivery');
+  const [adjustNotes, setAdjustNotes] = useState<string>('');
+  const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
 
   // Load available tenants first
   useEffect(() => {
@@ -127,6 +150,55 @@ export const TenantInventory: React.FC = () => {
   const handleTenantChange = (newTenantId: string) => {
     setSelectedTenantId(newTenantId);
     setSearchParams({ tenantId: newTenantId });
+  };
+
+  const handleModalTenantChange = async (newTenantId: string) => {
+    handleTenantChange(newTenantId);
+    try {
+      const data = await fetchTenantInventory(newTenantId);
+      setInventory(data);
+      const newItems: Array<{
+        sku: string;
+        name: string;
+        unit: string;
+        currentQuantity: number;
+        itemType: 'RAW_MATERIAL' | 'FINISHED_PRODUCT';
+      }> = [];
+
+      (data.finishedProducts || []).forEach((p) => {
+        newItems.push({
+          sku: p.sku,
+          name: p.name,
+          unit: p.unit || 'Jar',
+          currentQuantity: p.availableStock,
+          itemType: 'FINISHED_PRODUCT',
+        });
+      });
+
+      (data.rawMaterials || []).forEach((m) => {
+        newItems.push({
+          sku: m.sku,
+          name: m.name,
+          unit: m.unit,
+          currentQuantity: m.availableQuantity,
+          itemType: 'RAW_MATERIAL',
+        });
+      });
+
+      if (newItems.length > 0) {
+        setAdjustItem(newItems[0]);
+      } else {
+        setAdjustItem({
+          sku: '',
+          name: 'No items available',
+          unit: 'Unit',
+          currentQuantity: 0,
+          itemType: 'RAW_MATERIAL',
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to switch plant inventory');
+    }
   };
 
   const selectedTenant = useMemo(() => {
@@ -222,6 +294,133 @@ export const TenantInventory: React.FC = () => {
     };
   }, [finishedProducts, inventory]);
 
+  // List of all items (finished products + raw materials) available for selection
+  const selectableItems = useMemo(() => {
+    const list: Array<{
+      sku: string;
+      name: string;
+      unit: string;
+      currentQuantity: number;
+      itemType: 'RAW_MATERIAL' | 'FINISHED_PRODUCT';
+      category: string;
+    }> = [];
+
+    (inventory?.finishedProducts || []).forEach((p) => {
+      list.push({
+        sku: p.sku,
+        name: p.name,
+        unit: p.unit || 'Jar',
+        currentQuantity: p.availableStock,
+        itemType: 'FINISHED_PRODUCT',
+        category: 'Finished Product',
+      });
+    });
+
+    (inventory?.rawMaterials || []).forEach((m) => {
+      list.push({
+        sku: m.sku,
+        name: m.name,
+        unit: m.unit,
+        currentQuantity: m.availableQuantity,
+        itemType: 'RAW_MATERIAL',
+        category: m.category || 'Raw Material',
+      });
+    });
+
+    return list;
+  }, [inventory]);
+
+  const openAdjustModal = (item?: {
+    sku: string;
+    name: string;
+    unit: string;
+    currentQuantity: number;
+    itemType: 'RAW_MATERIAL' | 'FINISHED_PRODUCT';
+  }) => {
+    if (item) {
+      setAdjustItem(item);
+    } else if (selectableItems.length > 0) {
+      const first = selectableItems[0];
+      setAdjustItem({
+        sku: first.sku,
+        name: first.name,
+        unit: first.unit,
+        currentQuantity: first.currentQuantity,
+        itemType: first.itemType,
+      });
+    } else {
+      setAdjustItem({
+        sku: '20L_WATER_JAR',
+        name: 'Finished 20L Water Jar',
+        unit: 'Jar',
+        currentQuantity: 0,
+        itemType: 'FINISHED_PRODUCT',
+      });
+    }
+    setAdjustAction('ADD');
+    setAdjustQuantity('');
+    setAdjustReason('Supplier Inward / Delivery');
+    setAdjustNotes('');
+    setIsAdjustModalOpen(true);
+  };
+
+  const handleSaveAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTenantId) {
+      toast.error('No plant selected');
+      return;
+    }
+    if (!adjustItem || !adjustItem.sku) {
+      toast.error('Please select an item to adjust');
+      return;
+    }
+    const qty = Number(adjustQuantity);
+    if (!adjustQuantity || isNaN(qty) || qty <= 0) {
+      toast.error('Please enter a valid positive quantity');
+      return;
+    }
+
+    if (adjustAction === 'DEDUCT' && qty > adjustItem.currentQuantity) {
+      toast.error(
+        `Cannot deduct ${qty} ${adjustItem.unit}. Maximum available is ${adjustItem.currentQuantity} ${adjustItem.unit}.`,
+      );
+      return;
+    }
+
+    try {
+      setSubmittingAdjustment(true);
+      const res = await adjustTenantStock(selectedTenantId, {
+        sku: adjustItem.sku,
+        itemType: adjustItem.itemType,
+        action: adjustAction,
+        quantity: qty,
+        reason: adjustReason,
+        notes: adjustNotes.trim() || undefined,
+      });
+
+      toast.success(res.message || 'Plant stock updated successfully!');
+      setIsAdjustModalOpen(false);
+      await loadInventory(selectedTenantId, false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update plant stock');
+    } finally {
+      setSubmittingAdjustment(false);
+    }
+  };
+
+  // Projected stock preview calculation
+  const projectedQuantity = useMemo(() => {
+    if (!adjustItem) return 0;
+    const qty = Number(adjustQuantity) || 0;
+    if (adjustAction === 'ADD') {
+      return adjustItem.currentQuantity + qty;
+    } else if (adjustAction === 'DEDUCT') {
+      return Math.max(0, adjustItem.currentQuantity - qty);
+    } else {
+      return qty;
+    }
+  }, [adjustItem, adjustAction, adjustQuantity]);
+
   return (
     <div className="space-y-5">
       {/* ─── PAGE HEADER ────────────────────────────────────────── */}
@@ -238,6 +437,11 @@ export const TenantInventory: React.FC = () => {
         }
         backLink={{ to: '/aquzio-integration/biodrops-tenants', label: 'Tenants' }}
         secondaryActions={[
+          {
+            label: 'Adjust Stock',
+            icon: Plus,
+            onClick: () => openAdjustModal(),
+          },
           {
             label: 'Stock Overview',
             icon: BarChart3,
@@ -424,6 +628,22 @@ export const TenantInventory: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-0.5">
                   Commercial finished stock will appear here when ready batches are logged.
                 </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openAdjustModal({
+                      sku: '20L_WATER_JAR',
+                      name: 'Finished 20L Water Jar',
+                      unit: 'Jar',
+                      currentQuantity: 0,
+                      itemType: 'FINISHED_PRODUCT',
+                    })
+                  }
+                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#1363a8] rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Finished Stock
+                </button>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -435,6 +655,7 @@ export const TenantInventory: React.FC = () => {
                       <th className="py-3 px-4 text-right">Available Stock</th>
                       <th className="py-3 px-4 text-right">Reserved Stock</th>
                       <th className="py-3 px-4 text-right">Damaged Stock</th>
+                      <th className="py-3 px-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -465,6 +686,24 @@ export const TenantInventory: React.FC = () => {
                             {p.damagedStock.toLocaleString()}{' '}
                             <span className="text-xs font-normal text-slate-600">{p.unit}</span>
                           </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openAdjustModal({
+                                sku: p.sku,
+                                name: p.name,
+                                unit: p.unit || 'Jar',
+                                currentQuantity: p.availableStock,
+                                itemType: 'FINISHED_PRODUCT',
+                              })
+                            }
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#1677C8] bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                          >
+                            <SlidersHorizontal className="w-3 h-3" />
+                            Adjust
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -638,6 +877,7 @@ export const TenantInventory: React.FC = () => {
                           )}
                         </div>
                       </th>
+                      <th className="py-3 px-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -720,6 +960,24 @@ export const TenantInventory: React.FC = () => {
                               </span>
                             )}
                           </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openAdjustModal({
+                                  sku: m.sku,
+                                  name: m.name,
+                                  unit: m.unit,
+                                  currentQuantity: m.availableQuantity,
+                                  itemType: 'RAW_MATERIAL',
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#1677C8] bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              Adjust
+                            </button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -728,6 +986,241 @@ export const TenantInventory: React.FC = () => {
               </div>
             )}
           </section>
+        </div>
+      )}
+
+      {/* ─── STOCK ADJUSTMENT MODAL ────────────────────────────── */}
+      {isAdjustModalOpen && adjustItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center">
+                  <SlidersHorizontal className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#16324F]">Adjust Plant Stock</h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Plant: {selectedTenant?.companyName || 'Unknown Plant'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAdjustModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveAdjustment} className="p-5 space-y-4">
+              {/* Plant / Manufacturing Tenant Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Plant / Manufacturing Tenant:
+                </label>
+                <select
+                  value={selectedTenantId}
+                  onChange={(e) => handleModalTenantChange(e.target.value)}
+                  className="w-full text-xs font-semibold bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] cursor-pointer"
+                >
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.companyName} ({t.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Item Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Select Item / SKU:
+                </label>
+                <select
+                  value={adjustItem.sku}
+                  onChange={(e) => {
+                    const picked = selectableItems.find((it) => it.sku === e.target.value);
+                    if (picked) {
+                      setAdjustItem({
+                        sku: picked.sku,
+                        name: picked.name,
+                        unit: picked.unit,
+                        currentQuantity: picked.currentQuantity,
+                        itemType: picked.itemType,
+                      });
+                    }
+                  }}
+                  className="w-full text-xs font-semibold bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] cursor-pointer"
+                >
+                  {selectableItems.map((it) => (
+                    <option key={`${it.itemType}:${it.sku}`} value={it.sku}>
+                      [{it.category}] {it.name} ({it.sku}) — Available: {it.currentQuantity.toLocaleString()} {it.unit}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Action Type: ADD / SET / DEDUCT */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Adjustment Action:
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdjustAction('ADD')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border cursor-pointer ${
+                      adjustAction === 'ADD'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Stock
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAdjustAction('SET')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border cursor-pointer ${
+                      adjustAction === 'SET'
+                        ? 'bg-blue-50 text-[#1677C8] border-blue-300 shadow-2xs'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Equal className="w-3.5 h-3.5" />
+                    Set Exact
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAdjustAction('DEDUCT')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border cursor-pointer ${
+                      adjustAction === 'DEDUCT'
+                        ? 'bg-rose-50 text-rose-800 border-rose-300 shadow-2xs'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <TrendingDown className="w-3.5 h-3.5" />
+                    Deduct
+                  </button>
+                </div>
+              </div>
+
+              {/* Quantity Input with live calculation preview */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700">
+                    {adjustAction === 'SET' ? 'New Exact Quantity:' : 'Adjustment Quantity:'}
+                  </label>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    Current: <strong className="text-slate-800">{adjustItem.currentQuantity.toLocaleString()} {adjustItem.unit}</strong>
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="any"
+                    value={adjustQuantity}
+                    onChange={(e) => setAdjustQuantity(e.target.value)}
+                    placeholder="Enter quantity..."
+                    required
+                    className="w-full text-xs font-bold bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 pr-16 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8]"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 pointer-events-none">
+                    {adjustItem.unit}
+                  </span>
+                </div>
+              </div>
+
+              {/* Calculation Preview Banner */}
+              {adjustQuantity && Number(adjustQuantity) > 0 && (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                  <span className="text-slate-600 font-medium">Resulting Stock:</span>
+                  <div className="flex items-center gap-2 font-bold">
+                    <span className="text-slate-500 line-through">
+                      {adjustItem.currentQuantity} {adjustItem.unit}
+                    </span>
+                    <span>→</span>
+                    <span className={`text-sm ${
+                      adjustAction === 'DEDUCT' && Number(adjustQuantity) > adjustItem.currentQuantity
+                        ? 'text-rose-600'
+                        : 'text-emerald-700'
+                    }`}>
+                      {projectedQuantity.toLocaleString()} {adjustItem.unit}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Reason Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Reason for Adjustment:
+                </label>
+                <select
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  className="w-full text-xs font-semibold bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] cursor-pointer"
+                >
+                  <option value="Supplier Inward / Delivery">Supplier Inward / Delivery</option>
+                  <option value="Production Batch Output">Production Batch Output</option>
+                  <option value="Physical Inventory Reconciliation">Physical Inventory Reconciliation</option>
+                  <option value="Damaged / Defect Write-off">Damaged / Defect Write-off</option>
+                  <option value="Customer Return Stock">Customer Return Stock</option>
+                  <option value="Other Adjustment">Other Adjustment</option>
+                </select>
+              </div>
+
+              {/* Notes / Reference */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Notes / Reference (Optional):
+                </label>
+                <input
+                  type="text"
+                  value={adjustNotes}
+                  onChange={(e) => setAdjustNotes(e.target.value)}
+                  placeholder="e.g. PO-8891, Batch #12, or inspection note"
+                  className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8]"
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAdjustModalOpen(false)}
+                  disabled={submittingAdjustment}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingAdjustment || (adjustAction === 'DEDUCT' && Number(adjustQuantity) > adjustItem.currentQuantity)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#1363a8] rounded-xl shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  {submittingAdjustment ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      Confirm Adjustment
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

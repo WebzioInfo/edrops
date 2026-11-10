@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeliveryEngine } from '../engines/delivery.engine';
 import { OrderStatus } from '@prisma/client';
 
 @Injectable()
 export class DeliveryService {
+  private readonly logger = new Logger(DeliveryService.name);
+
   constructor(
     private prisma: PrismaService,
     private deliveryEngine: DeliveryEngine,
@@ -169,18 +171,24 @@ export class DeliveryService {
     currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
     currentWeekEnd.setHours(23, 59, 59, 999);
 
-    // Filter out deliveries that belong to future weeks
-    whereClause.scheduledFor = {
-      ...(whereClause.scheduledFor || {}),
-      lte:
-        whereClause.scheduledFor?.lte &&
-        whereClause.scheduledFor.lte < currentWeekEnd
-          ? whereClause.scheduledFor.lte
-          : currentWeekEnd,
-    };
+    // Filter out deliveries that belong to future weeks only if no explicit year/month is filtered
+    if (!year && !month) {
+      whereClause.scheduledFor = {
+        ...(whereClause.scheduledFor || {}),
+        lte:
+          whereClause.scheduledFor?.lte &&
+          whereClause.scheduledFor.lte < currentWeekEnd
+            ? whereClause.scheduledFor.lte
+            : currentWeekEnd,
+      };
+    }
 
     const deliveries = await this.prisma.delivery.findMany({
       where: whereClause,
+      include: {
+        report: true,
+        address: true,
+      },
       orderBy: { scheduledFor: 'asc' },
     });
 
@@ -198,6 +206,7 @@ export class DeliveryService {
       const start = this.getMonday(d.scheduledFor);
       const end = new Date(start);
       end.setDate(end.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
 
       const weekKey = start.toISOString();
 
@@ -228,7 +237,16 @@ export class DeliveryService {
       }
 
       const weekData = weeksMap.get(weekKey);
-      weekData.deliveries.push(d);
+      let verification: any = null;
+      if (d.report?.staffNotes) {
+        try {
+          verification = JSON.parse(d.report.staffNotes);
+        } catch {}
+      }
+      weekData.deliveries.push({
+        ...d,
+        verification,
+      });
 
       globalStats.totalDeliveries++;
 
@@ -276,7 +294,7 @@ export class DeliveryService {
     return {
       summary: globalStats,
       weeks: weeks.sort(
-        (a, b) => b.startDate.getTime() - a.startDate.getTime(),
+        (a, b) => a.startDate.getTime() - b.startDate.getTime(),
       ),
     };
   }
@@ -376,7 +394,34 @@ export class DeliveryService {
       select: { id: true },
     });
     if (!customer) return { summary: {}, weeks: [] };
-    return this.getWeeklySummary(customer.id, year, month, status);
+
+    // Query active pending verification delivery for this customer
+    const pendingVerif = await this.prisma.delivery.findFirst({
+      where: {
+        customerId: customer.id,
+        status: { notIn: [OrderStatus.DELIVERED, OrderStatus.CANCELLED] },
+        report: {
+          staffNotes: {
+            contains: 'PENDING_VERIFICATION',
+          },
+        },
+      },
+      include: { report: true, address: true },
+      orderBy: { scheduledFor: 'desc' },
+    });
+
+    const summaryResult: any = await this.getWeeklySummary(customer.id, year, month, status);
+    if (pendingVerif) {
+      let verification = null;
+      try {
+        verification = JSON.parse(pendingVerif.report?.staffNotes || '');
+      } catch {}
+      summaryResult.pendingVerification = {
+        ...pendingVerif,
+        verification,
+      };
+    }
+    return summaryResult;
   }
 
   async findHistoryByCustomerUser(userId: string) {
@@ -420,6 +465,382 @@ export class DeliveryService {
         report: true,
       },
     });
+  }
+
+  async getDailyDeliveries(dateStr?: string) {
+    const targetDateStr = dateStr || new Date().toISOString().split('T')[0];
+
+    // Query +/- 1 day to catch any timezone discrepancies
+    const baseDate = new Date(targetDateStr);
+    const startRange = new Date(baseDate);
+    startRange.setDate(startRange.getDate() - 1);
+    const endRange = new Date(baseDate);
+    endRange.setDate(endRange.getDate() + 1);
+
+    const rawDeliveries = await this.prisma.delivery.findMany({
+      where: {
+        scheduledFor: {
+          gte: startRange,
+          lte: endRange,
+        },
+      },
+      include: {
+        customer: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                email: true,
+                isActive: true,
+              },
+            },
+            addresses: true,
+            jarBalances: true,
+            jarDeposits: true,
+            jarOwnerships: true,
+          },
+        },
+        address: true,
+        assignment: {
+          include: { deliveryPartner: { include: { user: true } } },
+        },
+        report: true,
+      },
+      orderBy: { scheduledFor: 'asc' },
+    });
+
+    const matchesTarget = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const localStr = `${year}-${month}-${day}`;
+      const isoStr = d.toISOString().split('T')[0];
+      return localStr === targetDateStr || isoStr === targetDateStr;
+    };
+
+    const deliveries = rawDeliveries
+      .filter((d) => matchesTarget(d.scheduledFor))
+      .map((d) => {
+        let verification: any = null;
+        if (d.report?.staffNotes) {
+          try {
+            verification = JSON.parse(d.report.staffNotes);
+          } catch {
+            // Not a JSON verification payload
+          }
+        }
+        return {
+          ...d,
+          verification,
+        };
+      });
+
+    const metrics = {
+      total: deliveries.length,
+      delivered: deliveries.filter((d) => d.status === OrderStatus.DELIVERED).length,
+      pendingVerification: deliveries.filter(
+        (d) =>
+          d.verification?.verificationStatus === 'PENDING_VERIFICATION' &&
+          d.status !== OrderStatus.DELIVERED,
+      ).length,
+      pendingDispatch: deliveries.filter(
+        (d) =>
+          d.status !== OrderStatus.DELIVERED &&
+          d.verification?.verificationStatus !== 'PENDING_VERIFICATION',
+      ).length,
+    };
+
+    return {
+      date: targetDateStr,
+      metrics,
+      deliveries,
+    };
+  }
+
+  async quickDispatch(
+    data: {
+      customerId: string;
+      scheduledFor?: string;
+      deliveredQty: number;
+      emptyCollected: number;
+      notes?: string;
+      requireVerification?: boolean;
+    },
+    staffUser?: any,
+  ) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: data.customerId },
+      include: { addresses: true, user: true },
+    });
+    if (!customer) throw new BadRequestException('Customer not found');
+
+    const address =
+      customer.addresses.find((a) => a.isDefault) || customer.addresses[0];
+    if (!address) {
+      throw new BadRequestException('Customer has no registered delivery address.');
+    }
+
+    const scheduledDate = data.scheduledFor
+      ? new Date(data.scheduledFor)
+      : new Date();
+    scheduledDate.setHours(0, 0, 0, 0);
+
+    const requireVerification = data.requireVerification !== false;
+
+    let delivery = await this.prisma.delivery.findFirst({
+      where: {
+        customerId: data.customerId,
+        scheduledFor: scheduledDate,
+      },
+      include: { report: true },
+    });
+
+    if (!delivery) {
+      delivery = await this.prisma.delivery.create({
+        data: {
+          customerId: data.customerId,
+          addressId: address.id,
+          scheduledFor: scheduledDate,
+          requiredQuantity: Number(data.deliveredQty) || 1,
+          status: requireVerification
+            ? OrderStatus.OUT_FOR_DELIVERY
+            : OrderStatus.DELIVERED,
+        },
+        include: { report: true },
+      });
+    }
+
+    return this.requestDeliveryVerification(delivery.id, {
+      deliveredQty: data.deliveredQty,
+      emptyCollected: data.emptyCollected || 0,
+      notes: data.notes,
+      requireVerification,
+    });
+  }
+
+  async requestDeliveryVerification(
+    deliveryId: string,
+    data: {
+      deliveredQty: number;
+      emptyCollected: number;
+      notes?: string;
+      requireVerification?: boolean;
+    },
+  ) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      include: { customer: { include: { user: true } }, report: true },
+    });
+    if (!delivery) throw new BadRequestException('Delivery not found');
+
+    const requireVerification = data.requireVerification !== false;
+
+    if (!requireVerification) {
+      return this.forceVerifyByStaff(deliveryId, {
+        deliveredQty: data.deliveredQty,
+        emptyCollected: data.emptyCollected,
+        notes: data.notes,
+      });
+    }
+
+    const verificationPayload = {
+      verificationStatus: 'PENDING_VERIFICATION',
+      deliveredQty: Number(data.deliveredQty),
+      emptyCollected: Number(data.emptyCollected) || 0,
+      requestedAt: new Date().toISOString(),
+      staffNotes: data.notes || '',
+    };
+
+    await this.prisma.deliveryReport.upsert({
+      where: { deliveryId },
+      create: {
+        deliveryId,
+        partnerDeliveredQty: Number(data.deliveredQty),
+        partnerEmptyCollected: Number(data.emptyCollected) || 0,
+        partnerNotes: data.notes,
+        staffNotes: JSON.stringify(verificationPayload),
+      },
+      update: {
+        partnerDeliveredQty: Number(data.deliveredQty),
+        partnerEmptyCollected: Number(data.emptyCollected) || 0,
+        partnerNotes: data.notes,
+        staffNotes: JSON.stringify(verificationPayload),
+      },
+    });
+
+    const updatedDelivery = await this.prisma.delivery.update({
+      where: { id: deliveryId },
+      data: {
+        status: OrderStatus.OUT_FOR_DELIVERY,
+        requiredQuantity: Number(data.deliveredQty),
+      },
+      include: {
+        customer: { include: { user: true, addresses: true } },
+        address: true,
+        report: true,
+      },
+    });
+
+    // Notify customer
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: delivery.customer.userId,
+          type: 'DELIVERY_UPDATE',
+          title: 'Water Delivery Verification Needed',
+          message: `Staff marked ${data.deliveredQty} jar(s) delivered today. Please tap to confirm your delivery receipt.`,
+          link: '/customer/deliveries',
+          metadata: {
+            deliveryId,
+            deliveredQty: Number(data.deliveredQty),
+            emptyCollected: Number(data.emptyCollected) || 0,
+            action: 'VERIFY_DELIVERY',
+          },
+        },
+      });
+    } catch (err) {
+      this.logger.warn(`Could not create notification for customer: ${err}`);
+    }
+
+    return {
+      ...updatedDelivery,
+      verification: verificationPayload,
+    };
+  }
+
+  async verifyDeliveryByCustomer(
+    deliveryId: string,
+    data: { verified: boolean; feedback?: string; reason?: string },
+    user?: any,
+  ) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      include: { customer: { include: { user: true } }, report: true },
+    });
+    if (!delivery) throw new BadRequestException('Delivery not found');
+
+    if (data.verified) {
+      const brand = await this.prisma.brand.findFirst();
+      const deliveredQty =
+        delivery.report?.partnerDeliveredQty ||
+        delivery.requiredQuantity ||
+        1;
+      const emptyCollected = delivery.report?.partnerEmptyCollected || 0;
+
+      await this.deliveryEngine.confirmDelivery(
+        deliveryId,
+        brand?.id || '',
+        deliveredQty,
+        emptyCollected,
+        0,
+        data.feedback || 'Verified by Customer',
+      );
+
+      const updatedPayload = {
+        verificationStatus: 'VERIFIED',
+        deliveredQty,
+        emptyCollected,
+        verifiedAt: new Date().toISOString(),
+        customerFeedback: data.feedback || 'Confirmed by customer',
+      };
+
+      await this.prisma.deliveryReport.update({
+        where: { deliveryId },
+        data: {
+          staffNotes: JSON.stringify(updatedPayload),
+          confirmedDeliveredQty: deliveredQty,
+          confirmedEmptyCollected: emptyCollected,
+        },
+      });
+
+      return {
+        success: true,
+        status: OrderStatus.DELIVERED,
+        verification: updatedPayload,
+      };
+    } else {
+      const updatedPayload = {
+        verificationStatus: 'DISPUTED',
+        disputeReason: data.reason || 'Customer reported delivery not received',
+        disputedAt: new Date().toISOString(),
+      };
+
+      await this.deliveryEngine.failDelivery(
+        deliveryId,
+        data.reason || 'Customer reported delivery not received',
+      );
+
+      await this.prisma.deliveryReport.update({
+        where: { deliveryId },
+        data: {
+          staffNotes: JSON.stringify(updatedPayload),
+        },
+      });
+
+      return {
+        success: true,
+        status: OrderStatus.FAILED,
+        verification: updatedPayload,
+      };
+    }
+  }
+
+  async forceVerifyByStaff(
+    deliveryId: string,
+    data: { deliveredQty: number; emptyCollected: number; notes?: string },
+    staffUser?: any,
+  ) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      include: { report: true },
+    });
+    if (!delivery) throw new BadRequestException('Delivery not found');
+
+    const brand = await this.prisma.brand.findFirst();
+    const deliveredQty =
+      Number(data.deliveredQty) || delivery.requiredQuantity || 1;
+    const emptyCollected = Number(data.emptyCollected) || 0;
+
+    await this.deliveryEngine.confirmDelivery(
+      deliveryId,
+      brand?.id || '',
+      deliveredQty,
+      emptyCollected,
+      0,
+      data.notes || 'Verified directly by staff override',
+    );
+
+    const verificationPayload = {
+      verificationStatus: 'VERIFIED',
+      deliveredQty,
+      emptyCollected,
+      verifiedAt: new Date().toISOString(),
+      staffNotes: data.notes || 'Verified by staff override',
+    };
+
+    await this.prisma.deliveryReport.upsert({
+      where: { deliveryId },
+      create: {
+        deliveryId,
+        partnerDeliveredQty: deliveredQty,
+        partnerEmptyCollected: emptyCollected,
+        staffNotes: JSON.stringify(verificationPayload),
+      },
+      update: {
+        partnerDeliveredQty: deliveredQty,
+        partnerEmptyCollected: emptyCollected,
+        staffNotes: JSON.stringify(verificationPayload),
+      },
+    });
+
+    return {
+      success: true,
+      status: OrderStatus.DELIVERED,
+      verification: verificationPayload,
+    };
   }
 
   async remove(id: string) {
