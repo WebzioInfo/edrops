@@ -482,7 +482,7 @@ export const TenantInventory: React.FC = () => {
               >
                 {tenants.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.companyName} ({t.code})
+                    {t.companyName}
                   </option>
                 ))}
               </select>
@@ -1029,7 +1029,7 @@ export const TenantInventory: React.FC = () => {
                 >
                   {tenants.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.companyName} ({t.code})
+                      {t.companyName}
                     </option>
                   ))}
                 </select>
