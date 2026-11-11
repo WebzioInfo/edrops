@@ -177,6 +177,23 @@ export default function BiodropsEcosystem() {
   const loadData = async () => {
     setLoading(true);
     try {
+      // Keep manufacturing facilities strictly synchronized with upstream Aquzio toggles
+      if (activeTab === 'manufacturing') {
+        try {
+          const liveTenants = await fetchAquzioTenants();
+          if (Array.isArray(liveTenants)) {
+            await biodropsApi.syncAquoraTenants(
+              liveTenants.map((t) => ({
+                id: t.id,
+                name: t.companyName || t.code || 'Manufacturing Facility',
+              }))
+            );
+          }
+        } catch {
+          // Gracefully continue with cached local manufacturers if Aquzio is unreachable
+        }
+      }
+
       const [prods, cats, vends, purcs, mfrs, btchs, mInvs, sales, reps, tiers, cMetrics] = await Promise.all([
         biodropsApi.getProducts(),
         biodropsApi.getCategories(),

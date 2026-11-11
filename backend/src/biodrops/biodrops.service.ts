@@ -2279,10 +2279,14 @@ export class BiodropsService {
   // ============================================================================
   async syncUpstreamTenants(aquoraTenants: any[]) {
     let synced = 0;
+    const activeExternalIds = new Set<string>();
+
     for (const t of aquoraTenants) {
       const id = String(t.id || t.tenantId || '').trim();
       const name = String(t.name || t.companyName || t.displayName || '').trim();
       if (!id || !name) continue;
+
+      activeExternalIds.add(id);
 
       const existing = await this.prisma.manufacturingCompany.findFirst({
         where: {
@@ -2302,17 +2306,38 @@ export class BiodropsService {
             contactPerson: t.contactPerson || null,
             phone: t.phone || null,
             defaultCoPackingRate: 15.0,
+            isActive: true,
           },
         });
         synced++;
-      } else if (!existing.externalTenantId || existing.externalTenantId !== id) {
+      } else {
         await this.prisma.manufacturingCompany.update({
           where: { id: existing.id },
-          data: { externalTenantId: id },
+          data: {
+            externalTenantId: id,
+            isActive: true,
+          },
         });
         synced++;
       }
     }
+
+    // Two-Way Sync: Automatically deactivate any linked co-packer toggled OFF in Aquzio
+    const linkedCompanies = await this.prisma.manufacturingCompany.findMany({
+      where: { externalTenantId: { not: null } },
+    });
+
+    for (const company of linkedCompanies) {
+      if (company.externalTenantId && !activeExternalIds.has(company.externalTenantId)) {
+        if (company.isActive) {
+          await this.prisma.manufacturingCompany.update({
+            where: { id: company.id },
+            data: { isActive: false },
+          });
+        }
+      }
+    }
+
     return { synced, totalTenants: aquoraTenants.length };
   }
   // ============================================================================
