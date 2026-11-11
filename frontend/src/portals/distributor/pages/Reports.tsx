@@ -43,6 +43,7 @@ import {
 import { InsightCard, type InsightItem } from '../components/reports/InsightCard';
 import { ReportSection } from '../components/reports/ReportSection';
 import { generateDistributorReportPDF } from '../utils/distributorReportPdfGenerator';
+import DistributorProfitLossTab from '../components/DistributorProfitLossTab';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -125,7 +126,7 @@ export interface CustomerPerformance {
   cancelledCount: number;
 }
 
-type ReportType = 'OVERVIEW' | 'PURCHASES' | 'SUPPLIERS' | 'ORDERS';
+type ReportType = 'OVERVIEW' | 'PNL' | 'PURCHASES' | 'SUPPLIERS' | 'ORDERS';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper Formatters
@@ -873,7 +874,7 @@ export default function Reports() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 w-full">
               {/* Desktop / Tablet Tab Switcher (Horizontal Pill Navigation) */}
               <div className="hidden sm:inline-flex items-center bg-slate-100/90 rounded-lg p-0.5 sm:p-1 border border-[#E2E8F0] min-w-max">
-                {(['OVERVIEW', 'PURCHASES', 'SUPPLIERS', 'ORDERS'] as ReportType[]).map((tab) => (
+                {(['OVERVIEW', 'PNL', 'PURCHASES', 'SUPPLIERS', 'ORDERS'] as ReportType[]).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -886,6 +887,8 @@ export default function Reports() {
                   >
                     {tab === 'OVERVIEW'
                       ? 'Overview'
+                      : tab === 'PNL'
+                      ? 'Profit & Loss (P&L)'
                       : tab === 'PURCHASES'
                       ? 'Purchases'
                       : tab === 'SUPPLIERS'
@@ -908,6 +911,7 @@ export default function Reports() {
                     className="w-full h-10 pl-3.5 pr-10 bg-white border border-[#CBD5E1] rounded-lg text-xs font-bold text-[#16324F] shadow-2xs appearance-none focus:outline-none focus:border-[#1677C8] focus:ring-1 focus:ring-[#1677C8] transition-all cursor-pointer"
                   >
                     <option value="OVERVIEW">Overview</option>
+                    <option value="PNL">Profit & Loss (P&L)</option>
                     <option value="PURCHASES">Purchases</option>
                     <option value="SUPPLIERS">Suppliers</option>
                     <option value="ORDERS">Customer Orders</option>
@@ -1150,6 +1154,17 @@ export default function Reports() {
                 {/* Key Business Insights */}
                 <InsightCard insights={dynamicInsights} />
               </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════════════
+                PROFIT & LOSS (P&L) TAB
+               ═══════════════════════════════════════════════════════════════════ */}
+            {reportType === 'PNL' && (
+              <DistributorProfitLossTab
+                preset={datePreset}
+                customStart={customStart}
+                customEnd={customEnd}
+              />
             )}
 
             {/* ═══════════════════════════════════════════════════════════════════

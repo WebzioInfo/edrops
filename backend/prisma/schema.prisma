@@ -177,6 +177,7 @@ model Distributor {
   distributorSales       DistributorSale[]
   ownershipLedgerEntries DistributorOwnershipLedger[]
   accessoryStocks        DistributorAccessoryStock[]
+  expenses               DistributorExpense[]
 
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdBy            User?    @relation("DistributorCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -2101,4 +2102,31 @@ model Expense {
   @@index([category, expenseDate])
   @@index([status])
   @@map("expenses")
+}
+
+model DistributorExpense {
+  id               String      @id @default(uuid())
+  distributorId    String
+  category         String      // FUEL, VEHICLE_MAINTENANCE, DRIVER_SALARY, HELPER_SALARY, RENT, ELECTRICITY, WATER, LOADING_UNLOADING, TRANSPORTATION, PACKAGING, INTERNET, MARKETING, REPAIRS, BANK_CHARGES, OTHER
+  title            String
+  amount           Float
+  expenseDate      DateTime    @default(now())
+  paymentMethod    String      @default("CASH") // CASH, BANK_TRANSFER, UPI, CHEQUE
+  paymentStatus    String      @default("PAID") // PENDING, PAID
+  status           String      @default("APPROVED") // DRAFT, PENDING_APPROVAL, APPROVED, REJECTED, CANCELLED
+  vendorName       String?
+  invoiceNumber    String?
+  receiptUrl       String?
+  description      String?
+  createdById      String?
+  approvedById     String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  distributor      Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([distributorId, expenseDate])
+  @@index([distributorId, category])
+  @@index([status])
+  @@map("distributor_expenses")
 }
