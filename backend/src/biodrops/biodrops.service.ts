@@ -322,6 +322,17 @@ export class BiodropsService {
         email: 'greenway.mfg@example.com',
         defaultCoPackingRate: 15.0,
       },
+      {
+        name: 'Sinan Company',
+        gstIN: '32AABCS9999S1Z9',
+        address: 'Kinfra Techno Industrial Park, Kakkanchery',
+        city: 'Malappuram',
+        state: 'Kerala',
+        contactPerson: 'Muhammed Sinan',
+        phone: '+919847555666',
+        email: 'sinan.company@example.com',
+        defaultCoPackingRate: 15.0,
+      },
     ];
 
     for (const mfr of defaultMfrs) {
@@ -2269,20 +2280,22 @@ export class BiodropsService {
   async syncUpstreamTenants(aquoraTenants: any[]) {
     let synced = 0;
     for (const t of aquoraTenants) {
-      if (!t.id || !t.name) continue;
+      const id = String(t.id || t.tenantId || '').trim();
+      const name = String(t.name || t.companyName || t.displayName || '').trim();
+      if (!id || !name) continue;
 
       const existing = await this.prisma.manufacturingCompany.findFirst({
         where: {
-          OR: [{ externalTenantId: t.id }, { name: t.name }],
+          OR: [{ externalTenantId: id }, { name: name }],
         },
       });
 
       if (!existing) {
         await this.prisma.manufacturingCompany.create({
           data: {
-            name: t.name,
-            externalTenantId: t.id,
-            gstin: t.taxNumber || t.gstin || null,
+            name: name,
+            externalTenantId: id,
+            gstin: t.taxNumber || t.gstin || t.gstIN || null,
             address: t.address || null,
             city: t.city || null,
             state: t.state || 'Kerala',
@@ -2292,10 +2305,10 @@ export class BiodropsService {
           },
         });
         synced++;
-      } else if (!existing.externalTenantId) {
+      } else if (!existing.externalTenantId || existing.externalTenantId !== id) {
         await this.prisma.manufacturingCompany.update({
           where: { id: existing.id },
-          data: { externalTenantId: t.id },
+          data: { externalTenantId: id },
         });
         synced++;
       }

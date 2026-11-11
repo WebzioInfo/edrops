@@ -537,6 +537,20 @@ export class BiodropsService implements OnModuleInit {
         lastRetrievedAt: now,
       },
       {
+        id: '7d77da44-5307-489c-b474-bf9cdc6137ee',
+        companyName: 'Sinan Company',
+        code: 'SINAN_COMPANY',
+        productionStatus: 'ACTIVE',
+        isBiodropsEnabled: true,
+        inventorySummary: {
+          totalFinishedJars: this.localStockOverrides.get('7d77da44-5307-489c-b474-bf9cdc6137ee:20l_water_jar') ?? 14,
+          rawMaterialsCount: 4,
+          lowStockAlerts: 0,
+          lastUpdated: now,
+        },
+        lastRetrievedAt: now,
+      },
+      {
         id: 'e47c1b52-6d33-41a9-b883-99a41cd39144',
         companyName: 'BioDrops Central Bottling',
         code: 'BIODROPS_CENTRAL',

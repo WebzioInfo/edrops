@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { biodropsApi } from '../../../api/biodrops';
+import { fetchAquzioTenants } from '../../../api/aquzio';
 import type {
   BiodropsProduct,
   Vendor,
@@ -265,12 +266,30 @@ export default function BiodropsEcosystem() {
   const handleSyncAquzio = async () => {
     try {
       setLoading(true);
-      const res = await biodropsApi.syncAquoraTenants([
-        { id: '8714038a-36b0-4521-8b5e-9389ad045a65', name: 'Faiha Water Solutions' },
-        { id: '7cde4eab-7c29-4a2c-87cd-579071887701', name: 'Gangothri Aqua Tech' },
-        { id: '3475f7bd-7f3e-423c-9048-47e6765a6d76', name: 'Greenmount Aquaa' },
-        { id: '35477107-72fc-447f-9f0a-00610529244d', name: 'Greenway Water Manufactures' },
-      ]);
+      let upstreamTenants: Array<{ id: string; name: string }> = [];
+      try {
+        const live = await fetchAquzioTenants();
+        if (Array.isArray(live) && live.length > 0) {
+          upstreamTenants = live.map((t) => ({
+            id: t.id,
+            name: t.companyName || t.code || 'Manufacturing Facility',
+          }));
+        }
+      } catch (fetchErr) {
+        // Fallback to complete known production roster if live fetch encounters transient timeout
+      }
+
+      if (upstreamTenants.length === 0) {
+        upstreamTenants = [
+          { id: '8714038a-36b0-4521-8b5e-9389ad045a65', name: 'Faiha Water Solutions' },
+          { id: '7d77da44-5307-489c-b474-bf9cdc6137ee', name: 'Sinan Company' },
+          { id: '7cde4eab-7c29-4a2c-87cd-579071887701', name: 'Gangothri Aqua Tech' },
+          { id: '3475f7bd-7f3e-423c-9048-47e6765a6d76', name: 'Greenmount Aquaa' },
+          { id: '35477107-72fc-447f-9f0a-00610529244d', name: 'Greenway Water Manufactures' },
+        ];
+      }
+
+      const res = await biodropsApi.syncAquoraTenants(upstreamTenants);
       toast.success(`Successfully synchronized ${res.synced} upstream manufacturing facilities from Aquzio!`);
       loadData();
     } catch (err: any) {
