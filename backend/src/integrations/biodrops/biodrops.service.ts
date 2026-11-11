@@ -862,16 +862,7 @@ export class BiodropsService implements OnModuleInit {
    * Returns only tenants where Biodrops Production is enabled.
    */
   async getTenants(): Promise<BiodropsTenant[]> {
-    let rawResponse: any;
-    try {
-      rawResponse = await this.fetchFromAquora<any>('/tenants');
-    } catch (err: any) {
-      if (process.env.NODE_ENV !== 'test') {
-        this.logger.warn(`[SANDBOX_FALLBACK] Upstream Aquzio /tenants call failed (${err.message}). Serving local sandbox tenants.`);
-        return this.getFallbackTenants();
-      }
-      throw err;
-    }
+    const rawResponse = await this.fetchFromAquora<any>('/tenants');
 
     // Unpack data whether wrapped in { success: true, data: [...] } or bare array
     const list: any[] = Array.isArray(rawResponse)
@@ -961,18 +952,9 @@ export class BiodropsService implements OnModuleInit {
       throw new BadRequestException('tenantId parameter is required.');
     }
 
-    let rawResponse: any;
-    try {
-      rawResponse = await this.fetchFromAquora<any>(
-        `/tenants/${encodeURIComponent(tenantId)}/inventory`,
-      );
-    } catch (err: any) {
-      if (process.env.NODE_ENV !== 'test') {
-        this.logger.warn(`[SANDBOX_FALLBACK] Upstream Aquzio /inventory call failed (${err.message}). Serving local sandbox inventory.`);
-        return this.getFallbackInventory(tenantId);
-      }
-      throw err;
-    }
+    const rawResponse = await this.fetchFromAquora<any>(
+      `/tenants/${encodeURIComponent(tenantId)}/inventory`,
+    );
 
     const payload = rawResponse?.data || rawResponse || {};
     const now = new Date().toISOString();
