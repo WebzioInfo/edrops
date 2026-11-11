@@ -25,6 +25,10 @@ export interface FinishedProductItem {
   damagedStock: number;
   unit: string;
   lastUpdated?: string;
+  lastUpdatedUtc?: string;
+  lastUpdatedBy?: string;
+  lastSource?: 'AQUZIO' | 'EDROPS' | string;
+  lastMovementNotes?: string;
 }
 
 export interface RawMaterialItem {
@@ -39,6 +43,10 @@ export interface RawMaterialItem {
   reorderLevel: number;
   isLowStock?: boolean;
   lastUpdated?: string;
+  lastUpdatedUtc?: string;
+  lastUpdatedBy?: string;
+  lastSource?: 'AQUZIO' | 'EDROPS' | string;
+  lastMovementNotes?: string;
 }
 
 export interface TenantInventoryResponse {

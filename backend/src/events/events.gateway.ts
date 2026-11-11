@@ -17,6 +17,7 @@ import { PrismaService } from '../prisma/prisma.service';
     origin: process.env.FRONTEND_ORIGIN?.split(',').map((o) => o.trim()) || '*',
     credentials: true,
   },
+  transports: ['websocket'],
 })
 export class EventsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect

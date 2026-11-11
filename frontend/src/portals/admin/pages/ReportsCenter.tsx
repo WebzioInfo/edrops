@@ -106,7 +106,9 @@ interface AdminAnalyticsPayload {
   sales: {
     kpis: {
       grossSales: number;
+      grossBilling?: number;
       orderSales: number;
+      depositCollections?: number;
       membershipSales: number;
       paidAmount: number;
       pendingAmount: number;
@@ -1070,8 +1072,9 @@ export default function ReportsCenter() {
           {activeTab === 'sales' && (
             <div className="space-y-4">
               {/* Financial KPIs */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <KPICard title="Gross Sales" value={`₹${data.sales.kpis.grossSales.toLocaleString('en-IN')}`} subtext="Orders + Memberships" icon={TrendingUp} color="indigo" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                <KPICard title="Operating Sales" value={`₹${data.sales.kpis.grossSales.toLocaleString('en-IN')}`} subtext="Excludes Jar Deposits" icon={TrendingUp} color="indigo" />
+                <KPICard title="Jar Deposits Held" value={`₹${(data.sales.kpis.depositCollections ?? 0).toLocaleString('en-IN')}`} subtext="Refundable Liability" icon={Layers} color="amber" />
                 <KPICard title="Paid Amount" value={`₹${data.sales.kpis.paidAmount.toLocaleString('en-IN')}`} subtext="Payments cleared" icon={CheckCircle2} color="emerald" />
                 <KPICard title="Pending / Due" value={`₹${data.sales.kpis.pendingAmount.toLocaleString('en-IN')}`} subtext="Receivables" icon={AlertCircle} color="amber" />
                 <KPICard title="Cash Collected" value={`₹${data.sales.kpis.cashCollected.toLocaleString('en-IN')}`} subtext="Handover collections" icon={Receipt} color="blue" />

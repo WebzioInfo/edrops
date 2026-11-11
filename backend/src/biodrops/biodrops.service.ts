@@ -1645,25 +1645,25 @@ export class BiodropsService {
       throw new BadRequestException('Payment amount must be greater than zero');
     }
 
-    const ratePerJar = dto.ratePerJar ?? 250.0;
-    const wholeJarsToTransfer = Math.floor(dto.paymentAmount / ratePerJar);
-    const unappliedCredit = dto.paymentAmount % ratePerJar;
-
-    if (wholeJarsToTransfer <= 0) {
-      throw new BadRequestException(
-        `Payment amount (₹${dto.paymentAmount}) is insufficient to transfer even 1 jar at ₹${ratePerJar}. Minimum required is ₹${ratePerJar}.`,
-      );
-    }
-
     return this.prisma.$transaction(async (tx) => {
       // 1. Lock distributor row for concurrency safety
       const distLookup = await tx.distributor.findFirst({
         where: {
           OR: [{ id: dto.distributorId }, { userId: dto.distributorId }],
         },
-        select: { id: true },
+        select: { id: true, jarDepositRate: true },
       });
       if (!distLookup) throw new NotFoundException('Distributor not found');
+
+      const ratePerJar = dto.ratePerJar ?? (distLookup.jarDepositRate > 0 ? distLookup.jarDepositRate : 250.0);
+      const wholeJarsToTransfer = Math.floor(dto.paymentAmount / ratePerJar);
+      const unappliedCredit = dto.paymentAmount % ratePerJar;
+
+      if (wholeJarsToTransfer <= 0) {
+        throw new BadRequestException(
+          `Payment amount (₹${dto.paymentAmount}) is insufficient to transfer even 1 jar at ₹${ratePerJar}. Minimum required is ₹${ratePerJar}.`,
+        );
+      }
 
       const rows = await tx.$queryRawUnsafe<any[]>(
         `SELECT "id", "companyOwnedJars", "distributorOwnedJars", "jarDepositRate"
@@ -1831,7 +1831,7 @@ export class BiodropsService {
     });
     if (!dist) throw new NotFoundException('Distributor not found');
 
-    const ratePerJar = 250.0;
+    const ratePerJar = dist.jarDepositRate && dist.jarDepositRate > 0 ? Number(dist.jarDepositRate) : 250.0;
     const companyOwned = dist.companyOwnedJars || 0;
     const distributorOwned = dist.distributorOwnedJars || 0;
     const totalPhysicalInPossession = companyOwned + distributorOwned;
@@ -2187,35 +2187,34 @@ export class BiodropsService {
       },
     });
 
-    const ratePerJar = 250.0;
     const distributorSummary = distributors.map((d) => {
       const companyJars = d.companyOwnedJars || 0;
       const distributorJars = d.distributorOwnedJars || 0;
+      const ratePerJar = d.jarDepositRate && d.jarDepositRate > 0 ? Number(d.jarDepositRate) : 250.0;
       return {
         id: d.id,
         name: d.agencyName || `${d.user.firstName} ${d.user.lastName}`,
         distributorOwnedJars: distributorJars,
         edropsOwnedJars: companyJars,
         totalPhysicalJars: companyJars + distributorJars,
+        ratePerJar,
         jarOwnershipPendingAmount: companyJars * ratePerJar,
       };
     });
 
-    // 4. GST Sales Summary
-    const sales = await this.prisma.distributorSale.findMany({
-      take: 100,
-      orderBy: { saleDate: 'desc' },
+    // 4. GST Sales Summary (SQL Aggregate for 100% data coverage without truncation)
+    const salesAgg = await this.prisma.distributorSale.aggregate({
+      _sum: { subtotal: true, taxAmount: true },
     });
-    const totalTaxableSales = sales.reduce((acc, s) => acc + s.subtotal, 0);
-    const totalGstCollected = sales.reduce((acc, s) => acc + s.taxAmount, 0);
+    const totalTaxableSales = salesAgg._sum.subtotal || 0;
+    const totalGstCollected = salesAgg._sum.taxAmount || 0;
 
-    // 5. GST Purchase Summary (Input Tax Credit)
-    const rawPurchases = await this.prisma.rawMaterialPurchaseInvoice.findMany({
-      take: 100,
-      orderBy: { invoiceDate: 'desc' },
+    // 5. GST Purchase Summary (Input Tax Credit via SQL Aggregate)
+    const rawPurchasesAgg = await this.prisma.rawMaterialPurchaseInvoice.aggregate({
+      _sum: { subtotal: true, taxAmount: true },
     });
-    const totalTaxablePurchases = rawPurchases.reduce((acc, p) => acc + p.subtotal, 0);
-    const totalItc = rawPurchases.reduce((acc, p) => acc + p.taxAmount, 0);
+    const totalTaxablePurchases = rawPurchasesAgg._sum.subtotal || 0;
+    const totalItc = rawPurchasesAgg._sum.taxAmount || 0;
 
     // 6. Finished Goods Stock Valuation
     const warehouse = await this.prisma.warehouse.findFirst({

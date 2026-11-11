@@ -33,6 +33,10 @@ export interface FinishedProductItem {
   damagedStock: number;
   unit: string;
   lastUpdated?: string;
+  lastUpdatedUtc?: string;
+  lastUpdatedBy?: string;
+  lastSource?: 'AQUZIO' | 'EDROPS' | string;
+  lastMovementNotes?: string;
 }
 
 export interface RawMaterialItem {
@@ -47,6 +51,10 @@ export interface RawMaterialItem {
   reorderLevel: number;
   isLowStock?: boolean;
   lastUpdated?: string;
+  lastUpdatedUtc?: string;
+  lastUpdatedBy?: string;
+  lastSource?: 'AQUZIO' | 'EDROPS' | string;
+  lastMovementNotes?: string;
 }
 
 export interface TenantInventoryResponse {
@@ -199,6 +207,13 @@ export async function fetchTenantSales(tenantId: string): Promise<AquzioSale[]> 
   return fetchWithAuth(
     `/api/v1/integrations/biodrops/tenants/${encodeURIComponent(tenantId)}/sales`,
   );
+}
+
+/**
+ * Fetch consolidated 20L finished product sales across all active Aquzio tenants in a single call.
+ */
+export async function fetchAllTenantSales(): Promise<AquzioSale[]> {
+  return fetchWithAuth('/api/v1/integrations/biodrops/tenants/all/sales');
 }
 
 

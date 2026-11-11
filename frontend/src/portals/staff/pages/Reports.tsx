@@ -23,6 +23,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { toast } from '../../../utils/toast';
+import ProfitLossTab from '../components/ProfitLossTab';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -215,6 +216,9 @@ export default function StaffReports() {
   const [appliedCustomEnd, setAppliedCustomEnd] = useState('');
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [showCustomInputs, setShowCustomInputs] = useState(false);
+
+  // View mode
+  const [activeView, setActiveView] = useState<'OPERATIONS' | 'PNL'>('OPERATIONS');
 
   // Chart Metric
   const [chartMetric, setChartMetric] = useState<'totalSales' | 'orderCount'>('totalSales');
@@ -449,6 +453,33 @@ export default function StaffReports() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* View Switcher: Operational vs Profit & Loss */}
+          <div className="flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setActiveView('OPERATIONS')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeView === 'OPERATIONS'
+                  ? 'bg-white text-slate-800 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Operations Overview
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('PNL')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeView === 'PNL'
+                  ? 'bg-[#1677C8] text-white shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <span>Profit & Loss (P&L)</span>
+              <span className={`px-1 py-0.5 text-[9px] rounded font-black ${activeView === 'PNL' ? 'bg-emerald-400 text-slate-900' : 'bg-emerald-100 text-emerald-800'}`}>LIVE</span>
+            </button>
+          </div>
+
           {/* Date Range Selector Dropdown */}
           <div className="relative">
             <button
@@ -541,7 +572,13 @@ export default function StaffReports() {
       </div>
 
       {/* ─── CONTENT AREA (ERROR / LOADING / DATA) ───────────────── */}
-      {error ? (
+      {activeView === 'PNL' ? (
+        <ProfitLossTab
+          preset={preset}
+          customStart={appliedCustomStart}
+          customEnd={appliedCustomEnd}
+        />
+      ) : error ? (
         <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <DataErrorState
             title="Unable to load staff reports"

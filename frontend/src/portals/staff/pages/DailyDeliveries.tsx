@@ -188,6 +188,7 @@ export default function DailyDeliveries() {
       await loadDailyDeliveries(false);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to send verification request');
+      await loadDailyDeliveries(false);
     } finally {
       setProcessingId(null);
     }
@@ -211,6 +212,7 @@ export default function DailyDeliveries() {
       await loadDailyDeliveries(false);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to verify delivery');
+      await loadDailyDeliveries(false);
     } finally {
       setProcessingId(null);
     }

@@ -89,6 +89,20 @@ export class BiodropsController {
     return this.biodropsService.getTenantStockSummary(tenantId);
   }
 
+  @Get('tenants/all/sales')
+  @ApiOperation({
+    summary: 'Get consolidated 20L sales across all active Aquzio plants',
+    description:
+      'Accessible to Upper Admin, Admin, and Staff roles. Aggregates sales from all active plants in a single backend call with caching.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Consolidated tenant sales transactions',
+  })
+  async getAllTenantSales(): Promise<BiodropsSale[]> {
+    return this.biodropsService.getAllTenantSales();
+  }
+
   @Get('tenants/:tenantId/sales')
   @ApiOperation({
     summary: 'Get 20L finished product sales for a specific Aquora Biodrops tenant',

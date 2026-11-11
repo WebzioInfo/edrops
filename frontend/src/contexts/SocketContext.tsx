@@ -40,7 +40,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       reconnectionDelayMax: 10000,
       reconnection: true,
       reconnectionAttempts: 5,
-      transports: ['polling', 'websocket'],
+      transports: ['websocket'],
       autoConnect: true,
     });
 

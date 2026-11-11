@@ -178,15 +178,33 @@ export class ReportService {
         where: { createdAt: { gte: todayStart, lte: todayEnd } },
       }),
       this.prisma.order.aggregate({
-        _sum: { totalAmount: true },
+        _sum: {
+          totalAmount: true,
+          depositTotal: true,
+          subTotal: true,
+          deliveryCharge: true,
+          discountTotal: true,
+        },
         where: { ...orderWhere, status: { not: 'CANCELLED' } },
       }),
       this.prisma.order.aggregate({
-        _sum: { totalAmount: true },
+        _sum: {
+          totalAmount: true,
+          depositTotal: true,
+          subTotal: true,
+          deliveryCharge: true,
+          discountTotal: true,
+        },
         where: { ...prevOrderWhere, status: { not: 'CANCELLED' } },
       }),
       this.prisma.order.aggregate({
-        _sum: { totalAmount: true },
+        _sum: {
+          totalAmount: true,
+          depositTotal: true,
+          subTotal: true,
+          deliveryCharge: true,
+          discountTotal: true,
+        },
         where: {
           createdAt: { gte: todayStart, lte: todayEnd },
           status: { not: 'CANCELLED' },
@@ -502,14 +520,30 @@ export class ReportService {
     const assignedCount = (statusCounts['ASSIGNED'] || 0) + (statusCounts['ACCEPTED_BY_PARTNER'] || 0);
     const outForDeliveryCount = statusCounts['OUT_FOR_DELIVERY'] || 0;
 
-    // Financial aggregates
-    const orderSalesAmount = ordersPeriodSalesAgg._sum.totalAmount || 0;
-    const prevOrderSalesAmount = ordersPrevSalesAgg._sum.totalAmount || 0;
+    // Financial aggregates (Accrual & GAAP compliant: Excludes refundable jar deposits from revenue)
+    const orderGrossBilling = ordersPeriodSalesAgg._sum.totalAmount || 0;
+    const orderDepositLiability = ordersPeriodSalesAgg._sum.depositTotal || 0;
+    // Direct revenue formula: Goods sold + delivery charges - discounts (unclamped to preserve true accounting adjustments)
+    const orderSalesAmount =
+      (ordersPeriodSalesAgg._sum.subTotal || 0) +
+      (ordersPeriodSalesAgg._sum.deliveryCharge || 0) -
+      (ordersPeriodSalesAgg._sum.discountTotal || 0);
+
+    const prevOrderGrossBilling = ordersPrevSalesAgg._sum.totalAmount || 0;
+    const prevOrderDepositLiability = ordersPrevSalesAgg._sum.depositTotal || 0;
+    const prevOrderSalesAmount =
+      (ordersPrevSalesAgg._sum.subTotal || 0) +
+      (ordersPrevSalesAgg._sum.deliveryCharge || 0) -
+      (ordersPrevSalesAgg._sum.discountTotal || 0);
+
     const membershipSalesAmount = packagesPeriodSalesAgg._sum.amount || 0;
     const prevMembershipSalesAmount = packagesPrevSalesAgg._sum.amount || 0;
 
     const totalSalesAmount = orderSalesAmount + membershipSalesAmount;
     const prevTotalSalesAmount = prevOrderSalesAmount + prevMembershipSalesAmount;
+
+    const grossBillingAmount = orderGrossBilling + membershipSalesAmount;
+    const prevGrossBillingAmount = prevOrderGrossBilling + prevMembershipSalesAmount;
 
     // Payments calculations
     let amountCollected = 0;
@@ -599,8 +633,9 @@ export class ReportService {
       const bucket = timeSeriesMap.get(dateKey);
       if (bucket) {
         if (o.status !== 'CANCELLED') {
-          bucket.orderSales += o.totalAmount;
-          bucket.totalSales += o.totalAmount;
+          const operatingOrderRev = (o.subTotal || 0) + (o.deliveryCharge || 0) - (o.discountTotal || 0);
+          bucket.orderSales += operatingOrderRev;
+          bucket.totalSales += operatingOrderRev;
         }
         bucket.orderCount += 1;
         if (o.status === 'DELIVERED') {
@@ -723,6 +758,8 @@ export class ReportService {
 
     // Populate order dimensions
     periodOrders.forEach((o) => {
+      const operatingOrderRev = (o.subTotal || 0) + (o.deliveryCharge || 0) - (o.discountTotal || 0);
+
       // Distributor stats
       if (o.distributorId && distributorStatsMap.has(o.distributorId)) {
         const ds = distributorStatsMap.get(o.distributorId)!;
@@ -732,7 +769,7 @@ export class ReportService {
         else ds.pendingCount += 1;
 
         if (o.status !== 'CANCELLED') {
-          ds.sales += o.totalAmount;
+          ds.sales += operatingOrderRev;
           const paid = o.paymentStatus === 'PAID' ? o.totalAmount : 0;
           ds.collected += paid;
           ds.outstanding += Math.max(0, o.totalAmount - paid);
@@ -774,7 +811,7 @@ export class ReportService {
         }
         const ca = customerOrdersAgg.get(o.customerId)!;
         ca.ordersCount += 1;
-        if (o.status !== 'CANCELLED') ca.totalSpend += o.totalAmount;
+        if (o.status !== 'CANCELLED') ca.totalSpend += operatingOrderRev;
       }
     });
 
@@ -992,7 +1029,17 @@ export class ReportService {
             value: totalSalesAmount,
             prevValue: prevTotalSalesAmount,
             change: getPercentageChange(totalSalesAmount, prevTotalSalesAmount),
-            label: 'Gross orders & membership volume',
+            label: 'Net Operating Revenue (excl. refundable jar deposits)',
+          },
+          depositLiability: {
+            value: orderDepositLiability,
+            label: 'Refundable customer jar deposits held (Liability)',
+          },
+          grossBilling: {
+            value: grossBillingAmount,
+            prevValue: prevGrossBillingAmount,
+            change: getPercentageChange(grossBillingAmount, prevGrossBillingAmount),
+            label: 'Total customer billing volume (Revenue + Deposits)',
           },
           amountCollected: {
             value: amountCollected,
@@ -1047,7 +1094,9 @@ export class ReportService {
       sales: {
         kpis: {
           grossSales: totalSalesAmount,
+          grossBilling: grossBillingAmount,
           orderSales: orderSalesAmount,
+          depositCollections: orderDepositLiability,
           membershipSales: membershipSalesAmount,
           paidAmount: amountCollected,
           pendingAmount: outstandingAmount,
@@ -1084,6 +1133,8 @@ export class ReportService {
           pendingOrders: pendingOrdersCount,
           cancelledOrders: cancelledOrdersCount,
           revenueHandled: orderSalesAmount,
+          grossBillingHandled: orderGrossBilling,
+          depositHandled: orderDepositLiability,
         },
         performanceList: distributorPerformanceList,
       },

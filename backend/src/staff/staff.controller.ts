@@ -62,6 +62,16 @@ export class StaffController {
     return this.staffService.getStaffReports({ startDate, endDate, preset });
   }
 
+  @Get('reports/pnl')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  getPnLStatement(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('preset') preset?: string,
+  ) {
+    return this.staffService.getPnLStatement({ startDate, endDate, preset });
+  }
+
   // --- DISTRIBUTOR MANAGEMENT ENDPOINTS ---
 
   @Get('distributors/summary')

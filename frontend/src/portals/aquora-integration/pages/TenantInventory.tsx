@@ -422,14 +422,14 @@ export const TenantInventory: React.FC = () => {
   }, [adjustItem, adjustAction, adjustQuantity]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3.5">
       {/* ─── PAGE HEADER ────────────────────────────────────────── */}
       <PageHeader
         title="Plant Inventory"
         subtitle="Real-time stock of 20L jars and manufacturing raw materials with dynamic unit tracking."
         badge={
           selectedTenant ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#1677C8] border border-blue-200">
+            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-[#1677C8] border border-blue-200">
               <Building2 className="w-3.5 h-3.5" />
               {selectedTenant.companyName}
             </span>
@@ -460,10 +460,10 @@ export const TenantInventory: React.FC = () => {
       />
 
       {/* ─── COMPACT PLANT TOOLBAR & FEED STATUS ───────────────── */}
-      <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center shrink-0">
-            <Building2 className="w-4 h-4" />
+      <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-[#1677C8]/10 text-[#1677C8] flex items-center justify-center shrink-0">
+            <Building2 className="w-3.5 h-3.5" />
           </div>
           <div className="flex items-center gap-2">
             <label
@@ -472,13 +472,13 @@ export const TenantInventory: React.FC = () => {
             >
               Plant:
             </label>
-            <div className="relative min-w-[220px] sm:min-w-[260px]">
+            <div className="relative min-w-[200px] sm:min-w-[240px]">
               <select
                 id="tenant-select"
                 value={selectedTenantId}
                 onChange={(e) => handleTenantChange(e.target.value)}
                 disabled={loadingTenants || tenants.length === 0}
-                className="w-full appearance-none bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] transition-all cursor-pointer"
+                className="w-full appearance-none bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold rounded-lg pl-3 pr-8 py-1 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] transition-all cursor-pointer"
               >
                 {tenants.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -486,13 +486,13 @@ export const TenantInventory: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
         </div>
 
         {inventory && (
-          <div className="flex items-center gap-3 text-xs text-slate-600 font-medium self-end md:self-center">
+          <div className="flex items-center gap-2.5 text-xs text-slate-600 font-medium self-end md:self-center">
             <div className="flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-slate-500" />
               <span>
@@ -507,8 +507,8 @@ export const TenantInventory: React.FC = () => {
               </span>
             </div>
             <span className="text-slate-300">|</span>
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-300">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-300">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
               Verified Feed
             </span>
           </div>
@@ -526,106 +526,106 @@ export const TenantInventory: React.FC = () => {
 
       {/* ─── LOADING SKELETON ───────────────────────────────────── */}
       {(loadingTenants || loadingInventory) && !error && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
             {[1, 2, 3, 4].map((n) => (
-              <div key={n} className="h-24 bg-white rounded-2xl border border-slate-200 p-4 animate-pulse" />
+              <div key={n} className="h-20 bg-white rounded-xl border border-slate-200 p-3.5 animate-pulse" />
             ))}
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs animate-pulse">
-            <div className="h-4 bg-slate-200 rounded w-1/4 mb-4" />
-            <div className="h-32 bg-slate-100 rounded-xl" />
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs animate-pulse">
+            <div className="h-4 bg-slate-200 rounded w-1/4 mb-3" />
+            <div className="h-28 bg-slate-100 rounded-lg" />
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs animate-pulse">
-            <div className="h-4 bg-slate-200 rounded w-1/3 mb-4" />
-            <div className="h-48 bg-slate-100 rounded-xl" />
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs animate-pulse">
+            <div className="h-4 bg-slate-200 rounded w-1/3 mb-3" />
+            <div className="h-40 bg-slate-100 rounded-lg" />
           </div>
         </div>
       )}
 
       {/* ─── INVENTORY DATA VIEWS ───────────────────────────────── */}
       {!loadingTenants && !loadingInventory && !error && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Summary KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1677C8] flex items-center justify-center shrink-0">
-                <Boxes className="w-5 h-5" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 text-[#1677C8] flex items-center justify-center shrink-0">
+                <Boxes className="w-4.5 h-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Total SKUs</p>
-                <p className="text-xl font-extrabold text-[#16324F] mt-0.5">{summaryMetrics.totalSkus}</p>
-                <p className="text-xs text-slate-600 truncate mt-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total SKUs</p>
+                <p className="text-lg sm:text-xl font-black text-[#16324F] leading-tight">{summaryMetrics.totalSkus}</p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">
                   {finishedProducts.length} finished, {inventory?.rawMaterials?.length || 0} materials
                 </p>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <Package className="w-5 h-5" />
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <Package className="w-4.5 h-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Finished Stock</p>
-                <p className="text-xl font-extrabold text-emerald-700 mt-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Finished Stock</p>
+                <p className="text-lg sm:text-xl font-black text-emerald-700 leading-tight">
                   {summaryMetrics.totalFinishedJars.toLocaleString()}{' '}
-                  <span className="text-xs font-semibold text-slate-600">Jars</span>
+                  <span className="text-xs font-semibold text-slate-500">Jars</span>
                 </p>
-                <p className="text-xs text-slate-600 truncate mt-0.5">Ready for dispatch</p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">Ready for dispatch</p>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5" />
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4.5 h-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Low Stock</p>
-                <p className="text-xl font-extrabold text-amber-700 mt-0.5">{summaryMetrics.lowStockCount}</p>
-                <p className="text-xs text-slate-600 truncate mt-0.5">At or below reorder level</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Low Stock</p>
+                <p className="text-lg sm:text-xl font-black text-amber-700 leading-tight">{summaryMetrics.lowStockCount}</p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">At or below reorder</p>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                <AlertOctagon className="w-5 h-5" />
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertOctagon className="w-4.5 h-4.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Out of Stock</p>
-                <p className="text-xl font-extrabold text-rose-700 mt-0.5">{summaryMetrics.outOfStockCount}</p>
-                <p className="text-xs text-slate-600 truncate mt-0.5">0 balance available</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Out of Stock</p>
+                <p className="text-lg sm:text-xl font-black text-rose-700 leading-tight">{summaryMetrics.outOfStockCount}</p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">0 balance available</p>
               </div>
             </div>
           </div>
 
           {/* 1. FINISHED PRODUCTS – 20L JAR ──────────────────────── */}
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+          <section className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                   <Package className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-sm sm:text-base font-bold text-[#16324F]">
+                  <h2 className="text-xs sm:text-sm font-bold text-[#16324F]">
                     Finished Products – 20L Jar
                   </h2>
-                  <p className="text-xs text-slate-600 font-medium">
+                  <p className="text-[11px] text-slate-500 font-medium">
                     Commercial ready-to-dispatch water jar stock
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
+              <span className="text-[11px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md">
                 {finishedProducts.length} Product SKU{finishedProducts.length === 1 ? '' : 's'}
               </span>
             </div>
 
             {finishedProducts.length === 0 ? (
-              <div className="py-8 px-4 text-center">
-                <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-500 mb-2">
-                  <Package className="w-5 h-5" />
+              <div className="py-6 px-4 text-center">
+                <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 text-slate-500 mb-1.5">
+                  <Package className="w-4.5 h-4.5" />
                 </div>
                 <p className="text-xs font-semibold text-slate-700">No Finished 20L Water Jars Reported</p>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-[11px] text-slate-500 mt-0.5">
                   Commercial finished stock will appear here when ready batches are logged.
                 </p>
                 <button
@@ -639,7 +639,7 @@ export const TenantInventory: React.FC = () => {
                       itemType: 'FINISHED_PRODUCT',
                     })
                   }
-                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#1363a8] rounded-xl shadow-xs transition-colors cursor-pointer"
+                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#1363a8] rounded-lg shadow-xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add Finished Stock
@@ -647,47 +647,60 @@ export const TenantInventory: React.FC = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full text-left border-collapse text-xs table-fixed">
                   <thead>
-                    <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-xs">
-                      <th className="py-3 px-4 sm:px-6">Product Name</th>
-                      <th className="py-3 px-4">SKU</th>
-                      <th className="py-3 px-4 text-right">Available Stock</th>
-                      <th className="py-3 px-4 text-right">Reserved Stock</th>
-                      <th className="py-3 px-4 text-right">Damaged Stock</th>
-                      <th className="py-3 px-4 text-center">Action</th>
+                    <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                      <th className="py-2.5 px-4 w-[34%]">Product Name</th>
+                      <th className="py-2.5 px-3 w-[16%]">SKU</th>
+                      <th className="py-2.5 px-3 w-[14%] text-right">Available Stock</th>
+                      <th className="py-2.5 px-3 w-[14%] text-right">Reserved Stock</th>
+                      <th className="py-2.5 px-3 w-[14%] text-right">Damaged Stock</th>
+                      <th className="py-2.5 px-3 w-[80px] text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                     {finishedProducts.map((p, idx) => (
                       <tr key={p.id || idx} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3.5 px-4 sm:px-6">
-                          <span className="font-bold text-[#16324F] block">{p.name}</span>
+                        <td className="py-2.5 px-4">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-bold text-[#16324F] block">{p.name}</span>
+                            {p.lastSource === 'EDROPS' ? (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-50 border border-sky-200 text-sky-700 w-fit">
+                                <span>💧</span>
+                                <span>Changed in eDrops</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 w-fit">
+                                <span>🏭</span>
+                                <span>Changed in Aquzio (Plant)</span>
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-mono text-xs text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+                        <td className="py-2.5 px-3">
+                          <span className="font-mono text-[11px] text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
                             {p.sku}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <span className="text-sm font-extrabold text-emerald-700">
+                        <td className="py-2.5 px-3 text-right">
+                          <span className="text-xs font-black text-emerald-700">
                             {p.availableStock.toLocaleString()}{' '}
-                            <span className="text-xs font-semibold text-slate-600">{p.unit}</span>
+                            <span className="text-[11px] font-semibold text-slate-500">{p.unit}</span>
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <span className="font-bold text-sky-700">
+                        <td className="py-2.5 px-3 text-right">
+                          <span className="font-bold text-sky-700 text-xs">
                             {p.reservedStock.toLocaleString()}{' '}
-                            <span className="text-xs font-normal text-slate-600">{p.unit}</span>
+                            <span className="text-[11px] font-normal text-slate-500">{p.unit}</span>
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <span className="font-bold text-rose-700">
+                        <td className="py-2.5 px-3 text-right">
+                          <span className="font-bold text-rose-700 text-xs">
                             {p.damagedStock.toLocaleString()}{' '}
-                            <span className="text-xs font-normal text-slate-600">{p.unit}</span>
+                            <span className="text-[11px] font-normal text-slate-500">{p.unit}</span>
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-center">
+                        <td className="py-2.5 px-3 text-center">
                           <button
                             type="button"
                             onClick={() =>
@@ -714,17 +727,17 @@ export const TenantInventory: React.FC = () => {
           </section>
 
           {/* 2. RAW MATERIALS ────────────────────────────────────── */}
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <section className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
                   <Boxes className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-sm sm:text-base font-bold text-[#16324F]">
+                  <h2 className="text-xs sm:text-sm font-bold text-[#16324F]">
                     Raw Materials & Packaging
                   </h2>
-                  <p className="text-xs text-slate-600 font-medium">
+                  <p className="text-[11px] text-slate-500 font-medium">
                     Preforms, caps, labels, shrink film, and treatment supplies with dynamic units
                   </p>
                 </div>
@@ -733,13 +746,13 @@ export const TenantInventory: React.FC = () => {
               {/* Filters */}
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={materialSearch}
                     onChange={(e) => setMaterialSearch(e.target.value)}
                     placeholder="Search materials..."
-                    className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] w-40 sm:w-48"
+                    className="pl-7 pr-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8] w-36 sm:w-44"
                   />
                 </div>
 
@@ -770,12 +783,12 @@ export const TenantInventory: React.FC = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full text-left border-collapse text-xs table-fixed">
                   <thead>
-                    <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-xs">
+                    <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
                       <th
                         onClick={() => handleSort('name')}
-                        className="py-3 px-4 sm:px-6 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-2.5 px-3 sm:px-4 w-[24%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
                         <div className="inline-flex items-center gap-1.5">
                           <span>Material Name</span>
@@ -788,7 +801,7 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('sku')}
-                        className="py-3 px-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-2.5 px-2.5 w-[11%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
                         <div className="inline-flex items-center gap-1.5">
                           <span>SKU</span>
@@ -801,7 +814,7 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('category')}
-                        className="py-3 px-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-2.5 px-2.5 w-[11%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
                         <div className="inline-flex items-center gap-1.5">
                           <span>Category</span>
@@ -814,10 +827,10 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('availableQuantity')}
-                        className="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-2.5 px-2.5 w-[11%] text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
-                        <div className="inline-flex items-center gap-1.5 justify-end w-full">
-                          <span>Available Qty</span>
+                        <div className="inline-flex items-center gap-1 justify-end w-full">
+                          <span>Available</span>
                           {sortField === 'availableQuantity' ? (
                             sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
                           ) : (
@@ -827,10 +840,10 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('usedQuantity')}
-                        className="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-2.5 px-2.5 w-[9%] text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
-                        <div className="inline-flex items-center gap-1.5 justify-end w-full">
-                          <span>Used Qty</span>
+                        <div className="inline-flex items-center gap-1 justify-end w-full">
+                          <span>Used</span>
                           {sortField === 'usedQuantity' ? (
                             sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
                           ) : (
@@ -840,10 +853,10 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('wastedQuantity')}
-                        className="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-2.5 px-2.5 w-[9%] text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
-                        <div className="inline-flex items-center gap-1.5 justify-end w-full">
-                          <span>Wasted Qty</span>
+                        <div className="inline-flex items-center gap-1 justify-end w-full">
+                          <span>Wasted</span>
                           {sortField === 'wastedQuantity' ? (
                             sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
                           ) : (
@@ -853,10 +866,10 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('reorderLevel')}
-                        className="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-2.5 px-2.5 w-[10%] text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
-                        <div className="inline-flex items-center gap-1.5 justify-end w-full">
-                          <span>Reorder Level</span>
+                        <div className="inline-flex items-center gap-1 justify-end w-full">
+                          <span>Reorder</span>
                           {sortField === 'reorderLevel' ? (
                             sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
                           ) : (
@@ -866,9 +879,9 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('status')}
-                        className="py-3 px-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-2.5 px-2.5 w-[85px] text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
-                        <div className="inline-flex items-center gap-1.5 justify-center">
+                        <div className="inline-flex items-center gap-1 justify-center">
                           <span>Status</span>
                           {sortField === 'status' ? (
                             sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
@@ -877,7 +890,7 @@ export const TenantInventory: React.FC = () => {
                           )}
                         </div>
                       </th>
-                      <th className="py-3 px-4 text-center">Action</th>
+                      <th className="py-2.5 px-2.5 w-[75px] text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -896,22 +909,35 @@ export const TenantInventory: React.FC = () => {
                           key={m.id || idx}
                           className={`transition-colors ${rowHighlightClass}`}
                         >
-                          <td className="py-3.5 px-4 sm:px-6">
-                            <span className="font-bold text-[#16324F] block">{m.name}</span>
+                          <td className="py-2 px-3 sm:px-4">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-bold text-[#16324F] block">{m.name}</span>
+                              {m.lastSource === 'EDROPS' ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-50 border border-sky-200 text-sky-700 w-fit">
+                                  <span>💧</span>
+                                  <span>Changed in eDrops</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 w-fit">
+                                  <span>🏭</span>
+                                  <span>Changed in Aquzio (Plant)</span>
+                                </span>
+                              )}
+                            </div>
                           </td>
-                          <td className="py-3.5 px-4">
-                            <span className="font-mono text-xs text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+                          <td className="py-2 px-2.5">
+                            <span className="font-mono text-[11px] text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
                               {m.sku}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4">
-                            <span className="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200/60 px-2.5 py-1 rounded-md">
+                          <td className="py-2 px-2.5">
+                            <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">
                               {m.category}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-right">
+                          <td className="py-2 px-2.5 text-right">
                             <span
-                              className={`text-sm font-extrabold ${
+                              className={`text-xs font-black ${
                                 isOutOfStock
                                   ? 'text-rose-600'
                                   : isLow
@@ -920,47 +946,47 @@ export const TenantInventory: React.FC = () => {
                               }`}
                             >
                               {m.availableQuantity.toLocaleString()}{' '}
-                              <span className="text-xs font-semibold text-slate-600">{m.unit}</span>
+                              <span className="text-[11px] font-semibold text-slate-500">{m.unit}</span>
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-right font-medium">
+                          <td className="py-2 px-2.5 text-right font-medium">
                             {m.usedQuantity === 0 ? (
-                              <span className="text-xs font-normal text-slate-300">0</span>
+                              <span className="text-[11px] font-normal text-slate-300">0</span>
                             ) : (
-                              <span className="font-semibold text-slate-700">
+                              <span className="font-semibold text-slate-700 text-xs">
                                 {m.usedQuantity.toLocaleString()}{' '}
-                                <span className="text-xs font-normal text-slate-500">{m.unit}</span>
+                                <span className="text-[10px] font-normal text-slate-500">{m.unit}</span>
                               </span>
                             )}
                           </td>
-                          <td className="py-3.5 px-4 text-right font-medium">
+                          <td className="py-2 px-2.5 text-right font-medium">
                             {m.wastedQuantity === 0 ? (
-                              <span className="text-xs font-normal text-slate-300">0</span>
+                              <span className="text-[11px] font-normal text-slate-300">0</span>
                             ) : (
-                              <span className="font-semibold text-rose-700">
+                              <span className="font-semibold text-rose-700 text-xs">
                                 {m.wastedQuantity.toLocaleString()}{' '}
-                                <span className="text-xs font-normal text-slate-500">{m.unit}</span>
+                                <span className="text-[10px] font-normal text-slate-500">{m.unit}</span>
                               </span>
                             )}
                           </td>
-                          <td className="py-3.5 px-4 text-right font-medium text-slate-700">
+                          <td className="py-2 px-2.5 text-right font-medium text-slate-700">
                             {m.reorderLevel.toLocaleString()}{' '}
                             <span className="text-xs font-normal text-slate-500">{m.unit}</span>
                           </td>
-                          <td className="py-3.5 px-4 text-center">
+                          <td className="py-2 px-2.5 text-center">
                             {isLow ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-300">
-                                <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-300">
+                                <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
                                 Reorder
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-300">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-300">
+                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
                                 Optimal
                               </span>
                             )}
                           </td>
-                          <td className="py-3.5 px-4 text-center">
+                          <td className="py-2 px-2.5 text-center">
                             <button
                               type="button"
                               onClick={() =>

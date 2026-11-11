@@ -11,7 +11,7 @@ import {
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
-import { fetchAquzioTenants, fetchTenantSales, type AquzioTenant } from '../../../api/aquzio';
+import { fetchAquzioTenants, fetchAllTenantSales, type AquzioTenant } from '../../../api/aquzio';
 
 export default function DistributorSales() {
   const [sales, setSales] = useState<any[]>([]);
@@ -56,71 +56,59 @@ export default function DistributorSales() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [salesData, distData, prodData, plantList] = await Promise.all([
+      const [salesData, distData, prodData, plantList, allTenantSalesRaw] = await Promise.all([
         fetchWithAuth('/biodrops/distributor/sales').catch(() => []),
         fetchWithAuth('/staff/distributors').catch(() => []),
         fetchWithAuth('/catalog/products').catch(() => []),
         fetchAquzioTenants().catch(() => []),
+        fetchAllTenantSales().catch(() => []),
       ]);
 
       const activePlants = plantList || [];
       setPlants(activePlants);
       setDistributors(distData || []);
 
-      // Fetch sales from all active Aquzio plants where Biodrops Production is enabled
-      let allPlantSales: any[] = [];
-      if (activePlants.length > 0) {
-        const plantSalesPromises = activePlants.map(async (plant) => {
-          try {
-            const pSales = await fetchTenantSales(plant.id);
-            return (pSales || []).map((as: any) => ({
-              id: as.transactionId,
-              invoiceNumber: as.transactionNumber,
-              saleDate: as.transactionDate,
-              source: 'AQUZIO',
-              badgeLabel: as.badgeLabel || 'Changed the sales in Aquzio',
-              plantName: plant.companyName,
-              tenantId: plant.id,
-              distributorId: as.customerId || as.transactionId,
-              distributor: {
-                id: as.customerId || as.transactionId,
-                agencyName: as.customerName,
-                fullName: as.customerName,
-                user: {
-                  firstName: as.customerName,
-                  lastName: '',
-                  phone: 'Aquzio Client',
-                },
-              },
-              items: [
-                {
-                  id: as.productId,
-                  productId: as.productId,
-                  quantity: as.quantity,
-                  unitPrice: as.unitPrice,
-                  totalPrice: as.totalAmount,
-                  product: {
-                    id: as.productId,
-                    name: as.productName || '20L Water Jar',
-                  },
-                },
-              ],
-              totalAmount: as.totalAmount,
-              amountPaid: as.amountPaid,
-              outstandingAmount: as.outstandingAmount,
-              paymentStatus: (as.paymentStatus || 'PENDING').toUpperCase(),
-              paymentMethod: as.paymentMethod || 'CASH',
-              notes: as.remarks,
-              createdAt: as.createdAtUtc,
-            }));
-          } catch {
-            return [];
-          }
-        });
-
-        const nested = await Promise.all(plantSalesPromises);
-        allPlantSales = nested.flat();
-      }
+      // Consolidate sales from all active Aquzio plants where Biodrops Production is enabled
+      const allPlantSales = (allTenantSalesRaw || []).map((as: any) => ({
+        id: as.transactionId,
+        invoiceNumber: as.transactionNumber,
+        saleDate: as.transactionDate,
+        source: 'AQUZIO',
+        badgeLabel: as.badgeLabel || 'Changed the sales in Aquzio',
+        plantName: as.plantName || activePlants.find((p: any) => p.id === as.tenantId)?.companyName || 'Aquzio Plant',
+        tenantId: as.tenantId,
+        distributorId: as.customerId || as.transactionId,
+        distributor: {
+          id: as.customerId || as.transactionId,
+          agencyName: as.customerName,
+          fullName: as.customerName,
+          user: {
+            firstName: as.customerName,
+            lastName: '',
+            phone: 'Aquzio Client',
+          },
+        },
+        items: [
+          {
+            id: as.productId,
+            productId: as.productId,
+            quantity: as.quantity,
+            unitPrice: as.unitPrice,
+            totalPrice: as.totalAmount,
+            product: {
+              id: as.productId,
+              name: as.productName || '20L Water Jar',
+            },
+          },
+        ],
+        totalAmount: as.totalAmount,
+        amountPaid: as.amountPaid,
+        outstandingAmount: as.outstandingAmount,
+        paymentStatus: (as.paymentStatus || 'PENDING').toUpperCase(),
+        paymentMethod: as.paymentMethod || 'CASH',
+        notes: as.remarks,
+        createdAt: as.createdAtUtc,
+      }));
 
       // Merge local eDrops distributor sales + Aquzio manufacturing plant sales
       const mergedSales = [...(salesData || []), ...allPlantSales].sort(

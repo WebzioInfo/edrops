@@ -630,10 +630,16 @@ export class DeliveryService {
       requireVerification?: boolean;
     },
   ) {
-    const delivery = await this.prisma.delivery.findUnique({
+    let delivery = await this.prisma.delivery.findUnique({
       where: { id: deliveryId },
       include: { customer: { include: { user: true } }, report: true },
     });
+    if (!delivery) {
+      delivery = await this.prisma.delivery.findFirst({
+        where: { orderId: deliveryId },
+        include: { customer: { include: { user: true } }, report: true },
+      });
+    }
     if (!delivery) throw new BadRequestException('Delivery not found');
 
     const requireVerification = data.requireVerification !== false;
@@ -716,10 +722,16 @@ export class DeliveryService {
     data: { verified: boolean; feedback?: string; reason?: string },
     user?: any,
   ) {
-    const delivery = await this.prisma.delivery.findUnique({
+    let delivery = await this.prisma.delivery.findUnique({
       where: { id: deliveryId },
       include: { customer: { include: { user: true } }, report: true },
     });
+    if (!delivery) {
+      delivery = await this.prisma.delivery.findFirst({
+        where: { orderId: deliveryId },
+        include: { customer: { include: { user: true } }, report: true },
+      });
+    }
     if (!delivery) throw new BadRequestException('Delivery not found');
 
     if (data.verified) {
@@ -793,10 +805,16 @@ export class DeliveryService {
     data: { deliveredQty: number; emptyCollected: number; notes?: string },
     staffUser?: any,
   ) {
-    const delivery = await this.prisma.delivery.findUnique({
+    let delivery = await this.prisma.delivery.findUnique({
       where: { id: deliveryId },
       include: { report: true },
     });
+    if (!delivery) {
+      delivery = await this.prisma.delivery.findFirst({
+        where: { orderId: deliveryId },
+        include: { report: true },
+      });
+    }
     if (!delivery) throw new BadRequestException('Delivery not found');
 
     const brand = await this.prisma.brand.findFirst();

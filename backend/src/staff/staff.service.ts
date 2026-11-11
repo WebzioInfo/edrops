@@ -558,6 +558,9 @@ export class StaffService {
 
   // --- STAFF REPORTS AGGREGATION ---
 
+  private staffReportsCache = new Map<string, { timestamp: number; data: any }>();
+  private readonly REPORTS_CACHE_TTL_MS = 30 * 1000; // 30 seconds
+
   async getStaffReports(query?: {
     startDate?: string;
     endDate?: string;
@@ -619,7 +622,17 @@ export class StaffService {
       }
     }
 
-    // 1. Overall counts (Distributors, Drivers, Total Customers, Pending Orders)
+    // Fast-path in-memory cache check (prevents re-querying 34 DB queries on quick preset filter toggles)
+    const cacheKey = `${preset}_${rangeStart.toISOString()}_${rangeEnd.toISOString()}`;
+    const cached = this.staffReportsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.REPORTS_CACHE_TTL_MS) {
+      return cached.data;
+    }
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Parallelize all independent DB operations in ONE single concurrent roundtrip wave
     const [
       activeDistributorsCount,
       totalDistributorsCount,
@@ -628,7 +641,35 @@ export class StaffService {
       totalCustomersCount,
       pendingOrdersCount,
       packagesList,
+      ordersTodayAgg,
+      customersTodayCount,
+      deliveriesTodayCount,
+      packagesTodayAgg,
+      ordersPeriodAgg,
+      customersPeriodCount,
+      deliveriesPeriodCount,
+      packagesPeriodAgg,
+      cancelledOrdersPeriodCount,
+      ordersByStatusGroup,
+      purchasesByPackageGroup,
+      ordersWaitingAssignment,
+      ordersAssignedTotal,
+      ordersOutForDeliveryTotal,
+      periodOrders,
+      periodPurchases,
+      activeCustomerIds,
+      periodNewCustomers,
+      unassignedOrders,
+      pendingPaymentOrders,
+      delayedOrders,
+      inactiveDistributors,
+      incompleteCustomers,
+      recentStatusHistory,
+      recentAuditLogs,
+      recentCustomers,
+      recentDrivers,
     ] = await Promise.all([
+      // 1. Overall counts
       this.prisma.user.count({ where: { role: UserRole.DISTRIBUTOR, isActive: true } }),
       this.prisma.user.count({ where: { role: UserRole.DISTRIBUTOR } }),
       this.prisma.driver.count({ where: { isActive: true } }),
@@ -651,21 +692,9 @@ export class StaffService {
         },
         orderBy: { displayOrder: 'asc' },
       }),
-    ]);
-
-    // 2. Today's metrics (for TODAY top summary)
-    const [
-      ordersTodayCount,
-      ordersTodaySalesAgg,
-      customersTodayCount,
-      deliveriesTodayCount,
-      packagesTodayCount,
-      packagesTodaySalesAgg,
-    ] = await Promise.all([
-      this.prisma.order.count({
-        where: { createdAt: { gte: todayStart, lte: todayEnd } },
-      }),
+      // 2. Today's metrics (single combined count & sum aggregate)
       this.prisma.order.aggregate({
+        _count: { id: true },
         _sum: { totalAmount: true },
         where: {
           createdAt: { gte: todayStart, lte: todayEnd },
@@ -686,38 +715,24 @@ export class StaffService {
           ],
         },
       }),
-      this.prisma.packagePurchase.count({
-        where: {
-          createdAt: { gte: todayStart, lte: todayEnd },
-          paymentStatus: 'SUCCESS',
-        },
-      }),
       this.prisma.packagePurchase.aggregate({
+        _count: { id: true },
         _sum: { amount: true },
         where: {
           createdAt: { gte: todayStart, lte: todayEnd },
           paymentStatus: 'SUCCESS',
         },
       }),
-    ]);
-
-    // 3. Period metrics (for the selected date range)
-    const [
-      ordersPeriodCount,
-      ordersPeriodSalesAgg,
-      customersPeriodCount,
-      deliveriesPeriodCount,
-      packagesPeriodCount,
-      packagesPeriodSalesAgg,
-      cancelledOrdersPeriodCount,
-      ordersByStatusGroup,
-      purchasesByPackageGroup,
-    ] = await Promise.all([
-      this.prisma.order.count({
-        where: { createdAt: { gte: rangeStart, lte: rangeEnd } },
-      }),
+      // 3. Period metrics (single combined count & sum aggregate)
       this.prisma.order.aggregate({
-        _sum: { totalAmount: true },
+        _count: { id: true },
+        _sum: {
+          totalAmount: true,
+          depositTotal: true,
+          subTotal: true,
+          deliveryCharge: true,
+          discountTotal: true,
+        },
         where: {
           createdAt: { gte: rangeStart, lte: rangeEnd },
           status: { not: 'CANCELLED' },
@@ -737,13 +752,8 @@ export class StaffService {
           ],
         },
       }),
-      this.prisma.packagePurchase.count({
-        where: {
-          createdAt: { gte: rangeStart, lte: rangeEnd },
-          paymentStatus: 'SUCCESS',
-        },
-      }),
       this.prisma.packagePurchase.aggregate({
+        _count: { id: true },
         _sum: { amount: true },
         where: {
           createdAt: { gte: rangeStart, lte: rangeEnd },
@@ -770,31 +780,7 @@ export class StaffService {
         _count: { id: true },
         _sum: { amount: true },
       }),
-    ]);
-
-    // 4. Operations Overview Status Breakdown
-    const statusCounts: Record<string, number> = {};
-    ordersByStatusGroup.forEach((g) => {
-      statusCounts[g.status] = g._count.id;
-    });
-
-    const receivedCount = (statusCounts['NEW'] || 0) + (statusCounts['ORDER_PLACED'] || 0);
-    const processingCount =
-      (statusCounts['PROCESSING'] || 0) +
-      (statusCounts['READY'] || 0) +
-      (statusCounts['ACCEPTED_BY_PARTNER'] || 0) +
-      (statusCounts['ASSIGNED'] || 0) +
-      (statusCounts['PENDING_ASSIGNMENT'] || 0);
-    const outForDeliveryCount = statusCounts['OUT_FOR_DELIVERY'] || 0;
-    const deliveredCount = (statusCounts['DELIVERED'] || 0) + (statusCounts['COMPLETED'] || 0);
-    const cancelledCount = statusCounts['CANCELLED'] || 0;
-
-    // Delivery pipeline status
-    const [
-      ordersWaitingAssignment,
-      ordersAssignedTotal,
-      ordersOutForDeliveryTotal,
-    ] = await Promise.all([
+      // 4. Delivery pipeline status
       this.prisma.order.count({
         where: {
           status: { in: ['NEW', 'PENDING_ASSIGNMENT'] },
@@ -810,131 +796,39 @@ export class StaffService {
       this.prisma.order.count({
         where: { status: 'OUT_FOR_DELIVERY' },
       }),
-    ]);
-
-    // 5. Membership Performance
-    const purchaseMap = new Map<string, { count: number; revenue: number }>();
-    purchasesByPackageGroup.forEach((p) => {
-      purchaseMap.set(p.packageId, {
-        count: p._count.id,
-        revenue: p._sum.amount ?? 0,
-      });
-    });
-
-    const membershipPerformance = packagesList.map((pkg) => {
-      const stats = purchaseMap.get(pkg.id) || { count: 0, revenue: 0 };
-      return {
-        id: pkg.id,
-        name: pkg.name,
-        jarCount: pkg.jarCount,
-        price: pkg.price,
-        soldCount: stats.count,
-        revenue: stats.revenue,
-        packageBadge: pkg.packageBadge,
-        packageColor: pkg.packageColor,
-      };
-    }).sort((a, b) => b.soldCount - a.soldCount);
-
-    // 6. Sales Time-Series (for chart)
-    const periodOrders = await this.prisma.order.findMany({
-      where: {
-        createdAt: { gte: rangeStart, lte: rangeEnd },
-        status: { not: 'CANCELLED' },
-      },
-      select: {
-        id: true,
-        totalAmount: true,
-        createdAt: true,
-      },
-    });
-
-    const periodPurchases = await this.prisma.packagePurchase.findMany({
-      where: {
-        createdAt: { gte: rangeStart, lte: rangeEnd },
-        paymentStatus: 'SUCCESS',
-      },
-      select: {
-        id: true,
-        amount: true,
-        createdAt: true,
-      },
-    });
-
-    // Generate daily buckets
-    const daysDiff = Math.max(1, Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)));
-    const timeSeriesMap = new Map<string, { date: string; label: string; orderSales: number; membershipSales: number; totalSales: number; orderCount: number }>();
-
-    for (let i = 0; i < daysDiff; i++) {
-      const d = new Date(rangeStart.getTime() + i * 24 * 60 * 60 * 1000);
-      const dateKey = d.toISOString().split('T')[0];
-      const label = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-      timeSeriesMap.set(dateKey, {
-        date: dateKey,
-        label,
-        orderSales: 0,
-        membershipSales: 0,
-        totalSales: 0,
-        orderCount: 0,
-      });
-    }
-
-    periodOrders.forEach((o) => {
-      const dateKey = o.createdAt.toISOString().split('T')[0];
-      const bucket = timeSeriesMap.get(dateKey);
-      if (bucket) {
-        bucket.orderSales += o.totalAmount;
-        bucket.totalSales += o.totalAmount;
-        bucket.orderCount += 1;
-      }
-    });
-
-    periodPurchases.forEach((p) => {
-      const dateKey = p.createdAt.toISOString().split('T')[0];
-      const bucket = timeSeriesMap.get(dateKey);
-      if (bucket) {
-        bucket.membershipSales += p.amount;
-        bucket.totalSales += p.amount;
-      }
-    });
-
-    const salesTimeSeries = Array.from(timeSeriesMap.values());
-
-    // 7. Customer Overview
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const activeCustomerIds = await this.prisma.order.groupBy({
-      by: ['customerId'],
-      where: { createdAt: { gte: thirtyDaysAgo } },
-    });
-    const activeCustomersCount = activeCustomerIds.length;
-    const inactiveCustomersCount = Math.max(0, totalCustomersCount - activeCustomersCount);
-
-    const periodNewCustomers = await this.prisma.customer.findMany({
-      where: { user: { createdAt: { gte: rangeStart, lte: rangeEnd } } },
-      select: { user: { select: { createdAt: true } } },
-    });
-
-    const customerTrendMap = new Map<string, number>();
-    salesTimeSeries.forEach((s) => customerTrendMap.set(s.date, 0));
-    periodNewCustomers.forEach((c) => {
-      const dateKey = c.user.createdAt.toISOString().split('T')[0];
-      customerTrendMap.set(dateKey, (customerTrendMap.get(dateKey) || 0) + 1);
-    });
-
-    const customerGrowthTrend = salesTimeSeries.map((s) => ({
-      date: s.date,
-      label: s.label,
-      count: customerTrendMap.get(s.date) || 0,
-    }));
-
-    // 8. Needs Attention (Real Actionable Issues)
-    const [
-      unassignedOrders,
-      pendingPaymentOrders,
-      delayedOrders,
-      inactiveDistributors,
-      incompleteCustomers,
-    ] = await Promise.all([
+      // 5. Sales Time-Series data
+      this.prisma.order.findMany({
+        where: {
+          createdAt: { gte: rangeStart, lte: rangeEnd },
+          status: { not: 'CANCELLED' },
+        },
+        select: {
+          id: true,
+          totalAmount: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.packagePurchase.findMany({
+        where: {
+          createdAt: { gte: rangeStart, lte: rangeEnd },
+          paymentStatus: 'SUCCESS',
+        },
+        select: {
+          id: true,
+          amount: true,
+          createdAt: true,
+        },
+      }),
+      // 6. Customer overview
+      this.prisma.order.groupBy({
+        by: ['customerId'],
+        where: { createdAt: { gte: thirtyDaysAgo } },
+      }),
+      this.prisma.customer.findMany({
+        where: { user: { createdAt: { gte: rangeStart, lte: rangeEnd } } },
+        select: { user: { select: { createdAt: true } } },
+      }),
+      // 7. Needs attention actionable items
       this.prisma.order.findMany({
         where: {
           status: { in: ['NEW', 'PENDING_ASSIGNMENT'] },
@@ -1002,8 +896,142 @@ export class StaffService {
           user: { select: { firstName: true, lastName: true, phone: true } },
         },
       }),
+      // 8. Recent staff activity feed
+      this.prisma.orderStatusHistory.findMany({
+        take: 12,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { firstName: true, lastName: true, role: true } },
+          order: { select: { id: true, totalAmount: true } },
+        },
+      }),
+      this.prisma.auditLog.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { firstName: true, lastName: true, role: true } },
+        },
+      }),
+      this.prisma.customer.findMany({
+        take: 6,
+        orderBy: { user: { createdAt: 'desc' } },
+        include: {
+          user: { select: { firstName: true, lastName: true, phone: true, createdAt: true } },
+        },
+      }),
+      this.prisma.driver.findMany({
+        take: 6,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, name: true, phone: true, createdAt: true },
+      }),
     ]);
 
+    const ordersTodayCount = ordersTodayAgg._count.id;
+    const ordersTodaySalesAgg = ordersTodayAgg;
+    const packagesTodayCount = packagesTodayAgg._count.id;
+    const packagesTodaySalesAgg = packagesTodayAgg;
+    const ordersPeriodCount = ordersPeriodAgg._count.id;
+    const ordersPeriodSalesAgg = ordersPeriodAgg;
+    const packagesPeriodCount = packagesPeriodAgg._count.id;
+    const packagesPeriodSalesAgg = packagesPeriodAgg;
+
+    // 4. Operations Overview Status Breakdown
+    const statusCounts: Record<string, number> = {};
+    ordersByStatusGroup.forEach((g) => {
+      statusCounts[g.status] = g._count.id;
+    });
+
+    const receivedCount = (statusCounts['NEW'] || 0) + (statusCounts['ORDER_PLACED'] || 0);
+    const processingCount =
+      (statusCounts['PROCESSING'] || 0) +
+      (statusCounts['READY'] || 0) +
+      (statusCounts['ACCEPTED_BY_PARTNER'] || 0) +
+      (statusCounts['ASSIGNED'] || 0) +
+      (statusCounts['PENDING_ASSIGNMENT'] || 0);
+    const outForDeliveryCount = statusCounts['OUT_FOR_DELIVERY'] || 0;
+    const deliveredCount = (statusCounts['DELIVERED'] || 0) + (statusCounts['COMPLETED'] || 0);
+    const cancelledCount = statusCounts['CANCELLED'] || 0;
+
+    // 5. Membership Performance
+    const purchaseMap = new Map<string, { count: number; revenue: number }>();
+    purchasesByPackageGroup.forEach((p) => {
+      purchaseMap.set(p.packageId, {
+        count: p._count.id,
+        revenue: p._sum.amount ?? 0,
+      });
+    });
+
+    const membershipPerformance = packagesList.map((pkg) => {
+      const stats = purchaseMap.get(pkg.id) || { count: 0, revenue: 0 };
+      return {
+        id: pkg.id,
+        name: pkg.name,
+        jarCount: pkg.jarCount,
+        price: pkg.price,
+        soldCount: stats.count,
+        revenue: stats.revenue,
+        packageBadge: pkg.packageBadge,
+        packageColor: pkg.packageColor,
+      };
+    }).sort((a, b) => b.soldCount - a.soldCount);
+
+    // 6. Sales Time-Series (for chart)
+    const daysDiff = Math.max(1, Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)));
+    const timeSeriesMap = new Map<string, { date: string; label: string; orderSales: number; membershipSales: number; totalSales: number; orderCount: number }>();
+
+    for (let i = 0; i < daysDiff; i++) {
+      const d = new Date(rangeStart.getTime() + i * 24 * 60 * 60 * 1000);
+      const dateKey = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      timeSeriesMap.set(dateKey, {
+        date: dateKey,
+        label,
+        orderSales: 0,
+        membershipSales: 0,
+        totalSales: 0,
+        orderCount: 0,
+      });
+    }
+
+    periodOrders.forEach((o) => {
+      const dateKey = o.createdAt.toISOString().split('T')[0];
+      const bucket = timeSeriesMap.get(dateKey);
+      if (bucket) {
+        bucket.orderSales += o.totalAmount;
+        bucket.totalSales += o.totalAmount;
+        bucket.orderCount += 1;
+      }
+    });
+
+    periodPurchases.forEach((p) => {
+      const dateKey = p.createdAt.toISOString().split('T')[0];
+      const bucket = timeSeriesMap.get(dateKey);
+      if (bucket) {
+        bucket.membershipSales += p.amount;
+        bucket.totalSales += p.amount;
+      }
+    });
+
+    const salesTimeSeries = Array.from(timeSeriesMap.values());
+
+    // 7. Customer Overview
+    const activeCustomersCount = activeCustomerIds.length;
+    const inactiveCustomersCount = Math.max(0, totalCustomersCount - activeCustomersCount);
+
+    const customerTrendMap = new Map<string, number>();
+    salesTimeSeries.forEach((s) => customerTrendMap.set(s.date, 0));
+    periodNewCustomers.forEach((c) => {
+      const dateKey = c.user.createdAt.toISOString().split('T')[0];
+      customerTrendMap.set(dateKey, (customerTrendMap.get(dateKey) || 0) + 1);
+    });
+
+    const customerGrowthTrend = salesTimeSeries.map((s) => ({
+      date: s.date,
+      label: s.label,
+      count: customerTrendMap.get(s.date) || 0,
+    }));
+
+    // 8. Needs Attention (Real Actionable Issues)
     const attentionItems: Array<{
       id: string;
       type: string;
@@ -1097,36 +1125,6 @@ export class StaffService {
     }
 
     // 9. Recent Staff Activity Feed
-    const [recentStatusHistory, recentAuditLogs, recentCustomers, recentDrivers] = await Promise.all([
-      this.prisma.orderStatusHistory.findMany({
-        take: 12,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: { select: { firstName: true, lastName: true, role: true } },
-          order: { select: { id: true, totalAmount: true } },
-        },
-      }),
-      this.prisma.auditLog.findMany({
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: { select: { firstName: true, lastName: true, role: true } },
-        },
-      }),
-      this.prisma.customer.findMany({
-        take: 6,
-        orderBy: { user: { createdAt: 'desc' } },
-        include: {
-          user: { select: { firstName: true, lastName: true, phone: true, createdAt: true } },
-        },
-      }),
-      this.prisma.driver.findMany({
-        take: 6,
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, name: true, phone: true, createdAt: true },
-      }),
-    ]);
-
     const activityList: Array<{
       id: string;
       timestamp: string;
@@ -1200,7 +1198,7 @@ export class StaffService {
     activityList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     const uniqueActivities = activityList.slice(0, 15);
 
-    return {
+    const result = {
       dateRange: {
         preset,
         startDate: rangeStart.toISOString(),
@@ -1220,15 +1218,17 @@ export class StaffService {
       },
       period: {
         ordersCount: ordersPeriodCount,
-        salesAmount: (ordersPeriodSalesAgg._sum.totalAmount ?? 0) + (packagesPeriodSalesAgg._sum.amount ?? 0),
-        orderSales: ordersPeriodSalesAgg._sum.totalAmount ?? 0,
+        salesAmount: ((ordersPeriodSalesAgg._sum.subTotal ?? 0) + (ordersPeriodSalesAgg._sum.deliveryCharge ?? 0) - (ordersPeriodSalesAgg._sum.discountTotal ?? 0)) + (packagesPeriodSalesAgg._sum.amount ?? 0),
+        grossBilling: (ordersPeriodSalesAgg._sum.totalAmount ?? 0) + (packagesPeriodSalesAgg._sum.amount ?? 0),
+        orderSales: (ordersPeriodSalesAgg._sum.subTotal ?? 0) + (ordersPeriodSalesAgg._sum.deliveryCharge ?? 0) - (ordersPeriodSalesAgg._sum.discountTotal ?? 0),
+        depositCollections: ordersPeriodSalesAgg._sum.depositTotal ?? 0,
         membershipSales: packagesPeriodSalesAgg._sum.amount ?? 0,
         newCustomersCount: customersPeriodCount,
         deliveriesCount: deliveriesPeriodCount,
         membershipsSoldCount: packagesPeriodCount,
         cancelledOrdersCount: cancelledOrdersPeriodCount,
         averageOrderValue: ordersPeriodCount > 0
-          ? Math.round(((ordersPeriodSalesAgg._sum.totalAmount ?? 0) / ordersPeriodCount) * 100) / 100
+          ? Math.round((((ordersPeriodSalesAgg._sum.subTotal ?? 0) + (ordersPeriodSalesAgg._sum.deliveryCharge ?? 0) - (ordersPeriodSalesAgg._sum.discountTotal ?? 0)) / ordersPeriodCount) * 100) / 100
           : 0,
       },
       operations: {
@@ -1263,6 +1263,220 @@ export class StaffService {
       membershipPerformance,
       attentionItems,
       recentActivity: uniqueActivities,
+    };
+
+    // Store in cache
+    this.staffReportsCache.set(cacheKey, { timestamp: Date.now(), data: result });
+
+    return result;
+  }
+
+  // --- COMPLETE PROFIT & LOSS (P&L) CALCULATION ENGINE ---
+
+  async getPnLStatement(query?: {
+    startDate?: string;
+    endDate?: string;
+    preset?: string;
+  }) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    let rangeStart = new Date(todayStart);
+    let rangeEnd = new Date(todayEnd);
+    const preset = (query?.preset || 'ALL_TIME').toUpperCase();
+
+    if (query?.startDate && query?.endDate) {
+      rangeStart = new Date(query.startDate);
+      rangeEnd = new Date(query.endDate);
+      if (isNaN(rangeStart.getTime())) rangeStart = new Date(todayStart);
+      if (isNaN(rangeEnd.getTime())) rangeEnd = new Date(todayEnd);
+      if (query.endDate.length <= 10) rangeEnd.setHours(23, 59, 59, 999);
+    } else {
+      switch (preset) {
+        case 'TODAY':
+          rangeStart = new Date(todayStart);
+          rangeEnd = new Date(todayEnd);
+          break;
+        case 'YESTERDAY': {
+          const y = new Date(now);
+          y.setDate(y.getDate() - 1);
+          rangeStart = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0, 0);
+          rangeEnd = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999);
+          break;
+        }
+        case 'LAST_7_DAYS':
+          rangeStart = new Date(now);
+          rangeStart.setDate(rangeStart.getDate() - 6);
+          rangeStart.setHours(0, 0, 0, 0);
+          rangeEnd = new Date(todayEnd);
+          break;
+        case 'LAST_30_DAYS':
+          rangeStart = new Date(now);
+          rangeStart.setDate(rangeStart.getDate() - 29);
+          rangeStart.setHours(0, 0, 0, 0);
+          rangeEnd = new Date(todayEnd);
+          break;
+        case 'THIS_MONTH':
+          rangeStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+          rangeEnd = new Date(todayEnd);
+          break;
+        case 'ALL_TIME':
+        default:
+          rangeStart = new Date(2020, 0, 1, 0, 0, 0, 0);
+          rangeEnd = new Date(todayEnd);
+          break;
+      }
+    }
+
+    // 1. Fetch Orders with items, products and package purchases in period
+    const [orders, purchases, expenses] = await Promise.all([
+      this.prisma.order.findMany({
+        where: {
+          createdAt: { gte: rangeStart, lte: rangeEnd },
+          status: { not: 'CANCELLED' },
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          payments: true,
+        },
+      }),
+      this.prisma.packagePurchase.findMany({
+        where: {
+          createdAt: { gte: rangeStart, lte: rangeEnd },
+          paymentStatus: 'SUCCESS',
+        },
+        include: {
+          package: true,
+        },
+      }),
+      this.prisma.expense.findMany({
+        where: {
+          expenseDate: { gte: rangeStart, lte: rangeEnd },
+          status: 'APPROVED',
+        },
+        orderBy: { expenseDate: 'desc' },
+      }),
+    ]);
+
+    // Financial accumulator variables (Strict Decimal arithmetic pattern)
+    let grossOrderRevenue = 0;
+    let customerJarDepositLiability = 0;
+    let netOperatingOrderRevenue = 0;
+    let totalCogs = 0;
+    let totalWaterJarsSold = 0;
+
+    for (const order of orders) {
+      for (const item of order.items) {
+        const itemQuantity = Number(item.quantity) || 1;
+        const itemDeposit = Number(item.deposit) || 0;
+        const depositTotal = itemDeposit * itemQuantity;
+        const itemTotal = Number(item.total) || 0;
+        const operatingTotal = Math.max(0, itemTotal - depositTotal);
+
+        if (depositTotal > 0) {
+          customerJarDepositLiability += depositTotal;
+        }
+
+        grossOrderRevenue += itemTotal;
+        netOperatingOrderRevenue += operatingTotal;
+
+        // Compute COGS: if 20L water jar, cost is ₹20 (standard Aquzio plant cost), or product.costPrice
+        const unitCost = Number(item.product?.costPrice || (item.product?.isJar ? 20 : 15));
+        totalCogs += unitCost * itemQuantity;
+        if (item.product?.isJar) {
+          totalWaterJarsSold += itemQuantity;
+        }
+      }
+    }
+
+    // Subscriptions
+    let subscriptionRevenue = 0;
+    for (const p of purchases) {
+      subscriptionRevenue += Number(p.amount) || 0;
+    }
+
+    // Total Net Operating Revenue (Excludes customer refundable jar deposits)
+    const totalNetRevenue = Number((netOperatingOrderRevenue + subscriptionRevenue).toFixed(2));
+    const grossProfit = Number((totalNetRevenue - totalCogs).toFixed(2));
+    const grossMarginPercent = totalNetRevenue > 0 ? Number(((grossProfit / totalNetRevenue) * 100).toFixed(1)) : 0;
+
+    // Expenses (OPEX)
+    const categoryBreakdown: Record<string, { label: string; amount: number; count: number }> = {
+      FUEL: { label: 'Fuel & Delivery Vehicles', amount: 0, count: 0 },
+      RENT: { label: 'Warehouse & Godown Rent', amount: 0, count: 0 },
+      SALARIES: { label: 'Staff & Driver Wages', amount: 0, count: 0 },
+      MAINTENANCE: { label: 'Vehicle & Equipment Maintenance', amount: 0, count: 0 },
+      UTILITIES: { label: 'Electricity & Water Utilities', amount: 0, count: 0 },
+      MARKETING: { label: 'Marketing & Promotions', amount: 0, count: 0 },
+      PACKAGING: { label: 'Packaging & Caps', amount: 0, count: 0 },
+      OTHER: { label: 'General & Administrative', amount: 0, count: 0 },
+    };
+
+    let totalOpex = 0;
+    for (const exp of expenses) {
+      const amt = Number(exp.amount) || 0;
+      totalOpex += amt;
+      const cat = (exp.category || 'OTHER').toUpperCase();
+      if (categoryBreakdown[cat]) {
+        categoryBreakdown[cat].amount += amt;
+        categoryBreakdown[cat].count += 1;
+      } else {
+        categoryBreakdown['OTHER'].amount += amt;
+        categoryBreakdown['OTHER'].count += 1;
+      }
+    }
+
+    const netOperatingProfit = Number((grossProfit - totalOpex).toFixed(2));
+    const netProfitMarginPercent = totalNetRevenue > 0 ? Number(((netOperatingProfit / totalNetRevenue) * 100).toFixed(1)) : 0;
+
+    return {
+      period: {
+        preset,
+        startDate: rangeStart.toISOString(),
+        endDate: rangeEnd.toISOString(),
+      },
+      summary: {
+        totalNetRevenue,
+        totalCogs: Number(totalCogs.toFixed(2)),
+        grossProfit,
+        grossMarginPercent,
+        totalOpex: Number(totalOpex.toFixed(2)),
+        netOperatingProfit,
+        netProfitMarginPercent,
+        customerJarDepositLiability: Number(customerJarDepositLiability.toFixed(2)),
+      },
+      revenueBreakdown: {
+        netOperatingOrderRevenue: Number(netOperatingOrderRevenue.toFixed(2)),
+        subscriptionRevenue: Number(subscriptionRevenue.toFixed(2)),
+        customerJarDepositLiability: Number(customerJarDepositLiability.toFixed(2)),
+        totalWaterJarsSold,
+        totalOrdersCount: orders.length,
+        totalSubscriptionsCount: purchases.length,
+      },
+      cogsBreakdown: {
+        totalCogs: Number(totalCogs.toFixed(2)),
+        waterJarsCost: Number((totalWaterJarsSold * 20).toFixed(2)),
+        otherGoodsCost: Number((totalCogs - (totalWaterJarsSold * 20)).toFixed(2)),
+      },
+      opexBreakdown: {
+        totalOpex: Number(totalOpex.toFixed(2)),
+        categories: categoryBreakdown,
+      },
+      recentExpenses: expenses.slice(0, 15).map((e) => ({
+        id: e.id,
+        title: e.title,
+        category: e.category,
+        amount: e.amount,
+        expenseDate: e.expenseDate,
+        paymentMethod: e.paymentMethod,
+        paymentStatus: e.paymentStatus,
+        vendorName: e.vendorName,
+      })),
     };
   }
 }

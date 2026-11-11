@@ -989,11 +989,7 @@ export class BiodropsService implements OnModuleInit {
 
     const finishedProducts: FinishedProductItem[] = rawFinished.map((item) => {
       const sku = String(item.sku || item.code || 'JAR-20L');
-      const overrideKey = `${tenantId}:${sku.toLowerCase()}`;
-      const hasOverride = this.localStockOverrides.has(overrideKey);
-      const availableStock = hasOverride
-        ? this.localStockOverrides.get(overrideKey)!
-        : Number(item.availableStock ?? item.availableQuantity ?? item.available ?? 0);
+      const availableStock = Number(item.availableStock ?? item.availableQuantity ?? item.available ?? 0);
 
       return {
         id: item.productId || item.id ? String(item.productId || item.id) : undefined,
@@ -1003,18 +999,18 @@ export class BiodropsService implements OnModuleInit {
         reservedStock: Number(item.reservedStock ?? item.reservedQuantity ?? item.reserved ?? 0),
         damagedStock: Number(item.damagedStock ?? item.damagedQuantity ?? item.damaged ?? 0),
         unit: String(item.unit || item.configuredUnit || item.uom || 'Jar'),
-        lastUpdated: item.lastUpdated || payload.inventoryTimestampUtc || now,
+        lastUpdated: item.lastUpdated || item.lastUpdatedUtc || payload.inventoryTimestampUtc || now,
+        lastUpdatedUtc: item.lastUpdatedUtc,
+        lastUpdatedBy: item.lastUpdatedBy,
+        lastSource: item.lastSource || (item.lastUpdatedBy?.toLowerCase().includes('edrops') ? 'EDROPS' : 'AQUZIO'),
+        lastMovementNotes: item.lastMovementNotes,
       };
     });
 
     const materials: RawMaterialItem[] = rawMaterials.map((item) => {
       const rawName = String(item.materialName || item.name || 'Raw Material');
       const rawSku = String(item.sku || item.code || 'MAT-001');
-      const overrideKey = `${tenantId}:${rawSku.toLowerCase()}`;
-      const hasOverride = this.localStockOverrides.has(overrideKey);
-      const available = hasOverride
-        ? this.localStockOverrides.get(overrideKey)!
-        : Number(item.availableQuantity ?? item.availableStock ?? item.available ?? 0);
+      const available = Number(item.availableQuantity ?? item.availableStock ?? item.available ?? 0);
       const reorder =
         item.reorderLevel !== null && item.reorderLevel !== undefined
           ? Number(item.reorderLevel)
@@ -1068,7 +1064,11 @@ export class BiodropsService implements OnModuleInit {
         unit,
         reorderLevel: reorder,
         isLowStock,
-        lastUpdated: item.lastUpdated || payload.inventoryTimestampUtc || now,
+        lastUpdated: item.lastUpdated || item.lastUpdatedUtc || payload.inventoryTimestampUtc || now,
+        lastUpdatedUtc: item.lastUpdatedUtc,
+        lastUpdatedBy: item.lastUpdatedBy,
+        lastSource: item.lastSource || (item.lastUpdatedBy?.toLowerCase().includes('edrops') ? 'EDROPS' : 'AQUZIO'),
+        lastMovementNotes: item.lastMovementNotes,
       };
     });
 
@@ -1281,6 +1281,46 @@ export class BiodropsService implements OnModuleInit {
     }));
   }
 
+  private allTenantSalesCache: { data: (BiodropsSale & { plantName?: string })[]; timestamp: number } | null = null;
+
+  /**
+   * GET /api/v1/integrations/biodrops/tenants/all/sales
+   * Fetches and aggregates 20L finished product sales transactions across all active Aquzio tenants in a single backend call.
+   * Includes a 30-second TTL cache to prevent connection pool exhaustion and reduce frontend API call volume.
+   */
+  async getAllTenantSales(): Promise<(BiodropsSale & { plantName?: string })[]> {
+    const now = Date.now();
+    if (this.allTenantSalesCache && now - this.allTenantSalesCache.timestamp < 30_000) {
+      return this.allTenantSalesCache.data;
+    }
+
+    try {
+      const tenants = await this.getTenants();
+      if (!tenants || tenants.length === 0) return [];
+
+      const results = await Promise.all(
+        tenants.map(async (t) => {
+          try {
+            const sales = await this.getTenantSales(t.id);
+            return sales.map((s) => ({
+              ...s,
+              plantName: t.companyName || 'Aquzio Plant',
+            }));
+          } catch {
+            return [];
+          }
+        }),
+      );
+
+      const flattened = results.flat();
+      this.allTenantSalesCache = { data: flattened, timestamp: now };
+      return flattened;
+    } catch (err: any) {
+      this.logger.warn(`Could not load all tenant sales: ${err.message}`);
+      return [];
+    }
+  }
+
   /**
    * POST /api/v1/integrations/biodrops/tenants/:tenantId/stock/adjust
    * Adjusts stock for a tenant's raw material or finished product with tenant validation and audit trail.
@@ -1393,11 +1433,7 @@ export class BiodropsService implements OnModuleInit {
           reason: dto.reason,
           notes: dto.notes,
           reference: idempotencyKey,
-          operator: {
-            assertedName: userId || 'Murshid',
-            staffId: userId || 'staff-admin',
-            sourceSystem: 'EDROPS',
-          },
+          operator: typeof userId === 'string' && userId ? userId : 'eDrops System',
           adjustedAt: now,
         },
         {
@@ -1454,8 +1490,12 @@ export class BiodropsService implements OnModuleInit {
       }
     }
 
-    // 3. Cache shadow balance
-    this.updateLocalStockShadow(tenantId, effectiveSku, authoritativeBalance);
+    // 3. Cache shadow balance only when upstream is disconnected
+    if (upstreamSynced) {
+      this.localStockOverrides.delete(`${tenantId}:${effectiveSku.toLowerCase()}`);
+    } else {
+      this.updateLocalStockShadow(tenantId, effectiveSku, authoritativeBalance);
+    }
 
     return {
       success: true,

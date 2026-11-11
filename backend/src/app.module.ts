@@ -41,6 +41,7 @@ import { ProfileModule } from './profile/profile.module';
 import { ConfigModule } from './config/config.module';
 import { BiodropsModule } from './integrations/biodrops/biodrops.module';
 import { BiodropsEcosystemModule } from './biodrops/biodrops.module';
+import { ExpensesModule } from './expenses/expenses.module';
 import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
@@ -85,6 +86,7 @@ import { HttpLoggerMiddleware } from './common/middleware/logger.middleware';
     ConfigModule,
     BiodropsModule,
     BiodropsEcosystemModule,
+    ExpensesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
