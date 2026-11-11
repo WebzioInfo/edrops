@@ -1233,8 +1233,8 @@ export class ReportService {
       }
     }
 
-    // 1. Fetch Orders with items, products, package purchases, and approved expenses in period
-    const [orders, purchases, expenses] = await Promise.all([
+    // 1. Fetch Orders with items, products, package purchases, delivered subscription deliveries, and approved expenses in period
+    const [orders, purchases, expenses, subscriptionDeliveries] = await Promise.all([
       this.prisma.order.findMany({
         where: {
           createdAt: { gte: rangeStart, lte: rangeEnd },
@@ -1264,6 +1264,16 @@ export class ReportService {
           status: 'APPROVED',
         },
         orderBy: { expenseDate: 'desc' },
+      }),
+      this.prisma.delivery.findMany({
+        where: {
+          orderId: null,
+          status: 'DELIVERED',
+          scheduledFor: { gte: rangeStart, lte: rangeEnd },
+        },
+        include: {
+          report: true,
+        },
       }),
     ]);
 
@@ -1298,11 +1308,25 @@ export class ReportService {
       }
     }
 
-    // Subscriptions
+    // Subscriptions Revenue
     let subscriptionRevenue = 0;
     for (const p of purchases) {
       subscriptionRevenue += Number(p.amount) || 0;
     }
+
+    // Subscription Delivered Jars COGS (Edge Case 3: Links fulfillment to deferred manufacturing cost)
+    let subscriptionDeliveredJars = 0;
+    for (const del of subscriptionDeliveries) {
+      const deliveredQty =
+        del.report?.confirmedDeliveredQty ??
+        del.report?.partnerDeliveredQty ??
+        del.requiredQuantity ??
+        0;
+      subscriptionDeliveredJars += deliveredQty;
+    }
+    const subscriptionDeliveredCogs = subscriptionDeliveredJars * 20; // Standard ₹20 Aquzio Plant Cost
+    totalCogs += subscriptionDeliveredCogs;
+    totalWaterJarsSold += subscriptionDeliveredJars;
 
     // Total Net Operating Revenue (Excludes customer refundable jar deposits)
     const totalNetRevenue = Number((netOperatingOrderRevenue + subscriptionRevenue).toFixed(2));
@@ -1365,7 +1389,11 @@ export class ReportService {
       cogsBreakdown: {
         totalCogs: Number(totalCogs.toFixed(2)),
         waterJarsCost: Number((totalWaterJarsSold * 20).toFixed(2)),
-        otherGoodsCost: Number((totalCogs - (totalWaterJarsSold * 20)).toFixed(2)),
+        otherGoodsCost: Math.max(0, Number((totalCogs - (totalWaterJarsSold * 20)).toFixed(2))),
+        subscriptionJarsDelivered: subscriptionDeliveredJars,
+        subscriptionJarsCost: subscriptionDeliveredCogs,
+        retailJarsDelivered: totalWaterJarsSold - subscriptionDeliveredJars,
+        retailJarsCost: (totalWaterJarsSold - subscriptionDeliveredJars) * 20,
       },
       opexBreakdown: {
         totalOpex: Number(totalOpex.toFixed(2)),

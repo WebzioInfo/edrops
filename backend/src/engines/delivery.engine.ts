@@ -99,137 +99,149 @@ export class DeliveryEngine {
 
   // Generate Future Deliveries based on schedule (Replaces generateTodayDeliveries for predictive generation)
   async syncCustomerSchedule(customerId: string, weeksOut: number = 8) {
-    const now = new Date();
-    // Force strict UTC midnight to avoid local timezone drift
-    const today = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-    );
-
-    // Calculate Indian Standard Time (IST = UTC+5:30) to evaluate operational daily cutoff
-    const nowIST = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-    const currentHourIST = nowIST.getUTCHours();
-    const isPastTodayCutoff = currentHourIST >= 14; // Past 2:00 PM IST (daily dispatch cutoff)
-
-    // Check if customer already has a delivery today that is active or completed
-    const existingTodayDelivery = await this.prisma.delivery.findFirst({
-      where: { customerId, scheduledFor: today },
-    });
-    const isTodayUnderwayOrDone =
-      existingTodayDelivery &&
-      [
-        'OUT_FOR_DELIVERY',
-        'IN_TRANSIT',
-        'DELIVERED',
-        'COMPLETED',
-        'CANCELLED',
-        'FAILED',
-      ].includes(existingTodayDelivery.status);
-
-    // Calculate the start of the current week (Monday)
-    const day = today.getUTCDay();
-    const diff = today.getUTCDate() - day + (day === 0 ? -6 : 1);
-    const startOfWeek = new Date(
-      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), diff),
-    );
-
-    // Fetch the customer's active schedule and rules
-    const schedule = await this.prisma.deliverySchedule.findUnique({
-      where: { customerId },
-      include: {
-        rules: true,
-        customer: {
-          include: { addresses: true },
-        },
-      },
-    });
-
-    // If today is past cutoff or today's delivery is already underway/completed,
-    // protect today's delivery and only clear future pending deliveries from tomorrow onwards.
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    const deleteFromDate =
-      isPastTodayCutoff || isTodayUnderwayOrDone ? tomorrow : today;
-
-    // Safely clear pending/assigned deliveries from deleteFromDate onwards
-    await this.prisma.delivery.deleteMany({
-      where: {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Concurrency control: acquire transaction-level advisory lock per customer to prevent race-condition duplicates
+      await tx.$executeRawUnsafe(
+        'SELECT pg_advisory_xact_lock(hashtext($1))',
         customerId,
-        scheduledFor: { gte: deleteFromDate },
-        status: { in: [OrderStatus.PENDING_ASSIGNMENT, OrderStatus.ASSIGNED] },
-      },
-    });
+      );
 
-    if (!schedule || !schedule.isActive || schedule.rules.length === 0) {
-      return { success: true, generatedCount: 0 };
-    }
+      const now = new Date();
+      // Calculate Indian Standard Time (IST = UTC+5:30)
+      const nowIST = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+      // Strict UTC midnight corresponding to IST today
+      const today = new Date(
+        Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate()),
+      );
 
-    const defaultAddress =
-      schedule.customer.addresses.find((a) => a.isDefault) ||
-      schedule.customer.addresses[0];
-    if (!defaultAddress) return { success: true, generatedCount: 0 };
+      const currentHourIST = nowIST.getUTCHours();
+      const isPastTodayCutoff = currentHourIST >= 14; // Past 2:00 PM IST (daily dispatch cutoff)
 
-    let generatedCount = 0;
-    const daysToGenerate = weeksOut * 7;
+      // Check if customer already has a delivery today that is active or completed
+      const existingTodayDelivery = await tx.delivery.findFirst({
+        where: { customerId, scheduledFor: today },
+      });
+      const isTodayUnderwayOrDone =
+        existingTodayDelivery &&
+        [
+          'OUT_FOR_DELIVERY',
+          'DELIVERED',
+          'COMPLETED',
+          'CANCELLED',
+          'FAILED',
+        ].includes(existingTodayDelivery.status);
 
-    // We generate from START OF WEEK to N weeks out.
-    for (let i = 0; i < daysToGenerate; i++) {
-      const targetDate = new Date(startOfWeek.getTime());
-      targetDate.setUTCDate(startOfWeek.getUTCDate() + i);
-      const dayOfWeek = targetDate.getUTCDay();
+      // Calculate the start of the current week (Monday)
+      const day = today.getUTCDay();
+      const diff = today.getUTCDate() - day + (day === 0 ? -6 : 1);
+      const startOfWeek = new Date(
+        Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), diff),
+      );
 
-      // 1. Skip past days (before today)
-      if (targetDate.getTime() < today.getTime()) {
-        continue;
+      // Fetch the customer's active schedule and rules
+      const schedule = await tx.deliverySchedule.findUnique({
+        where: { customerId },
+        include: {
+          rules: true,
+          customer: {
+            include: { addresses: true },
+          },
+        },
+      });
+
+      // If today is past cutoff or today's delivery is already underway/completed,
+      // protect today's delivery and only clear future pending deliveries from tomorrow onwards.
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      const deleteFromDate =
+        isPastTodayCutoff || isTodayUnderwayOrDone ? tomorrow : today;
+
+      // Safely clear pending/assigned deliveries from deleteFromDate onwards
+      await tx.delivery.deleteMany({
+        where: {
+          customerId,
+          scheduledFor: { gte: deleteFromDate },
+          status: { in: [OrderStatus.PENDING_ASSIGNMENT, OrderStatus.ASSIGNED] },
+        },
+      });
+
+      if (!schedule || !schedule.isActive || schedule.rules.length === 0) {
+        return { success: true, generatedCount: 0 };
       }
 
-      // 2. If targetDate is today:
-      // If cutoff has passed OR today's delivery is already underway/done/exists:
-      // Do NOT create or overwrite today's delivery!
-      // The new quantity will naturally apply starting from next week's occurrence!
-      if (targetDate.getTime() === today.getTime()) {
-        if (isPastTodayCutoff || isTodayUnderwayOrDone || existingTodayDelivery) {
+      const defaultAddress =
+        schedule.customer.addresses.find((a) => a.isDefault) ||
+        schedule.customer.addresses[0];
+      if (!defaultAddress) return { success: true, generatedCount: 0 };
+
+      let generatedCount = 0;
+      const daysToGenerate = weeksOut * 7;
+
+      // We generate from START OF WEEK to N weeks out.
+      for (let i = 0; i < daysToGenerate; i++) {
+        const targetDate = new Date(startOfWeek.getTime());
+        targetDate.setUTCDate(startOfWeek.getUTCDate() + i);
+        const dayOfWeek = targetDate.getUTCDay();
+
+        // 1. Skip past days (before today)
+        if (targetDate.getTime() < today.getTime()) {
           continue;
         }
-      }
 
-      let dailyQty = 0;
+        // 2. If targetDate is today:
+        if (targetDate.getTime() === today.getTime()) {
+          if (isPastTodayCutoff || isTodayUnderwayOrDone || existingTodayDelivery) {
+            continue;
+          }
+        }
 
-      for (const rule of schedule.rules) {
-        if (rule.type === 'WEEKLY' && rule.dayOfWeek === dayOfWeek) {
-          dailyQty += rule.quantity;
-        } else if (rule.type === 'INTERVAL') {
-          const ruleStart = new Date(rule.startDate);
-          ruleStart.setUTCHours(0, 0, 0, 0);
-          const diffTime = Math.abs(targetDate.getTime() - ruleStart.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          const interval = rule.intervalDays || 1;
-          if (diffDays % interval === 0) {
+        let dailyQty = 0;
+
+        for (const rule of schedule.rules) {
+          if (rule.type === 'WEEKLY' && rule.dayOfWeek === dayOfWeek) {
             dailyQty += rule.quantity;
+          } else if (rule.type === 'INTERVAL') {
+            const ruleStart = new Date(rule.startDate);
+            ruleStart.setUTCHours(0, 0, 0, 0);
+            const diffTime = Math.abs(targetDate.getTime() - ruleStart.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const interval = rule.intervalDays || 1;
+            if (diffDays % interval === 0) {
+              dailyQty += rule.quantity;
+            }
+          }
+        }
+
+        if (dailyQty > 0) {
+          const existing = await tx.delivery.findFirst({
+            where: { customerId, scheduledFor: targetDate },
+          });
+
+          if (!existing) {
+            await tx.delivery.create({
+              data: {
+                customerId,
+                addressId: defaultAddress.id,
+                scheduledFor: targetDate,
+                requiredQuantity: dailyQty,
+                status: OrderStatus.PENDING_ASSIGNMENT,
+              },
+            });
+            generatedCount++;
+          } else if (
+            existing.status === OrderStatus.PENDING_ASSIGNMENT &&
+            existing.requiredQuantity !== dailyQty
+          ) {
+            // In-place smart update for pending deliveries when customer adjusts schedule
+            await tx.delivery.update({
+              where: { id: existing.id },
+              data: { requiredQuantity: dailyQty },
+            });
           }
         }
       }
 
-      if (dailyQty > 0) {
-        // Safe upsert or create due to the unique constraint
-        const existing = await this.prisma.delivery.findFirst({
-          where: { customerId, scheduledFor: targetDate },
-        });
-
-        if (!existing) {
-          await this.prisma.delivery.create({
-            data: {
-              customerId,
-              addressId: defaultAddress.id,
-              scheduledFor: targetDate,
-              requiredQuantity: dailyQty,
-              status: OrderStatus.PENDING_ASSIGNMENT,
-            },
-          });
-          generatedCount++;
-        }
-      }
-    }
-
-    return { success: true, generatedCount };
+      return { success: true, generatedCount };
+    });
   }
 
   // 2. Staff manual assignment

@@ -485,6 +485,15 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     return list.sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());
   }, [weeks]);
 
+  // ── Tomorrow's Delivery ──
+  const tomorrowDelivery = useMemo(() => {
+    return (
+      allDeliveries.find(
+        (d) => getLocalDateStr(d.scheduledFor) === tomorrowStr
+      ) || null
+    );
+  }, [allDeliveries, tomorrowStr]);
+
   // ── Next Upcoming Delivery (Prioritize Today, then Tomorrow, then Next) ──
   const nextUpcomingDelivery = useMemo(() => {
     if (todayDelivery) return todayDelivery;
@@ -521,7 +530,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     weeks.forEach((w) => {
       (w.deliveries || []).forEach((d) => {
         const dStr = getLocalDateStr(d.scheduledFor);
-        const isUp = dStr >= todayStr && !['DELIVERED', 'CANCELLED', 'FAILED'].includes(d.status.toUpperCase());
+        const isUp = dStr >= todayStr;
         if (isUp) up++;
         else hist++;
       });
@@ -537,8 +546,14 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
         .map((w) => {
           const filtered = (w.deliveries || []).filter((d) => {
             const dStr = getLocalDateStr(d.scheduledFor);
-            const isUp = dStr >= todayStr && !['DELIVERED', 'CANCELLED', 'FAILED'].includes(d.status.toUpperCase());
-            return viewTab === 'UPCOMING' ? isUp : !isUp;
+            const isDeliveredOrDone = ['DELIVERED', 'CANCELLED', 'FAILED'].includes(d.status.toUpperCase());
+            if (viewTab === 'UPCOMING') {
+              // Future deliveries for today and beyond are visible in Upcoming. Even if marked DELIVERED early, keep visible so week has no missing days.
+              return dStr >= todayStr;
+            } else {
+              // History: past dates, or any completed/delivered delivery
+              return dStr < todayStr || isDeliveredOrDone;
+            }
           });
           return {
             ...w,
@@ -881,6 +896,14 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                   const isPastTodayCutoff = new Date().getHours() >= 14;
                   const appliesNextWeek = isToday && (isTodayUnderwayOrDone || isPastTodayCutoff);
 
+                  const isTomorrowLocked = !!(
+                    tomorrowDelivery &&
+                    ['OUT_FOR_DELIVERY', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'ASSIGNED'].includes(
+                      tomorrowDelivery.status.toUpperCase()
+                    )
+                  );
+                  const tomorrowQtyDiffers = isTomorrow && isTomorrowLocked && tomorrowDelivery.requiredQuantity !== qty;
+
                   return (
                     <div 
                       key={day.value}
@@ -906,9 +929,14 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                           }`}>
                             {day.label}
                           </span>
-                          {isTomorrow && (
+                          {isTomorrow && !tomorrowQtyDiffers && (
                             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
                               Tomorrow
+                            </span>
+                          )}
+                          {isTomorrow && tomorrowQtyDiffers && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                              Tomorrow Locked ({tomorrowDelivery.requiredQuantity} Jars) • Applies next {day.label}
                             </span>
                           )}
                           {isToday && (
@@ -925,10 +953,17 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                         <div className="text-[11px] font-medium mt-0.5">
                           {isActive ? (
                             isTomorrow ? (
-                              <span className="text-amber-800 font-bold flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
-                                {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled (Arriving Tomorrow)
-                              </span>
+                              tomorrowQtyDiffers ? (
+                                <span className="text-amber-800 font-semibold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+                                  Tomorrow locked: {tomorrowDelivery.requiredQuantity} {tomorrowDelivery.requiredQuantity === 1 ? 'Jar' : 'Jars'} ({formatDeliveryStatus(tomorrowDelivery.status)}) • Next week: {qty} Jars
+                                </span>
+                              ) : (
+                                <span className="text-amber-800 font-bold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+                                  {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled (Arriving Tomorrow)
+                                </span>
+                              )
                             ) : isToday ? (
                               appliesNextWeek ? (
                                 todayDelivery ? (
@@ -1361,10 +1396,15 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                             )}
                           </div>
 
-                          <div className="flex items-center gap-2.5 shrink-0">
-                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
-                              {week.stats.delivered} / {week.stats.total}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                              {week.deliveries.length} {week.deliveries.length === 1 ? 'day' : 'days'}
                             </span>
+                            {week.stats.delivered > 0 && (
+                              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                {week.stats.delivered} Delivered
+                              </span>
+                            )}
                             <div className="w-4 h-4 text-slate-400 flex items-center justify-center">
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                             </div>
@@ -1380,6 +1420,24 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                               exit={{ height: 0, opacity: 0 }}
                               className="divide-y divide-slate-100 bg-white"
                             >
+                              {isCurrentWeek && viewTab === 'UPCOMING' && week.stats.delivered > 0 && (
+                                <div className="px-4 py-2 bg-slate-50/80 text-[11px] text-slate-600 flex items-center justify-between border-b border-slate-100">
+                                  <span className="flex items-center gap-1.5 font-medium">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                    {week.stats.delivered} {week.stats.delivered === 1 ? 'delivery' : 'deliveries'} completed earlier this week
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewTab('HISTORY');
+                                    }}
+                                    className="text-[#1E88E5] font-bold hover:underline cursor-pointer"
+                                  >
+                                    View in History →
+                                  </button>
+                                </div>
+                              )}
                               {week.deliveries.length === 0 ? (
                                 <div className="px-4 py-3 text-center text-xs text-[#94A3B8] italic">
                                   No deliveries found for this view.
@@ -1392,6 +1450,13 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                                   const isDelToday = delDateStr === todayStr;
                                   const isDelTomorrow = delDateStr === tomorrowStr;
                                   const isNextUpcoming = nextUpcomingDelivery?.id === delivery.id;
+                                  const isDelTomorrowLocked =
+                                    isDelTomorrow &&
+                                    ['OUT_FOR_DELIVERY', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'ASSIGNED'].includes(
+                                      delivery.status.toUpperCase()
+                                    );
+                                  const tomorrowScheduleDiffers =
+                                    isDelTomorrowLocked && weeklyQtys[tomorrowDayIndex] !== delivery.requiredQuantity;
 
                                   return (
                                     <div 
@@ -1457,6 +1522,11 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                                           {delivery.timeSlot && (
                                             <div className="text-[10px] text-[#64748B] mt-0.5">
                                               {delivery.timeSlot}
+                                            </div>
+                                          )}
+                                          {tomorrowScheduleDiffers && (
+                                            <div className="text-[10px] text-amber-800 font-medium mt-0.5 flex items-center gap-1 bg-amber-50/60 rounded px-1.5 py-0.5 border border-amber-200/50">
+                                              <span>🚚 Dispatched ({delivery.requiredQuantity} Jars). New schedule ({weeklyQtys[tomorrowDayIndex]} Jars) begins next week.</span>
                                             </div>
                                           )}
                                         </div>

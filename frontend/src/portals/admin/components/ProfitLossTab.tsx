@@ -45,6 +45,10 @@ interface PnLData {
     totalCogs: number;
     waterJarsCost: number;
     otherGoodsCost: number;
+    subscriptionJarsDelivered?: number;
+    subscriptionJarsCost?: number;
+    retailJarsDelivered?: number;
+    retailJarsCost?: number;
   };
   opexBreakdown: {
     totalOpex: number;
@@ -352,15 +356,32 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
               <span className="font-bold text-slate-900 uppercase text-[11px]">2. Cost of Goods Sold (COGS)</span>
             </div>
             <div className="px-4 py-2 flex justify-between text-slate-600">
-              <span className="pl-3">• 20L Water Jar Production (Aquzio Plant Cost @ ₹20)</span>
+              <span className="pl-3">
+                • 20L Commercial Water Jars ({data.revenueBreakdown.totalWaterJarsSold} Jars @ ₹20 Aquzio Plant Cost)
+              </span>
               <span className="font-semibold text-amber-700">-{formatINR(data.cogsBreakdown.waterJarsCost)}</span>
             </div>
+            {Boolean(data.cogsBreakdown.subscriptionJarsDelivered && data.cogsBreakdown.subscriptionJarsDelivered > 0) && (
+              <div className="px-4 py-1 flex justify-between text-[11px] text-slate-500 bg-slate-50/30">
+                <span className="pl-6 font-medium">↳ Subscription deliveries fulfilled ({data.cogsBreakdown.subscriptionJarsDelivered} Jars)</span>
+                <span className="text-amber-700">-{formatINR(data.cogsBreakdown.subscriptionJarsCost || 0)}</span>
+              </div>
+            )}
+            {Boolean(data.cogsBreakdown.retailJarsDelivered && data.cogsBreakdown.retailJarsDelivered > 0) && (
+              <div className="px-4 py-1 flex justify-between text-[11px] text-slate-500 bg-slate-50/30">
+                <span className="pl-6 font-medium">↳ Retail orders fulfilled ({data.cogsBreakdown.retailJarsDelivered} Jars)</span>
+                <span className="text-amber-700">-{formatINR(data.cogsBreakdown.retailJarsCost || 0)}</span>
+              </div>
+            )}
             {data.cogsBreakdown.otherGoodsCost > 0 && (
               <div className="px-4 py-2 flex justify-between text-slate-600">
-                <span className="pl-3">• Other Finished Products Cost</span>
+                <span className="pl-3">• Other Finished Products Procurement Cost</span>
                 <span className="font-semibold text-amber-700">-{formatINR(data.cogsBreakdown.otherGoodsCost)}</span>
               </div>
             )}
+            <div className="px-4 py-2 text-[11px] text-slate-500 bg-slate-50/60 pl-7 leading-relaxed">
+              💡 <em>Plant COGS note:</em> Every 20L jar delivered costs ₹20.00 from the Aquzio plant. Promotional / free trial jars (₹0 order total) legitimately reflect this ₹20 manufacturing cost as customer acquisition overhead.
+            </div>
             <div className="px-4 py-2.5 flex justify-between font-bold text-amber-900 bg-amber-50/40">
               <span>= Total COGS</span>
               <span>-{formatINR(data.summary.totalCogs)}</span>
