@@ -1175,4 +1175,212 @@ export class ReportService {
       },
     };
   }
+
+  // ─── ADMIN COMPLETE PROFIT & LOSS (P&L) CALCULATION ENGINE ──────────────────
+  async getPnLStatement(query?: {
+    startDate?: string;
+    endDate?: string;
+    preset?: string;
+  }) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    let rangeStart = new Date(todayStart);
+    let rangeEnd = new Date(todayEnd);
+    const preset = (query?.preset || 'ALL_TIME').toUpperCase();
+
+    if (query?.startDate && query?.endDate) {
+      rangeStart = new Date(query.startDate);
+      rangeEnd = new Date(query.endDate);
+      if (isNaN(rangeStart.getTime())) rangeStart = new Date(todayStart);
+      if (isNaN(rangeEnd.getTime())) rangeEnd = new Date(todayEnd);
+      if (query.endDate.length <= 10) rangeEnd.setHours(23, 59, 59, 999);
+    } else {
+      switch (preset) {
+        case 'TODAY':
+          rangeStart = new Date(todayStart);
+          rangeEnd = new Date(todayEnd);
+          break;
+        case 'YESTERDAY': {
+          const y = new Date(now);
+          y.setDate(y.getDate() - 1);
+          rangeStart = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0, 0);
+          rangeEnd = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999);
+          break;
+        }
+        case 'LAST_7_DAYS':
+          rangeStart = new Date(now);
+          rangeStart.setDate(rangeStart.getDate() - 6);
+          rangeStart.setHours(0, 0, 0, 0);
+          rangeEnd = new Date(todayEnd);
+          break;
+        case 'LAST_30_DAYS':
+          rangeStart = new Date(now);
+          rangeStart.setDate(rangeStart.getDate() - 29);
+          rangeStart.setHours(0, 0, 0, 0);
+          rangeEnd = new Date(todayEnd);
+          break;
+        case 'THIS_MONTH':
+          rangeStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+          rangeEnd = new Date(todayEnd);
+          break;
+        case 'ALL_TIME':
+        default:
+          rangeStart = new Date(2020, 0, 1, 0, 0, 0, 0);
+          rangeEnd = new Date(todayEnd);
+          break;
+      }
+    }
+
+    // 1. Fetch Orders with items, products, package purchases, and approved expenses in period
+    const [orders, purchases, expenses] = await Promise.all([
+      this.prisma.order.findMany({
+        where: {
+          createdAt: { gte: rangeStart, lte: rangeEnd },
+          status: { not: 'CANCELLED' },
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          payments: true,
+        },
+      }),
+      this.prisma.packagePurchase.findMany({
+        where: {
+          createdAt: { gte: rangeStart, lte: rangeEnd },
+          paymentStatus: 'SUCCESS',
+        },
+        include: {
+          package: true,
+        },
+      }),
+      this.prisma.expense.findMany({
+        where: {
+          expenseDate: { gte: rangeStart, lte: rangeEnd },
+          status: 'APPROVED',
+        },
+        orderBy: { expenseDate: 'desc' },
+      }),
+    ]);
+
+    // Financial accumulator variables (Strict Decimal arithmetic pattern)
+    let grossOrderRevenue = 0;
+    let customerJarDepositLiability = 0;
+    let netOperatingOrderRevenue = 0;
+    let totalCogs = 0;
+    let totalWaterJarsSold = 0;
+
+    for (const order of orders) {
+      for (const item of order.items) {
+        const itemQuantity = Number(item.quantity) || 1;
+        const itemDeposit = Number(item.deposit) || 0;
+        const depositTotal = itemDeposit * itemQuantity;
+        const itemTotal = Number(item.total) || 0;
+        const operatingTotal = Math.max(0, itemTotal - depositTotal);
+
+        if (depositTotal > 0) {
+          customerJarDepositLiability += depositTotal;
+        }
+
+        grossOrderRevenue += itemTotal;
+        netOperatingOrderRevenue += operatingTotal;
+
+        // Compute COGS: if 20L water jar, cost is ₹20 (standard Aquzio plant cost), or product.costPrice
+        const unitCost = Number(item.product?.costPrice || (item.product?.isJar ? 20 : 15));
+        totalCogs += unitCost * itemQuantity;
+        if (item.product?.isJar) {
+          totalWaterJarsSold += itemQuantity;
+        }
+      }
+    }
+
+    // Subscriptions
+    let subscriptionRevenue = 0;
+    for (const p of purchases) {
+      subscriptionRevenue += Number(p.amount) || 0;
+    }
+
+    // Total Net Operating Revenue (Excludes customer refundable jar deposits)
+    const totalNetRevenue = Number((netOperatingOrderRevenue + subscriptionRevenue).toFixed(2));
+    const grossProfit = Number((totalNetRevenue - totalCogs).toFixed(2));
+    const grossMarginPercent = totalNetRevenue > 0 ? Number(((grossProfit / totalNetRevenue) * 100).toFixed(1)) : 0;
+
+    // Expenses (OPEX)
+    const categoryBreakdown: Record<string, { label: string; amount: number; count: number }> = {
+      FUEL: { label: 'Fuel & Delivery Vehicles', amount: 0, count: 0 },
+      RENT: { label: 'Warehouse & Godown Rent', amount: 0, count: 0 },
+      SALARIES: { label: 'Staff & Driver Wages', amount: 0, count: 0 },
+      MAINTENANCE: { label: 'Vehicle & Equipment Maintenance', amount: 0, count: 0 },
+      UTILITIES: { label: 'Electricity & Water Utilities', amount: 0, count: 0 },
+      MARKETING: { label: 'Marketing & Promotions', amount: 0, count: 0 },
+      PACKAGING: { label: 'Packaging & Caps', amount: 0, count: 0 },
+      OTHER: { label: 'General & Administrative', amount: 0, count: 0 },
+    };
+
+    let totalOpex = 0;
+    for (const exp of expenses) {
+      const amt = Number(exp.amount) || 0;
+      totalOpex += amt;
+      const cat = (exp.category || 'OTHER').toUpperCase();
+      if (categoryBreakdown[cat]) {
+        categoryBreakdown[cat].amount += amt;
+        categoryBreakdown[cat].count += 1;
+      } else {
+        categoryBreakdown['OTHER'].amount += amt;
+        categoryBreakdown['OTHER'].count += 1;
+      }
+    }
+
+    const netOperatingProfit = Number((grossProfit - totalOpex).toFixed(2));
+    const netProfitMarginPercent = totalNetRevenue > 0 ? Number(((netOperatingProfit / totalNetRevenue) * 100).toFixed(1)) : 0;
+
+    return {
+      period: {
+        preset,
+        startDate: rangeStart.toISOString(),
+        endDate: rangeEnd.toISOString(),
+      },
+      summary: {
+        totalNetRevenue,
+        totalCogs: Number(totalCogs.toFixed(2)),
+        grossProfit,
+        grossMarginPercent,
+        totalOpex: Number(totalOpex.toFixed(2)),
+        netOperatingProfit,
+        netProfitMarginPercent,
+        customerJarDepositLiability: Number(customerJarDepositLiability.toFixed(2)),
+      },
+      revenueBreakdown: {
+        netOperatingOrderRevenue: Number(netOperatingOrderRevenue.toFixed(2)),
+        subscriptionRevenue: Number(subscriptionRevenue.toFixed(2)),
+        customerJarDepositLiability: Number(customerJarDepositLiability.toFixed(2)),
+        totalWaterJarsSold,
+        totalOrdersCount: orders.length,
+        totalSubscriptionsCount: purchases.length,
+      },
+      cogsBreakdown: {
+        totalCogs: Number(totalCogs.toFixed(2)),
+        waterJarsCost: Number((totalWaterJarsSold * 20).toFixed(2)),
+        otherGoodsCost: Number((totalCogs - (totalWaterJarsSold * 20)).toFixed(2)),
+      },
+      opexBreakdown: {
+        totalOpex: Number(totalOpex.toFixed(2)),
+        categories: categoryBreakdown,
+      },
+      recentExpenses: expenses.slice(0, 15).map((e) => ({
+        id: e.id,
+        title: e.title,
+        category: e.category,
+        amount: e.amount,
+        expenseDate: e.expenseDate,
+        paymentMethod: e.paymentMethod,
+        paymentStatus: e.paymentStatus,
+        vendorName: e.vendorName,
+      })),
+    };
+  }
 }

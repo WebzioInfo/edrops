@@ -36,6 +36,18 @@ export class ReportController {
     return this.reportService.getAdminAnalytics(query);
   }
 
+  // ─── ADMIN PROFIT & LOSS (P&L) STATEMENT ────────────────────────────────────
+  @Get('admin/pnl')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  getAdminPnL(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('preset') preset?: string,
+  ) {
+    return this.reportService.getPnLStatement({ startDate, endDate, preset });
+  }
+
   @Get()
   findAll() {
     return this.reportService.findAll();

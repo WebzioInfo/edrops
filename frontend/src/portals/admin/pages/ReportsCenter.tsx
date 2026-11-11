@@ -23,12 +23,14 @@ import {
   XCircle,
   Receipt,
   FileSpreadsheet,
+  DollarSign,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { EdropsPageLoader } from '../../../components/common/EdropsPageLoader';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { toast } from 'react-hot-toast';
 import { AdminTopbar } from '../components/AdminTopbar';
+import ProfitLossTab from '../components/ProfitLossTab';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -38,6 +40,7 @@ type DatePreset = 'TODAY' | 'YESTERDAY' | 'LAST_7_DAYS' | 'LAST_30_DAYS' | 'THIS
 
 type ReportTab =
   | 'overview'
+  | 'pnl'
   | 'orders'
   | 'sales'
   | 'customers'
@@ -369,6 +372,16 @@ export default function ReportsCenter() {
     const dateTag = `${data.dateRange.preset}_${new Date().toISOString().slice(0, 10)}`;
 
     switch (activeTab) {
+      case 'pnl': {
+        headers = ['Financial Line Item', 'Amount (INR)', 'Category / Notes'];
+        rows = [
+          ['Gross Operating Sales', String(data.sales.kpis.grossSales), 'Product orders subtotal and deliveries'],
+          ['Subscription Revenue', String(data.overview.kpis.membershipRevenue?.value ?? 0), 'Prepaid water packages'],
+          ['Customer Jar Deposit Liability', String(data.sales.kpis.depositCollections ?? 0), 'Refundable jar liabilities held'],
+          ['Cost of Goods Sold (COGS)', String(Math.round((data.overview.kpis.totalOrders?.value ?? 0) * 20)), 'Procurement at ₹20/water jar'],
+        ];
+        break;
+      }
       case 'overview': {
         headers = ['Metric', 'Current Value', 'Previous Value', 'Percentage Change'];
         rows = Object.entries(data.overview.kpis).map(([key, item]) => [
@@ -517,6 +530,7 @@ export default function ReportsCenter() {
 
   const tabsConfig = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
+    { id: 'pnl', label: 'Profit & Loss (P&L)', icon: DollarSign },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'sales', label: 'Sales & Payments', icon: CreditCard },
     { id: 'customers', label: 'Customers', icon: Users },
@@ -919,7 +933,18 @@ export default function ReportsCenter() {
           )}
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* TAB 2: ORDERS REPORT                                              */}
+          {/* TAB 2: PROFIT & LOSS (P&L) STATEMENT                             */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'pnl' && (
+            <ProfitLossTab
+              preset={preset}
+              customStart={customStart}
+              customEnd={customEnd}
+            />
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* TAB 3: ORDERS REPORT                                              */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {activeTab === 'orders' && (
             <div className="space-y-4">
