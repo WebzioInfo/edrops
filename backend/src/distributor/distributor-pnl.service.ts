@@ -326,11 +326,29 @@ export class DistributorPnlService {
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 4: COGS & INVENTORY LOSS WRITE-OFFS
     // ─────────────────────────────────────────────────────────────────────────
+    const jarAssetRate = Number(identity.jarDepositRate) > 0 ? Number(identity.jarDepositRate) : 150.0;
     let inventoryWriteOffs = 0;
+    let damagedJarsCount = 0;
+
     for (const log of damagedInventoryLogs) {
-      const qty = Math.abs(Number(log.quantity) || 0);
-      // Cost of broken/lost distributor-owned jar = ₹250 asset replacement or acquisition rate
-      inventoryWriteOffs += qty * recentWholesaleWaterJarRate;
+      const logQuantity = Math.abs(Number(log.quantity) || 0);
+      const damagedQty = Math.abs(Number(log.damagedQty) || 0);
+      const filledQty = Math.abs(Number(log.filledQty) || 0);
+      const emptyQty = Math.abs(Number(log.emptyQty) || 0);
+
+      const totalUnits = Math.max(logQuantity, damagedQty, filledQty + emptyQty);
+      damagedJarsCount += totalUnits;
+
+      if (filledQty > 0 || emptyQty > 0) {
+        // Filled jars lose both the container asset AND the water refill inside
+        const filledLoss = filledQty * (jarAssetRate + recentWholesaleWaterJarRate);
+        // Empty jars lose only the container asset
+        const emptyLoss = emptyQty * jarAssetRate;
+        inventoryWriteOffs += filledLoss + emptyLoss;
+      } else {
+        // Standard physical container asset loss (e.g. cracked/broken/missing jar)
+        inventoryWriteOffs += totalUnits * jarAssetRate;
+      }
     }
 
     const totalCogs = Number((totalWaterJarCogs + totalAccessoryCogs + inventoryWriteOffs).toFixed(2));
@@ -435,8 +453,9 @@ export class DistributorPnlService {
         accessoryCogs: Number(totalAccessoryCogs.toFixed(2)),
         inventoryWriteOffs: Number(inventoryWriteOffs.toFixed(2)),
         unitWaterJarRateUsed: recentWholesaleWaterJarRate,
+        jarAssetRateUsed: jarAssetRate,
         isCogsEstimated,
-        damagedJarsCount: damagedInventoryLogs.reduce((sum, l) => sum + Math.abs(Number(l.quantity) || 0), 0),
+        damagedJarsCount,
       },
       opexBreakdown: {
         totalOpex: Number(totalOpex.toFixed(2)),

@@ -76,6 +76,7 @@ export interface DistributorPnlData {
     accessoryCogs: number;
     inventoryWriteOffs: number;
     unitWaterJarRateUsed: number;
+    jarAssetRateUsed?: number;
     isCogsEstimated: boolean;
     damagedJarsCount: number;
   };
@@ -501,7 +502,9 @@ export default function DistributorProfitLossTab({
                 )}
                 {cogsBreakdown.inventoryWriteOffs > 0 && (
                   <div className="flex justify-between py-2.5 text-amber-700">
-                    <span>Damaged / Lost Inventory Write-offs ({cogsBreakdown.damagedJarsCount} jars)</span>
+                    <span>
+                      Damaged / Lost Inventory Write-offs ({cogsBreakdown.damagedJarsCount} jars @ ₹{cogsBreakdown.jarAssetRateUsed || 150}/jar container asset)
+                    </span>
                     <span className="font-semibold">{formatINR(cogsBreakdown.inventoryWriteOffs)}</span>
                   </div>
                 )}

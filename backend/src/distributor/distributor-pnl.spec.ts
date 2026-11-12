@@ -250,10 +250,11 @@ describe('DistributorPnlService & Accounting Engine', () => {
 
       const pnl = await service.getPnlStatement(mockDistributorIdentity, { preset: 'THIS_MONTH' });
 
-      // Write-off = 3 jars * 28.00 wholesale rate = 84.00
-      expect(pnl.cogsBreakdown.inventoryWriteOffs).toBe(84.00);
+      // Write-off = 3 jars * 150.00 container asset replacement rate = 450.00
+      expect(pnl.cogsBreakdown.inventoryWriteOffs).toBe(450.00);
       expect(pnl.cogsBreakdown.damagedJarsCount).toBe(3);
-      expect(pnl.summary.totalCogs).toBe(84.00);
+      expect(pnl.cogsBreakdown.jarAssetRateUsed).toBe(150.00);
+      expect(pnl.summary.totalCogs).toBe(450.00);
     });
   });
 
