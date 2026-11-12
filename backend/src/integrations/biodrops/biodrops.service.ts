@@ -1544,4 +1544,91 @@ export class BiodropsService implements OnModuleInit {
   ) {
     this.localStockOverrides.set(`${tenantId}:${sku.toLowerCase()}`, newQty);
   }
+
+  /**
+   * Retries syncing any stock adjustments that were persisted locally when Aquzio was offline.
+   */
+  async retryPendingStockSyncs(): Promise<{ totalRetried: number; successful: number; failed: number }> {
+    if (!this.prisma) {
+      return { totalRetried: 0, successful: 0, failed: 0 };
+    }
+
+    try {
+      const pendingLogs = await this.prisma.aquzioSyncLog.findMany({
+        where: {
+          syncType: 'STOCK_ADJUSTMENT',
+          status: 'LOCAL_PERSISTED',
+        },
+        orderBy: { syncedAt: 'asc' },
+        take: 50,
+      });
+
+      if (!pendingLogs || pendingLogs.length === 0) {
+        return { totalRetried: 0, successful: 0, failed: 0 };
+      }
+
+      let successful = 0;
+      let failed = 0;
+
+      for (const log of pendingLogs) {
+        const details = (log.details as any) || {};
+        const tenantId = details.tenantId;
+        const sku = details.sku;
+
+        if (!tenantId || !sku) {
+          continue;
+        }
+
+        try {
+          const upstreamRes = await this.executePost<any>(
+            `/tenants/${encodeURIComponent(tenantId)}/stock/adjust`,
+            {
+              tenantId,
+              sku,
+              itemType: details.itemType || 'RAW_MATERIAL',
+              action: details.action,
+              quantity: details.quantityChange,
+              unit: details.unit,
+              source: 'EDROPS',
+              movementType: 'EDROPS_ADJUSTMENT_RETRY',
+              reason: details.reason,
+              notes: details.notes ? `${details.notes} (retry)` : 'Offline retry sync',
+              reference: log.idempotencyKey,
+              operator: details.operator || 'eDrops AutoSync',
+              adjustedAt: details.timestamp || new Date().toISOString(),
+            },
+            {
+              'Idempotency-Key': log.idempotencyKey,
+            },
+          );
+
+          await this.prisma.aquzioSyncLog.update({
+            where: { id: log.id },
+            data: {
+              status: 'SYNCED',
+              externalBatchId: upstreamRes?.data?.transactionId || undefined,
+              details: {
+                ...details,
+                upstreamSynced: true,
+                upstreamTransactionId: upstreamRes?.data?.transactionId,
+                upstreamMovementId: upstreamRes?.data?.movementId,
+                retriedAt: new Date().toISOString(),
+              },
+            },
+          });
+          successful++;
+        } catch (err: any) {
+          this.logger.debug(
+            `[RETRY_PENDING_STOCK] Sync retry pending for log ${log.id}: ${err.message}`,
+          );
+          failed++;
+        }
+      }
+
+      return { totalRetried: pendingLogs.length, successful, failed };
+    } catch (error: any) {
+      this.logger.error(`Failed to process pending stock syncs: ${error.message}`);
+      return { totalRetried: 0, successful: 0, failed: 0 };
+    }
+  }
 }

@@ -369,5 +369,78 @@ describe('DistributorPnlService & Accounting Engine', () => {
         }),
       );
     });
+
+    it('10. Accrual accounting: Queries delivered orders via delivery-date accrual', async () => {
+      mockPrisma.order.findMany.mockResolvedValue([]);
+      mockPrisma.accessorySale.findMany.mockResolvedValue([]);
+      mockPrisma.distributorSale.findMany.mockResolvedValue([]);
+      mockPrisma.purchase.findMany.mockResolvedValue([]);
+      mockPrisma.distributorExpense.findMany.mockResolvedValue([]);
+      mockPrisma.inventoryLog.findMany.mockResolvedValue([]);
+      mockPrisma.delivery.findMany.mockResolvedValue([]);
+
+      await service.getPnlStatement(mockDistributorIdentity, { preset: 'THIS_MONTH' });
+
+      // Check that order.findMany used OR condition with deliveredAt for accrual recognition
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              expect.objectContaining({ status: OrderStatus.DELIVERED }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('11. Direct supplier purchase rate extraction: Autoritative COGS from Purchase.items JSON', async () => {
+      mockPrisma.order.findMany.mockResolvedValue([
+        {
+          id: 'ord-p1',
+          distributorId: 'dist-user-101',
+          totalAmount: 400,
+          depositTotal: 0,
+          discountTotal: 0,
+          subTotal: 400,
+          paymentStatus: 'PAID',
+          items: [
+            {
+              quantity: 10,
+              deposit: 0,
+              total: 400,
+              product: { isJar: true, distributorPrice: 28.0 },
+            },
+          ],
+        },
+      ]);
+      mockPrisma.accessorySale.findMany.mockResolvedValue([]);
+      mockPrisma.distributorSale.findMany.mockResolvedValue([]);
+      mockPrisma.distributorExpense.findMany.mockResolvedValue([]);
+      mockPrisma.inventoryLog.findMany.mockResolvedValue([]);
+      mockPrisma.delivery.findMany.mockResolvedValue([]);
+
+      // Distributor entered a purchase invoice with water jars at ₹25.00 each
+      mockPrisma.purchase.findMany.mockResolvedValue([
+        {
+          id: 'purch-1',
+          distributorId: 'dist-user-101',
+          items: JSON.stringify([
+            {
+              productName: '20L Drinking Water Jar Refill',
+              quantity: 100,
+              rate: 25.0,
+              amount: 2500,
+            },
+          ]),
+        },
+      ]);
+
+      const pnl = await service.getPnlStatement(mockDistributorIdentity, { preset: 'THIS_MONTH' });
+
+      // COGS = 10 jars * 25.00 = 250.00
+      expect(pnl.cogsBreakdown.unitWaterJarRateUsed).toBe(25.0);
+      expect(pnl.cogsBreakdown.isCogsEstimated).toBe(false);
+      expect(pnl.cogsBreakdown.waterJarCogs).toBe(250.0);
+    });
   });
 });

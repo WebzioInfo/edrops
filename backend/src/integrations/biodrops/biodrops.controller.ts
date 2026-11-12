@@ -137,4 +137,12 @@ export class BiodropsController {
     const userId = req.user?.sub || req.user?.id;
     return this.biodropsService.adjustTenantStock(tenantId, body, userId);
   }
+
+  @Post('sync-retry')
+  @ApiOperation({
+    summary: 'Retry syncing pending local stock adjustments with Aquzio plant',
+  })
+  async retryPendingStockSyncs() {
+    return this.biodropsService.retryPendingStockSyncs();
+  }
 }

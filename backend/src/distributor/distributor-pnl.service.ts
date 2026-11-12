@@ -143,17 +143,34 @@ export class DistributorPnlService {
       activeSubscriptionDeliveries,
     ] = await Promise.all([
       // A. Assigned customer retail orders (Filtered by User.id)
+      // Accrual accounting: Delivered orders are recognized upon fulfillment/delivery date; pending orders on order date
       this.prisma.order.findMany({
         where: {
           distributorId: identity.userId,
-          createdAt: { gte: rangeStart, lte: rangeEnd },
           status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.RETURNED] },
+          OR: [
+            {
+              status: OrderStatus.DELIVERED,
+              deliveredAt: { gte: rangeStart, lte: rangeEnd },
+            },
+            {
+              status: OrderStatus.DELIVERED,
+              deliveredAt: null,
+              createdAt: { gte: rangeStart, lte: rangeEnd },
+            },
+            {
+              status: { not: OrderStatus.DELIVERED },
+              createdAt: { gte: rangeStart, lte: rangeEnd },
+            },
+          ],
         },
         include: {
           items: {
             include: { product: true },
           },
           payments: true,
+          delivery: true,
+          deliveryVerification: true,
           customer: {
             include: { user: { select: { firstName: true, lastName: true, phone: true } } },
           },
@@ -214,12 +231,15 @@ export class DistributorPnlService {
         },
       }),
 
-      // G. Completed subscription deliveries handled by this distributor
+      // G. Completed subscription deliveries handled by this distributor (accrual recognition on completed delivery)
       this.prisma.delivery.findMany({
         where: {
           order: { distributorId: identity.userId },
           status: 'DELIVERED',
-          scheduledFor: { gte: rangeStart, lte: rangeEnd },
+          OR: [
+            { completedAt: { gte: rangeStart, lte: rangeEnd } },
+            { completedAt: null, scheduledFor: { gte: rangeStart, lte: rangeEnd } },
+          ],
         },
         include: { report: true },
       }),
@@ -228,17 +248,50 @@ export class DistributorPnlService {
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 2: UNIT COSTING LOOKUP MATRIX (COGS HIERARCHY)
     // ─────────────────────────────────────────────────────────────────────────
-    // Costing priority: Linked purchase invoice -> Recent commercial wholesale rate -> Standard fallback
+    // Costing priority: Direct supplier purchase invoice -> Recent commercial wholesale invoice -> Standard fallback (₹28.00)
     let recentWholesaleWaterJarRate = 28.0; // Default pickup wholesale rate
-    if (distributorWholesaleSales.length > 0) {
+    let rateSource: 'SUPPLIER_PURCHASE' | 'WHOLESALE_INVOICE' | 'DEFAULT' = 'DEFAULT';
+
+    // 1. Direct supplier purchase bills entered by the distributor
+    if (purchases && purchases.length > 0) {
+      for (const p of purchases) {
+        let items: any[] = [];
+        if (Array.isArray(p.items)) {
+          items = p.items;
+        } else if (typeof p.items === 'string') {
+          try {
+            items = JSON.parse(p.items);
+          } catch {
+            items = [];
+          }
+        }
+
+        for (const item of items) {
+          const name = String(item.productName || item.name || '').toLowerCase();
+          const rate = Number(item.rate ?? item.unitPrice ?? item.price ?? 0);
+          if ((name.includes('jar') || name.includes('water') || name.includes('20l') || item.productId) && rate > 0) {
+            recentWholesaleWaterJarRate = rate;
+            rateSource = 'SUPPLIER_PURCHASE';
+            break;
+          }
+        }
+        if (rateSource === 'SUPPLIER_PURCHASE') break;
+      }
+    }
+
+    // 2. Wholesale commercial sales invoices from eDrops/Aquzio to this distributor
+    if (rateSource === 'DEFAULT' && distributorWholesaleSales.length > 0) {
       for (const sale of distributorWholesaleSales) {
         const jarItem = sale.items.find((i) => i.product?.isJar);
         if (jarItem && jarItem.unitPrice > 0) {
           recentWholesaleWaterJarRate = Number(jarItem.unitPrice);
+          rateSource = 'WHOLESALE_INVOICE';
           break;
         }
       }
     }
+
+    let isCogsEstimated = rateSource === 'DEFAULT';
 
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 3: REVENUE ACCUMULATION
@@ -249,7 +302,6 @@ export class DistributorPnlService {
     let totalOrderDiscounts = 0;
     let totalWaterJarsDelivered = 0;
     let totalWaterJarCogs = 0;
-    let isCogsEstimated = false;
 
     // Track accounts receivable
     let customerCollectedPayments = 0;
@@ -284,9 +336,11 @@ export class DistributorPnlService {
         const qty = Number(item.quantity) || 1;
         if (item.product?.isJar) {
           totalWaterJarsDelivered += qty;
-          // Water jar COGS based on wholesale rate
-          const unitCost = item.product.distributorPrice ? Number(item.product.distributorPrice) : recentWholesaleWaterJarRate;
-          if (!item.product.distributorPrice) isCogsEstimated = true;
+          // Water jar COGS based on authoritative supplier purchase rate, commercial wholesale, or catalog rate
+          const unitCost = rateSource !== 'DEFAULT'
+            ? recentWholesaleWaterJarRate
+            : (item.product?.distributorPrice ? Number(item.product.distributorPrice) : recentWholesaleWaterJarRate);
+          if (rateSource === 'DEFAULT' && !item.product?.distributorPrice) isCogsEstimated = true;
           totalWaterJarCogs += unitCost * qty;
         } else {
           // Non-jar items sold in retail orders (taps, stands, etc.)
