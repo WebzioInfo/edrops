@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsDateString,
   IsIn,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -41,6 +42,7 @@ export class CreateDistributorExpenseDto {
   @IsNotEmpty()
   @IsNumber()
   @IsPositive()
+  @Max(9999999.99)
   @Type(() => Number)
   amount: number;
 
@@ -92,6 +94,7 @@ export class UpdateDistributorExpenseDto {
   @IsOptional()
   @IsNumber()
   @IsPositive()
+  @Max(9999999.99)
   @Type(() => Number)
   amount?: number;
 

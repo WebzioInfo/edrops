@@ -52,6 +52,11 @@ export class DistributorPnlService {
       if (query.endDate.length <= 10) {
         rangeEnd.setHours(23, 59, 59, 999);
       }
+      if (rangeStart > rangeEnd) {
+        const tmp = rangeStart;
+        rangeStart = rangeEnd;
+        rangeEnd = tmp;
+      }
       return { rangeStart, rangeEnd, preset: 'CUSTOM' };
     }
 
@@ -142,7 +147,7 @@ export class DistributorPnlService {
         where: {
           distributorId: identity.userId,
           createdAt: { gte: rangeStart, lte: rangeEnd },
-          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED] },
+          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.RETURNED] },
         },
         include: {
           items: {
