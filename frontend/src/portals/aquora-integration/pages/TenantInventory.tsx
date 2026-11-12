@@ -37,15 +37,7 @@ import { PageHeader } from '../../../components/common/PageHeader';
 import { DataErrorState } from '../../../components/common/DataErrorState';
 import { toast } from '../../../utils/toast';
 
-type SortField =
-  | 'name'
-  | 'sku'
-  | 'category'
-  | 'availableQuantity'
-  | 'usedQuantity'
-  | 'wastedQuantity'
-  | 'reorderLevel'
-  | 'status';
+type SortField = 'name' | 'sku' | 'category' | 'availableQuantity';
 type SortDirection = 'asc' | 'desc';
 
 export const TenantInventory: React.FC = () => {
@@ -240,15 +232,8 @@ export const TenantInventory: React.FC = () => {
   const sortedMaterials = useMemo(() => {
     const list = [...filteredMaterials];
     list.sort((a, b) => {
-      let valA: any = a[sortField as keyof RawMaterialItem];
-      let valB: any = b[sortField as keyof RawMaterialItem];
-
-      if (sortField === 'status') {
-        const isLowA = a.isLowStock ?? a.availableQuantity <= a.reorderLevel;
-        const isLowB = b.isLowStock ?? b.availableQuantity <= b.reorderLevel;
-        valA = isLowA ? 1 : 0;
-        valB = isLowB ? 1 : 0;
-      }
+      const valA: any = a[sortField as keyof RawMaterialItem];
+      const valB: any = b[sortField as keyof RawMaterialItem];
 
       if (typeof valA === 'string') {
         const cmp = valA.localeCompare(String(valB || ''));
@@ -785,10 +770,10 @@ export const TenantInventory: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs table-fixed">
                   <thead>
-                    <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                    <tr className="bg-slate-50/90 border-b border-slate-200/80 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
                       <th
                         onClick={() => handleSort('name')}
-                        className="py-2.5 px-3 sm:px-4 w-[24%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-3 px-4 sm:px-5 w-[42%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
                         <div className="inline-flex items-center gap-1.5">
                           <span>Material Name</span>
@@ -801,7 +786,7 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('sku')}
-                        className="py-2.5 px-2.5 w-[11%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-3 px-3 sm:px-4 w-[18%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
                         <div className="inline-flex items-center gap-1.5">
                           <span>SKU</span>
@@ -814,7 +799,7 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('category')}
-                        className="py-2.5 px-2.5 w-[11%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-3 px-3 sm:px-4 w-[18%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
                         <div className="inline-flex items-center gap-1.5">
                           <span>Category</span>
@@ -827,10 +812,10 @@ export const TenantInventory: React.FC = () => {
                       </th>
                       <th
                         onClick={() => handleSort('availableQuantity')}
-                        className="py-2.5 px-2.5 w-[11%] text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                        className="py-3 px-3 sm:px-4 w-[14%] text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       >
                         <div className="inline-flex items-center gap-1 justify-end w-full">
-                          <span>Available</span>
+                          <span>Available Stock</span>
                           {sortField === 'availableQuantity' ? (
                             sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
                           ) : (
@@ -838,59 +823,7 @@ export const TenantInventory: React.FC = () => {
                           )}
                         </div>
                       </th>
-                      <th
-                        onClick={() => handleSort('usedQuantity')}
-                        className="py-2.5 px-2.5 w-[9%] text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                      >
-                        <div className="inline-flex items-center gap-1 justify-end w-full">
-                          <span>Used</span>
-                          {sortField === 'usedQuantity' ? (
-                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-                          )}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleSort('wastedQuantity')}
-                        className="py-2.5 px-2.5 w-[9%] text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                      >
-                        <div className="inline-flex items-center gap-1 justify-end w-full">
-                          <span>Wasted</span>
-                          {sortField === 'wastedQuantity' ? (
-                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-                          )}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleSort('reorderLevel')}
-                        className="py-2.5 px-2.5 w-[10%] text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                      >
-                        <div className="inline-flex items-center gap-1 justify-end w-full">
-                          <span>Reorder</span>
-                          {sortField === 'reorderLevel' ? (
-                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-                          )}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleSort('status')}
-                        className="py-2.5 px-2.5 w-[85px] text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                      >
-                        <div className="inline-flex items-center gap-1 justify-center">
-                          <span>Status</span>
-                          {sortField === 'status' ? (
-                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#1677C8]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#1677C8]" />
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-                          )}
-                        </div>
-                      </th>
-                      <th className="py-2.5 px-2.5 w-[75px] text-center">Action</th>
+                      <th className="py-3 px-3 sm:px-4 w-[8%] min-w-[90px] text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -899,45 +832,45 @@ export const TenantInventory: React.FC = () => {
                       const isLow = m.isLowStock ?? m.availableQuantity <= m.reorderLevel;
 
                       const rowHighlightClass = isOutOfStock
-                        ? 'border-l-4 border-l-rose-500 bg-rose-50/30 hover:bg-rose-50/50'
+                        ? 'border-l-4 border-l-rose-500 bg-rose-50/25 hover:bg-rose-50/40'
                         : isLow
-                        ? 'border-l-4 border-l-amber-500 bg-amber-50/30 hover:bg-amber-50/50'
-                        : 'border-l-4 border-l-transparent hover:bg-slate-50/70';
+                        ? 'border-l-4 border-l-amber-500 bg-amber-50/25 hover:bg-amber-50/40'
+                        : 'border-l-4 border-l-transparent hover:bg-slate-50/80';
 
                       return (
                         <tr
                           key={m.id || idx}
                           className={`transition-colors ${rowHighlightClass}`}
                         >
-                          <td className="py-2 px-3 sm:px-4">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-bold text-[#16324F] block">{m.name}</span>
+                          <td className="py-3 px-4 sm:px-5">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-bold text-[#16324F] text-sm block leading-tight">{m.name}</span>
                               {m.lastSource === 'EDROPS' ? (
-                                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-50 border border-sky-200 text-sky-700 w-fit">
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 border border-sky-200 text-sky-700 w-fit">
                                   <span>💧</span>
                                   <span>Changed in eDrops</span>
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 w-fit">
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 w-fit">
                                   <span>🏭</span>
                                   <span>Changed in Aquzio (Plant)</span>
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="py-2 px-2.5">
-                            <span className="font-mono text-[11px] text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                          <td className="py-3 px-3 sm:px-4">
+                            <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-1 rounded-md inline-block">
                               {m.sku}
                             </span>
                           </td>
-                          <td className="py-2 px-2.5">
-                            <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded">
+                          <td className="py-3 px-3 sm:px-4">
+                            <span className="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200/60 px-2.5 py-1 rounded-md inline-block">
                               {m.category}
                             </span>
                           </td>
-                          <td className="py-2 px-2.5 text-right">
+                          <td className="py-3 px-3 sm:px-4 text-right">
                             <span
-                              className={`text-xs font-black ${
+                              className={`text-sm font-black ${
                                 isOutOfStock
                                   ? 'text-rose-600'
                                   : isLow
@@ -945,48 +878,11 @@ export const TenantInventory: React.FC = () => {
                                   : 'text-[#16324F]'
                               }`}
                             >
-                              {m.availableQuantity.toLocaleString()}{' '}
-                              <span className="text-[11px] font-semibold text-slate-500">{m.unit}</span>
+                              {m.availableQuantity.toLocaleString()}
+                              <span className="text-xs font-semibold text-slate-500 uppercase ml-1.5">{m.unit}</span>
                             </span>
                           </td>
-                          <td className="py-2 px-2.5 text-right font-medium">
-                            {m.usedQuantity === 0 ? (
-                              <span className="text-[11px] font-normal text-slate-300">0</span>
-                            ) : (
-                              <span className="font-semibold text-slate-700 text-xs">
-                                {m.usedQuantity.toLocaleString()}{' '}
-                                <span className="text-[10px] font-normal text-slate-500">{m.unit}</span>
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-2.5 text-right font-medium">
-                            {m.wastedQuantity === 0 ? (
-                              <span className="text-[11px] font-normal text-slate-300">0</span>
-                            ) : (
-                              <span className="font-semibold text-rose-700 text-xs">
-                                {m.wastedQuantity.toLocaleString()}{' '}
-                                <span className="text-[10px] font-normal text-slate-500">{m.unit}</span>
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-2.5 text-right font-medium text-slate-700">
-                            {m.reorderLevel.toLocaleString()}{' '}
-                            <span className="text-xs font-normal text-slate-500">{m.unit}</span>
-                          </td>
-                          <td className="py-2 px-2.5 text-center">
-                            {isLow ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-300">
-                                <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
-                                Reorder
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-300">
-                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
-                                Optimal
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-2.5 text-center">
+                          <td className="py-3 px-3 sm:px-4 text-center">
                             <button
                               type="button"
                               onClick={() =>
@@ -998,10 +894,10 @@ export const TenantInventory: React.FC = () => {
                                   itemType: 'RAW_MATERIAL',
                                 })
                               }
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#1677C8] bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#1677C8] bg-blue-50/80 hover:bg-blue-100 hover:text-[#0e5c9e] rounded-lg border border-blue-200/90 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                             >
-                              <Edit3 className="w-3 h-3" />
-                              Adjust
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Adjust</span>
                             </button>
                           </td>
                         </tr>
