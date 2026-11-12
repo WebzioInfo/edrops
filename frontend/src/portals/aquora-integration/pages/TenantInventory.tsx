@@ -40,6 +40,31 @@ import { toast } from '../../../utils/toast';
 type SortField = 'name' | 'sku' | 'category' | 'availableQuantity';
 type SortDirection = 'asc' | 'desc';
 
+export function isDiscreteUnit(unit?: string | null): boolean {
+  if (!unit) return false;
+  const clean = unit.trim().toUpperCase();
+  return [
+    'PIECE',
+    'PIECES',
+    'PC',
+    'PCS',
+    'BOX',
+    'BOXES',
+    'BAG',
+    'BAGS',
+    'JAR',
+    'JARS',
+    'CAP',
+    'CAPS',
+    'BOTTLE',
+    'BOTTLES',
+    'ROLL',
+    'ROLLS',
+    'CAN',
+    'CANS',
+  ].includes(clean);
+}
+
 export const TenantInventory: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -362,6 +387,14 @@ export const TenantInventory: React.FC = () => {
     const qty = Number(adjustQuantity);
     if (!adjustQuantity || isNaN(qty) || qty <= 0) {
       toast.error('Please enter a valid positive quantity');
+      return;
+    }
+
+    const isDiscrete = isDiscreteUnit(adjustItem.unit);
+    if (isDiscrete && !Number.isInteger(qty)) {
+      toast.error(
+        `"${adjustItem.unit}" is a countable item. Please enter a whole integer without decimals (e.g. 10, 50).`,
+      );
       return;
     }
 
@@ -1046,11 +1079,11 @@ export const TenantInventory: React.FC = () => {
                 <div className="relative">
                   <input
                     type="number"
-                    min="0.001"
-                    step="any"
+                    min={isDiscreteUnit(adjustItem.unit) ? '1' : '0.01'}
+                    step={isDiscreteUnit(adjustItem.unit) ? '1' : '0.01'}
                     value={adjustQuantity}
                     onChange={(e) => setAdjustQuantity(e.target.value)}
-                    placeholder="Enter quantity..."
+                    placeholder={isDiscreteUnit(adjustItem.unit) ? 'e.g. 50' : 'e.g. 12.50'}
                     required
                     className="w-full text-xs font-bold bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 pr-16 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1677C8]/20 focus:border-[#1677C8]"
                   />
@@ -1058,6 +1091,11 @@ export const TenantInventory: React.FC = () => {
                     {adjustItem.unit}
                   </span>
                 </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {isDiscreteUnit(adjustItem.unit)
+                    ? 'Countable discrete unit: enter whole numbers only without decimals.'
+                    : 'Measured unit: decimal values supported up to 2 decimal places.'}
+                </p>
               </div>
 
               {/* Calculation Preview Banner */}

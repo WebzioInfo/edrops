@@ -985,7 +985,8 @@ export class BiodropsService implements OnModuleInit {
 
     const finishedProducts: FinishedProductItem[] = rawFinished.map((item) => {
       const sku = String(item.sku || item.code || 'JAR-20L');
-      const availableStock = Number(item.availableStock ?? item.availableQuantity ?? item.available ?? 0);
+      const shadowStock = this.localStockOverrides.get(`${tenantId}:${sku.toLowerCase()}`);
+      const availableStock = shadowStock !== undefined ? shadowStock : Number(item.availableStock ?? item.availableQuantity ?? item.available ?? 0);
 
       return {
         id: item.productId || item.id ? String(item.productId || item.id) : undefined,
@@ -1006,7 +1007,8 @@ export class BiodropsService implements OnModuleInit {
     const materials: RawMaterialItem[] = rawMaterials.map((item) => {
       const rawName = String(item.materialName || item.name || 'Raw Material');
       const rawSku = String(item.sku || item.code || 'MAT-001');
-      const available = Number(item.availableQuantity ?? item.availableStock ?? item.available ?? 0);
+      const shadowQty = this.localStockOverrides.get(`${tenantId}:${rawSku.toLowerCase()}`);
+      const available = shadowQty !== undefined ? shadowQty : Number(item.availableQuantity ?? item.availableStock ?? item.available ?? 0);
       const reorder =
         item.reorderLevel !== null && item.reorderLevel !== undefined
           ? Number(item.reorderLevel)
@@ -1378,30 +1380,61 @@ export class BiodropsService implements OnModuleInit {
       );
     }
 
+    // Discrete unit validation (integers only for countable items like BOX, PIECE, BAG, CAP)
+    const cleanUnit = (unit || '').trim().toUpperCase();
+    const isDiscrete = [
+      'PIECE',
+      'PIECES',
+      'PC',
+      'PCS',
+      'BOX',
+      'BOXES',
+      'BAG',
+      'BAGS',
+      'JAR',
+      'JARS',
+      'CAP',
+      'CAPS',
+      'BOTTLE',
+      'BOTTLES',
+      'ROLL',
+      'ROLLS',
+      'CAN',
+      'CANS',
+    ].includes(cleanUnit);
+
+    if (isDiscrete && !Number.isInteger(dto.quantity)) {
+      throw new BadRequestException(
+        `Unit "${unit}" is a countable discrete item and requires a whole integer quantity without decimals.`,
+      );
+    }
+
+    const cleanQuantity = isDiscrete ? Math.round(dto.quantity) : Number(Number(dto.quantity).toFixed(2));
+
     let newQty: number;
     if (dto.action === 'ADD') {
-      if (dto.quantity <= 0) {
+      if (cleanQuantity <= 0) {
         throw new BadRequestException('Quantity to ADD must be greater than 0.');
       }
-      newQty = previousQty + dto.quantity;
+      newQty = previousQty + cleanQuantity;
     } else if (dto.action === 'DEDUCT') {
-      if (dto.quantity <= 0) {
+      if (cleanQuantity <= 0) {
         throw new BadRequestException(
           'Quantity to DEDUCT must be greater than 0.',
         );
       }
-      if (previousQty < dto.quantity) {
+      if (previousQty < cleanQuantity) {
         throw new BadRequestException(
-          `Cannot deduct ${dto.quantity} ${unit}. Available balance is only ${previousQty} ${unit}.`,
+          `Cannot deduct ${cleanQuantity} ${unit}. Available balance is only ${previousQty} ${unit}.`,
         );
       }
-      newQty = previousQty - dto.quantity;
+      newQty = previousQty - cleanQuantity;
     } else {
       // SET
-      if (dto.quantity < 0) {
+      if (cleanQuantity < 0) {
         throw new BadRequestException('Stock quantity cannot be negative.');
       }
-      newQty = dto.quantity;
+      newQty = cleanQuantity;
     }
 
     const now = new Date().toISOString();
@@ -1422,7 +1455,7 @@ export class BiodropsService implements OnModuleInit {
           sku: effectiveSku,
           itemType: dto.itemType || (finItem ? 'FINISHED_PRODUCT' : 'RAW_MATERIAL'),
           action: dto.action,
-          quantity: dto.quantity,
+          quantity: cleanQuantity,
           unit,
           source: 'EDROPS',
           movementType: 'EDROPS_ADJUSTMENT',
@@ -1464,7 +1497,7 @@ export class BiodropsService implements OnModuleInit {
               tenantId,
               sku: effectiveSku,
               action: dto.action,
-              quantityChange: dto.quantity,
+              quantityChange: cleanQuantity,
               previousQuantity: previousQty,
               newQuantity: authoritativeBalance,
               unit,
@@ -1486,12 +1519,8 @@ export class BiodropsService implements OnModuleInit {
       }
     }
 
-    // 3. Cache shadow balance only when upstream is disconnected
-    if (upstreamSynced) {
-      this.localStockOverrides.delete(`${tenantId}:${effectiveSku.toLowerCase()}`);
-    } else {
-      this.updateLocalStockShadow(tenantId, effectiveSku, authoritativeBalance);
-    }
+    // 3. Cache shadow balance so immediate reads in eDrops reflect the adjusted balance
+    this.updateLocalStockShadow(tenantId, effectiveSku, authoritativeBalance);
 
     return {
       success: true,
