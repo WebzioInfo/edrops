@@ -313,10 +313,17 @@ export class DeliveryEngine {
     staffId?: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const delivery = await tx.delivery.findUnique({
+      let delivery = await tx.delivery.findUnique({
         where: { id: deliveryId },
         include: { report: true },
       });
+
+      if (!delivery) {
+        delivery = await tx.delivery.findFirst({
+          where: { orderId: deliveryId },
+          include: { report: true },
+        });
+      }
 
       if (!delivery) throw new BadRequestException('Delivery not found');
 
@@ -352,32 +359,44 @@ export class DeliveryEngine {
         );
       }
 
+      // Ensure brand exists for balance & deposit tracking
+      let effectiveBrandId = brandId;
+      if (!effectiveBrandId) {
+        let defaultBrand = await tx.brand.findFirst();
+        if (!defaultBrand) {
+          defaultBrand = await tx.brand.create({
+            data: { name: 'eDrops Standard' },
+          });
+        }
+        effectiveBrandId = defaultBrand.id;
+      }
+
       let jarBalance = await tx.jarBalance.findUnique({
-        where: { customerId_brandId: { customerId, brandId } },
+        where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
       });
       if (!jarBalance) {
         jarBalance = await tx.jarBalance.create({
-          data: { customerId, brandId, availableJars: 0, totalPurchased: 0 },
+          data: { customerId, brandId: effectiveBrandId, availableJars: 0, totalPurchased: 0 },
         });
       }
 
       let jarOwnership = await tx.jarOwnership.findUnique({
-        where: { customerId_brandId: { customerId, brandId } },
+        where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
       });
       if (!jarOwnership) {
         jarOwnership = await tx.jarOwnership.create({
-          data: { customerId, brandId, companyJarsHeld: 0, ownedJars: 0 },
+          data: { customerId, brandId: effectiveBrandId, companyJarsHeld: 0, ownedJars: 0 },
         });
       }
 
       let jarDeposit = await tx.jarDeposit.findUnique({
-        where: { customerId_brandId: { customerId, brandId } },
+        where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
       });
       if (!jarDeposit) {
         jarDeposit = await tx.jarDeposit.create({
           data: {
             customerId,
-            brandId,
+            brandId: effectiveBrandId,
             maxActiveJars: 0,
             depositPaid: 0.0,
             depositDue: 0.0,
@@ -424,17 +443,17 @@ export class DeliveryEngine {
 
       // 3. Write updates
       await tx.jarBalance.update({
-        where: { customerId_brandId: { customerId, brandId } },
+        where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
         data: { availableJars: balanceAfter },
       });
 
       await tx.jarOwnership.update({
-        where: { customerId_brandId: { customerId, brandId } },
+        where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
         data: { companyJarsHeld: newCompanyJarsHeld },
       });
 
       await tx.jarDeposit.update({
-        where: { customerId_brandId: { customerId, brandId } },
+        where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
         data: {
           maxActiveJars: newMaxActiveJars,
           depositDue: newDepositDue,
@@ -482,10 +501,21 @@ export class DeliveryEngine {
         },
       });
 
-      // Update delivery report confirmation details
-      await tx.deliveryReport.update({
-        where: { deliveryId },
-        data: {
+      // Update or create delivery report confirmation details
+      await tx.deliveryReport.upsert({
+        where: { deliveryId: delivery.id },
+        create: {
+          deliveryId: delivery.id,
+          partnerDeliveredQty: confirmedDeliveredQty,
+          partnerEmptyCollected: confirmedEmptyCollected,
+          confirmedDeliveredQty,
+          confirmedEmptyCollected,
+          confirmedDamagedQty,
+          staffNotes,
+          confirmedAt: new Date(),
+          confirmedById: staffId,
+        },
+        update: {
           confirmedDeliveredQty,
           confirmedEmptyCollected,
           confirmedDamagedQty,
@@ -517,9 +547,22 @@ export class DeliveryEngine {
         });
       });
 
+      if (delivery.orderId) {
+        await tx.order.update({
+          where: { id: delivery.orderId },
+          data: {
+            status: OrderStatus.DELIVERED,
+            deliveredAt: new Date(),
+          },
+        });
+      }
+
       return tx.delivery.update({
-        where: { id: deliveryId },
-        data: { status: OrderStatus.DELIVERED },
+        where: { id: delivery.id },
+        data: {
+          status: OrderStatus.DELIVERED,
+          completedAt: new Date(),
+        },
       });
     });
   }

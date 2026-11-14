@@ -640,12 +640,34 @@ export class DeliveryService {
         include: { customer: { include: { user: true } }, report: true },
       });
     }
+    // Fallback: If caller passed an order ID that doesn't have a delivery record yet, materialize it
+    if (!delivery) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: deliveryId },
+        include: { customer: { include: { user: true } }, address: true, items: { include: { product: true } } },
+      });
+      if (order) {
+        const jarItem = order.items.find((i) => i.product?.isJar);
+        const jarQty = jarItem ? jarItem.quantity : order.items.reduce((s, i) => s + (i.quantity || 1), 0);
+        delivery = await this.prisma.delivery.create({
+          data: {
+            customerId: order.customerId,
+            addressId: order.deliveryAddressId || order.address?.id,
+            scheduledFor: order.scheduledDate || order.createdAt,
+            requiredQuantity: jarQty || 1,
+            status: OrderStatus.OUT_FOR_DELIVERY,
+            orderId: order.id,
+          },
+          include: { customer: { include: { user: true } }, report: true },
+        });
+      }
+    }
     if (!delivery) throw new BadRequestException('Delivery not found');
 
     const requireVerification = data.requireVerification !== false;
 
     if (!requireVerification) {
-      return this.forceVerifyByStaff(deliveryId, {
+      return this.forceVerifyByStaff(delivery.id, {
         deliveredQty: data.deliveredQty,
         emptyCollected: data.emptyCollected,
         notes: data.notes,
@@ -661,9 +683,9 @@ export class DeliveryService {
     };
 
     await this.prisma.deliveryReport.upsert({
-      where: { deliveryId },
+      where: { deliveryId: delivery.id },
       create: {
-        deliveryId,
+        deliveryId: delivery.id,
         partnerDeliveredQty: Number(data.deliveredQty),
         partnerEmptyCollected: Number(data.emptyCollected) || 0,
         partnerNotes: data.notes,
@@ -678,7 +700,7 @@ export class DeliveryService {
     });
 
     const updatedDelivery = await this.prisma.delivery.update({
-      where: { id: deliveryId },
+      where: { id: delivery.id },
       data: {
         status: OrderStatus.OUT_FOR_DELIVERY,
         requiredQuantity: Number(data.deliveredQty),
@@ -743,7 +765,7 @@ export class DeliveryService {
       const emptyCollected = delivery.report?.partnerEmptyCollected || 0;
 
       await this.deliveryEngine.confirmDelivery(
-        deliveryId,
+        delivery.id,
         brand?.id || '',
         deliveredQty,
         emptyCollected,
@@ -759,9 +781,17 @@ export class DeliveryService {
         customerFeedback: data.feedback || 'Confirmed by customer',
       };
 
-      await this.prisma.deliveryReport.update({
-        where: { deliveryId },
-        data: {
+      await this.prisma.deliveryReport.upsert({
+        where: { deliveryId: delivery.id },
+        create: {
+          deliveryId: delivery.id,
+          partnerDeliveredQty: deliveredQty,
+          partnerEmptyCollected: emptyCollected,
+          staffNotes: JSON.stringify(updatedPayload),
+          confirmedDeliveredQty: deliveredQty,
+          confirmedEmptyCollected: emptyCollected,
+        },
+        update: {
           staffNotes: JSON.stringify(updatedPayload),
           confirmedDeliveredQty: deliveredQty,
           confirmedEmptyCollected: emptyCollected,
@@ -815,6 +845,28 @@ export class DeliveryService {
         include: { report: true },
       });
     }
+    // Fallback: If caller passed an order ID that doesn't have a delivery record yet, materialize it
+    if (!delivery) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: deliveryId },
+        include: { customer: { include: { user: true } }, address: true, items: { include: { product: true } } },
+      });
+      if (order) {
+        const jarItem = order.items.find((i) => i.product?.isJar);
+        const jarQty = jarItem ? jarItem.quantity : order.items.reduce((s, i) => s + (i.quantity || 1), 0);
+        delivery = await this.prisma.delivery.create({
+          data: {
+            customerId: order.customerId,
+            addressId: order.deliveryAddressId || order.address?.id,
+            scheduledFor: order.scheduledDate || order.createdAt,
+            requiredQuantity: jarQty || 1,
+            status: OrderStatus.OUT_FOR_DELIVERY,
+            orderId: order.id,
+          },
+          include: { report: true },
+        });
+      }
+    }
     if (!delivery) throw new BadRequestException('Delivery not found');
 
     const brand = await this.prisma.brand.findFirst();
@@ -823,7 +875,7 @@ export class DeliveryService {
     const emptyCollected = Number(data.emptyCollected) || 0;
 
     await this.deliveryEngine.confirmDelivery(
-      deliveryId,
+      delivery.id,
       brand?.id || '',
       deliveredQty,
       emptyCollected,
@@ -840,9 +892,9 @@ export class DeliveryService {
     };
 
     await this.prisma.deliveryReport.upsert({
-      where: { deliveryId },
+      where: { deliveryId: delivery.id },
       create: {
-        deliveryId,
+        deliveryId: delivery.id,
         partnerDeliveredQty: deliveredQty,
         partnerEmptyCollected: emptyCollected,
         staffNotes: JSON.stringify(verificationPayload),
