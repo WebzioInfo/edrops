@@ -1,14 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CalendarDays, 
   Truck, 
   CheckCircle2, 
-  AlertCircle, 
-  Minus, 
-  Plus, 
-  Save, 
   Power, 
   Droplets, 
   Calendar, 
@@ -25,6 +21,7 @@ import { fetchWithAuth } from '../../../api/client';
 import { useDialog } from '../../../hooks/useDialog';
 import { useRegisterRefreshHandler } from '../../../components/pwa/PullToRefresh';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import FullScheduleCalendar from '../../../components/schedule/FullScheduleCalendar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -184,9 +181,6 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
   const [weeklyQtys, setWeeklyQtys] = useState<Record<number, number>>({
     0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0,
   });
-  const [initialQtys, setInitialQtys] = useState<Record<number, number>>({
-    0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0,
-  });
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(true);
 
@@ -219,7 +213,6 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
           }
         });
         setWeeklyQtys({ ...qtys });
-        setInitialQtys({ ...qtys });
       }
     } catch {
       toast.error('Failed to load delivery schedule');
@@ -287,141 +280,47 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     loadHistory(true);
   }, [selectedYear, selectedMonth, selectedStatus]);
 
-  // ── Auto-Save & Debounce References ──
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isInitialMount = useRef(true);
-
   // ── Schedule Handlers ──
-  const handleWeeklyQtyChange = (day: number, delta: number) => {
-    setWeeklyQtys((prev) => ({
-      ...prev,
-      [day]: Math.max(0, Math.min(10, (prev[day] ?? 0) + delta)),
-    }));
-  };
-
-  const isScheduleDirty = useMemo(() => {
-    return Object.keys(weeklyQtys).some(
-      (k) => weeklyQtys[Number(k)] !== initialQtys[Number(k)]
-    );
-  }, [weeklyQtys, initialQtys]);
-
-  const persistSchedule = async (targetQtys: Record<number, number>, showToast = false) => {
-    setSavingSchedule(true);
-
-    const rules: ScheduleRule[] = [];
-    Object.keys(targetQtys).forEach((dayKey) => {
-      const day = parseInt(dayKey, 10);
-      const qty = targetQtys[day] || 0;
-      if (qty > 0) {
-        rules.push({
-          type: 'WEEKLY',
-          dayOfWeek: day,
-          quantity: qty,
-        });
-      }
-    });
-
-    try {
-      const updated = await fetchWithAuth('/schedule', {
-        method: 'POST',
-        body: JSON.stringify({
-          isActive: schedule ? schedule.isActive : true,
-          rules,
-        }),
-      });
-      if (updated) {
-        setSchedule(updated);
-      }
-      setInitialQtys({ ...targetQtys });
-      if (showToast) {
-        toast.success('Delivery schedule saved successfully!');
-      }
-      // Refresh history to pick up newly planned deliveries
-      loadHistory(false);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save schedule');
-    } finally {
-      setSavingSchedule(false);
-    }
-  };
-
-  const handleSaveSchedule = async () => {
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = null;
-    }
-    await persistSchedule(weeklyQtys, true);
-  };
-
-  // ── Auto-Save Effect (Debounced 1s after last change) ──
-  useEffect(() => {
-    if (scheduleLoading) return;
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-
-    if (!isScheduleDirty) return;
-
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-    }
-
-    autoSaveTimerRef.current = setTimeout(() => {
-      persistSchedule(weeklyQtys, false);
-    }, 1000);
-
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
-    };
-  }, [weeklyQtys, isScheduleDirty, scheduleLoading]);
-
-  // ── Browser Refresh Protection (Warn if unsaved changes exist) ──
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isScheduleDirty || savingSchedule) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isScheduleDirty, savingSchedule]);
-
   const handleToggleScheduleActive = async () => {
-    const nextActive = schedule ? !schedule.isActive : true;
-
-    const rules: ScheduleRule[] = [];
-    Object.keys(weeklyQtys).forEach((dayKey) => {
-      const day = parseInt(dayKey, 10);
-      const qty = weeklyQtys[day] || 0;
-      if (qty > 0) {
-        rules.push({
-          type: 'WEEKLY',
-          dayOfWeek: day,
-          quantity: qty,
-        });
-      }
-    });
-
+    if (!schedule) return;
+    const nextActive = !schedule.isActive;
     try {
       const updated = await fetchWithAuth('/schedule', {
         method: 'POST',
         body: JSON.stringify({
           isActive: nextActive,
+          rules: schedule.rules || [],
+        }),
+      });
+      if (updated) {
+        setSchedule(updated);
+      }
+      toast.success(`Schedule ${nextActive ? 'activated' : 'paused'}`);
+      loadHistory(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update schedule status');
+    }
+  };
+
+  const handleSaveScheduleFromCalendar = async (rules: any[], active: boolean) => {
+    setSavingSchedule(true);
+    try {
+      const updated = await fetchWithAuth('/schedule', {
+        method: 'POST',
+        body: JSON.stringify({
+          isActive: active,
           rules,
         }),
       });
       if (updated) {
         setSchedule(updated);
       }
-      setInitialQtys({ ...weeklyQtys });
-      toast.success(`Schedule ${nextActive ? 'activated' : 'paused'}`);
       loadHistory(false);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update schedule status');
+      toast.error(err.message || 'Failed to save schedule');
+      throw err;
+    } finally {
+      setSavingSchedule(false);
     }
   };
 
@@ -484,15 +383,6 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     });
     return list.sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());
   }, [weeks]);
-
-  // ── Tomorrow's Delivery ──
-  const tomorrowDelivery = useMemo(() => {
-    return (
-      allDeliveries.find(
-        (d) => getLocalDateStr(d.scheduledFor) === tomorrowStr
-      ) || null
-    );
-  }, [allDeliveries, tomorrowStr]);
 
   // ── Next Upcoming Delivery (Prioritize Today, then Tomorrow, then Next) ──
   const nextUpcomingDelivery = useMemo(() => {
@@ -856,254 +746,20 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           
           {/* ═════════════════════════════════════════════════════════════
-              LEFT / PRIMARY COLUMN: Weekly Delivery Schedule (Cols 1–6)
+              LEFT / PRIMARY COLUMN: Full Interactive Calendar & Cadence (Cols 1–7)
              ═════════════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-6 space-y-3.5">
-            
-            {/* WEEKLY SCHEDULE CARD */}
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
-              {/* Card Header */}
-              <div className="px-4 py-3 border-b border-[#E2E8F0] bg-white flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4 text-[#1E88E5]" />
-                  <h2 className="text-sm sm:text-base font-bold text-[#0F172A]">
-                    Weekly Delivery Schedule
-                  </h2>
-                </div>
-                {activeDays > 0 ? (
-                  <span className="text-[11px] font-bold text-[#1E88E5] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                    {activeDays} Days Set
-                  </span>
-                ) : (
-                  <span className="text-[11px] font-semibold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md">
-                    No Days Set
-                  </span>
-                )}
-              </div>
-
-              {/* 7 Days Compact List */}
-              <div className="divide-y divide-[#F1F5F9]">
-                {DAYS_OF_WEEK.map((day) => {
-                  const qty = weeklyQtys[day.value];
-                  const isActive = qty > 0;
-                  const isToday = day.value === todayDayIndex;
-                  const isTomorrow = day.value === tomorrowDayIndex;
-
-                  const isTodayUnderwayOrDone = !!(
-                    todayDelivery &&
-                    ['OUT_FOR_DELIVERY', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'FAILED'].includes(todayDelivery.status)
-                  );
-                  const isPastTodayCutoff = new Date().getHours() >= 14;
-                  const appliesNextWeek = isToday && (isTodayUnderwayOrDone || isPastTodayCutoff);
-
-                  const isTomorrowLocked = !!(
-                    tomorrowDelivery &&
-                    ['OUT_FOR_DELIVERY', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'ASSIGNED'].includes(
-                      tomorrowDelivery.status.toUpperCase()
-                    )
-                  );
-                  const tomorrowQtyDiffers = isTomorrow && isTomorrowLocked && tomorrowDelivery.requiredQuantity !== qty;
-
-                  return (
-                    <div 
-                      key={day.value}
-                      className={`px-4 py-2.5 sm:py-3 flex items-center justify-between gap-3 transition-colors ${
-                        isTomorrow && isActive
-                          ? 'bg-amber-50/50 border-l-4 border-l-amber-500'
-                          : isToday && isActive
-                          ? 'bg-blue-50/50 border-l-4 border-l-[#1E88E5]'
-                          : isTomorrow
-                          ? 'bg-amber-50/20 border-l-4 border-l-amber-300/80'
-                          : isToday
-                          ? 'bg-slate-50 border-l-4 border-l-slate-300'
-                          : isActive
-                          ? 'bg-[#F8FAFC]/60'
-                          : 'bg-white hover:bg-slate-50/50'
-                      }`}
-                    >
-                      {/* Left: Day & Status subtext */}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs sm:text-sm font-bold ${
-                            isTomorrow ? 'text-amber-950 font-extrabold' : isToday ? 'text-[#0F172A]' : isActive ? 'text-[#0F172A]' : 'text-[#64748B]'
-                          }`}>
-                            {day.label}
-                          </span>
-                          {isTomorrow && !tomorrowQtyDiffers && (
-                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
-                              Tomorrow
-                            </span>
-                          )}
-                          {isTomorrow && tomorrowQtyDiffers && (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
-                              Tomorrow Locked ({tomorrowDelivery.requiredQuantity} Jars) • Applies next {day.label}
-                            </span>
-                          )}
-                          {isToday && (
-                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                              Today
-                            </span>
-                          )}
-                          {appliesNextWeek && isActive && (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
-                              Applies next {day.label}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] font-medium mt-0.5">
-                          {isActive ? (
-                            isTomorrow ? (
-                              tomorrowQtyDiffers ? (
-                                <span className="text-amber-800 font-semibold flex items-center gap-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
-                                  Tomorrow locked: {tomorrowDelivery.requiredQuantity} {tomorrowDelivery.requiredQuantity === 1 ? 'Jar' : 'Jars'} ({formatDeliveryStatus(tomorrowDelivery.status)}) • Next week: {qty} Jars
-                                </span>
-                              ) : (
-                                <span className="text-amber-800 font-bold flex items-center gap-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
-                                  {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled (Arriving Tomorrow)
-                                </span>
-                              )
-                            ) : isToday ? (
-                              appliesNextWeek ? (
-                                todayDelivery ? (
-                                  <span className="text-slate-700 font-semibold flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                                    Today: {todayDelivery.requiredQuantity} {todayDelivery.requiredQuantity === 1 ? 'Jar' : 'Jars'} ({formatDeliveryStatus(todayDelivery.status)}) • Next week: {qty} Jars
-                                  </span>
-                                ) : (
-                                  <span className="text-amber-800 font-semibold flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-                                    Today's cutoff passed • {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled from next {day.label}
-                                  </span>
-                                )
-                              ) : (
-                                <span className="text-blue-800 font-bold flex items-center gap-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-[#1E88E5] inline-block" />
-                                  {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled (Today)
-                                </span>
-                              )
-                            ) : (
-                              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                                {qty} {qty === 1 ? 'Jar' : 'Jars'} scheduled
-                              </span>
-                            )
-                          ) : (
-                            <span className="text-[#94A3B8]">No Delivery</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right: Stepper Controls */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs font-bold text-[#0F172A] w-12 text-right hidden sm:inline">
-                          {qty > 0 ? `${qty} ${qty === 1 ? 'Jar' : 'Jars'}` : '0'}
-                        </span>
-
-                        <div className="flex items-center bg-white border border-[#E2E8F0] rounded-xl shadow-2xs p-0.5">
-                          <button
-                            type="button"
-                            onClick={() => handleWeeklyQtyChange(day.value, -1)}
-                            disabled={scheduleLoading || qty === 0}
-                            aria-label={`Decrease jars for ${day.label}`}
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] disabled:opacity-30 disabled:hover:bg-transparent active:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-
-                          <span className="w-7 sm:w-8 text-center font-bold text-xs sm:text-sm text-[#0F172A]">
-                            {qty}
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() => handleWeeklyQtyChange(day.value, 1)}
-                            disabled={scheduleLoading || qty >= 10}
-                            aria-label={`Increase jars for ${day.label}`}
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] disabled:opacity-30 disabled:hover:bg-transparent active:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Card Footer: Save Schedule & Status Indicator */}
-              <div className="px-4 py-3 bg-[#F8FAFC] border-t border-[#E2E8F0] flex items-center justify-between gap-3">
-                <div className="text-xs">
-                  {savingSchedule ? (
-                    <span className="text-blue-700 font-semibold flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                      Saving schedule...
-                    </span>
-                  ) : isScheduleDirty ? (
-                    <span className="text-amber-700 font-semibold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                      Unsaved changes (auto-saving...)
-                    </span>
-                  ) : weeklyTotal > 0 ? (
-                    <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      All changes saved
-                    </span>
-                  ) : (
-                    <span className="text-slate-400 font-medium">
-                      No deliveries scheduled
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSaveSchedule}
-                  disabled={savingSchedule || !isScheduleDirty}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1E88E5] hover:bg-[#1976D2] active:bg-[#1565C0] text-white text-xs sm:text-sm font-semibold shadow-xs disabled:opacity-50 disabled:hover:bg-[#1E88E5] transition-colors cursor-pointer"
-                >
-                  {savingSchedule ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Save Schedule</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* SMART INSIGHT CALLOUT */}
-            {weeklyTotal > 0 ? (
-              <div className="bg-[#1E88E5]/5 border border-[#1E88E5]/20 rounded-2xl p-3.5 sm:p-4 flex gap-3">
-                <Sparkles className="w-4 h-4 text-[#1E88E5] shrink-0 mt-0.5" />
-                <div className="text-xs text-[#334155] leading-relaxed">
-                  <span className="font-bold text-[#0F172A] block mb-0.5">Hydration Schedule Active</span>
-                  You are set to receive <strong className="text-[#1E88E5]">{weeklyTotal} jars</strong> every week across {activeDays} active delivery {activeDays === 1 ? 'day' : 'days'}. Orders are generated automatically.
-                </div>
-              </div>
-            ) : (
-              <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3.5 sm:p-4 flex gap-3">
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div className="text-xs text-amber-900 leading-relaxed">
-                  <span className="font-bold block mb-0.5">No Weekly Deliveries Configured</span>
-                  Use the stepper buttons above to schedule jars on your preferred days of the week, then click <strong>Save Schedule</strong>.
-                </div>
-              </div>
-            )}
-
+          <div className="lg:col-span-7 space-y-4">
+            <FullScheduleCalendar
+              schedule={schedule}
+              onSaveSchedule={handleSaveScheduleFromCalendar}
+              saving={savingSchedule}
+            />
           </div>
 
           {/* ═════════════════════════════════════════════════════════════
-              RIGHT / SECONDARY COLUMN: Today's Delivery & History (Cols 7–12)
+              RIGHT / SECONDARY COLUMN: Today's Delivery & History (Cols 8–12)
              ═════════════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-6 space-y-3.5">
-            
+          <div className="lg:col-span-5 space-y-3.5">
             {/* TODAY'S / NEXT UPCOMING DELIVERY BANNER CARD */}
             {todayDelivery ? (
               <div className="bg-gradient-to-r from-[#16324F] to-[#2D79A8] text-white rounded-2xl p-4 shadow-xs border border-[#16324F]">

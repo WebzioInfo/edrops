@@ -52,11 +52,13 @@ export class SubscriptionScheduler {
         } else if (rule.type === 'INTERVAL') {
           const ruleStart = new Date(rule.startDate);
           ruleStart.setHours(0, 0, 0, 0);
-          const diffTime = Math.abs(today.getTime() - ruleStart.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          const interval = rule.intervalDays || 1;
-          if (diffDays % interval === 0) {
-            todayQty += rule.quantity;
+          if (today.getTime() >= ruleStart.getTime()) {
+            const diffTime = today.getTime() - ruleStart.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            const interval = rule.intervalDays || 1;
+            if (diffDays % interval === 0) {
+              todayQty += rule.quantity;
+            }
           }
         }
       }

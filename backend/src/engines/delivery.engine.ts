@@ -202,11 +202,13 @@ export class DeliveryEngine {
           } else if (rule.type === 'INTERVAL') {
             const ruleStart = new Date(rule.startDate);
             ruleStart.setUTCHours(0, 0, 0, 0);
-            const diffTime = Math.abs(targetDate.getTime() - ruleStart.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            const interval = rule.intervalDays || 1;
-            if (diffDays % interval === 0) {
-              dailyQty += rule.quantity;
+            if (targetDate.getTime() >= ruleStart.getTime()) {
+              const diffTime = targetDate.getTime() - ruleStart.getTime();
+              const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+              const interval = rule.intervalDays || 1;
+              if (diffDays % interval === 0) {
+                dailyQty += rule.quantity;
+              }
             }
           }
         }

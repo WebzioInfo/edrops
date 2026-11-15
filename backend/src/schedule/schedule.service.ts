@@ -11,6 +11,7 @@ type ScheduleRuleInput = {
   dayOfWeek?: number;
   quantity?: number;
   intervalDays?: number;
+  startDate?: string | Date;
   customNotes?: string;
 };
 
@@ -92,7 +93,7 @@ export class ScheduleService {
               quantity: rule.quantity ?? 1,
               intervalDays: rule.type === 'INTERVAL' ? rule.intervalDays : null,
               customNotes: rule.type === 'CUSTOM' ? rule.customNotes : null,
-              startDate: new Date(),
+              startDate: rule.startDate ? new Date(rule.startDate) : new Date(),
             })),
           });
         }
