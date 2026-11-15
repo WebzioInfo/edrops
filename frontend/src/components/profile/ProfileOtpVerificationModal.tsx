@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type ClipboardEvent, type KeyboardEvent } from 'react';
-import { X, ShieldCheck, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, ShieldCheck, RefreshCw, AlertCircle, CheckCircle2, ClipboardPaste } from 'lucide-react';
 
 interface ProfileOtpVerificationModalProps {
   isOpen: boolean;
@@ -23,6 +23,7 @@ export default function ProfileOtpVerificationModal({
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(60);
+  const [pastedNotification, setPastedNotification] = useState(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -112,6 +113,36 @@ export default function ProfileOtpVerificationModal({
     inputRefs.current[focusIdx]?.focus();
   };
 
+  const handlePasteFromClipboard = async () => {
+    try {
+      setError(null);
+      let text = '';
+      if (navigator?.clipboard?.readText) {
+        text = await navigator.clipboard.readText();
+      } else {
+        text = prompt('Paste your 6-digit verification code here:') || '';
+      }
+      const cleaned = (text || '').replace(/\D/g, '').slice(0, 6);
+      if (!cleaned) {
+        setError('No 6-digit code found in clipboard. Please copy the code and try again.');
+        return;
+      }
+      const chars = cleaned.split('');
+      const updated = ['', '', '', '', '', ''];
+      chars.forEach((ch, idx) => {
+        if (idx < 6) updated[idx] = ch;
+      });
+      setDigits(updated);
+      setPastedNotification(true);
+      setTimeout(() => setPastedNotification(false), 2000);
+
+      const focusIdx = Math.min(chars.length, 5);
+      inputRefs.current[focusIdx]?.focus();
+    } catch {
+      setError('Unable to read clipboard. You can type or paste directly into the boxes.');
+    }
+  };
+
   const otpValue = digits.join('');
   const isComplete = otpValue.length === 6 && /^\d{6}$/.test(otpValue);
 
@@ -197,6 +228,32 @@ export default function ProfileOtpVerificationModal({
             <p className="text-[11px] text-slate-400">
               Enter the code below to confirm and apply your profile changes.
             </p>
+          </div>
+
+          {/* Quick Paste from Clipboard Action */}
+          <div className="flex justify-center -mb-1">
+            <button
+              type="button"
+              onClick={handlePasteFromClipboard}
+              disabled={loading}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                pastedNotification
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-xs'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-[#1677C8] active:scale-95'
+              }`}
+            >
+              {pastedNotification ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Code Pasted!</span>
+                </>
+              ) : (
+                <>
+                  <ClipboardPaste className="w-3.5 h-3.5 text-[#1677C8]" />
+                  <span>Paste code from clipboard</span>
+                </>
+              )}
+            </button>
           </div>
 
           {/* OTP Digit Inputs */}
