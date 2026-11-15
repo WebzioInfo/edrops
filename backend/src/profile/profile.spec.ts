@@ -316,9 +316,26 @@ describe('Profile Module: ProfileService, Address CRUD, and Email OTP Profile Ve
       ).rejects.toThrow(/already been used/);
     });
 
-    it('should reject direct updateProfile calls without OTP verification', async () => {
+    it('should directly update non-sensitive fields like firstName without requiring OTP', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.update.mockResolvedValue({
+        ...mockUser,
+        firstName: 'UpdatedFirst',
+      });
+
+      const updated = await profileService.updateProfile(mockUserId, { firstName: 'UpdatedFirst' });
+      expect(updated).toBeDefined();
+    });
+
+    it('should reject direct updateProfile calls for sensitive fields (email/phone) without OTP verification', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+
       await expect(
-        profileService.updateProfile(mockUserId, { firstName: 'Bypasser' }),
+        profileService.updateProfile(mockUserId, { email: 'newemail@example.com' }),
+      ).rejects.toThrow(/Email OTP verification is required/);
+
+      await expect(
+        profileService.updateProfile(mockUserId, { phone: '+919999988888' }),
       ).rejects.toThrow(/Email OTP verification is required/);
     });
   });

@@ -196,6 +196,37 @@ export default function EditProfileModal({
       payload.vehiclePlate = newVehiclePlate || undefined;
     }
 
+    const isSensitiveChange =
+      newEmail !== currentEmail ||
+      newPhone !== currentPhone;
+
+    if (!isSensitiveChange) {
+      // Non-sensitive update (name, company, business details): instant direct update without OTP friction
+      setSaving(true);
+      try {
+        const updated = await fetchWithAuth('/profile', {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+
+        updateUser({
+          firstName: updated.firstName,
+          lastName: updated.lastName,
+          email: updated.email,
+          phone: updated.phone,
+        });
+
+        toast.success('Profile updated successfully.');
+        onSuccess();
+        onClose();
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to update profile');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetchWithAuth('/profile/request-update-otp', {

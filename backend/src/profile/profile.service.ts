@@ -610,7 +610,8 @@ export class ProfileService {
 
   /**
    * Update personal and role-specific profile details.
-   * Requires valid email OTP verification.
+   * If sensitive credentials (email or phone) are changed, valid email OTP verification is required.
+   * Non-sensitive fields (firstName, lastName, customer/business details) update immediately without OTP friction.
    */
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     if (dto.verificationId && dto.otp) {
@@ -620,9 +621,151 @@ export class ProfileService {
       });
     }
 
-    throw new BadRequestException(
-      'Email OTP verification is required to update profile details. Please request a verification code via /profile/request-update-otp.',
-    );
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        customer: true,
+        distributor: true,
+        staff: true,
+        deliveryPartner: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User profile not found');
+    }
+
+    const currentEmail = (user.email || '').trim().toLowerCase();
+    const currentPhone = (user.phone || '').trim();
+
+    const isEmailChanging =
+      dto.email !== undefined &&
+      dto.email.trim().toLowerCase() !== currentEmail;
+
+    const isPhoneChanging =
+      dto.phone !== undefined &&
+      normalizePhoneNumber(dto.phone.trim()) !== currentPhone &&
+      dto.phone.trim() !== currentPhone;
+
+    if (isEmailChanging || isPhoneChanging) {
+      throw new BadRequestException(
+        'Email OTP verification is required to update email or phone number. Please request a verification code via /profile/request-update-otp.',
+      );
+    }
+
+    // Direct non-sensitive profile update
+    await this.prisma.$transaction(async (tx) => {
+      const userUpdates: any = {};
+      if (dto.firstName !== undefined) {
+        const cleanFirst = dto.firstName.trim();
+        if (!cleanFirst) throw new BadRequestException('First name cannot be empty.');
+        userUpdates.firstName = cleanFirst;
+      }
+      if (dto.lastName !== undefined) {
+        const cleanLast = dto.lastName.trim();
+        if (!cleanLast) throw new BadRequestException('Last name cannot be empty.');
+        userUpdates.lastName = cleanLast;
+      }
+
+      if (Object.keys(userUpdates).length > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: userUpdates,
+        });
+      }
+
+      // Customer fields
+      if (
+        dto.customerType !== undefined ||
+        dto.companyName !== undefined ||
+        dto.gstNumber !== undefined
+      ) {
+        const customer = await tx.customer.findUnique({ where: { userId } });
+        if (customer) {
+          const custUpdates: any = {};
+          if (dto.customerType !== undefined) custUpdates.customerType = dto.customerType.trim();
+          if (dto.companyName !== undefined) custUpdates.companyName = dto.companyName.trim() || null;
+          if (dto.gstNumber !== undefined) custUpdates.gstNumber = dto.gstNumber.trim() || null;
+
+          await tx.customer.update({
+            where: { id: customer.id },
+            data: custUpdates,
+          });
+        }
+      }
+
+      // Distributor fields
+      if (
+        dto.agencyName !== undefined ||
+        dto.address !== undefined ||
+        dto.routeOrArea !== undefined ||
+        dto.vehicleType !== undefined ||
+        dto.vehiclePlate !== undefined
+      ) {
+        await tx.distributor.upsert({
+          where: { userId },
+          create: {
+            userId,
+            referralCode: `EDR-${Math.floor(1000 + Math.random() * 9000)}`,
+            agencyName: dto.agencyName?.trim() || null,
+            address: dto.address?.trim() || null,
+            routeOrArea: dto.routeOrArea?.trim() || null,
+            vehicleType: dto.vehicleType?.trim() || null,
+            vehiclePlate: dto.vehiclePlate?.trim() || null,
+          },
+          update: {
+            agencyName: dto.agencyName !== undefined ? dto.agencyName.trim() || null : undefined,
+            address: dto.address !== undefined ? dto.address.trim() || null : undefined,
+            routeOrArea: dto.routeOrArea !== undefined ? dto.routeOrArea.trim() || null : undefined,
+            vehicleType: dto.vehicleType !== undefined ? dto.vehicleType.trim() || null : undefined,
+            vehiclePlate: dto.vehiclePlate !== undefined ? dto.vehiclePlate.trim() || null : undefined,
+          },
+        });
+      }
+
+      // Delivery Partner & Staff fields
+      if (dto.vehicleType !== undefined || dto.vehiclePlate !== undefined) {
+        const dp = await tx.deliveryPartner.findUnique({ where: { userId } });
+        if (dp) {
+          await tx.deliveryPartner.update({
+            where: { userId },
+            data: {
+              vehicleType: dto.vehicleType !== undefined ? dto.vehicleType.trim() || null : undefined,
+              vehiclePlate: dto.vehiclePlate !== undefined ? dto.vehiclePlate.trim() || null : undefined,
+            },
+          });
+        }
+        const staff = await tx.staff.findUnique({ where: { userId } });
+        if (staff) {
+          await tx.staff.update({
+            where: { userId },
+            data: {
+              vehicleType: dto.vehicleType !== undefined ? dto.vehicleType.trim() || null : undefined,
+              vehiclePlate: dto.vehiclePlate !== undefined ? dto.vehiclePlate.trim() || null : undefined,
+            },
+          });
+        }
+      }
+
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'PROFILE_UPDATED_DIRECT',
+          entityType: 'USER',
+          entityId: userId,
+          newValues: {
+            firstName: dto.firstName,
+            lastName: dto.lastName,
+            customerType: dto.customerType,
+            companyName: dto.companyName,
+            gstNumber: dto.gstNumber,
+          },
+        },
+      });
+    });
+
+    return this.getProfile(userId);
   }
 
   // ────────────────────────────────────────────────────────────────

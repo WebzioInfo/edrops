@@ -379,9 +379,57 @@ export class AuthService {
     },
   ) {
     if (!data.verificationId || !data.otp) {
-      throw new BadRequestException(
-        'Email OTP verification is required to update profile details. Please request a verification code via /profile/request-update-otp.',
-      );
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) {
+        throw new NotFoundException('User not found.');
+      }
+
+      const isEmailChanging =
+        data.email !== undefined &&
+        data.email.trim().toLowerCase() !== (user.email || '').toLowerCase();
+
+      const isPhoneChanging =
+        data.phone !== undefined &&
+        data.phone.trim() !== (user.phone || '');
+
+      if (isEmailChanging || isPhoneChanging) {
+        throw new BadRequestException(
+          'Email OTP verification is required to update email or phone number. Please request a verification code via /profile/request-update-otp.',
+        );
+      }
+
+      const updates: any = {};
+      if (data.firstName !== undefined) {
+        const cleanFirst = data.firstName.trim();
+        if (!cleanFirst) throw new BadRequestException('First name cannot be empty.');
+        updates.firstName = cleanFirst;
+      }
+      if (data.lastName !== undefined) {
+        const cleanLast = data.lastName.trim();
+        if (!cleanLast) throw new BadRequestException('Last name cannot be empty.');
+        updates.lastName = cleanLast;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: updates,
+        });
+      }
+
+      return this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          role: true,
+        },
+      });
     }
 
     const cleanOtp = (data.otp || '').trim();
