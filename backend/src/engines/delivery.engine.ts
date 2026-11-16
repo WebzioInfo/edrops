@@ -433,11 +433,8 @@ export class DeliveryEngine {
         newCompanyJarsHeld,
       );
 
-      // Fetch deposit amount from settings
-      const depositAmountPerJar = await this.settingsService.getSettingNumber(
-        'DEPOSIT_AMOUNT_PER_JAR',
-        200.0,
-      );
+      // Fetch deposit amount from settings (defaults to ₹300)
+      const depositAmountPerJar = await this.settingsService.getDepositAmountPerJar();
       const newDepositDue = Math.max(
         0.0,
         newMaxActiveJars * depositAmountPerJar - jarDeposit.depositPaid,

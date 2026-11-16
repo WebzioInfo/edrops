@@ -773,7 +773,7 @@ export default function InventoryAudit() {
                           {prod.name}
                         </td>
                         <td className="py-3 px-4 text-slate-600 font-semibold">
-                          ₹{prod.depositAmount ?? 200}
+                          ₹{prod.depositAmount ?? 300}
                         </td>
                         <td className="py-3 px-4 font-bold text-emerald-700 text-sm">
                           {prod.companyFilled.toLocaleString()}

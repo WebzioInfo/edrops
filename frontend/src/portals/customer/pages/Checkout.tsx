@@ -56,12 +56,38 @@ export default function Checkout() {
     brandName: searchParams.get('brandName') || undefined,
     brandId: searchParams.get('brandId') || 'default-brand',
     isJar: isJarParam,
-    depositAmount: rawDeposit > 0 ? rawDeposit : (isJarParam ? 200 : 0)
+    depositAmount: rawDeposit > 0 ? rawDeposit : (isJarParam ? 300 : 0)
   }] : [];
 
   const [checkoutItems, setCheckoutItems] = useState<any[]>(initialItems);
   const [currentStep, setCurrentStep] = useState(1); // 1 = Delivery, 2 = Payment
   const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
+  const [dynamicDepositRate, setDynamicDepositRate] = useState<number>(300);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchWithAuth('/settings/public')
+      .then((data: any) => {
+        if (isMounted && data?.DEPOSIT_AMOUNT_PER_JAR) {
+          const rate = Number(data.DEPOSIT_AMOUNT_PER_JAR);
+          if (!isNaN(rate) && rate > 0) {
+            setDynamicDepositRate(rate);
+            setCheckoutItems((prev) =>
+              prev.map((i) => {
+                if (i.isJar && (!i.depositAmount || i.depositAmount === 200 || i.depositAmount === 300)) {
+                  return { ...i, depositAmount: rate };
+                }
+                return i;
+              })
+            );
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const updateCheckoutQuantity = (id: string, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -154,7 +180,7 @@ export default function Checkout() {
     checkoutItems.forEach((item) => {
       const isJar = item.isJar || (item.depositAmount && item.depositAmount > 0);
       if (isJar) {
-        const depositPerJar = item.depositAmount && item.depositAmount > 0 ? item.depositAmount : 200;
+        const depositPerJar = item.depositAmount && item.depositAmount > 0 ? item.depositAmount : dynamicDepositRate;
         const returnInfo = itemReturns[item.id];
 
         let returningCount = 0;

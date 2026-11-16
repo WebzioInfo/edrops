@@ -222,10 +222,7 @@ export class WalletService {
       });
     }
 
-    const depositAmount = await this.settingsService.getSettingNumber(
-      'DEPOSIT_AMOUNT_PER_JAR',
-      200.0,
-    );
+    const depositAmount = await this.settingsService.getDepositAmountPerJar();
 
     if (jarDeposit.depositDue < depositAmount) {
       throw new BadRequestException(

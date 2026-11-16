@@ -7,6 +7,7 @@ import { NotificationModule } from '../notification/notification.module';
 import { PromoModule } from '../promo/promo.module';
 import { AuditModule } from '../audit/audit.module';
 import { AddressModule } from '../address/address.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AddressModule } from '../address/address.module';
     PromoModule,
     AuditModule,
     AddressModule,
+    SettingsModule,
   ],
   controllers: [CheckoutController],
   providers: [CheckoutService],

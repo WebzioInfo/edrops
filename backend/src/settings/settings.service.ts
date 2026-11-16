@@ -9,13 +9,29 @@ export class SettingsService {
 
   async getSetting(key: string, defaultValue: string): Promise<string> {
     const setting = await this.prisma.settings.findUnique({ where: { key } });
-    return setting ? setting.value : defaultValue;
+    if (!setting) {
+      try {
+        await this.prisma.settings.create({
+          data: { key, value: defaultValue },
+        });
+      } catch {}
+      return defaultValue;
+    }
+    return setting.value;
   }
 
   async getSettingNumber(key: string, defaultValue: number): Promise<number> {
     const val = await this.getSetting(key, String(defaultValue));
     const num = parseFloat(val);
     return isNaN(num) ? defaultValue : num;
+  }
+
+  /**
+   * Authoritative dynamic jar deposit amount.
+   * Defaults to ₹300 if not yet customized by Admin in settings.
+   */
+  async getDepositAmountPerJar(): Promise<number> {
+    return this.getSettingNumber('DEPOSIT_AMOUNT_PER_JAR', 300.0);
   }
 
   async updateBulk(settings: Record<string, string>) {

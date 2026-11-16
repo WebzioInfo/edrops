@@ -109,17 +109,46 @@ export default function BusinessSettings() {
             </div>
 
             <div>
-              <label className="block text-xs font-black uppercase text-slate-700 mb-1.5">Security Deposit Amount per active Jar (₹)</label>
-              <select
-                value={formValues['DEPOSIT_AMOUNT_PER_JAR'] || '200'}
-                onChange={(e) => handleChange('DEPOSIT_AMOUNT_PER_JAR', e.target.value)}
-                className="w-full clay-input"
-              >
-                <option value="200">₹200 (Default)</option>
-                <option value="250">₹250</option>
-                <option value="300">₹300</option>
-              </select>
-              <p className="text-[10px] text-slate-400 mt-1 font-semibold">Security charge applied per company jar held by customer</p>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-black uppercase text-slate-700">
+                  Security Deposit Amount per active Jar (₹)
+                </label>
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/70">
+                  Active: ₹{formValues['DEPOSIT_AMOUNT_PER_JAR'] || '300'}
+                </span>
+              </div>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formValues['DEPOSIT_AMOUNT_PER_JAR'] || '300'}
+                  onChange={(e) => handleChange('DEPOSIT_AMOUNT_PER_JAR', e.target.value)}
+                  className="w-full clay-input font-bold text-slate-800 text-sm pl-8"
+                  placeholder="300"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Quick Presets:</span>
+                {[200, 250, 300, 350, 400].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleChange('DEPOSIT_AMOUNT_PER_JAR', String(preset))}
+                    className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                      (formValues['DEPOSIT_AMOUNT_PER_JAR'] || '300') === String(preset)
+                        ? 'bg-[#1677C8] text-white border-[#1677C8] shadow-xs'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    ₹{preset}{preset === 300 ? ' (Standard)' : ''}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1.5 font-semibold">
+                Security charge applied dynamically per company jar held by customer. Changes take effect across checkout and deliveries.
+              </p>
             </div>
           </div>
 

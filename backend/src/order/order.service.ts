@@ -18,6 +18,7 @@ import {
 import { isValidTransition, isPartnerAllowedTransition, VALID_ORDER_TRANSITIONS } from './order-state-machine';
 import { generateDeliveryOtp } from './utils/delivery-otp.util';
 import { calculateDeliveryAmount, calculateMultiItemDelivery } from './utils/delivery-calculation.util';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class OrderService {
@@ -25,6 +26,7 @@ export class OrderService {
     private prisma: PrismaService,
     private notificationService: NotificationService,
     private eventsGateway: EventsGateway,
+    private settingsService?: SettingsService,
   ) {}
 
   async findAll(customerId: string) {
@@ -3008,7 +3010,7 @@ export class OrderService {
       const refillRate = Number(jarOrderItem?.unitPrice ?? 100);
       let depositRate = Number(jarOrderItem?.product?.depositAmount ?? 0);
       if (!depositRate || depositRate <= 0) {
-        depositRate = 200;
+        depositRate = (await this.settingsService?.getDepositAmountPerJar()) ?? 300;
       }
 
       const itemsForCalc = allocations.map((alloc) => {

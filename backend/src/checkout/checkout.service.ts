@@ -18,6 +18,7 @@ import { PromoService } from '../promo/promo.service';
 import { AuditService } from '../audit/audit.service';
 import { EventsGateway } from '../events/events.gateway';
 import { AddressService } from '../address/address.service';
+import { SettingsService } from '../settings/settings.service';
 import { generateDeliveryOtp } from '../order/utils/delivery-otp.util';
 
 @Injectable()
@@ -32,6 +33,7 @@ export class CheckoutService {
     private auditService: AuditService,
     private eventsGateway: EventsGateway,
     private addressService: AddressService,
+    private settingsService: SettingsService,
   ) {}
 
   private async notifyNewOrder(
@@ -153,6 +155,7 @@ export class CheckoutService {
     let subTotal = 0;
     let depositTotal = 0;
     const expectedReturnsByBrand: Record<string, number> = {};
+    const defaultDepositAmount = await this.settingsService.getDepositAmountPerJar();
 
     for (const item of items) {
       if (item.product.status !== 'ACTIVE') {
@@ -170,7 +173,7 @@ export class CheckoutService {
         const depositPerJar =
           item.product.depositAmount && item.product.depositAmount > 0
             ? item.product.depositAmount
-            : 200;
+            : defaultDepositAmount;
         const declaredReturn = Math.max(
           0,
           Math.min(item.quantity, item.declaredReturnQuantity || 0),

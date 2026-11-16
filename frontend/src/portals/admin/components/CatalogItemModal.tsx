@@ -232,7 +232,7 @@ export default function CatalogItemModal({
                       value={formData.depositAmount ?? ''}
                       onChange={handleChange}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1E88E5]/20 focus:border-[#1E88E5] transition-all"
-                      placeholder="150.00"
+                      placeholder="300.00"
                     />
                   </div>
                 </div>
