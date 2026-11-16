@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { 
   CalendarDays, 
   Truck, 
@@ -175,6 +176,23 @@ function formatWeekDateGap(startDateInput: string | Date, endDateInput: string |
 export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; customerId?: string }) {
   const navigate = useNavigate();
   const { toast } = useDialog();
+
+  // ── Profile / Live Jar Balances ──
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: () => fetchWithAuth('/profile'),
+    staleTime: 30000,
+  });
+
+  const customerData = userProfile?.customer;
+  const availableJarCount =
+    customerData?.jarBalances?.[0]?.availableJars ??
+    customerData?.jarBalance?.availableJars ??
+    0;
+  const jarsHeldCount =
+    customerData?.jarsAtCustomer ??
+    customerData?.jarOwnerships?.[0]?.companyJarsHeld ??
+    0;
 
   // ── Schedule State ──
   const [schedule, setSchedule] = useState<Schedule | null>(null);
@@ -548,8 +566,8 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     <div className="min-h-[calc(100vh-72px)] bg-[#F8FAFC] pb-20 lg:pb-12 text-[#0F172A]">
       <div className="mx-auto max-w-[1360px] px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4">
         
-        {/* ─── 1. HEADER (Title, Subtitle, Schedule Active Toggle) ───── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-[#E2E8F0] rounded-2xl p-4 sm:p-5 shadow-xs">
+        {/* ─── 1. HEADER (Title, Subtitle, Live Jar Balances & Auto-Delivery Toggle) ───── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-[#E2E8F0] rounded-2xl p-3.5 sm:p-5 shadow-xs">
           <div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-[#1E88E5]/10 flex items-center justify-center text-[#1E88E5]">
@@ -559,25 +577,46 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                 Delivery Management
               </h1>
             </div>
-            <p className="text-xs sm:text-sm text-[#64748B] mt-1">
-              Manage your weekly water schedule and track deliveries.
+            <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">
+              Manage your recurring water schedule, calendar and track live deliveries.
             </p>
+
+            {/* Quick Live Jar Counts Strip */}
+            <div className="flex flex-wrap items-center gap-2 mt-2.5">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 border border-sky-200 text-sky-900 text-xs font-medium">
+                <Droplets className="w-3.5 h-3.5 text-[#1E88E5]" />
+                <span>Prepaid Balance:</span>
+                <span className="font-extrabold text-[#1E88E5]">
+                  {availableJarCount} {availableJarCount === 1 ? 'Jar' : 'Jars'}
+                </span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium">
+                <span>Empty Jars with You:</span>
+                <span className="font-extrabold text-slate-900">
+                  {jarsHeldCount} {jarsHeldCount === 1 ? 'Jar' : 'Jars'}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 self-start sm:self-center">
             {schedule && (
               <button
                 type="button"
                 onClick={handleToggleScheduleActive}
-                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border shadow-2xs transition-colors cursor-pointer ${
+                className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border shadow-2xs transition-colors cursor-pointer ${
                   schedule.isActive
-                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-700 hover:bg-emerald-100/70'
-                    : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                    ? 'bg-emerald-50/80 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+                    : 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
                 }`}
-                title={schedule.isActive ? 'Pause recurring deliveries' : 'Activate recurring deliveries'}
+                title={
+                  schedule.isActive
+                    ? 'Auto-deliveries are active. Tap to pause if you are away or on vacation.'
+                    : 'Auto-deliveries are paused. Tap to resume.'
+                }
               >
                 <Power className={`w-3.5 h-3.5 ${schedule.isActive ? 'text-emerald-600' : 'text-amber-600'}`} />
-                <span>{schedule.isActive ? 'Schedule Active' : 'Schedule Paused'}</span>
+                <span>{schedule.isActive ? 'Auto-Delivery: Active' : 'Auto-Delivery: Paused'}</span>
               </button>
             )}
 
