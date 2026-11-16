@@ -57,6 +57,23 @@ export class AuthService {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(registerDto.password, salt);
 
+    let customerSource: string | null = null;
+    let referringCustomerId: string | null = null;
+
+    if (registerDto.referralCode && registerDto.referralCode.trim()) {
+      const cleanRef = registerDto.referralCode.trim().toUpperCase();
+      customerSource = cleanRef;
+
+      // Check if it's a customer's referral code
+      const referringCustomer = await this.prisma.customer.findUnique({
+        where: { referralCode: cleanRef },
+        select: { id: true },
+      });
+      if (referringCustomer) {
+        referringCustomerId = referringCustomer.id;
+      }
+    }
+
     const user = await this.prisma.user.create({
       data: {
         email: registerDto.email ? registerDto.email.trim().toLowerCase() : null,
@@ -68,6 +85,9 @@ export class AuthService {
         customer: {
           create: {
             wallet: { create: { balance: 0.0 } },
+            source: customerSource,
+            referredById: referringCustomerId,
+            referralCode: `EDR-${Math.floor(1000 + Math.random() * 9000)}`,
           },
         },
       },

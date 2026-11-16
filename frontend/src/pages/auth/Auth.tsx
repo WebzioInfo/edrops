@@ -4,7 +4,7 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { toast, showToast } from '../../utils/toast';
-import { Eye, EyeOff, Lock, Mail, Check, AlertCircle, RotateCcw } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Check, AlertCircle, RotateCcw, Tag } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchWithAuth } from '../../api/client';
 import { EdropsLogo } from '../../components/Logo';
@@ -24,6 +24,7 @@ const registerSchema = Yup.object({
   phone: Yup.string().required('Phone number is required'),
   email: Yup.string().email('Invalid email address').optional(),
   address: Yup.string().optional(),
+  referralCode: Yup.string().optional(),
   password: Yup.string()
     .min(8, 'Minimum 8 characters')
     .matches(/[A-Z]/, 'Needs uppercase')
@@ -209,6 +210,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
   } | null>(null);
 
   const redirectParam = searchParams.get('redirect') || (location.state as any)?.redirect || (location.state as any)?.from?.pathname;
+  const referralParam = (searchParams.get('ref') || searchParams.get('referral') || '').trim();
 
   const isPathAllowedForRole = (role?: string, path?: string): boolean => {
     if (!path || !role) return false;
@@ -430,6 +432,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
           phone: values.phone,
           email: values.email || undefined,
           password: values.password,
+          referralCode: values.referralCode ? values.referralCode.trim().toUpperCase() : undefined,
         }),
       });
 
@@ -711,8 +714,10 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                     address: '',
                     password: '',
                     confirmPassword: '',
+                    referralCode: referralParam,
                     acceptTerms: false,
                   }}
+                  enableReinitialize
                   validationSchema={registerSchema}
                   onSubmit={handleRegisterSubmit}
                 >
@@ -752,6 +757,15 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                         label="Delivery Address"
                         placeholder="Apartment, Street, Building"
                         autoComplete="street-address"
+                      />
+
+                      <Field
+                        name="referralCode"
+                        component={ArimoInput}
+                        icon={Tag}
+                        label="Referral Code (Optional)"
+                        placeholder="e.g. DST-1234 or EDR-5678"
+                        autoCapitalize="characters"
                       />
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2">
