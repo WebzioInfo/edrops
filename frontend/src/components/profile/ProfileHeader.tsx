@@ -36,7 +36,7 @@ export default function ProfileHeader({
   onAvatarUpdated,
   onEditProfileClick,
 }: ProfileHeaderProps) {
-  const { updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [previewFile, setPreviewFile] = useState<File | null>(null);
@@ -49,8 +49,10 @@ export default function ProfileHeader({
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [isRemoving, setIsRemoving] = useState<boolean>(false);
 
-  const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'User Profile';
-  const initials = `${(profile.firstName || 'U')[0]}${(profile.lastName || '')[0] || ''}`.toUpperCase();
+  const effectiveFirst = profile?.firstName || user?.firstName || '';
+  const effectiveLast = profile?.lastName || user?.lastName || '';
+  const fullName = `${effectiveFirst} ${effectiveLast}`.trim() || 'User Profile';
+  const initials = `${(effectiveFirst || 'U')[0]}${(effectiveLast || '')[0] || ''}`.toUpperCase();
 
   const handleTriggerPicker = () => {
     if (fileInputRef.current) {

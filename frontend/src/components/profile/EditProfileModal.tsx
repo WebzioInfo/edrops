@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { X, User, Check, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import ProfileOtpVerificationModal from './ProfileOtpVerificationModal';
@@ -9,7 +10,7 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   profile: any;
-  onSuccess: () => void;
+  onSuccess: (updatedData?: any) => void;
 }
 
 export default function EditProfileModal({
@@ -19,6 +20,7 @@ export default function EditProfileModal({
   onSuccess,
 }: EditProfileModalProps) {
   const { updateUser } = useAuth();
+  const queryClient = useQueryClient();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -209,15 +211,29 @@ export default function EditProfileModal({
           body: JSON.stringify(payload),
         });
 
+        const resolvedUpdated = {
+          ...profile,
+          ...payload,
+          ...(updated || {}),
+          firstName: updated?.firstName || payload.firstName,
+          lastName: updated?.lastName || payload.lastName,
+          email: updated?.email || payload.email || profile.email,
+          phone: updated?.phone || payload.phone || profile.phone,
+        };
+
         updateUser({
-          firstName: updated.firstName,
-          lastName: updated.lastName,
-          email: updated.email,
-          phone: updated.phone,
+          firstName: resolvedUpdated.firstName,
+          lastName: resolvedUpdated.lastName,
+          email: resolvedUpdated.email,
+          phone: resolvedUpdated.phone,
         });
 
+        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+        queryClient.invalidateQueries({ queryKey: ['profile'] });
+        queryClient.invalidateQueries({ queryKey: ['customerProfile'] });
+
         toast.success('Profile updated successfully.');
-        onSuccess();
+        onSuccess(resolvedUpdated);
         onClose();
       } catch (err: any) {
         toast.error(err.message || 'Failed to update profile');
@@ -260,16 +276,30 @@ export default function EditProfileModal({
       }),
     });
 
+    const resolvedUpdated = {
+      ...profile,
+      ...pendingPayload,
+      ...(updated || {}),
+      firstName: updated?.firstName || pendingPayload?.firstName || profile.firstName,
+      lastName: updated?.lastName || pendingPayload?.lastName || profile.lastName,
+      email: updated?.email || pendingPayload?.email || profile.email,
+      phone: updated?.phone || pendingPayload?.phone || profile.phone,
+    };
+
     updateUser({
-      firstName: updated.firstName,
-      lastName: updated.lastName,
-      email: updated.email,
-      phone: updated.phone,
+      firstName: resolvedUpdated.firstName,
+      lastName: resolvedUpdated.lastName,
+      email: resolvedUpdated.email,
+      phone: resolvedUpdated.phone,
     });
+
+    queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    queryClient.invalidateQueries({ queryKey: ['profile'] });
+    queryClient.invalidateQueries({ queryKey: ['customerProfile'] });
 
     toast.success('Profile updated successfully.');
     setOtpModalOpen(false);
-    onSuccess();
+    onSuccess(resolvedUpdated);
     onClose();
   };
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -97,10 +98,36 @@ export default function Profile() {
     };
   }, [userId]);
 
+  const queryClient = useQueryClient();
+
   // Controlled, intentional refresh handler (passed to Address CRUD and EditProfileModal)
-  const handleRefresh = useCallback(async () => {
+  const handleRefresh = useCallback(async (updatedData?: any) => {
+    if (updatedData) {
+      setProfile((prev: any) => ({
+        ...prev,
+        ...updatedData,
+        firstName: updatedData.firstName ?? prev?.firstName,
+        lastName: updatedData.lastName ?? prev?.lastName,
+        customer: {
+          ...prev?.customer,
+          ...updatedData.customer,
+        },
+      }));
+      updateUser({
+        firstName: updatedData.firstName,
+        lastName: updatedData.lastName,
+        email: updatedData.email,
+        phone: updatedData.phone,
+      });
+    }
+
+    // Invalidate React Query caches for Dashboard, Header, and Customer portal
+    queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    queryClient.invalidateQueries({ queryKey: ['profile'] });
+    queryClient.invalidateQueries({ queryKey: ['customerProfile'] });
+
     await fetchProfileData();
-  }, [fetchProfileData]);
+  }, [fetchProfileData, queryClient, updateUser]);
 
   // Local avatar update without unnecessary network refetch
   const handleAvatarUpdated = useCallback((newUrl: string | null) => {

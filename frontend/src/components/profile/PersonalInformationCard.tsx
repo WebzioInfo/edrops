@@ -1,4 +1,5 @@
 import { User } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface PersonalInformationCardProps {
   profile: any;
@@ -6,7 +7,10 @@ interface PersonalInformationCardProps {
 }
 
 export default function PersonalInformationCard({ profile, onEditClick }: PersonalInformationCardProps) {
+  const { user } = useAuth();
   const isCustomer = profile.role === 'CUSTOMER';
+  const firstName = profile?.firstName || user?.firstName || '';
+  const lastName = profile?.lastName || user?.lastName || '';
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6 space-y-4">
@@ -36,7 +40,7 @@ export default function PersonalInformationCard({ profile, onEditClick }: Person
             First Name
           </p>
           <p className="text-sm font-semibold text-slate-800">
-            {profile.firstName || <span className="text-slate-400 font-normal">Not set</span>}
+            {firstName || <span className="text-slate-400 font-normal">Not set</span>}
           </p>
         </div>
 
@@ -46,7 +50,7 @@ export default function PersonalInformationCard({ profile, onEditClick }: Person
             Last Name
           </p>
           <p className="text-sm font-semibold text-slate-800">
-            {profile.lastName || <span className="text-slate-400 font-normal">Not set</span>}
+            {lastName || <span className="text-slate-400 font-normal">Not set</span>}
           </p>
         </div>
 
