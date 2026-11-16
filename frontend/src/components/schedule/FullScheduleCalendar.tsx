@@ -11,6 +11,9 @@ import {
   Sliders,
   CalendarDays,
   ListFilter,
+  AlertTriangle,
+  Zap,
+  AlertCircle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -34,6 +37,8 @@ interface FullScheduleCalendarProps {
   schedule: Schedule | null;
   onSaveSchedule: (rules: ScheduleRule[], isActive: boolean) => Promise<void>;
   saving?: boolean;
+  availableJarBalance?: number;
+  onRechargeClick?: () => void;
 }
 
 // Preset definitions for easy one-click selection
@@ -102,6 +107,8 @@ export default function FullScheduleCalendar({
   schedule,
   onSaveSchedule,
   saving = false,
+  availableJarBalance = 0,
+  onRechargeClick,
 }: FullScheduleCalendarProps) {
   // Calendar viewing month/year state
   const today = useMemo(() => {
@@ -362,7 +369,17 @@ export default function FullScheduleCalendar({
     try {
       await onSaveSchedule(rules, isActive);
       setIsDirty(false);
-      toast.success('Schedule saved successfully!');
+      if (currentMonthStats.hasDeficit) {
+        toast(
+          `Schedule saved! Note: ${currentMonthStats.deficitJars} upcoming jar(s) exceed your prepaid balance of ${availableJarBalance} jars. Deliveries marked in orange will require a recharge.`,
+          {
+            icon: '⚠️',
+            duration: 6000,
+          }
+        );
+      } else {
+        toast.success('Schedule saved successfully!');
+      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to save schedule');
     }
@@ -430,14 +447,38 @@ export default function FullScheduleCalendar({
       });
     }
 
-    return days;
-  }, [currentYear, currentMonth, today, intervalRule, dateOverrides, weeklyQtys]);
+    // Calculate running upcoming jars chronologically from today onwards
+    let runningUpcomingJars = 0;
+    return days.map((cell) => {
+      let isExceedingBalance = false;
+      let cumulativeAtCell = 0;
+
+      if (!cell.isPast && cell.qty > 0) {
+        runningUpcomingJars += cell.qty;
+        cumulativeAtCell = runningUpcomingJars;
+        if (runningUpcomingJars > availableJarBalance) {
+          isExceedingBalance = true;
+        }
+      }
+
+      return {
+        ...cell,
+        isExceedingBalance,
+        cumulativeAtCell,
+      };
+    });
+  }, [currentYear, currentMonth, today, intervalRule, dateOverrides, weeklyQtys, availableJarBalance]);
 
   // Current Month Stats
   const currentMonthStats = useMemo(() => {
     const monthDays = calendarDays.filter((d) => d.isCurrentMonth);
     const deliveryDaysCount = monthDays.filter((d) => d.qty > 0).length;
     const totalJars = monthDays.reduce((sum, d) => sum + d.qty, 0);
+
+    const upcomingDays = calendarDays.filter((d) => !d.isPast && d.qty > 0);
+    const totalUpcomingJars = upcomingDays.reduce((sum, d) => sum + d.qty, 0);
+    const coveredUpcomingJars = Math.min(totalUpcomingJars, availableJarBalance);
+    const deficitJars = Math.max(0, totalUpcomingJars - availableJarBalance);
 
     // Find next upcoming delivery from today onwards
     const nextDelivery = calendarDays.find(
@@ -447,10 +488,14 @@ export default function FullScheduleCalendar({
     return {
       deliveryDaysCount,
       totalJars,
+      totalUpcomingJars,
+      coveredUpcomingJars,
+      deficitJars,
+      hasDeficit: deficitJars > 0,
       nextDeliveryDate: nextDelivery ? nextDelivery.date : null,
       nextDeliveryQty: nextDelivery ? nextDelivery.qty : 0,
     };
-  }, [calendarDays, today]);
+  }, [calendarDays, today, availableJarBalance]);
 
   const monthTitle = new Date(currentYear, currentMonth, 1).toLocaleDateString(
     'en-US',
@@ -633,6 +678,47 @@ export default function FullScheduleCalendar({
         )}
       </div>
 
+      {/* ── 1.5. PREPAID BALANCE EXCEEDED ALERT NOTIFICATION ── */}
+      {currentMonthStats.hasDeficit && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-300 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs animate-in fade-in">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-xs sm:text-sm font-extrabold text-amber-950">
+                  Schedule Exceeds Prepaid Jar Balance
+                </h4>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200/90 text-amber-900 border border-amber-300">
+                  {currentMonthStats.deficitJars} Jar{currentMonthStats.deficitJars === 1 ? '' : 's'} Unfunded
+                </span>
+              </div>
+              <p className="text-xs text-amber-900/90 mt-1 leading-relaxed">
+                You currently hold <strong>{availableJarBalance} prepaid jar{availableJarBalance === 1 ? '' : 's'}</strong>, but your schedule requires{' '}
+                <strong>{currentMonthStats.totalUpcomingJars} upcoming jars</strong>. Deliveries marked in{' '}
+                <span className="inline-flex items-center gap-1 font-bold text-orange-800 bg-orange-100 px-1.5 py-0.2 rounded border border-orange-200">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
+                  Orange
+                </span>{' '}
+                exceed your balance and will require a package recharge before dispatch.
+              </p>
+            </div>
+          </div>
+
+          {onRechargeClick && (
+            <button
+              type="button"
+              onClick={onRechargeClick}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:from-amber-700 active:to-orange-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer shrink-0 self-stretch sm:self-center"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Recharge Jars Now</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── 2. FULL CALENDAR & SCHEDULING INTERACTION CARD ── */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
         {/* Calendar Card Header with Month Navigation & View Toggle */}
@@ -720,6 +806,7 @@ export default function FullScheduleCalendar({
                 const dayNum = cell.date.getDate();
                 const hasDelivery = cell.qty > 0;
                 const isClickable = !cell.isPast && cell.isCurrentMonth;
+                const isExceeding = (cell as any).isExceedingBalance;
 
                 return (
                   <div
@@ -731,7 +818,9 @@ export default function FullScheduleCalendar({
                         : cell.isPast
                         ? 'bg-slate-50/60 border-slate-200/60 text-slate-400 cursor-default'
                         : hasDelivery
-                        ? 'bg-gradient-to-b from-sky-50/90 to-blue-50/40 border-sky-300 shadow-2xs hover:border-[#1E88E5] cursor-pointer'
+                        ? isExceeding
+                          ? 'bg-gradient-to-b from-amber-50/90 to-orange-50/40 border-amber-300 shadow-2xs hover:border-amber-500 cursor-pointer'
+                          : 'bg-gradient-to-b from-sky-50/90 to-blue-50/40 border-sky-300 shadow-2xs hover:border-[#1E88E5] cursor-pointer'
                         : 'bg-white hover:bg-slate-50 border-slate-200/80 cursor-pointer'
                     } ${
                       cell.isToday
@@ -766,13 +855,29 @@ export default function FullScheduleCalendar({
                     {/* Bottom Row: Jar Delivery Badge */}
                     <div className="mt-0.5 sm:mt-1 flex justify-center sm:justify-start">
                       {hasDelivery ? (
-                        <div className="inline-flex items-center justify-center gap-0.5 sm:gap-1 px-1 sm:px-2 py-0.5 rounded-md sm:rounded-lg bg-[#1E88E5] text-white shadow-2xs max-w-full">
-                          <Droplets className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-sky-200 shrink-0" />
+                        <div
+                          className={`inline-flex items-center justify-center gap-0.5 sm:gap-1 px-1 sm:px-2 py-0.5 rounded-md sm:rounded-lg text-white shadow-2xs max-w-full ${
+                            isExceeding
+                              ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                              : 'bg-[#1E88E5]'
+                          }`}
+                          title={
+                            isExceeding
+                              ? `Delivery of ${cell.qty} jar(s) exceeds prepaid balance (${availableJarBalance} available). Recharge needed.`
+                              : `Covered by prepaid balance (Cumulative: ${(cell as any).cumulativeAtCell}/${availableJarBalance})`
+                          }
+                        >
+                          {isExceeding ? (
+                            <AlertCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-100 shrink-0" />
+                          ) : (
+                            <Droplets className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-sky-200 shrink-0" />
+                          )}
                           <span className="text-[10px] font-black leading-none sm:hidden">
                             {cell.qty}
                           </span>
                           <span className="hidden sm:inline text-xs font-extrabold whitespace-nowrap">
                             {cell.qty} {cell.qty === 1 ? 'Jar' : 'Jars'}
+                            {isExceeding ? ' (Top-up)' : ''}
                           </span>
                         </div>
                       ) : cell.isCurrentMonth && !cell.isPast ? (
@@ -788,13 +893,19 @@ export default function FullScheduleCalendar({
 
             {/* Helper Instructions Under Calendar */}
             <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1 font-medium text-[11px] sm:text-xs">
-                  <span className="w-2.5 h-2.5 rounded-md bg-[#1E88E5] inline-block" />
-                  Delivery ({intervalRule.enabled ? `${intervalRule.jars} Jar${intervalRule.jars === 1 ? '' : 's'}` : 'Scheduled'})
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                <span className="inline-flex items-center gap-1 font-medium text-[11px] sm:text-xs text-slate-700">
+                  <span className="w-2.5 h-2.5 rounded-md bg-[#1E88E5] inline-block shrink-0" />
+                  Covered by Balance ({currentMonthStats.coveredUpcomingJars} Jars)
                 </span>
-                <span className="inline-flex items-center gap-1 font-medium text-[11px] sm:text-xs">
-                  <span className="w-2.5 h-2.5 rounded-md bg-white border border-slate-300 inline-block" />
+                {currentMonthStats.hasDeficit && (
+                  <span className="inline-flex items-center gap-1 font-medium text-[11px] sm:text-xs text-amber-800 font-bold">
+                    <span className="w-2.5 h-2.5 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 inline-block shrink-0" />
+                    Recharge Needed ({currentMonthStats.deficitJars} Jars)
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 font-medium text-[11px] sm:text-xs text-slate-500">
+                  <span className="w-2.5 h-2.5 rounded-md bg-white border border-slate-300 inline-block shrink-0" />
                   Gap / Off Day
                 </span>
               </div>
@@ -883,12 +994,32 @@ export default function FullScheduleCalendar({
 
             <div className="bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-xl shadow-2xs">
               <span className="text-slate-400 text-[9px] sm:text-[10px] uppercase font-bold block">
-                Total Jars
+                Total Scheduled Jars
               </span>
               <span className="text-[#1E88E5] font-extrabold text-xs sm:text-sm">
                 {currentMonthStats.totalJars} Jars (~{currentMonthStats.totalJars * 20}L)
               </span>
             </div>
+
+            <div className="bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-xl shadow-2xs">
+              <span className="text-slate-400 text-[9px] sm:text-[10px] uppercase font-bold block">
+                Prepaid Balance
+              </span>
+              <span className="text-slate-900 font-extrabold text-xs sm:text-sm">
+                {availableJarBalance} Jars
+              </span>
+            </div>
+
+            {currentMonthStats.hasDeficit && (
+              <div className="bg-amber-50 border border-amber-300 px-2.5 sm:px-3 py-1.5 rounded-xl shadow-2xs">
+                <span className="text-amber-800 text-[9px] sm:text-[10px] uppercase font-bold block">
+                  Recharge Needed
+                </span>
+                <span className="text-amber-950 font-black text-xs sm:text-sm">
+                  +{currentMonthStats.deficitJars} Jars
+                </span>
+              </div>
+            )}
 
             {currentMonthStats.nextDeliveryDate && (
               <div className="col-span-2 sm:col-span-1 bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-xl shadow-2xs">

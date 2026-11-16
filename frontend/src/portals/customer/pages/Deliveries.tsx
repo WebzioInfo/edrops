@@ -792,6 +792,8 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
               schedule={schedule}
               onSaveSchedule={handleSaveScheduleFromCalendar}
               saving={savingSchedule}
+              availableJarBalance={availableJarCount}
+              onRechargeClick={() => navigate('/customer/recharge')}
             />
           </div>
 
