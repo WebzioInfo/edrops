@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Zap,
   AlertCircle,
+  X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -154,6 +155,7 @@ export default function FullScheduleCalendar({
 
   const [isActive, setIsActive] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
   // Parse incoming schedule
   useEffect(() => {
@@ -480,6 +482,27 @@ export default function FullScheduleCalendar({
     const coveredUpcomingJars = Math.min(totalUpcomingJars, availableJarBalance);
     const deficitJars = Math.max(0, totalUpcomingJars - availableJarBalance);
 
+    // Find the first upcoming delivery day that exceeds the prepaid balance
+    const firstDeficitDay = calendarDays.find(
+      (d) => !d.isPast && d.qty > 0 && (d as any).isExceedingBalance
+    );
+
+    let daysUntilDeficit: number | null = null;
+    let isWithinOneWeek = false;
+
+    if (firstDeficitDay) {
+      const diffTime = firstDeficitDay.date.getTime() - today.getTime();
+      daysUntilDeficit = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      // Only trigger the alert notice within 7 days (1 week) before balance runs out
+      if (daysUntilDeficit <= 7) {
+        isWithinOneWeek = true;
+      }
+    } else if (availableJarBalance <= 0 && upcomingDays.length > 0) {
+      // Customer has 0 jars right now and has deliveries scheduled
+      daysUntilDeficit = 0;
+      isWithinOneWeek = true;
+    }
+
     // Find next upcoming delivery from today onwards
     const nextDelivery = calendarDays.find(
       (d) => d.date.getTime() >= today.getTime() && d.qty > 0
@@ -492,6 +515,9 @@ export default function FullScheduleCalendar({
       coveredUpcomingJars,
       deficitJars,
       hasDeficit: deficitJars > 0,
+      isWithinOneWeek,
+      daysUntilDeficit,
+      firstDeficitDate: firstDeficitDay ? firstDeficitDay.date : null,
       nextDeliveryDate: nextDelivery ? nextDelivery.date : null,
       nextDeliveryQty: nextDelivery ? nextDelivery.qty : 0,
     };
@@ -678,44 +704,75 @@ export default function FullScheduleCalendar({
         )}
       </div>
 
-      {/* ── 1.5. PREPAID BALANCE EXCEEDED ALERT NOTIFICATION ── */}
-      {currentMonthStats.hasDeficit && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-300 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs animate-in fade-in">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h4 className="text-xs sm:text-sm font-extrabold text-amber-950">
-                  Schedule Exceeds Prepaid Jar Balance
-                </h4>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200/90 text-amber-900 border border-amber-300">
-                  {currentMonthStats.deficitJars} Jar{currentMonthStats.deficitJars === 1 ? '' : 's'} Unfunded
-                </span>
+      {/* ── 1.5. PREPAID BALANCE 1-WEEK EXPIRY WARNING BANNER ── */}
+      {currentMonthStats.hasDeficit && currentMonthStats.isWithinOneWeek && !isBannerDismissed && (
+        <div className="relative bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-300 rounded-2xl p-3.5 sm:p-4 shadow-2xs animate-in fade-in">
+          {/* Close / Dismiss 'X' Button */}
+          <button
+            type="button"
+            onClick={() => setIsBannerDismissed(true)}
+            className="absolute top-3 right-3 p-1 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-100/70 transition-colors cursor-pointer"
+            title="Dismiss notice"
+            aria-label="Dismiss notice"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pr-6 sm:pr-8">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <AlertTriangle className="w-5 h-5" />
               </div>
-              <p className="text-xs text-amber-900/90 mt-1 leading-relaxed">
-                You currently hold <strong>{availableJarBalance} prepaid jar{availableJarBalance === 1 ? '' : 's'}</strong>, but your schedule requires{' '}
-                <strong>{currentMonthStats.totalUpcomingJars} upcoming jars</strong>. Deliveries marked in{' '}
-                <span className="inline-flex items-center gap-1 font-bold text-orange-800 bg-orange-100 px-1.5 py-0.2 rounded border border-orange-200">
-                  <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
-                  Orange
-                </span>{' '}
-                exceed your balance and will require a package recharge before dispatch.
-              </p>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-xs sm:text-sm font-extrabold text-amber-950">
+                    Prepaid Jars Running Low (Within 7 Days)
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200/90 text-amber-900 border border-amber-300">
+                    Runs out in {currentMonthStats.daysUntilDeficit === 0 ? 'today' : `${currentMonthStats.daysUntilDeficit} day${currentMonthStats.daysUntilDeficit === 1 ? '' : 's'}`}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-900/90 mt-1 leading-relaxed">
+                  Your <strong>{availableJarBalance} prepaid jars</strong> will cover deliveries until{' '}
+                  <strong>
+                    {currentMonthStats.firstDeficitDate
+                      ? currentMonthStats.firstDeficitDate.toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                      : 'this week'}
+                  </strong>
+                  . Deliveries marked in{' '}
+                  <span className="inline-flex items-center gap-1 font-bold text-orange-800 bg-orange-100 px-1.5 py-0.2 rounded border border-orange-200">
+                    <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
+                    Orange
+                  </span>{' '}
+                  ({currentMonthStats.deficitJars} jars) will require a recharge before dispatch.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-stretch sm:self-center shrink-0 mt-1 sm:mt-0">
+              <button
+                type="button"
+                onClick={() => setIsBannerDismissed(true)}
+                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-semibold text-amber-900 bg-white hover:bg-amber-50 border border-amber-300 transition-colors cursor-pointer text-center shadow-2xs"
+              >
+                I'll pay later
+              </button>
+
+              {onRechargeClick && (
+                <button
+                  type="button"
+                  onClick={onRechargeClick}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Recharge Now</span>
+                </button>
+              )}
             </div>
           </div>
-
-          {onRechargeClick && (
-            <button
-              type="button"
-              onClick={onRechargeClick}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:from-amber-700 active:to-orange-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer shrink-0 self-stretch sm:self-center"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span>Recharge Jars Now</span>
-            </button>
-          )}
         </div>
       )}
 
