@@ -9,6 +9,8 @@ import { DistributorExpensesService } from './distributor-expenses.service';
 import { DistributorExpensesController } from './distributor-expenses.controller';
 import { DistributorPnlService } from './distributor-pnl.service';
 import { DistributorPnlController } from './distributor-pnl.controller';
+import { DistributorWalletService } from './distributor-wallet.service';
+import { DistributorWalletController } from './distributor-wallet.controller';
 import { CatalogModule } from '../catalog/catalog.module';
 import { InventoryModule } from '../inventory/inventory.module';
 
@@ -19,6 +21,7 @@ import { InventoryModule } from '../inventory/inventory.module';
     DistributorInventoryController,
     DistributorExpensesController,
     DistributorPnlController,
+    DistributorWalletController,
   ],
   providers: [
     DistributorServiceAreaService,
@@ -26,12 +29,14 @@ import { InventoryModule } from '../inventory/inventory.module';
     DistributorIdentityResolver,
     DistributorExpensesService,
     DistributorPnlService,
+    DistributorWalletService,
   ],
   exports: [
     DistributorServiceAreaService,
     DistributorIdentityResolver,
     DistributorExpensesService,
     DistributorPnlService,
+    DistributorWalletService,
   ],
 })
 export class DistributorModule {}

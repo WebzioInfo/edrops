@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { X, User, Check, RefreshCw } from 'lucide-react';
+import { X, User, Check, RefreshCw, Lock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../api/client';
@@ -34,6 +34,7 @@ export default function EditProfileModal({
   const [routeOrArea, setRouteOrArea] = useState('');
   const [vehicleType, setVehicleType] = useState('');
   const [vehiclePlate, setVehiclePlate] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
 
   const [saving, setSaving] = useState(false);
 
@@ -71,6 +72,7 @@ export default function EditProfileModal({
       setVerificationId('');
       setMaskedEmail('');
       setPendingPayload(null);
+      setCurrentPassword('');
     }
   }, [profile, isOpen]);
 
@@ -243,6 +245,14 @@ export default function EditProfileModal({
       return;
     }
 
+    if (isSensitiveChange) {
+      if (!currentPassword.trim()) {
+        toast.error('Please enter your current account password to authorize changing email or phone.');
+        return;
+      }
+      payload.currentPassword = currentPassword.trim();
+    }
+
     setSaving(true);
     try {
       const res = await fetchWithAuth('/profile/request-update-otp', {
@@ -259,7 +269,12 @@ export default function EditProfileModal({
       setVerificationId(res.verificationId);
       setMaskedEmail(res.maskedEmail || '');
       setOtpModalOpen(true);
-      toast.success('Verification code sent to your registered email.');
+      toast.success(res.message || 'Verification code sent to your email.');
+
+      if (res.debugOtp) {
+        console.log('[DEV] Verification OTP:', res.debugOtp);
+        toast(`[DEV CODE]: ${res.debugOtp}`, { duration: 10000, icon: '🔑' });
+      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to initiate verification');
     } finally {
@@ -377,7 +392,7 @@ export default function EditProfileModal({
                 className={inputClass}
               />
               <p className="text-[10px] text-slate-400 mt-1">
-                Note: Updating your email requires OTP verification through your currently registered email.
+                Note: Updating your email requires your account password and OTP confirmation sent to the new email.
               </p>
             </div>
 
@@ -393,6 +408,33 @@ export default function EditProfileModal({
                 className={`${inputClass} font-mono`}
               />
             </div>
+
+            {/* Security Authorization: Current Password needed if email or phone is changed */}
+            {((email.trim().toLowerCase() !== (profile.email || '').trim().toLowerCase()) ||
+              (phone.trim() !== (profile.phone || '').trim())) && (
+              <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-xl space-y-2 animate-in fade-in">
+                <div className="flex items-center gap-1.5 text-blue-900 font-bold text-xs">
+                  <Lock className="w-3.5 h-3.5 text-[#1E88E5]" />
+                  <span>Security Authorization</span>
+                </div>
+                <p className="text-[11px] text-blue-800 leading-relaxed">
+                  To protect your account, enter your account password to authorize changing your contact details. A verification code will be sent to confirm your new {email.trim().toLowerCase() !== (profile.email || '').trim().toLowerCase() ? 'email' : 'phone number'}.
+                </p>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Current Password <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter your current password"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Customer Specific Fields */}
             {profile.role === 'CUSTOMER' && (

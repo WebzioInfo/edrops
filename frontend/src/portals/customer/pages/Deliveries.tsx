@@ -8,7 +8,6 @@ import {
   CheckCircle2, 
   Power, 
   Droplets, 
-  Calendar, 
   Sparkles, 
   ChevronDown, 
   ChevronUp, 
@@ -23,6 +22,7 @@ import { useDialog } from '../../../hooks/useDialog';
 import { useRegisterRefreshHandler } from '../../../components/pwa/PullToRefresh';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import FullScheduleCalendar from '../../../components/schedule/FullScheduleCalendar';
+import QuickOrderContactModal from '../components/QuickOrderContactModal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -55,15 +55,6 @@ interface Delivery {
     staffNotes?: string;
   };
   verification?: any;
-}
-
-interface GlobalStats {
-  totalDeliveries: number;
-  deliveredCount: number;
-  missedCount: number;
-  cancelledCount: number;
-  scheduledCount: number;
-  successRate: number;
 }
 
 interface WeekStats {
@@ -202,10 +193,10 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [isTogglingSchedule, setIsTogglingSchedule] = useState(false);
+  const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
 
   // ── Delivery History State ──
   const [weeks, setWeeks] = useState<WeekData[]>([]);
-  const [summary, setSummary] = useState<GlobalStats | null>(null);
   const [todayDelivery, setTodayDelivery] = useState<Delivery | null>(null);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
@@ -256,7 +247,6 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
       const data = await fetchWithAuth(url);
       if (data) {
         setWeeks(data.weeks || []);
-        setSummary(data.summary || null);
         setApiPendingVerification(data.pendingVerification || null);
 
         let foundToday: Delivery | null = null;
@@ -280,7 +270,6 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
       }
     } catch {
       setWeeks([]);
-      setSummary(null);
       setTodayDelivery(null);
     } finally {
       if (showLoading) setHistoryLoading(false);
@@ -531,16 +520,6 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     }
   }, [viewTab]);
 
-  // ── Calculations ──
-  const weeklyTotal = useMemo(() => {
-    return Object.values(weeklyQtys).reduce((a, b) => a + b, 0);
-  }, [weeklyQtys]);
-
-  const monthlyEstimate = weeklyTotal * 4;
-  const activeDays = useMemo(() => {
-    return Object.values(weeklyQtys).filter((qty) => qty > 0).length;
-  }, [weeklyQtys]);
-
   // Next delivery date from active weekly schedule
   const nextScheduledDayText = useMemo(() => {
     const todayDay = new Date().getDay();
@@ -716,87 +695,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
           </motion.div>
         )}
 
-        {/* ─── 2. TOP SUMMARY ROW (Compact Metric Strip) ─────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
-          {/* Card 1: Weekly Total */}
-          <div className="bg-white border border-[#E2E8F0] rounded-xl p-3 sm:p-3.5 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
-                Weekly Total
-              </span>
-              <div className="w-6 h-6 rounded-md bg-blue-50 text-[#1E88E5] flex items-center justify-center">
-                <Droplets className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
-                {weeklyTotal}
-              </span>
-              <span className="text-xs font-semibold text-[#64748B]">Jars / wk</span>
-            </div>
-          </div>
-
-          {/* Card 2: Monthly Estimate */}
-          <div className="bg-white border border-[#E2E8F0] rounded-xl p-3 sm:p-3.5 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
-                Monthly Estimate
-              </span>
-              <div className="w-6 h-6 rounded-md bg-indigo-50 text-indigo-500 flex items-center justify-center">
-                <Calendar className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
-                {monthlyEstimate}
-              </span>
-              <span className="text-xs font-semibold text-[#64748B]">Jars / mo</span>
-            </div>
-          </div>
-
-          {/* Card 3: Active Days */}
-          <div className="bg-white border border-[#E2E8F0] rounded-xl p-3 sm:p-3.5 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
-                Active Days
-              </span>
-              <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
-                {activeDays}
-              </span>
-              <span className="text-xs font-semibold text-[#64748B]">/ 7 Days Active</span>
-            </div>
-          </div>
-
-          {/* Card 4: Delivery Success */}
-          <div className="bg-white border border-[#E2E8F0] rounded-xl p-3 sm:p-3.5 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
-                Delivery Success
-              </span>
-              <div className="w-6 h-6 rounded-md bg-cyan-50 text-[#0E7490] flex items-center justify-center">
-                <Truck className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
-                {summary ? `${summary.successRate}%` : '100%'}
-              </span>
-              <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden self-center">
-                <div 
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-500" 
-                  style={{ width: `${summary ? summary.successRate : 100}%` }} 
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ─── 3. MAIN CONTENT AREA (Responsive Two-Column Layout) ──── */}
+        {/* ─── 2. MAIN CONTENT AREA (Responsive Two-Column Layout) ──── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           
           {/* ═════════════════════════════════════════════════════════════
@@ -900,32 +799,27 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
               </div>
             )}
 
-            {/* URGENT / INSTANT DELIVERY ACTION CARD */}
-            <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-amber-500/10 border border-amber-300 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs shadow-orange-500/30">
-                  <Zap className="w-5 h-5 fill-white" />
+            {/* QUICK ORDER (WHATSAPP / CALL) ACTION BAR */}
+            <div className="bg-gradient-to-r from-blue-50/80 via-white to-cyan-50/80 border border-blue-200/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1E88E5] to-[#0D47A1] text-white flex items-center justify-center shrink-0 shadow-xs shadow-blue-500/20">
+                  <Zap className="w-4 h-4 fill-white" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h4 className="text-xs sm:text-sm font-extrabold text-amber-950">
-                      Need Water Urgently Today?
-                    </h4>
-                    <span className="bg-amber-100 text-amber-900 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-amber-300">
-                      Instant Drop
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-amber-900/80 mt-0.5 leading-relaxed">
-                    Weekly schedule changes apply to upcoming cycles. Order on-demand jars for immediate priority dispatch.
+                <div className="min-w-0">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                    Need Extra Water Today?
+                  </h4>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    Order instantly via WhatsApp or direct phone call
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => navigate('/customer/shop')}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-sm shadow-orange-500/20 shrink-0 transition-all cursor-pointer active:scale-95"
+                onClick={() => setIsQuickOrderOpen(true)}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black bg-[#1E88E5] hover:bg-[#1565C0] text-white shadow-xs shrink-0 cursor-pointer active:scale-95 transition-all"
               >
-                <span>Order Instant Jars</span>
+                <span>Order Water</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -1039,20 +933,6 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                   </select>
                 </div>
               </div>
-
-              {/* Stats Bar */}
-              {summary && (
-                <div className="px-4 py-2 bg-[#F8FAFC] border-b border-[#E2E8F0] flex items-center justify-between text-[11px] font-semibold text-[#64748B] flex-wrap gap-2">
-                  <div className="flex items-center gap-3">
-                    <span>Total: <strong className="text-[#0F172A]">{summary.totalDeliveries}</strong></span>
-                    <span>•</span>
-                    <span className="text-emerald-700">Delivered: <strong>{summary.deliveredCount}</strong></span>
-                    <span>•</span>
-                    <span className="text-rose-600">Missed: <strong>{summary.missedCount}</strong></span>
-                  </div>
-                  <span className="text-[#1E88E5]">Success: <strong>{summary.successRate}%</strong></span>
-                </div>
-              )}
 
               {/* Log List / Accordion */}
               {historyLoading ? (
@@ -1269,6 +1149,14 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
         </div>
 
       </div>
+
+      <QuickOrderContactModal
+        isOpen={isQuickOrderOpen}
+        onClose={() => setIsQuickOrderOpen(false)}
+        customerName={userProfile ? `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim() : undefined}
+        customerPhone={userProfile?.phone}
+        supportPhone="11111111"
+      />
     </div>
   );
 }

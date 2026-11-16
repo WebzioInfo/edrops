@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import {
   Menu,
   LogOut,
-  Wallet,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -12,7 +11,6 @@ import { EdropsLogo } from '../../components/Logo';
 import { SharedSidebar, SharedMobileDrawer } from '../../components/common/SharedSidebar';
 import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { DistributorTopbar } from './components/DistributorTopbar';
 import { DistributorProvider } from './context/DistributorContext';
 
 const Purchases = React.lazy(() => import('./pages/Purchases'));
@@ -26,25 +24,7 @@ const DistributorProfile = React.lazy(() => import('./pages/DistributorProfile')
 const ServiceAreas = React.lazy(() => import('./pages/ServiceAreas'));
 const Inventory = React.lazy(() => import('./pages/Inventory'));
 const DistributorBiodrops = React.lazy(() => import('./pages/DistributorBiodrops'));
-
-/** Standardized operational placeholder for remaining distributor routes */
-function OperationalPlaceholder({ title, icon: Icon }: { title: string; icon: React.ComponentType<{ className?: string }> }) {
-  return (
-    <div className="w-full min-h-full flex flex-col bg-[#F8FAFC] animate-in fade-in duration-150">
-      <DistributorTopbar
-        title={title}
-        subtitle={`Distributor ${title.toLowerCase()} operational view`}
-        icon={Icon}
-      />
-      <div className="w-full p-4 sm:p-6 space-y-4 flex-1">
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 text-xs text-[#64748B]">
-          <p className="font-semibold text-sm text-[#16324F] mb-1">{title} Module</p>
-          <p className="text-slate-500">Navigation is configured. Operational controls for {title.toLowerCase()} will be attached here.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+const DistributorWalletPage = React.lazy(() => import('./pages/Wallet'));
 
 export default function DistributorPortal() {
   const { logout } = useAuth();
@@ -198,7 +178,7 @@ export default function DistributorPortal() {
                 <Route path="dashboard" element={<Navigate to="/distributor/orders" replace />} />
                 <Route path="new-orders" element={<NewOrders />} />
                 <Route path="orders" element={<Orders />} />
-                <Route path="wallet" element={<OperationalPlaceholder title="Wallet" icon={Wallet} />} />
+                <Route path="wallet" element={<DistributorWalletPage />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="drivers" element={<Drivers />} />
                 <Route path="service-areas" element={<ServiceAreas />} />

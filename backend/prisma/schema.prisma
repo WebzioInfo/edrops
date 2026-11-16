@@ -178,6 +178,7 @@ model Distributor {
   ownershipLedgerEntries DistributorOwnershipLedger[]
   accessoryStocks        DistributorAccessoryStock[]
   expenses               DistributorExpense[]
+  wallet                 DistributorWallet?
 
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdBy            User?    @relation("DistributorCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -507,6 +508,45 @@ model WalletTransaction {
   description   String?
   createdAt     DateTime              @default(now())
   wallet        Wallet                @relation(fields: [walletId], references: [id], onDelete: Cascade)
+}
+
+enum DistributorWalletTxType {
+  TOP_UP
+  PURCHASE_PAYMENT
+  COMMISSION_CREDIT
+  COD_SETTLEMENT
+  WITHDRAWAL
+  ADJUSTMENT
+  REFUND
+}
+
+model DistributorWallet {
+  id            String                         @id @default(uuid())
+  distributorId String                         @unique
+  balance       Float                          @default(0.0)
+  currency      String                         @default("INR")
+  createdAt     DateTime                       @default(now())
+  updatedAt     DateTime                       @updatedAt
+  distributor   Distributor                    @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  transactions  DistributorWalletTransaction[]
+}
+
+model DistributorWalletTransaction {
+  id            String                  @id @default(uuid())
+  walletId      String
+  type          DistributorWalletTxType
+  amount        Float
+  balanceBefore Float
+  balanceAfter  Float
+  referenceId   String?
+  description   String?
+  createdById   String?
+  createdAt     DateTime                @default(now())
+  wallet        DistributorWallet       @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model Payment {

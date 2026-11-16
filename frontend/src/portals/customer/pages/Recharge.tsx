@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Tag, Sparkles, Droplet, Check, Loader2, Wallet } from 'lucide-react';
+import { CreditCard, Tag, Sparkles, Droplet, Loader2, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { injectMockRazorpay } from '../../../utils/MockRazorpay';
 import { fetchWithAuth } from '../../../api/client';
@@ -291,8 +291,7 @@ export default function RechargePage() {
       topBadge = { text: pack.packageBadge, variant: 'neutral' };
     }
 
-    // Subtitle: Concrete value statement without repeating the badge claim
-    let subtitle = '';
+    // Simple, concise savings tag
     const savings = (pack.originalPrice || pack.price * 1.25) - pack.price;
     const discountText = pack.discountPercent
       ? `Save ${pack.discountPercent}%`
@@ -300,27 +299,7 @@ export default function RechargePage() {
       ? `Save ₹${Math.round(savings)}`
       : null;
 
-    if (isRecommended) {
-      subtitle = discountText
-        ? `${discountText} • Optimized for offices & teams`
-        : 'Optimized for small offices & active teams';
-    } else if (isBestSeller) {
-      subtitle = discountText
-        ? `${discountText} • Most popular for homes`
-        : 'Most popular choice for households';
-    } else if (isMaxSavings) {
-      subtitle = discountText
-        ? `${discountText} • Lowest cost per jar`
-        : 'Lowest cost per jar for high volume';
-    } else if (nameLower.includes('starter')) {
-      subtitle = discountText
-        ? `${discountText} • Quick trial pack`
-        : 'Ideal starter pack for individuals';
-    } else if (pack.offerLabel && !['recommended', 'best value', 'super saver'].includes(offerLower)) {
-      subtitle = pack.offerLabel;
-    } else if (discountText) {
-      subtitle = `${discountText} instant discount`;
-    }
+    const subtitle = discountText || '';
 
     return { isRecommended, isBestSeller, topBadge, subtitle, savings };
   };
@@ -331,15 +310,15 @@ export default function RechargePage() {
 
   return (
     <div className="min-h-screen bg-[#F7FAFC] pb-32 lg:pb-12 text-[#0F172A]">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 space-y-5">
         
         {/* Page Header */}
-        <div>
-          <h1 className="text-[24px] md:text-[28px] font-bold text-[#0F172A] tracking-tight">
+        <div className="border-b border-slate-200/80 pb-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
             Recharge Water
           </h1>
-          <p className="text-[#64748B] text-sm mt-1 font-medium">
-            Prepaid water jar packages with tiered discounts and guaranteed priority delivery
+          <p className="text-[#64748B] text-xs sm:text-sm mt-0.5 font-medium">
+            Prepaid water jar packages with tiered discounts
           </p>
         </div>
 
@@ -429,16 +408,6 @@ export default function RechargePage() {
                           {subtitle}
                         </p>
                       )}
-
-                      {/* Features checklist inside card */}
-                      <div className="mt-4 space-y-1.5 border-t border-slate-100/80 pt-3">
-                        <span className="text-xs font-semibold text-[#64748B] flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> Priority doorstep delivery
-                        </span>
-                        <span className="text-xs font-semibold text-[#64748B] flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> Flexible delivery schedule
-                        </span>
-                      </div>
                     </div>
 
                     {/* Bottom Pricing & Radio Indicator */}

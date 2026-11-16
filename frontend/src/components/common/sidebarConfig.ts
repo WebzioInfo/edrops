@@ -261,6 +261,11 @@ export function getPortalSidebarConfig(
                 icon: Users,
               },
               {
+                to: '/admin/drivers',
+                label: 'Drivers',
+                icon: Truck,
+              },
+              {
                 to: '/admin/delivery-partners',
                 label: 'Delivery Partners',
                 icon: Truck,

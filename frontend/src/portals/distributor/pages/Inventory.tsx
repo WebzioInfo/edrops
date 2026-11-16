@@ -861,7 +861,7 @@ export default function Inventory() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <h2 className="text-xs font-black uppercase tracking-wider text-slate-500">
-                      1. Authoritative Jar Ownership & Settlement Ledger
+                      Jar Ownership & Settlement
                     </h2>
                     {data?.canManufacture ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
@@ -1469,7 +1469,7 @@ export default function Inventory() {
                     <div>
                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
                         <Factory className="w-4 h-4 text-purple-600" />
-                        4. Plant Raw Materials & Production Batches
+                        Plant Raw Materials & Production Batches
                       </h3>
                       <p className="text-[11px] text-slate-400 mt-0.5">
                         Caps, preforms, labels, and production batches authorized for this manufacturing plant
@@ -1593,19 +1593,6 @@ export default function Inventory() {
                 </div>
               )}
 
-              {/* Informational Guidance */}
-              <div className="p-4 bg-sky-50/60 border border-sky-100 rounded-xl text-xs text-sky-900 space-y-1">
-                <p className="font-bold flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-sky-700" />
-                  Authoritative ERP Inventory Principles
-                </p>
-                <p className="text-[11px] text-sky-800 leading-relaxed">
-                  1. Ownership is the master invariant. Jar movements across physical states (Filled Yard, Empty Yard, Customer custody) never change legal ownership quantities.<br />
-                  2. Dispatches to customers move jars from Filled Yard to With Customer without reducing total owned stock.<br />
-                  3. Customer empty jar returns move jars into Empty Yard and automatically credit the customer deposit ledger.<br />
-                  4. Jar settlement transfers ownership from Edrops Company to Distributor without altering total physical stock.
-                </p>
-              </div>
             </>
           )
         )}

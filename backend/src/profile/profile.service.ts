@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { CloudinaryService, MulterFile } from '../config/cloudinary.service';
@@ -359,6 +360,19 @@ export class ProfileService {
       };
     }
 
+    // Security Re-Authentication:
+    // When updating email or phone, require current account password to prevent unauthorized hijacking
+    const isSensitiveChange = Boolean(pendingData.email || pendingData.phone);
+    if (isSensitiveChange && user.passwordHash) {
+      if (!dto.currentPassword) {
+        throw new BadRequestException('Current account password is required to change email or phone number.');
+      }
+      const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+      if (!isMatch) {
+        throw new BadRequestException('Incorrect current password. Please try again.');
+      }
+    }
+
     // Rate-limiting check: 45 seconds cooldown
     const recent = await this.prisma.profileUpdateVerification.findFirst({
       where: {
@@ -398,23 +412,33 @@ export class ProfileService {
       },
     });
 
-    // Send email to CURRENT registered email
+    const targetEmail = pendingData.email || user.email;
+    const isNewEmail = Boolean(pendingData.email && pendingData.email !== user.email);
+
+    // Send email to target email (if changing email, verify NEW email ownership!)
     const emailSent = await this.mailService.sendProfileUpdateOtp(
-      { email: user.email, firstName: user.firstName },
+      { email: targetEmail, firstName: user.firstName },
       rawOtp,
     );
     if (!emailSent) {
       await this.prisma.profileUpdateVerification.delete({ where: { id: verification.id } }).catch(() => {});
       throw new BadRequestException(
-        'Unable to deliver verification code to your registered email. Please try again later.',
+        `Unable to deliver verification code to ${this.maskEmail(targetEmail)}. Please verify the address and try again later.`,
       );
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.log(`[PROFILE_OTP] Verification code for user ${userId} (${targetEmail}): ${rawOtp}`);
     }
 
     return {
       success: true,
       verificationId: verification.id,
-      maskedEmail: this.maskEmail(user.email),
-      message: 'Verification code sent to your registered email.',
+      maskedEmail: this.maskEmail(targetEmail),
+      message: isNewEmail
+        ? 'Verification code sent to your new email address to confirm ownership.'
+        : 'Verification code sent to your registered email.',
+      ...(process.env.NODE_ENV !== 'production' ? { debugOtp: rawOtp } : {}),
     };
   }
 

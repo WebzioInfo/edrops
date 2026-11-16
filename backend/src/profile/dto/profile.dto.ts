@@ -62,6 +62,10 @@ export class UpdateProfileDto {
 export class RequestProfileUpdateOtpDto {
   @IsOptional()
   @IsString()
+  currentPassword?: string;
+
+  @IsOptional()
+  @IsString()
   firstName?: string;
 
   @IsOptional()

@@ -218,7 +218,7 @@ export default function ProfileOtpVerificationModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="text-center space-y-1.5">
             <p className="text-xs text-slate-600 leading-relaxed">
-              We sent a 6-digit verification code to your registered email
+              We sent a 6-digit verification code to
               {maskedEmail && (
                 <span className="block font-bold text-slate-800 mt-0.5">
                   {maskedEmail}

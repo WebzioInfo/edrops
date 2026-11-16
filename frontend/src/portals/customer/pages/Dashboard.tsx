@@ -1,367 +1,320 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Award, Truck, Route, CreditCard, CheckCircle2, History, Plus, Calendar, MapPin, Zap, X, Loader2 } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import PremiumWaterJar from '../components/PremiumWaterJar';
+import { Package, Award, Truck, CreditCard, ChevronRight, Droplets, Calendar, Plus, ShoppingBag } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
-import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { formatOrderId } from '../../../utils/orderFormatters';
+import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
 
 export default function Dashboard() {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const [greetingDismissed, setGreetingDismissed] = useState<boolean>(() => {
-    return sessionStorage.getItem('dashboard_greeting_dismissed') === 'true';
-  });
-
-  const handleDismissGreeting = () => {
-    setGreetingDismissed(true);
-    sessionStorage.setItem('dashboard_greeting_dismissed', 'true');
-  };
-
-  const { data: userProfile, isLoading } = useQuery({
+  const { data: userProfile, isLoading: profileLoading } = useQuery({
     queryKey: ['userProfile'],
     queryFn: () => fetchWithAuth('/auth/me'),
-    refetchInterval: 10000,
+    refetchInterval: 15000,
   });
 
-  const ownJarMutation = useMutation({
-    mutationFn: () => fetchWithAuth('/wallet/own-jar', { method: 'POST' }),
-    onSuccess: () => {
-      toast.success('Successfully purchased jar ownership! Deposit due decreased.');
-      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+  const { data: ordersData } = useQuery({
+    queryKey: ['customerRecentOrders'],
+    queryFn: async () => {
+      const res = await fetchWithAuth('/order');
+      return Array.isArray(res) ? res.slice(0, 3) : [];
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to purchase jar ownership.');
-    }
+    refetchInterval: 15000,
   });
 
-  if (isLoading) {
+  if (profileLoading) {
     return <LoadingSpinner fullPage label="Loading dashboard..." />;
   }
 
   const customer = userProfile?.customer;
-  const jarBalance =
-    customer?.jarBalances?.[0] ||
-    customer?.jarBalance || { availableJars: 0, totalPurchased: 0 };
-  const jarDeposit =
-    customer?.jarDeposits?.[0] ||
-    customer?.jarDeposit || { maxActiveJars: 0, depositPaid: 0, depositDue: 0 };
-  const jarOwnership =
-    customer?.jarOwnerships?.[0] ||
-    customer?.jarOwnership || { companyJarsHeld: 0, ownedJars: 0 };
+  const jarBalance = customer?.jarBalances?.[0] || customer?.jarBalance || { availableJars: 0, totalPurchased: 0 };
+  const jarDeposit = customer?.jarDeposits?.[0] || customer?.jarDeposit || { maxActiveJars: 0, depositPaid: 0, depositDue: 0 };
+  const walletBalance = Number(customer?.wallet?.balance ?? 0);
 
+  // Derive next scheduled delivery quantity from active rules
   const nextScheduledQty = (() => {
     const rules = customer?.deliverySchedule?.rules || [];
     if (!rules.length || !customer?.deliverySchedule?.isActive) return 0;
     const today = new Date().getDay();
     for (let i = 0; i <= 6; i++) {
       const checkDay = (today + i) % 7;
-      const match = rules.find(
-        (r: any) => r.type === 'WEEKLY' && r.dayOfWeek === checkDay && r.quantity > 0,
-      );
+      const match = rules.find((r: any) => r.type === 'WEEKLY' && r.dayOfWeek === checkDay && r.quantity > 0);
       if (match) return match.quantity;
     }
     return rules[0]?.quantity || 0;
   })();
 
-  const handleOwnJar = () => {
-    if (jarDeposit.depositDue <= 0) {
-      toast.error('No outstanding deposits due to convert!');
-      return;
-    }
-    ownJarMutation.mutate();
-  };
-
-  // Mocked recent activity since no endpoint exists yet
-  const recentActivities = [
-    { title: 'Delivery Completed', time: 'Today, 08:30 AM', icon: CheckCircle2, color: 'text-[#10B981]', bg: 'bg-[#10B981]/10' },
-    { title: 'Wallet Recharged (₹500)', time: 'Yesterday, 04:15 PM', icon: Zap, color: 'text-[#1E88E5]', bg: 'bg-[#1E88E5]/10' },
-    { title: 'Schedule Updated', time: 'Mon, 10:00 AM', icon: Calendar, color: 'text-[#8B5CF6]', bg: 'bg-[#8B5CF6]/10' },
-  ];
+  const isScheduleActive = Boolean(customer?.deliverySchedule?.isActive);
+  const recentOrders = ordersData || [];
 
   return (
-    <div className="min-h-screen bg-[#F7FAFC] pb-24">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-8">
+    <div className="min-h-screen bg-[#F8FAFC] pb-20 text-[#0F172A]">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 space-y-5">
         
-        {/* SECTION 1: WELCOME HEADER & ACTIONS */}
-        <motion.section 
-          initial={{ opacity: 0, y: -10 }} 
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-        >
-          <AnimatePresence initial={false}>
-            {!greetingDismissed && (
-              <motion.div
-                key="dashboard-greeting-block"
-                initial={{ opacity: 1, height: 'auto' }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
-                transition={{ duration: 0.2, ease: 'easeInOut' }}
-                className="relative"
-              >
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-[24px] md:text-[28px] font-bold text-[#0F172A] tracking-tight">
-                    Good Morning, {userProfile?.firstName || 'User'} 👋
-                  </h1>
-                  <button
-                    type="button"
-                    onClick={handleDismissGreeting}
-                    aria-label="Dismiss greeting"
-                    title="Dismiss greeting"
-                    className="p-1 text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#E2E8F0]/60 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <p className="text-[#64748B] text-[14px] mt-1 font-medium">Your hydration plan is active.</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto md:ml-auto">
-            <button onClick={() => navigate('/customer/shop')} className="flex items-center justify-center gap-2 h-11 px-5 bg-white border border-[#E2E8F0] shadow-sm hover:bg-[#F8FAFC] text-[#0F172A] text-[14px] font-semibold rounded-[12px] transition-colors">
-              <Plus className="w-4 h-4 text-[#1E88E5]" /> Order Water
-            </button>
-            <button onClick={() => navigate('/customer/recharge')} className="flex items-center justify-center gap-2 h-11 px-5 bg-white border border-[#E2E8F0] shadow-sm hover:bg-[#F8FAFC] text-[#0F172A] text-[14px] font-semibold rounded-[12px] transition-colors">
-              <CreditCard className="w-4 h-4 text-[#1E88E5]" /> Recharge Wallet
-            </button>
-            <button onClick={() => navigate('/customer/deliveries')} className="flex items-center justify-center gap-2 h-11 px-5 bg-[#1E88E5] hover:bg-[#1976D2] text-white shadow-[0_4px_12px_rgba(30,136,229,0.25)] text-[14px] font-semibold rounded-[12px] transition-colors">
-              <Calendar className="w-4 h-4" /> Manage Deliveries
-            </button>
-          </div>
-        </motion.section>
-
-        {/* SECTION 2: HYDRATION OVERVIEW (4 Stat Cards) */}
-        <motion.section 
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
-        >
-          <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#E2E8F0]/60 hover:shadow-[0_8px_20px_rgba(0,0,0,0.04)] transition-shadow">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-[#1E88E5]/10 flex items-center justify-center">
-                <Package className="w-5 h-5 text-[#1E88E5]" />
-              </div>
-              <p className="text-[13px] font-semibold text-[#64748B] uppercase tracking-wider">Active Jars</p>
-            </div>
-            <p className="text-[32px] font-bold text-[#0F172A] leading-none">{jarBalance.availableJars}</p>
-          </div>
-
-          <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#E2E8F0]/60 hover:shadow-[0_8px_20px_rgba(0,0,0,0.04)] transition-shadow">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <Award className="w-5 h-5 text-emerald-500" />
-              </div>
-              <p className="text-[13px] font-semibold text-[#64748B] uppercase tracking-wider">Owned Jars</p>
-            </div>
-            <p className="text-[32px] font-bold text-[#0F172A] leading-none">{jarOwnership.ownedJars}</p>
-          </div>
-
-          <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#E2E8F0]/60 hover:shadow-[0_8px_20px_rgba(0,0,0,0.04)] transition-shadow">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-amber-500" />
-              </div>
-              <p className="text-[13px] font-semibold text-[#64748B] uppercase tracking-wider">Deposit Due</p>
-            </div>
-            <p className="text-[32px] font-bold text-[#0F172A] leading-none">₹{jarDeposit.depositDue}</p>
-          </div>
-
-          <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#E2E8F0]/60 hover:shadow-[0_8px_20px_rgba(0,0,0,0.04)] transition-shadow">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center">
-                <Route className="w-5 h-5 text-indigo-500" />
-              </div>
-              <p className="text-[13px] font-semibold text-[#64748B] uppercase tracking-wider">Next Delivery</p>
-            </div>
-            <p className="text-[32px] font-bold text-[#0F172A] leading-none">
-              {nextScheduledQty}{' '}
-              <span className="text-[16px] text-[#64748B] font-medium">
-                {nextScheduledQty === 1 ? 'Jar' : 'Jars'}
-              </span>
+        {/* ─── 1. COMPACT TOP HEADER ────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Welcome back{userProfile?.firstName ? `, ${userProfile.firstName}` : ''}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+              Hydration overview & quick management
             </p>
           </div>
-        </motion.section>
 
-        {/* SECTION 3: SMART JAR VISUALIZATION & KPI CARD */}
-        <motion.section 
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="grid lg:grid-cols-[1fr_1fr] gap-6"
-        >
-          {/* Smart Jar Canvas */}
-          <div className="bg-white rounded-[24px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50 relative overflow-hidden flex flex-col items-center justify-center min-h-[400px]">
-            <div className="absolute top-6 left-6">
-              <h2 className="text-[18px] font-bold text-[#0F172A]">Hydration Meter</h2>
-              <p className="text-[13px] text-[#64748B]">Real-time jar tracking</p>
-            </div>
-            <div className="absolute top-6 right-6 text-right">
-              <span className="text-[22px] font-black text-[#0284C7] block leading-tight">
-                {jarBalance.availableJars} <span className="text-sm font-bold text-[#64748B]">Jars</span>
-              </span>
-              <span className="text-[11px] font-semibold text-[#64748B]">
-                of {jarBalance.totalPurchased || jarBalance.availableJars || 10} Available
-              </span>
-            </div>
-            <PremiumWaterJar currentBalance={jarBalance.availableJars} maxBalance={jarBalance.totalPurchased || 10} />
-          </div>
-
-          {/* Jar Ownership KPI Card */}
-          <div className="bg-white rounded-[24px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50 flex flex-col justify-between">
-            <div>
-              <h2 className="text-[20px] font-bold text-[#0F172A] mb-6 flex items-center gap-2">
-                <Award className="w-6 h-6 text-[#1E88E5]" /> Jar Ownership Portfolio
-              </h2>
-              
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-[#F8FAFC] rounded-[16px] p-4 border border-[#E2E8F0]/60">
-                  <p className="text-[13px] font-semibold text-[#64748B]">Company Jars</p>
-                  <p className="text-[28px] font-bold text-[#0F172A] mt-1">{jarOwnership.companyJarsHeld}</p>
-                </div>
-                <div className="bg-[#10B981]/5 rounded-[16px] p-4 border border-[#10B981]/10">
-                  <p className="text-[13px] font-semibold text-[#10B981]">Owned Jars</p>
-                  <p className="text-[28px] font-bold text-[#10B981] mt-1">{jarOwnership.ownedJars}</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center pb-4 border-b border-[#E2E8F0]">
-                  <span className="text-[14px] font-medium text-[#64748B]">Outstanding Deposit</span>
-                  <span className="text-[16px] font-bold text-[#0F172A]">₹{jarDeposit.depositDue}</span>
-                </div>
-                <div className="flex justify-between items-center pb-4 border-b border-[#E2E8F0]">
-                  <span className="text-[14px] font-medium text-[#64748B]">Deposit Paid</span>
-                  <span className="text-[16px] font-bold text-[#10B981]">₹{jarDeposit.depositPaid}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-[14px] font-medium text-[#64748B]">Max Active Jars Limit</span>
-                  <span className="text-[14px] font-bold text-[#0F172A] bg-[#F1F5F9] px-3 py-1 rounded-full">{jarDeposit.maxActiveJars} Jars</span>
-                </div>
-              </div>
-            </div>
-
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleOwnJar}
-              disabled={jarDeposit.depositDue <= 0 || ownJarMutation.isPending}
-              className="w-full mt-8 h-14 rounded-[16px] bg-gradient-to-r from-[#1E88E5] to-[#1565C0] text-white font-bold text-[15px] shadow-[0_8px_20px_rgba(30,136,229,0.25)] hover:shadow-[0_12px_24px_rgba(30,136,229,0.35)] hover:-translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 cursor-pointer"
+              type="button"
+              onClick={() => navigate('/customer/shop')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#1E88E5] hover:bg-[#1565C0] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
             >
-              {ownJarMutation.isPending ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin text-white" />
-                  <span>Processing Deposit...</span>
-                </>
-              ) : (
-                'Own This Jar (Pay Deposit ₹200)'
-              )}
+              <Plus className="w-3.5 h-3.5" />
+              <span>Order Water</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/customer/recharge')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl shadow-2xs transition-colors cursor-pointer"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-[#1E88E5]" />
+              <span>Recharge</span>
             </button>
           </div>
-        </motion.section>
+        </div>
 
-        {/* SECTION 4 & 6: NEXT DELIVERY & RECENT ACTIVITY */}
-        <motion.section 
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className="grid lg:grid-cols-[1fr_1fr] gap-6"
-        >
-          {/* Next Delivery Card */}
-          <div className="bg-white rounded-[24px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-[18px] font-bold text-[#0F172A] flex items-center gap-2">
-                <Truck className="w-5 h-5 text-[#1E88E5]" /> Next Delivery
-              </h2>
-              <span className="text-[12px] font-bold uppercase tracking-wider text-[#1E88E5] bg-[#1E88E5]/10 px-3 py-1.5 rounded-full">
-                Confirmed
+        {/* ─── 2. PRIMARY SUMMARY STRIP (4 ESSENTIAL METRICS) ────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Card 1: Available Jars */}
+          <div
+            onClick={() => navigate('/customer/deliveries')}
+            className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs hover:border-blue-300 transition-colors cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Prepaid Jars
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#1E88E5] flex items-center justify-center">
+                <Droplets className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                {jarBalance.availableJars}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">Jars left</span>
+            </div>
+          </div>
+
+          {/* Card 2: Wallet Balance */}
+          <div
+            onClick={() => navigate('/customer/wallet')}
+            className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs hover:border-blue-300 transition-colors cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Wallet Balance
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <CreditCard className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                ₹{walletBalance.toFixed(0)}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">Available</span>
+            </div>
+          </div>
+
+          {/* Card 3: Next Scheduled Delivery */}
+          <div
+            onClick={() => navigate('/customer/deliveries')}
+            className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs hover:border-blue-300 transition-colors cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Delivery Schedule
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                <Calendar className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                {isScheduleActive ? `${nextScheduledQty} Jars` : 'Paused'}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                {isScheduleActive ? 'Next drop' : 'Schedule'}
               </span>
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-y-8 gap-x-4">
-              <div>
-                <p className="text-[13px] font-medium text-[#64748B] mb-1">Date</p>
-                <p className="text-[16px] font-bold text-[#0F172A]">Tomorrow, 12th Aug</p>
+          {/* Card 4: Security Deposit Status */}
+          <div
+            onClick={() => navigate('/customer/deliveries')}
+            className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs hover:border-blue-300 transition-colors cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Jar Deposit
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Award className="w-4 h-4" />
               </div>
-              <div>
-                <p className="text-[13px] font-medium text-[#64748B] mb-1">Time Slot</p>
-                <p className="text-[16px] font-bold text-[#0F172A]">08:00 AM - 10:00 AM</p>
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-[#64748B] mb-1">Quantity</p>
-                <p className="text-[16px] font-bold text-[#0F172A]">2 x 20L Jars</p>
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-[#64748B] mb-1">Delivery Location</p>
-                <p className="text-[16px] font-bold text-[#0F172A] flex items-center gap-1">
-                  <MapPin className="w-4 h-4 text-[#1E88E5]" /> Home
+            </div>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                {jarDeposit.depositDue > 0 ? `₹${jarDeposit.depositDue}` : 'Settled'}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                {jarDeposit.depositDue > 0 ? 'Due' : 'Paid'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── 3. TWO-COLUMN OPERATIONAL SECTION ───────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          
+          {/* Left Column: Quick Navigation & Delivery Shortcut (Cols 1-7) */}
+          <div className="lg:col-span-7 space-y-4">
+            
+            {/* Delivery Schedule Hero Card */}
+            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] text-white rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold uppercase tracking-wider">
+                  <Truck className="w-3 h-3" />
+                  <span>Auto-Deliveries</span>
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-white mt-1">
+                  {isScheduleActive ? 'Your recurring delivery is active' : 'Schedule is paused'}
+                </h3>
+                <p className="text-xs text-slate-300">
+                  {isScheduleActive
+                    ? 'Jars will arrive automatically according to your calendar.'
+                    : 'Activate cadence to receive regular water drops without ordering manually.'}
                 </p>
               </div>
+
+              <button
+                type="button"
+                onClick={() => navigate('/customer/deliveries')}
+                className="px-4 py-2 bg-[#1E88E5] hover:bg-[#1565C0] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0 inline-flex items-center gap-1.5"
+              >
+                <span>Manage Schedule</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-          </div>
 
-          {/* Recent Activity Timeline */}
-          <div className="bg-white rounded-[24px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50">
-            <h2 className="text-[18px] font-bold text-[#0F172A] mb-8 flex items-center gap-2">
-              <History className="w-5 h-5 text-[#64748B]" /> Recent Activity
-            </h2>
-
-            <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:ml-6 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-[#E2E8F0] before:to-transparent">
-              {recentActivities.map((item, index) => (
-                <div key={index} className="relative flex items-center gap-4 md:gap-6">
-                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full ${item.bg} flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm`}>
-                    <item.icon className={`w-4 h-4 md:w-5 md:h-5 ${item.color}`} />
-                  </div>
-                  <div>
-                    <h4 className="text-[15px] font-bold text-[#0F172A]">{item.title}</h4>
-                    <p className="text-[13px] font-medium text-[#64748B] mt-0.5">{item.time}</p>
-                  </div>
+            {/* Clean 3-Card Action Row */}
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/customer/shop')}
+                className="p-3.5 bg-white border border-slate-200/80 rounded-2xl hover:border-blue-300 text-left transition-all shadow-2xs group cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#1E88E5] flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                  <ShoppingBag className="w-4 h-4" />
                 </div>
-              ))}
+                <h4 className="text-xs font-bold text-slate-900">Buy Jars</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">Browse catalog</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/customer/recharge')}
+                className="p-3.5 bg-white border border-slate-200/80 rounded-2xl hover:border-blue-300 text-left transition-all shadow-2xs group cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                  <CreditCard className="w-4 h-4" />
+                </div>
+                <h4 className="text-xs font-bold text-slate-900">Top-Up</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">Prepaid packs</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/customer/orders')}
+                className="p-3.5 bg-white border border-slate-200/80 rounded-2xl hover:border-blue-300 text-left transition-all shadow-2xs group cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                  <Package className="w-4 h-4" />
+                </div>
+                <h4 className="text-xs font-bold text-slate-900">Orders</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">Track & invoices</p>
+              </button>
             </div>
           </div>
-        </motion.section>
 
-        {/* SECTION 5: QUICK ACTIONS GRID */}
-        <motion.section 
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-        >
-          <h2 className="text-[18px] font-bold text-[#0F172A] mb-4 pl-2">Quick Actions</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <button onClick={() => navigate('/customer/shop')} className="bg-white p-5 rounded-[20px] shadow-sm border border-[#E2E8F0]/60 hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col justify-between min-h-[140px] group">
-              <div className="w-12 h-12 bg-[#1E88E5]/10 rounded-full flex items-center justify-center text-[#1E88E5] group-hover:scale-110 transition-transform">
-                <Package className="w-6 h-6" />
+          {/* Right Column: Real Recent Orders (Cols 8-12) */}
+          <div className="lg:col-span-5 space-y-3">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Recent Orders
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => navigate('/customer/orders')}
+                  className="text-xs font-bold text-[#1E88E5] hover:underline cursor-pointer"
+                >
+                  View All
+                </button>
               </div>
-              <div>
-                <h3 className="font-bold text-[#0F172A] text-[15px]">Order Water</h3>
-                <p className="text-[12px] text-[#64748B] mt-1 font-medium">Buy jars or accessories</p>
+
+              <div className="divide-y divide-slate-100">
+                {recentOrders.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400">
+                    <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs font-semibold">No recent orders yet</p>
+                  </div>
+                ) : (
+                  recentOrders.map((order: any) => {
+                    const cfg = getOrderStatusConfig(order.status);
+                    const orderDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                    });
+                    const primaryName = order.items?.[0]?.product?.name || 'Water Jar';
+                    const qty = order.items?.reduce((s: number, i: any) => s + (i.quantity || 1), 0) || 1;
+
+                    return (
+                      <div
+                        key={order.id}
+                        onClick={() => navigate(`/customer/orders/${order.id}`)}
+                        className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-xl px-2 transition-colors cursor-pointer"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-900 truncate">
+                              #{formatOrderId(order.id)}
+                            </span>
+                            <span className="text-[11px] text-slate-400">• {orderDate}</span>
+                          </div>
+                          <p className="text-xs text-slate-500 truncate mt-0.5">
+                            {qty}x {primaryName}
+                          </p>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${cfg.badgeClass}`}>
+                            {cfg.label}
+                          </span>
+                          <span className="block text-xs font-bold text-slate-900 mt-0.5">
+                            ₹{order.totalAmount || 0}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-            </button>
-            <button onClick={() => navigate('/customer/recharge')} className="bg-white p-5 rounded-[20px] shadow-sm border border-[#E2E8F0]/60 hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col justify-between min-h-[140px] group">
-              <div className="w-12 h-12 bg-[#1E88E5]/10 rounded-full flex items-center justify-center text-[#1E88E5] group-hover:scale-110 transition-transform">
-                <CreditCard className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-[#0F172A] text-[15px]">Recharge Wallet</h3>
-                <p className="text-[12px] text-[#64748B] mt-1 font-medium">Add prepaid balance</p>
-              </div>
-            </button>
-            <button onClick={() => navigate('/customer/deliveries')} className="bg-white p-5 rounded-[20px] shadow-sm border border-[#E2E8F0]/60 hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col justify-between min-h-[140px] group">
-              <div className="w-12 h-12 bg-[#1E88E5]/10 rounded-full flex items-center justify-center text-[#1E88E5] group-hover:scale-110 transition-transform">
-                <Calendar className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-[#0F172A] text-[15px]">Weekly Schedule</h3>
-                <p className="text-[12px] text-[#64748B] mt-1 font-medium">Set weekly routines</p>
-              </div>
-            </button>
-            <button onClick={() => navigate('/customer/deliveries')} className="bg-white p-5 rounded-[20px] shadow-sm border border-[#E2E8F0]/60 hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col justify-between min-h-[140px] group">
-              <div className="w-12 h-12 bg-[#1E88E5]/10 rounded-full flex items-center justify-center text-[#1E88E5] group-hover:scale-110 transition-transform">
-                <Truck className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-[#0F172A] text-[15px]">Track Deliveries</h3>
-                <p className="text-[12px] text-[#64748B] mt-1 font-medium">View live status & log</p>
-              </div>
-            </button>
+            </div>
           </div>
-        </motion.section>
+
+        </div>
 
       </div>
     </div>
