@@ -25,6 +25,7 @@ const ServiceAreas = React.lazy(() => import('./pages/ServiceAreas'));
 const Inventory = React.lazy(() => import('./pages/Inventory'));
 const DistributorBiodrops = React.lazy(() => import('./pages/DistributorBiodrops'));
 const DistributorWalletPage = React.lazy(() => import('./pages/Wallet'));
+const Customers = React.lazy(() => import('./pages/Customers'));
 
 export default function DistributorPortal() {
   const { logout } = useAuth();
@@ -178,6 +179,7 @@ export default function DistributorPortal() {
                 <Route path="dashboard" element={<Navigate to="/distributor/orders" replace />} />
                 <Route path="new-orders" element={<NewOrders />} />
                 <Route path="orders" element={<Orders />} />
+                <Route path="customers" element={<Customers />} />
                 <Route path="wallet" element={<DistributorWalletPage />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="drivers" element={<Drivers />} />

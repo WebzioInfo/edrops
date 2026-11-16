@@ -559,14 +559,38 @@ export class CustomerService {
 
   async findAll(currentUser?: any) {
     const where: any = {};
+    let currentDistributor: { id: string; referralCode: string } | null = null;
 
     // Multi-tenant territory scoping (SEC-03)
     if (currentUser) {
       if (currentUser.role === 'DISTRIBUTOR') {
-        where.OR = [
+        currentDistributor = await this.prisma.distributor.findUnique({
+          where: { userId: currentUser.id },
+          select: { id: true, referralCode: true },
+        });
+        if (!currentDistributor && currentUser.distributor?.referralCode) {
+          currentDistributor = {
+            id: currentUser.distributor.id,
+            referralCode: currentUser.distributor.referralCode,
+          };
+        }
+
+        const orConditions: any[] = [
           { createdById: currentUser.id },
           { orders: { some: { distributorId: currentUser.id } } },
         ];
+
+        if (currentDistributor) {
+          if (currentDistributor.id) {
+            orConditions.push({ orders: { some: { distributorId: currentDistributor.id } } });
+          }
+          if (currentDistributor.referralCode) {
+            orConditions.push({
+              source: { equals: currentDistributor.referralCode, mode: 'insensitive' },
+            });
+          }
+        }
+        where.OR = orConditions;
       } else if (currentUser.role === 'DELIVERY_PARTNER') {
         where.orders = {
           some: {
@@ -660,12 +684,29 @@ export class CustomerService {
         isDistributor: true,
       } : null;
 
+      const myDistCode = currentDistributor?.referralCode?.toUpperCase();
+      const customerSource = c.source ? c.source.toUpperCase() : null;
+      const isReferralCodeMatch = Boolean(myDistCode && customerSource === myDistCode);
+      const isDirectlyCreated = c.createdById === currentUser?.id;
+
+      let acquisitionType: 'REFERRAL_CODE' | 'DIRECT_ONBOARD' | 'ORGANIC' | 'OTHER_REFERRAL' = 'ORGANIC';
+      if (isReferralCodeMatch) {
+        acquisitionType = 'REFERRAL_CODE';
+      } else if (isDirectlyCreated) {
+        acquisitionType = 'DIRECT_ONBOARD';
+      } else if (c.source) {
+        acquisitionType = 'OTHER_REFERRAL';
+      }
+
       return {
         ...c,
         jars_at_customer: c.jarsAtCustomer,
         referredByDistributorId: distributorId,
         referredByDistributorName: distributorName,
         referralInfo,
+        acquisitionType,
+        isReferralMatch: isReferralCodeMatch,
+        isDirectOnboard: isDirectlyCreated,
       };
     });
   }
@@ -692,9 +733,30 @@ export class CustomerService {
     // Multi-tenant territory verification (SEC-03)
     if (currentUser) {
       if (currentUser.role === 'DISTRIBUTOR') {
-        const belongsToDistributor =
-          customer.createdById === currentUser.id ||
-          customer.orders.some((o) => o.distributorId === currentUser.id);
+        let distCode = currentUser.distributor?.referralCode;
+        let distId = currentUser.distributor?.id;
+        if (!distCode || !distId) {
+          const dist = await this.prisma.distributor.findUnique({
+            where: { userId: currentUser.id },
+            select: { id: true, referralCode: true },
+          });
+          if (dist) {
+            distCode = distCode || dist.referralCode;
+            distId = distId || dist.id;
+          }
+        }
+
+        const isCreator = customer.createdById === currentUser.id;
+        const matchesReferralCode = Boolean(
+          distCode &&
+          customer.source &&
+          customer.source.trim().toUpperCase() === distCode.trim().toUpperCase()
+        );
+        const hasAssignedOrder = customer.orders.some(
+          (o) => o.distributorId === currentUser.id || (distId && o.distributorId === distId)
+        );
+
+        const belongsToDistributor = isCreator || matchesReferralCode || hasAssignedOrder;
         if (!belongsToDistributor) {
           throw new ForbiddenException('You do not have permission to view this customer.');
         }

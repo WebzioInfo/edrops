@@ -137,6 +137,11 @@ export function getPortalSidebarConfig(
                 label: 'Orders',
                 icon: Package,
               },
+              {
+                to: '/distributor/customers',
+                label: 'Customers',
+                icon: Users,
+              },
             ],
           },
           {
