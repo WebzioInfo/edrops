@@ -299,21 +299,21 @@ export default function OrderDetails() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24 lg:pb-12 text-[#0F172A]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-3.5 sm:py-6">
         
         {/* Navigation & Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/customer/orders')}
-              className="p-2 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#64748B] hover:text-[#0F172A] transition-colors cursor-pointer shadow-xs"
+              className="p-2 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#64748B] hover:text-[#0F172A] transition-colors cursor-pointer shadow-xs shrink-0"
               title="Back to Orders"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-[#0F172A]">
+                <h1 className="text-xl sm:text-2xl font-black text-[#0F172A] truncate">
                   Order {formatOrderId(order.id)}
                 </h1>
                 <button
@@ -336,18 +336,18 @@ export default function OrderDetails() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => fetchOrder(true)}
               disabled={refreshing}
-              className="px-3.5 py-2 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#0F172A] text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="flex-1 sm:flex-initial justify-center px-3.5 py-2 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#0F172A] text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-[#1E88E5] ${refreshing ? 'animate-spin' : ''}`} />
               <span>Refresh Status</span>
             </button>
             <Link
               to="/customer/support"
-              className="px-3.5 py-2 rounded-xl bg-[#EBF5FB] hover:bg-sky-100 text-[#1E88E5] text-xs font-bold transition-all flex items-center gap-1.5"
+              className="flex-1 sm:flex-initial justify-center px-3.5 py-2 rounded-xl bg-[#EBF5FB] hover:bg-sky-100 text-[#1E88E5] text-xs font-bold transition-all flex items-center gap-1.5"
             >
               <LifeBuoy className="w-3.5 h-3.5" />
               <span>Need Help?</span>

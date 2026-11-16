@@ -15,9 +15,16 @@ type ScheduleRuleInput = {
   customNotes?: string;
 };
 
+export type ScheduleOverrideInput = {
+  targetDate: string | Date;
+  quantity: number;
+  reason?: string;
+};
+
 export type ScheduleUpdateInput = {
   isActive?: boolean;
-  rules: ScheduleRuleInput[];
+  rules?: ScheduleRuleInput[];
+  overrides?: ScheduleOverrideInput[];
 };
 
 @Injectable()
@@ -35,15 +42,18 @@ export class ScheduleService {
 
     let schedule = await this.prisma.deliverySchedule.findUnique({
       where: { customerId: customer.id },
-      include: { rules: true },
+      include: { rules: true, overrides: true },
     });
 
     if (!schedule) {
       schedule = await this.prisma.deliverySchedule.create({
         data: { customerId: customer.id, isActive: true },
-        include: { rules: true },
+        include: { rules: true, overrides: true },
       });
     }
+
+    return schedule;
+  }
 
     return schedule;
   }
@@ -99,7 +109,29 @@ export class ScheduleService {
         }
       }
 
-      // No need to return finalSchedule here anymore since we fetch it at the end
+      if (data.overrides !== undefined) {
+        // Clear future overrides
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        await tx.scheduleDateOverride.deleteMany({
+          where: {
+            deliveryScheduleId: schedule.id,
+            targetDate: { gte: today },
+          },
+        });
+
+        if (data.overrides?.length) {
+          await tx.scheduleDateOverride.createMany({
+            data: data.overrides.map((ov) => ({
+              deliveryScheduleId: schedule.id,
+              targetDate: new Date(ov.targetDate),
+              quantity: ov.quantity,
+              reason: ov.reason || null,
+            })),
+          });
+        }
+      }
     });
 
     // Run sync engine to populate future deliveries OUTSIDE the transaction
@@ -107,7 +139,7 @@ export class ScheduleService {
 
     return this.prisma.deliverySchedule.findUnique({
       where: { customerId },
-      include: { rules: true },
+      include: { rules: true, overrides: true },
     });
   }
 

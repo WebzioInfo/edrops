@@ -275,6 +275,7 @@ model DeliverySchedule {
   updatedAt  DateTime               @updatedAt
   customer   Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
   rules      DeliveryScheduleRule[]
+  overrides  ScheduleDateOverride[]
 
   @@index([customerId])
 }
@@ -289,6 +290,20 @@ model DeliveryScheduleRule {
   startDate          DateTime         @default(now())
   customNotes        String?
   deliverySchedule   DeliverySchedule @relation(fields: [deliveryScheduleId], references: [id], onDelete: Cascade)
+}
+
+model ScheduleDateOverride {
+  id                 String           @id @default(uuid())
+  deliveryScheduleId String
+  targetDate         DateTime         @db.Date
+  quantity           Int
+  reason             String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deliverySchedule   DeliverySchedule @relation(fields: [deliveryScheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryScheduleId, targetDate])
+  @@index([deliveryScheduleId])
 }
 
 model Delivery {

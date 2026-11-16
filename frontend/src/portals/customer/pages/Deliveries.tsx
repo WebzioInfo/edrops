@@ -313,7 +313,11 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     }
   };
 
-  const handleSaveScheduleFromCalendar = async (rules: any[], active: boolean) => {
+  const handleSaveScheduleFromCalendar = async (
+    rules: any[],
+    active: boolean,
+    overrides?: any[],
+  ) => {
     setSavingSchedule(true);
     try {
       const updated = await fetchWithAuth('/schedule', {
@@ -321,6 +325,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
         body: JSON.stringify({
           isActive: active,
           rules,
+          overrides,
         }),
       });
       if (updated) {

@@ -26,7 +26,11 @@ export default function SchedulePlanner() {
     loadSchedule();
   }, []);
 
-  const handleSaveSchedule = async (rules: ScheduleRule[], isActive: boolean) => {
+  const handleSaveSchedule = async (
+    rules: ScheduleRule[],
+    isActive: boolean,
+    overrides?: Array<{ targetDate: string; quantity: number }>,
+  ) => {
     setSaving(true);
     try {
       const updated = await fetchWithAuth('/schedule', {
@@ -34,6 +38,7 @@ export default function SchedulePlanner() {
         body: JSON.stringify({
           isActive,
           rules,
+          overrides,
         }),
       });
       if (updated) {

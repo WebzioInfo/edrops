@@ -29,11 +29,16 @@ export interface Schedule {
   id: string;
   isActive: boolean;
   rules: ScheduleRule[];
+  overrides?: Array<{ id?: string; targetDate: string; quantity: number; reason?: string }>;
 }
 
 interface FullScheduleCalendarProps {
   schedule: Schedule | null;
-  onSaveSchedule: (rules: ScheduleRule[], isActive: boolean) => Promise<void>;
+  onSaveSchedule: (
+    rules: ScheduleRule[],
+    isActive: boolean,
+    overrides?: Array<{ targetDate: string; quantity: number }>,
+  ) => Promise<void>;
   saving?: boolean;
   availableJarBalance?: number;
   onRechargeClick?: () => void;
@@ -209,6 +214,17 @@ export default function FullScheduleCalendar({
         setIntervalRule((prev) => ({ ...prev, enabled: false }));
         setActivePresetId('');
       }
+
+      // Load saved date overrides from schedule
+      if (schedule.overrides && schedule.overrides.length > 0) {
+        const loaded: Record<string, number> = {};
+        schedule.overrides.forEach((ov) => {
+          const key = new Date(ov.targetDate).toISOString().split('T')[0];
+          loaded[key] = ov.quantity;
+        });
+        setDateOverrides(loaded);
+      }
+
       setIsDirty(false);
     }
   }, [schedule, today]);
@@ -374,8 +390,13 @@ export default function FullScheduleCalendar({
       });
     }
 
+    const overridesList = Object.entries(dateOverrides).map(([dt, qty]) => ({
+      targetDate: dt,
+      quantity: qty,
+    }));
+
     try {
-      await onSaveSchedule(rules, isActive);
+      await onSaveSchedule(rules, isActive, overridesList);
       setIsDirty(false);
       if (currentMonthStats.hasDeficit) {
         toast(

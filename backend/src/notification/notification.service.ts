@@ -683,19 +683,59 @@ export class NotificationService {
     });
   }
 
-  notifyLowBalance(data: { customerId: string; balance: number }) {
-    this.dispatcher.dispatch({
-      id: crypto.randomUUID(),
-      type: 'LOW_BALANCE',
-      title: 'Low prepaid jar balance!',
-      message: `You only have ${data.balance} jars remaining in your prepaid balance. Please purchase a new package to prevent delivery interruptions.`,
-      channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE, NotificationChannel.PUSH],
-      recipients: {
-        userId: data.customerId,
-        socketRoom: `customer-${data.customerId}`,
-      },
-      data: { balance: data.balance, link: '/customer/wallet' },
-    });
+  async notifyLowBalance(data: { customerId: string; balance: number }) {
+    try {
+      const cust = await this.prisma.customer.findUnique({
+        where: { id: data.customerId },
+        select: { userId: true },
+      });
+      if (!cust?.userId) return;
+
+      this.dispatcher.dispatch({
+        id: crypto.randomUUID(),
+        type: 'LOW_BALANCE',
+        title: 'Low prepaid jar balance!',
+        message: `You only have ${data.balance} jar(s) remaining in your prepaid balance. Please recharge your package to prevent delivery interruptions.`,
+        channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE, NotificationChannel.PUSH],
+        recipients: {
+          userId: cust.userId,
+          socketRoom: `customer-${data.customerId}`,
+        },
+        data: { balance: data.balance, link: '/customer/recharge' },
+      });
+    } catch (e) {
+      console.warn('[NotificationService] notifyLowBalance error:', e);
+    }
+  }
+
+  async notifyEmptyJarsThreshold(data: {
+    customerId: string;
+    jarsAtCustomer: number;
+    threshold?: number;
+  }) {
+    try {
+      const cust = await this.prisma.customer.findUnique({
+        where: { id: data.customerId },
+        select: { userId: true },
+      });
+      if (!cust?.userId) return;
+
+      const limit = data.threshold || 4;
+      this.dispatcher.dispatch({
+        id: crypto.randomUUID(),
+        type: 'EMPTY_JARS_THRESHOLD',
+        title: 'Empty Jars Ready for Pickup',
+        message: `You currently have ${data.jarsAtCustomer} empty jar(s) at your location. Please keep them ready for the driver during your upcoming delivery.`,
+        channels: [NotificationChannel.SOCKET, NotificationChannel.DATABASE, NotificationChannel.PUSH],
+        recipients: {
+          userId: cust.userId,
+          socketRoom: `customer-${data.customerId}`,
+        },
+        data: { jarsAtCustomer: data.jarsAtCustomer, threshold: limit, link: '/customer/deliveries' },
+      });
+    } catch (e) {
+      console.warn('[NotificationService] notifyEmptyJarsThreshold error:', e);
+    }
   }
 
   async notifyDeliveryCompleted(data: {

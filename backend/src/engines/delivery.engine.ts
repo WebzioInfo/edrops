@@ -1,11 +1,22 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { OrderStatus, TransactionType } from '@prisma/client';
+import {
+  OrderStatus,
+  TransactionType,
+  PaymentStatus,
+  WalletTransactionType,
+} from '@prisma/client';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationService } from '../notification/notification.service';
+import {
+  getISTMidnight,
+  isSameISTDay,
+} from '../common/timezone.util';
 
 @Injectable()
 export class DeliveryEngine {
+  private readonly logger = new Logger(DeliveryEngine.name);
+
   constructor(
     private prisma: PrismaService,
     private settingsService: SettingsService,
@@ -143,6 +154,7 @@ export class DeliveryEngine {
         where: { customerId },
         include: {
           rules: true,
+          overrides: true,
           customer: {
             include: { addresses: true },
           },
@@ -196,18 +208,27 @@ export class DeliveryEngine {
 
         let dailyQty = 0;
 
-        for (const rule of schedule.rules) {
-          if (rule.type === 'WEEKLY' && rule.dayOfWeek === dayOfWeek) {
-            dailyQty += rule.quantity;
-          } else if (rule.type === 'INTERVAL') {
-            const ruleStart = new Date(rule.startDate);
-            ruleStart.setUTCHours(0, 0, 0, 0);
-            if (targetDate.getTime() >= ruleStart.getTime()) {
-              const diffTime = targetDate.getTime() - ruleStart.getTime();
-              const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-              const interval = rule.intervalDays || 1;
-              if (diffDays % interval === 0) {
-                dailyQty += rule.quantity;
+        // Check for specific date override first
+        const dateOverride = (schedule as any).overrides?.find((o: any) =>
+          isSameISTDay(new Date(o.targetDate), targetDate),
+        );
+
+        if (dateOverride) {
+          dailyQty = dateOverride.quantity;
+        } else {
+          for (const rule of schedule.rules) {
+            if (rule.type === 'WEEKLY' && rule.dayOfWeek === dayOfWeek) {
+              dailyQty += rule.quantity;
+            } else if (rule.type === 'INTERVAL') {
+              const ruleStart = new Date(rule.startDate);
+              ruleStart.setUTCHours(0, 0, 0, 0);
+              if (targetDate.getTime() >= ruleStart.getTime()) {
+                const diffTime = targetDate.getTime() - ruleStart.getTime();
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                const interval = rule.intervalDays || 1;
+                if (diffDays % interval === 0) {
+                  dailyQty += rule.quantity;
+                }
               }
             }
           }
@@ -407,16 +428,26 @@ export class DeliveryEngine {
       }
 
       // 2. Perform math calculations
-      const balanceBefore = jarBalance.availableJars;
-      // Deduct from prepaid jar balance if available
-      const balanceAfter = Math.max(0, balanceBefore - confirmedDeliveredQty);
-
-      // Only enforce strict package balance limit if customer is an active package subscriber
-      if (jarBalance.totalPurchased > 0 && jarBalance.availableJars < confirmedDeliveredQty) {
-        throw new BadRequestException(
-          'Insufficient customer jar balance to complete this quantity. Please recharge your package.',
-        );
+      let alreadyDeductedPrepaidJars = 0;
+      if (delivery.orderId) {
+        const parentOrder = await tx.order.findUnique({
+          where: { id: delivery.orderId },
+          select: { adminNotes: true, paymentMethod: true },
+        });
+        if (parentOrder?.adminNotes) {
+          try {
+            const parsed = JSON.parse(parentOrder.adminNotes);
+            if (parsed.prepaidJars) {
+              alreadyDeductedPrepaidJars = Number(parsed.prepaidJars);
+            }
+          } catch {}
+        }
       }
+
+      // Quantity remaining to deduct from jar balance
+      const jarsToDeduct = Math.max(0, confirmedDeliveredQty - alreadyDeductedPrepaidJars);
+      const balanceBefore = jarBalance.availableJars;
+      const balanceAfter = Math.max(0, balanceBefore - jarsToDeduct);
 
       // Jars in possession updates:
       // companyJarsHeld = companyJarsHeld + delivered - emptyCollected
@@ -441,10 +472,24 @@ export class DeliveryEngine {
       );
 
       // 3. Write updates
-      await tx.jarBalance.update({
-        where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
-        data: { availableJars: balanceAfter },
-      });
+      if (jarsToDeduct > 0) {
+        await tx.jarBalance.update({
+          where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
+          data: { availableJars: balanceAfter },
+        });
+
+        await tx.transaction.create({
+          data: {
+            customerId,
+            type: TransactionType.CONSUMPTION,
+            amountJars: -jarsToDeduct,
+            balanceBefore,
+            balanceAfter,
+            referenceId: delivery.id,
+            description: `Confirmed delivery of ${confirmedDeliveredQty} jars (${alreadyDeductedPrepaidJars} previously funded, ${jarsToDeduct} deducted now)`,
+          },
+        });
+      }
 
       await tx.jarOwnership.update({
         where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
@@ -481,24 +526,11 @@ export class DeliveryEngine {
             filledQty: -confirmedDeliveredQty,
             emptyQty: confirmedEmptyCollected,
             damagedQty: confirmedDamagedQty,
-            referenceId: deliveryId,
+            referenceId: delivery.id,
             description: `Delivery completed. Customer: ${customerId}`,
           },
         });
       }
-
-      // Log transaction
-      const txn = await tx.transaction.create({
-        data: {
-          customerId,
-          type: TransactionType.CONSUMPTION,
-          amountJars: -confirmedDeliveredQty,
-          balanceBefore,
-          balanceAfter,
-          referenceId: delivery.id,
-          description: `Confirmed delivery of ${confirmedDeliveredQty} jars (Empty jars collected: ${confirmedEmptyCollected})`,
-        },
-      });
 
       // Update or create delivery report confirmation details
       await tx.deliveryReport.upsert({
@@ -538,6 +570,12 @@ export class DeliveryEngine {
             balance: balanceAfter,
           });
         }
+        if (newCompanyJarsHeld >= 4) {
+          this.notificationService.notifyEmptyJarsThreshold({
+            customerId,
+            jarsAtCustomer: newCompanyJarsHeld,
+          });
+        }
         this.notificationService.notifyDeliveryCompleted({
           customerId,
           deliveredQty: confirmedDeliveredQty,
@@ -566,25 +604,118 @@ export class DeliveryEngine {
     });
   }
 
-  // 5. Fail delivery
+  // 5. Fail delivery with symmetric financial reservation reversal
   async failDelivery(deliveryId: string, reason: string) {
-    return this.prisma.delivery.update({
-      where: { id: deliveryId },
-      data: {
-        status: OrderStatus.FAILED,
-        report: {
-          upsert: {
-            create: {
-              partnerDeliveredQty: 0,
-              partnerEmptyCollected: 0,
-              partnerNotes: `Failed: ${reason}`,
-            },
-            update: {
-              partnerNotes: `Failed: ${reason}`,
-            },
-          },
+    return this.prisma.$transaction(async (tx) => {
+      const delivery = await tx.delivery.findUnique({
+        where: { id: deliveryId },
+        include: { order: true },
+      });
+      if (!delivery) throw new BadRequestException('Delivery not found');
+
+      // Idempotency check: already failed or cancelled
+      if (
+        delivery.status === OrderStatus.FAILED ||
+        delivery.status === OrderStatus.CANCELLED
+      ) {
+        return delivery;
+      }
+
+      const customerId = delivery.customerId;
+
+      // Check if order had reserved wallet cash or prepaid jars
+      if (delivery.order && delivery.order.adminNotes) {
+        try {
+          const meta = JSON.parse(delivery.order.adminNotes);
+
+          // 1. Symmetrically restore reserved wallet cash
+          if (meta.walletDeducted && meta.walletDeducted > 0) {
+            const wallet = await tx.wallet.findUnique({ where: { customerId } });
+            if (wallet) {
+              const newBalance = Number(wallet.balance) + Number(meta.walletDeducted);
+              await tx.wallet.update({
+                where: { customerId },
+                data: { balance: newBalance },
+              });
+              await tx.walletTransaction.create({
+                data: {
+                  walletId: wallet.id,
+                  type: WalletTransactionType.REFUND,
+                  amount: meta.walletDeducted,
+                  balanceBefore: wallet.balance,
+                  balanceAfter: newBalance,
+                  description: `Refund for failed delivery ${delivery.id}: ${reason}`,
+                  referenceId: delivery.id,
+                },
+              });
+            }
+          }
+
+          // 2. Symmetrically restore reserved prepaid jars
+          if (meta.prepaidJars && meta.prepaidJars > 0) {
+            const jarBalance = await tx.jarBalance.findFirst({
+              where: { customerId },
+            });
+            if (jarBalance) {
+              const newAvail = jarBalance.availableJars + meta.prepaidJars;
+              await tx.jarBalance.update({
+                where: { id: jarBalance.id },
+                data: { availableJars: newAvail },
+              });
+              await tx.transaction.create({
+                data: {
+                  customerId,
+                  type: TransactionType.REFUND,
+                  amountJars: meta.prepaidJars,
+                  balanceBefore: jarBalance.availableJars,
+                  balanceAfter: newAvail,
+                  referenceId: delivery.id,
+                  description: `Restored ${meta.prepaidJars} jars from failed delivery: ${reason}`,
+                },
+              });
+            }
+          }
+        } catch (e) {
+          this.logger.warn(
+            `Failed to parse adminNotes on order ${delivery.orderId}: ${e}`,
+          );
+        }
+
+        if (delivery.orderId) {
+          await tx.order.update({
+            where: { id: delivery.orderId },
+            data: { status: OrderStatus.FAILED },
+          });
+        }
+      }
+
+      await tx.deliveryReport.upsert({
+        where: { deliveryId: delivery.id },
+        create: {
+          deliveryId: delivery.id,
+          partnerDeliveredQty: 0,
+          partnerEmptyCollected: 0,
+          partnerNotes: `Failed: ${reason}`,
         },
-      },
+        update: {
+          partnerNotes: `Failed: ${reason}`,
+        },
+      });
+
+      const updatedDelivery = await tx.delivery.update({
+        where: { id: delivery.id },
+        data: { status: OrderStatus.FAILED },
+      });
+
+      setImmediate(() => {
+        this.notificationService.notifyDeliveryFailed({
+          customerId,
+          deliveryId: delivery.id,
+          reason,
+        });
+      });
+
+      return updatedDelivery;
     });
   }
 }

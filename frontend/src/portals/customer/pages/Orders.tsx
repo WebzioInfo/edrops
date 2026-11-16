@@ -258,22 +258,32 @@ export default function Orders() {
         </div>
 
         {/* ─── MOBILE TOP BAR & SEARCH ROW ────────────────────────── */}
-        <div className="lg:hidden space-y-2.5 mb-3">
+        <div className="lg:hidden space-y-2.5 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-bold text-[#0F172A]">My Orders</h1>
-              <span className="text-xs font-bold px-2 py-0.2 rounded-full bg-slate-100 text-slate-600">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                 {orders.length}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => loadOrders()}
-              disabled={isLoading}
-              className="p-1.5 text-slate-500 hover:text-slate-800 bg-white border border-[#E2E8F0] rounded-lg shadow-2xs transition cursor-pointer disabled:opacity-50"
-            >
-              <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => loadOrders()}
+                disabled={isLoading}
+                title="Refresh orders"
+                className="p-2 text-slate-500 hover:text-slate-800 bg-white border border-[#E2E8F0] rounded-xl shadow-2xs transition cursor-pointer disabled:opacity-50 flex items-center justify-center"
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+              <Link
+                to="/customer/shop"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1E88E5] hover:bg-[#1565C0] text-white text-xs font-bold rounded-xl shadow-2xs transition"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Shop Water</span>
+              </Link>
+            </div>
           </div>
 
           {/* Search + Mobile Filter Button */}
@@ -285,7 +295,7 @@ export default function Orders() {
                 value={searchInputText}
                 onChange={(e) => setSearchInputText(e.target.value)}
                 onBlur={() => setSearchQuery(searchInputText)}
-                placeholder="Search your order here"
+                placeholder="Search orders by item or ID..."
                 className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1E88E5] focus:ring-2 focus:ring-[#1E88E5]/10 text-slate-800 placeholder:text-slate-400 shadow-2xs font-medium"
               />
               {searchInputText && (
@@ -323,9 +333,9 @@ export default function Orders() {
 
           {/* Active filter badges on mobile */}
           {activeFiltersCount > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none text-[11px]">
               {statusFilter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 text-[#1E88E5] border border-blue-100 font-semibold whitespace-nowrap">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-[#1E88E5] border border-blue-100 font-semibold whitespace-nowrap">
                   <span>Status: {statusFilter.replace(/_/g, ' ')}</span>
                   <button onClick={() => setStatusFilter('ALL')} className="hover:opacity-75">
                     <X className="w-3 h-3" />
@@ -333,7 +343,7 @@ export default function Orders() {
                 </span>
               )}
               {timeFilter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 text-[#1E88E5] border border-blue-100 font-semibold whitespace-nowrap">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-[#1E88E5] border border-blue-100 font-semibold whitespace-nowrap">
                   <span>Time: {timeFilter.replace(/_/g, ' ')}</span>
                   <button onClick={() => setTimeFilter('ALL')} className="hover:opacity-75">
                     <X className="w-3 h-3" />
@@ -341,7 +351,7 @@ export default function Orders() {
                 </span>
               )}
               {searchQuery && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 text-[#1E88E5] border border-blue-100 font-semibold whitespace-nowrap">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-[#1E88E5] border border-blue-100 font-semibold whitespace-nowrap">
                   <span>Query: "{searchQuery}"</span>
                   <button onClick={() => { setSearchQuery(''); setSearchInputText(''); }} className="hover:opacity-75">
                     <X className="w-3 h-3" />
@@ -350,7 +360,7 @@ export default function Orders() {
               )}
               <button
                 onClick={clearAllFilters}
-                className="text-slate-500 hover:text-slate-800 font-bold underline px-1 text-[10px] whitespace-nowrap"
+                className="text-slate-500 hover:text-slate-800 font-bold underline px-1 text-[11px] whitespace-nowrap"
               >
                 Clear all
               </button>
@@ -562,159 +572,281 @@ export default function Orders() {
                     ? 'text-blue-700'
                     : 'text-amber-800';
                   const statusDotClass = cfg.dotColor;
+                  const pst = getOrderPaymentState(order);
                   return (
                     <div
                       key={order.id}
                       onClick={() => navigate(`/customer/orders/${order.id}`)}
-                      className="p-3.5 sm:p-4 hover:bg-slate-50/80 transition-colors cursor-pointer group flex items-center justify-between gap-3 sm:gap-4"
+                      className="p-3.5 sm:p-4 hover:bg-slate-50/80 transition-colors cursor-pointer group"
                     >
-                      {/* Left: Product Thumbnail & Order Info Cluster */}
-                      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                        
-                        {/* Thumbnail Image */}
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] overflow-hidden flex items-center justify-center shrink-0 relative group-hover:border-blue-300 transition-colors">
-                          {productImageUrl ? (
-                            <img
-                              src={productImageUrl}
-                              alt={primaryName}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                const fallback = e.currentTarget.parentElement?.querySelector('.order-img-fallback');
-                                if (fallback) (fallback as HTMLElement).classList.remove('hidden');
-                              }}
-                            />
-                          ) : null}
-                          <div
-                            className={`order-img-fallback flex items-center justify-center text-[#94A3B8] ${
-                              productImageUrl ? 'hidden' : 'flex'
-                            }`}
-                          >
-                            <ShoppingBag className="w-6 h-6 text-[#94A3B8]" />
-                          </div>
-                          {totalItemsCount > 1 && (
-                            <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-slate-900/80 text-white text-[9px] font-bold">
-                              +{totalItemsCount - 1}
+                      {/* ═══════════════════════════════════════════════════ */}
+                      {/* ─── MOBILE CARD VIEW (< sm) ────────────────────── */}
+                      {/* ═══════════════════════════════════════════════════ */}
+                      <div className="sm:hidden space-y-3">
+                        {/* 1. Header Strip: Status badge on left, Order # on right */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${statusColorClass} bg-slate-50 border border-slate-200/80`}>
+                            <span className={`w-2 h-2 rounded-full ${statusDotClass} shrink-0`} />
+                            <span>{cfg.label}</span>
+                          </span>
+                          <div className="text-right">
+                            <span className="font-mono font-bold text-xs text-slate-800 block">
+                              #{canonicalId}
                             </span>
-                          )}
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {formattedDate} · {formattedTime}
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Middle Details */}
-                        <div className="min-w-0 flex-1 space-y-0.5 sm:space-y-1">
-                          
-                          {/* Status Line (Compact color dot + status) */}
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`flex items-center gap-1.5 text-xs font-bold ${statusColorClass}`}>
-                              <span className={`w-2 h-2 rounded-full ${statusDotClass} shrink-0`} />
-                              <span>{statusTitle}</span>
-                            </span>
+                        {/* 2. Middle Row: Thumbnail + Product Info */}
+                        <div className="flex items-start gap-3">
+                          <div className="w-16 h-16 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] overflow-hidden flex items-center justify-center shrink-0 relative group-hover:border-blue-300 transition-colors">
+                            {productImageUrl ? (
+                              <img
+                                src={productImageUrl}
+                                alt={primaryName}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fallback = e.currentTarget.parentElement?.querySelector('.order-img-fallback-mob');
+                                  if (fallback) (fallback as HTMLElement).classList.remove('hidden');
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className={`order-img-fallback-mob flex items-center justify-center text-[#94A3B8] ${
+                                productImageUrl ? 'hidden' : 'flex'
+                              }`}
+                            >
+                              <ShoppingBag className="w-6 h-6 text-[#94A3B8]" />
+                            </div>
+                            {totalItemsCount > 1 && (
+                              <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-slate-900/80 text-white text-[9px] font-bold">
+                                +{totalItemsCount - 1}
+                              </span>
+                            )}
                           </div>
 
-                          {/* Product Title */}
-                          <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] truncate leading-tight group-hover:text-[#1E88E5] transition-colors" title={fullTitle}>
-                            {fullTitle}
-                          </h2>
-
-                          {/* Order ID & Meta */}
-                          <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
-                            <span className="font-mono font-bold text-slate-700">
-                              Order {canonicalId}
-                            </span>
-                            <span>•</span>
-                            <span>{formattedTime}</span>
-                            <span>•</span>
-                            <span>Qty: {totalJarsCount} {totalJarsCount === 1 ? 'jar' : 'jars'}</span>
-                          </div>
-
-                          {/* Delivery Summary for Completed Delivery Orders */}
-                          {order.deliverySummary && (
-                            <div className="flex items-center gap-2 text-[11px] text-emerald-800 bg-emerald-50/60 px-2 py-0.5 rounded-md w-fit">
-                              <span>Delivered: <strong>{order.deliverySummary.deliveredQty}</strong></span>
-                              <span>•</span>
-                              <span>Returned: <strong>{order.deliverySummary.returnedQty}</strong></span>
-                              {(order.deliverySummary.shortQty || 0) > 0 && (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-amber-700 font-semibold">Short: {order.deliverySummary.shortQty}</span>
-                                </>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <h3 className="text-sm font-bold text-[#0F172A] leading-snug line-clamp-2 group-hover:text-[#1E88E5] transition-colors" title={fullTitle}>
+                              {fullTitle}
+                            </h3>
+                            <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+                              <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">
+                                {totalJarsCount} {totalJarsCount === 1 ? 'jar' : 'jars'}
+                              </span>
+                              {totalItemsCount > 1 && (
+                                <span className="text-[11px] text-slate-400">
+                                  ({totalItemsCount} items)
+                                </span>
                               )}
                             </div>
-                          )}
 
-                          {/* Authoritative Financial State */}
-                          {(() => {
-                            const pst = getOrderPaymentState(order);
-                            return (
-                              <div className="flex items-center gap-2 pt-1 flex-wrap text-[11px]">
-                                <span className={`px-2 py-0.5 rounded font-bold text-[10px] border ${pst.badgeClass}`}>
-                                  {pst.canonicalStatus === 'PAID' ? 'PAID' : pst.canonicalStatus === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : 'UNPAID'}
-                                </span>
-                                {pst.hasSettlement ? (
-                                  <div className="flex items-center gap-1.5 font-bold text-[#1677C8]">
-                                    <span>Final: ₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                    {pst.total !== pst.originalTotal && (
-                                      <span className="text-slate-400 line-through text-[10px] font-normal">
-                                        (Orig: ₹{pst.originalTotal.toLocaleString('en-IN')})
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="font-semibold text-slate-700">
-                                    Total: ₹{pst.total.toLocaleString('en-IN')}
-                                  </span>
-                                )}
-                                {pst.paid > 0 && (
-                                  <span className="font-semibold text-emerald-600">
-                                    · Paid: ₹{pst.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </span>
-                                )}
-                                {pst.hasDue ? (
-                                  <span className="font-bold text-orange-600">
-                                    · Due: ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </span>
-                                ) : (
-                                  <span className="font-semibold text-emerald-600">· Settled</span>
-                                )}
+                            {/* Delivery Summary on Mobile */}
+                            {order.deliverySummary && (
+                              <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-800 bg-emerald-50/80 px-2 py-0.5 rounded-md font-medium border border-emerald-100">
+                                <span>Delivered: <strong>{order.deliverySummary.deliveredQty}</strong></span>
+                                <span>•</span>
+                                <span>Returned: <strong>{order.deliverySummary.returnedQty}</strong></span>
                               </div>
-                            );
-                          })()}
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Right Part: Price & Action */}
-                      <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
-                        {/* Price & Outstanding Due */}
-                        {(() => {
-                          const pst = getOrderPaymentState(order);
-                          return (
-                            <div className="text-right">
-                              <span className="text-sm sm:text-base font-bold text-[#0F172A] block font-mono">
+                        {/* 3. Footer Strip: Financial status, Total & Action Buttons */}
+                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${pst.badgeClass}`}>
+                              {pst.canonicalStatus === 'PAID' ? 'PAID' : pst.canonicalStatus === 'PARTIALLY_PAID' ? 'PARTIAL' : 'UNPAID'}
+                            </span>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-sm font-black text-slate-900 font-mono">
                                 ₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               </span>
                               {pst.hasSettlement && pst.total !== pst.originalTotal && (
-                                <span className="text-[10px] text-slate-400 block line-through">
+                                <span className="text-[10px] text-slate-400 line-through">
                                   ₹{pst.originalTotal.toLocaleString('en-IN')}
                                 </span>
                               )}
-                              {pst.hasDue ? (
-                                <span className="block text-[11px] font-bold text-orange-600">
-                                  Due ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </span>
+                            </div>
+                            {pst.hasDue && (
+                              <span className="text-[11px] font-bold text-orange-600">
+                                Due ₹{pst.due.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {pst.hasDue && order.status !== 'CANCELLED' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenPayModal(order);
+                                }}
+                                className="px-2.5 py-1 text-xs font-bold text-white bg-[#1E88E5] hover:bg-[#1565C0] rounded-xl transition shadow-2xs flex items-center gap-1 cursor-pointer shrink-0"
+                              >
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>Pay ₹{pst.due.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateOrderInvoice(order);
+                              }}
+                              title="Download Invoice"
+                              className="p-1.5 text-slate-400 hover:text-[#1E88E5] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+
+                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#1E88E5] group-hover:translate-x-0.5 transition-all" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ═══════════════════════════════════════════════════ */}
+                      {/* ─── DESKTOP ROW VIEW (sm and above) ────────────── */}
+                      {/* ═══════════════════════════════════════════════════ */}
+                      <div className="hidden sm:flex items-center justify-between gap-4">
+                        {/* Left: Product Thumbnail & Order Info Cluster */}
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          {/* Thumbnail Image */}
+                          <div className="w-16 h-16 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] overflow-hidden flex items-center justify-center shrink-0 relative group-hover:border-blue-300 transition-colors">
+                            {productImageUrl ? (
+                              <img
+                                src={productImageUrl}
+                                alt={primaryName}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fallback = e.currentTarget.parentElement?.querySelector('.order-img-fallback');
+                                  if (fallback) (fallback as HTMLElement).classList.remove('hidden');
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className={`order-img-fallback flex items-center justify-center text-[#94A3B8] ${
+                                productImageUrl ? 'hidden' : 'flex'
+                              }`}
+                            >
+                              <ShoppingBag className="w-6 h-6 text-[#94A3B8]" />
+                            </div>
+                            {totalItemsCount > 1 && (
+                              <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-slate-900/80 text-white text-[9px] font-bold">
+                                +{totalItemsCount - 1}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Middle Details */}
+                          <div className="min-w-0 flex-1 space-y-1">
+                            {/* Status Line */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`flex items-center gap-1.5 text-xs font-bold ${statusColorClass}`}>
+                                <span className={`w-2 h-2 rounded-full ${statusDotClass} shrink-0`} />
+                                <span>{statusTitle}</span>
+                              </span>
+                            </div>
+
+                            {/* Product Title */}
+                            <h2 className="text-sm font-bold text-[#0F172A] truncate leading-tight group-hover:text-[#1E88E5] transition-colors" title={fullTitle}>
+                              {fullTitle}
+                            </h2>
+
+                            {/* Order ID & Meta */}
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
+                              <span className="font-mono font-bold text-slate-700">
+                                Order {canonicalId}
+                              </span>
+                              <span>•</span>
+                              <span>{formattedTime}</span>
+                              <span>•</span>
+                              <span>Qty: {totalJarsCount} {totalJarsCount === 1 ? 'jar' : 'jars'}</span>
+                            </div>
+
+                            {/* Delivery Summary for Completed Delivery Orders */}
+                            {order.deliverySummary && (
+                              <div className="flex items-center gap-2 text-[11px] text-emerald-800 bg-emerald-50/60 px-2 py-0.5 rounded-md w-fit">
+                                <span>Delivered: <strong>{order.deliverySummary.deliveredQty}</strong></span>
+                                <span>•</span>
+                                <span>Returned: <strong>{order.deliverySummary.returnedQty}</strong></span>
+                                {(order.deliverySummary.shortQty || 0) > 0 && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-amber-700 font-semibold">Short: {order.deliverySummary.shortQty}</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Authoritative Financial State */}
+                            <div className="flex items-center gap-2 pt-0.5 flex-wrap text-[11px]">
+                              <span className={`px-2 py-0.5 rounded font-bold text-[10px] border ${pst.badgeClass}`}>
+                                {pst.canonicalStatus === 'PAID' ? 'PAID' : pst.canonicalStatus === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : 'UNPAID'}
+                              </span>
+                              {pst.hasSettlement ? (
+                                <div className="flex items-center gap-1.5 font-bold text-[#1677C8]">
+                                  <span>Final: ₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                  {pst.total !== pst.originalTotal && (
+                                    <span className="text-slate-400 line-through text-[10px] font-normal">
+                                      (Orig: ₹{pst.originalTotal.toLocaleString('en-IN')})
+                                    </span>
+                                  )}
+                                </div>
                               ) : (
-                                <span className="hidden sm:block text-[10px] text-emerald-600 font-semibold">
-                                  Fully Paid
+                                <span className="font-semibold text-slate-700">
+                                  Total: ₹{pst.total.toLocaleString('en-IN')}
                                 </span>
                               )}
+                              {pst.paid > 0 && (
+                                <span className="font-semibold text-emerald-600">
+                                  · Paid: ₹{pst.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              )}
+                              {pst.hasDue ? (
+                                <span className="font-bold text-orange-600">
+                                  · Due: ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              ) : (
+                                <span className="font-semibold text-emerald-600">· Settled</span>
+                              )}
                             </div>
-                          );
-                        })()}
+                          </div>
+                        </div>
 
-                        {/* Action Group */}
-                        <div className="flex items-center gap-1.5">
-                          {(() => {
-                            const pst = getOrderPaymentState(order);
-                            return pst.hasDue && order.status !== 'CANCELLED' ? (
+                        {/* Right Part: Price & Action */}
+                        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                          {/* Price & Outstanding Due */}
+                          <div className="text-right">
+                            <span className="text-sm sm:text-base font-bold text-[#0F172A] block font-mono">
+                              ₹{pst.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                            {pst.hasSettlement && pst.total !== pst.originalTotal && (
+                              <span className="text-[10px] text-slate-400 block line-through">
+                                ₹{pst.originalTotal.toLocaleString('en-IN')}
+                              </span>
+                            )}
+                            {pst.hasDue ? (
+                              <span className="block text-[11px] font-bold text-orange-600">
+                                Due ₹{pst.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            ) : (
+                              <span className="hidden sm:block text-[10px] text-emerald-600 font-semibold">
+                                Fully Paid
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Action Group */}
+                          <div className="flex items-center gap-1.5">
+                            {pst.hasDue && order.status !== 'CANCELLED' ? (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -727,25 +859,25 @@ export default function Orders() {
                                 <CreditCard className="w-3.5 h-3.5" />
                                 <span>Pay ₹{pst.due.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                               </button>
-                            ) : null;
-                          })()}
+                            ) : null}
 
-                          {/* Desktop 1-Click Invoice Download */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              generateOrderInvoice(order);
-                            }}
-                            title="Download Invoice"
-                            className="hidden sm:inline-flex p-1.5 text-slate-400 hover:text-[#1E88E5] hover:bg-blue-50 rounded-lg transition cursor-pointer"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </button>
+                            {/* Desktop 1-Click Invoice Download */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateOrderInvoice(order);
+                              }}
+                              title="Download Invoice"
+                              className="hidden sm:inline-flex p-1.5 text-slate-400 hover:text-[#1E88E5] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
 
-                          {/* Chevron Arrow */}
-                          <div className="p-1 text-slate-300 group-hover:text-[#1E88E5] group-hover:translate-x-0.5 transition-all">
-                            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                            {/* Chevron Arrow */}
+                            <div className="p-1 text-slate-300 group-hover:text-[#1E88E5] group-hover:translate-x-0.5 transition-all">
+                              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -758,8 +890,8 @@ export default function Orders() {
 
             {/* ─── COMPACT PAGINATION FOOTER ─────────────────────── */}
             {filteredOrders.length > pageSize && (
-              <div className="p-3 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-between text-xs text-slate-600 shadow-2xs">
-                <span>
+              <div className="p-3.5 sm:p-3 bg-white border border-[#E2E8F0] rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 shadow-2xs">
+                <span className="text-center sm:text-left">
                   Showing <strong>{(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredOrders.length)}</strong> of <strong>{filteredOrders.length}</strong> orders
                 </span>
                 
@@ -911,8 +1043,8 @@ export default function Orders() {
       {payModalOrder && (() => {
         const pst = getOrderPaymentState(payModalOrder);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
@@ -975,18 +1107,18 @@ export default function Orders() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => setPayModalOrder(null)}
-                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                    className="w-full sm:w-auto px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer text-center"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmittingPay}
-                    className="px-4 py-2.5 bg-[#1E88E5] hover:bg-[#1565C0] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
+                    className="w-full sm:w-auto px-5 py-2.5 bg-[#1E88E5] hover:bg-[#1565C0] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                   >
                     {isSubmittingPay ? (
                       <Loader2 className="w-4 h-4 animate-spin text-white" />
