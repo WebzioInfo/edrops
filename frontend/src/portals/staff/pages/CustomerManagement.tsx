@@ -32,6 +32,7 @@ export default function CustomerManagement() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [drawerLoading, setDrawerLoading] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filters & Search
@@ -186,6 +187,7 @@ export default function CustomerManagement() {
 
   const handleUpdateSchedule = async () => {
     if (!selectedCust) return;
+    setSavingSchedule(true);
     try {
       await fetchWithAuth(`/schedule/${selectedCust.id}`, {
         method: 'POST',
@@ -206,6 +208,8 @@ export default function CustomerManagement() {
       loadCustomers();
     } catch (err: any) {
       toast.error(err.message || 'Failed to update schedule');
+    } finally {
+      setSavingSchedule(false);
     }
   };
 
@@ -1491,10 +1495,19 @@ export default function CustomerManagement() {
                 Cancel
               </button>
               <button
+                type="button"
+                disabled={savingSchedule}
                 onClick={handleUpdateSchedule}
-                className="px-5 py-1.5 rounded-lg text-xs font-bold bg-[#1677C8] hover:bg-[#125ea0] text-white shadow-xs transition cursor-pointer"
+                className="px-5 py-1.5 rounded-lg text-xs font-bold bg-[#1677C8] hover:bg-[#125ea0] text-white shadow-xs transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
               >
-                Save Schedule
+                {savingSchedule ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  'Save Schedule'
+                )}
               </button>
             </div>
           </motion.div>

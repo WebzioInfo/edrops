@@ -13,7 +13,8 @@ import {
   Edit3,
   Activity,
   UserCheck,
-  UserX
+  UserX,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
@@ -66,6 +67,7 @@ export default function DeliveryPartnersList() {
   const [userToEdit, setUserToEdit] = useState<UserRecord | null>(null);
   const [detailPartner, setDetailPartner] = useState<any | null>(null);
   const [priceEditPartner, setPriceEditPartner] = useState<any | null>(null);
+  const [togglingPartnerId, setTogglingPartnerId] = useState<string | null>(null);
 
   const { data: rawPartners, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['adminDeliveryPartners'],
@@ -131,6 +133,7 @@ export default function DeliveryPartnersList() {
 
   const handleToggleStatus = async (e: React.MouseEvent, partner: any) => {
     e.stopPropagation();
+    setTogglingPartnerId(partner.id);
     try {
       const newStatus = !partner.isActive;
       await fetchWithAuth(`/admin/users/${partner.id}`, {
@@ -141,6 +144,8 @@ export default function DeliveryPartnersList() {
       refetch();
     } catch (err: any) {
       toast.error(err.message || 'Failed to update partner status');
+    } finally {
+      setTogglingPartnerId(null);
     }
   };
 
@@ -511,15 +516,22 @@ export default function DeliveryPartnersList() {
                             </button>
                             <button
                               type="button"
+                              disabled={togglingPartnerId === partner.id}
                               onClick={(e) => handleToggleStatus(e, partner)}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
                                 isActive 
                                   ? 'text-gray-400 hover:text-rose-600 hover:bg-rose-50' 
                                   : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'
                               }`}
                               title={isActive ? 'Deactivate Partner' : 'Activate Partner'}
                             >
-                              {isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                              {togglingPartnerId === partner.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1677C8]" />
+                              ) : isActive ? (
+                                <UserX className="w-3.5 h-3.5" />
+                              ) : (
+                                <UserCheck className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           </div>
                         </td>

@@ -3542,11 +3542,16 @@ export default function Orders() {
                     }
                     className="px-4 py-2 bg-[#1677C8] hover:bg-[#1264A8] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                   >
-                    {isUpdatingStatus
-                      ? 'Updating...'
-                      : isOutForDelivery
-                      ? 'Confirm Out for Delivery'
-                      : 'Confirm Update'}
+                    {isUpdatingStatus ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Updating...</span>
+                      </>
+                    ) : isOutForDelivery ? (
+                      'Confirm Out for Delivery'
+                    ) : (
+                      'Confirm Update'
+                    )}
                   </button>
                 </div>
               </form>

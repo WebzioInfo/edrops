@@ -554,7 +554,7 @@ export default function EditProfileModal({
                 {saving ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Verifying...</span>
+                    <span>Saving Changes...</span>
                   </>
                 ) : (
                   <>

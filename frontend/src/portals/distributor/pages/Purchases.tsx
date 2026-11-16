@@ -17,6 +17,7 @@ import {
   ChevronDown,
   MoreHorizontal,
   SlidersHorizontal,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { showToast } from '../../../utils/toast';
@@ -1547,9 +1548,16 @@ export default function Purchases() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-lg text-xs font-bold transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  {isSubmitting ? 'Saving...' : editingPurchase ? 'Update Purchase' : 'Save Purchase'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>{editingPurchase ? 'Update Purchase' : 'Save Purchase'}</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -1590,9 +1598,16 @@ export default function Purchases() {
                 type="button"
                 onClick={handleDeletePurchase}
                 disabled={isDeleting}
-                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center gap-1.5"
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  'Delete'
+                )}
               </button>
             </div>
           </div>

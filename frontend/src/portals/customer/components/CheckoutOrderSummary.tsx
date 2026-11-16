@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, ShieldCheck, Tag, ChevronDown, ChevronUp, Check, Lock, Minus, Plus, Trash2 } from 'lucide-react';
+import { Package, ShieldCheck, Tag, ChevronDown, ChevronUp, Check, Lock, Minus, Plus, Trash2, Loader2 } from 'lucide-react';
 
 export interface CheckoutOrderSummaryProps {
   items: Array<{
@@ -211,9 +211,16 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
                     type="button"
                     onClick={handleApplyPromo}
                     disabled={!promoInput.trim() || isValidatingPromo}
-                    className="px-4 h-9 bg-[#1E88E5] hover:bg-[#1565C0] disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 h-9 bg-[#1E88E5] hover:bg-[#1565C0] disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
                   >
-                    {isValidatingPromo ? '...' : 'Apply'}
+                    {isValidatingPromo ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Applying...</span>
+                      </>
+                    ) : (
+                      'Apply'
+                    )}
                   </button>
                 )}
               </div>

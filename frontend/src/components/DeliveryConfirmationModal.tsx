@@ -10,6 +10,7 @@ import {
   CreditCard,
   RotateCcw,
   PackageCheck,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../api/client';
 import { toast } from 'react-hot-toast';
@@ -831,7 +832,10 @@ export const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps>
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed shadow-xs flex items-center gap-1.5 transition"
               >
                 {isSubmitting ? (
-                  <span>Confirming...</span>
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Confirming...</span>
+                  </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />

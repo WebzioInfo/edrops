@@ -297,6 +297,7 @@ export default function SetupPassword() {
                           fullWidth
                           size="lg"
                           isLoading={isResending}
+                          loadingText="Sending Link..."
                           className="bg-[#00AEEF] hover:bg-[#0096ce] text-white"
                         >
                           Send Setup Link
@@ -385,6 +386,7 @@ export default function SetupPassword() {
                           fullWidth
                           size="lg"
                           isLoading={isSubmitting}
+                          loadingText="CREATING PASSWORD..."
                           className="bg-[#00AEEF] hover:bg-[#0096ce] text-white font-semibold py-3"
                         >
                           CREATE PASSWORD

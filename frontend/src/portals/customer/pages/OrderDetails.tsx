@@ -22,6 +22,7 @@ import {
   KeyRound,
   Receipt,
   X,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useSocket } from '../../../contexts/SocketContext';
@@ -1144,8 +1145,12 @@ export default function OrderDetails() {
                     disabled={isPaying}
                     className="px-4 py-2.5 bg-[#1E88E5] hover:bg-[#1565C0] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
                   >
-                    <CreditCard className="w-4 h-4" />
-                    <span>{isPaying ? 'Processing...' : `Pay ₹${pst.due}`}</span>
+                    {isPaying ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    ) : (
+                      <CreditCard className="w-4 h-4" />
+                    )}
+                    <span>{isPaying ? 'Processing Payment...' : `Pay ₹${pst.due}`}</span>
                   </button>
                 </div>
               </form>

@@ -188,10 +188,20 @@ export default function CreateOrderPOS() {
                 {searchQuery.length > 9 && customers.length === 0 && !isSearching && (
                   <button 
                     onClick={() => createWalkInMutation.mutate(searchQuery)}
-                    className="w-full flex items-center justify-center gap-2 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl font-bold hover:bg-emerald-100 transition-all"
+                    disabled={createWalkInMutation.isPending}
+                    className="w-full flex items-center justify-center gap-2 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl font-bold hover:bg-emerald-100 transition-all disabled:opacity-50 cursor-pointer"
                   >
-                    <UserPlus className="w-5 h-5" />
-                    Create Walk-In Customer for {searchQuery}
+                    {createWalkInMutation.isPending ? (
+                      <>
+                        <LoadingSpinner size="sm" />
+                        <span>Creating Walk-In Customer...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-5 h-5" />
+                        <span>Create Walk-In Customer for {searchQuery}</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -390,10 +400,19 @@ export default function CreateOrderPOS() {
               <button 
                 onClick={() => placeOrderMutation.mutate()} 
                 disabled={placeOrderMutation.isPending || (!adminNotes && (waiveDeposit || waiveDelivery || customDiscount > 0))}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black text-lg transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black text-lg transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer"
               >
-                {placeOrderMutation.isPending ? <LoadingSpinner size="sm" light /> : <CheckCircle className="w-6 h-6" />}
-                Confirm Order
+                {placeOrderMutation.isPending ? (
+                  <>
+                    <LoadingSpinner size="sm" light />
+                    <span>Placing Order...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-6 h-6" />
+                    <span>Confirm Order</span>
+                  </>
+                )}
               </button>
             )}
             

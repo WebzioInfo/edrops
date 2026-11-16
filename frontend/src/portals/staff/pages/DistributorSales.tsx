@@ -7,6 +7,7 @@ import {
   X,
   DollarSign,
   Receipt,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -940,9 +941,16 @@ export default function DistributorSales() {
                 <button
                   type="submit"
                   disabled={submitting || !selectedDistributorId || quantity <= 0}
-                  className="px-5 py-2 bg-[#1677C8] hover:bg-[#1363a8] text-white rounded-xl font-bold transition disabled:opacity-50 shadow-md cursor-pointer"
+                  className="px-5 py-2 bg-[#1677C8] hover:bg-[#1363a8] text-white rounded-xl font-bold transition disabled:opacity-50 shadow-md cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  {submitting ? 'Recording Sale...' : `Confirm Sale (₹${computedTotal.toLocaleString('en-IN')})`}
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Recording Sale...</span>
+                    </>
+                  ) : (
+                    `Confirm Sale (₹${computedTotal.toLocaleString('en-IN')})`
+                  )}
                 </button>
               </div>
             </form>
@@ -1033,9 +1041,16 @@ export default function DistributorSales() {
                 <button
                   type="submit"
                   disabled={isSubmittingPay || payAmount <= 0}
-                  className="px-5 py-2 bg-[#1677C8] hover:bg-[#1363a8] text-white rounded-xl font-bold transition disabled:opacity-50 shadow-xs"
+                  className="px-5 py-2 bg-[#1677C8] hover:bg-[#1363a8] text-white rounded-xl font-bold transition disabled:opacity-50 shadow-xs cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  {isSubmittingPay ? 'Recording...' : `Record ₹${payAmount} Payment`}
+                  {isSubmittingPay ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Recording...</span>
+                    </>
+                  ) : (
+                    `Record ₹${payAmount} Payment`
+                  )}
                 </button>
               </div>
             </form>

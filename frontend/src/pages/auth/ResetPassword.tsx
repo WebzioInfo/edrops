@@ -145,6 +145,7 @@ export default function ResetPassword() {
                       fullWidth 
                       size="lg" 
                       isLoading={isSubmitting}
+                      loadingText="Resetting Password..."
                       className="mt-6"
                     >
                       Reset Password

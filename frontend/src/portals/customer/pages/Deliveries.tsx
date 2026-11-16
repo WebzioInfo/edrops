@@ -201,6 +201,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
   });
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [isTogglingSchedule, setIsTogglingSchedule] = useState(false);
 
   // ── Delivery History State ──
   const [weeks, setWeeks] = useState<WeekData[]>([]);
@@ -302,6 +303,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
   const handleToggleScheduleActive = async () => {
     if (!schedule) return;
     const nextActive = !schedule.isActive;
+    setIsTogglingSchedule(true);
     try {
       const updated = await fetchWithAuth('/schedule', {
         method: 'POST',
@@ -317,6 +319,8 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
       loadHistory(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to update schedule status');
+    } finally {
+      setIsTogglingSchedule(false);
     }
   };
 
@@ -603,8 +607,9 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
             {schedule && (
               <button
                 type="button"
+                disabled={isTogglingSchedule}
                 onClick={handleToggleScheduleActive}
-                className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border shadow-2xs transition-colors cursor-pointer ${
+                className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border shadow-2xs transition-colors cursor-pointer disabled:opacity-60 ${
                   schedule.isActive
                     ? 'bg-emerald-50/80 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
                     : 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
@@ -615,8 +620,18 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
                     : 'Auto-deliveries are paused. Tap to resume.'
                 }
               >
-                <Power className={`w-3.5 h-3.5 ${schedule.isActive ? 'text-emerald-600' : 'text-amber-600'}`} />
-                <span>{schedule.isActive ? 'Auto-Delivery: Active' : 'Auto-Delivery: Paused'}</span>
+                {isTogglingSchedule ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Power className={`w-3.5 h-3.5 ${schedule.isActive ? 'text-emerald-600' : 'text-amber-600'}`} />
+                )}
+                <span>
+                  {isTogglingSchedule
+                    ? 'Updating...'
+                    : schedule.isActive
+                    ? 'Auto-Delivery: Active'
+                    : 'Auto-Delivery: Paused'}
+                </span>
               </button>
             )}
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Layers, Plus, Trash2, Copy } from 'lucide-react';
+import { Layers, Plus, Trash2, Copy, Loader2 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useDialog } from '../../../hooks/useDialog';
 
@@ -20,6 +20,7 @@ export default function PackageCatalog() {
   // Form states
   const [formOpen, setFormOpen] = useState(false);
   const [isEditingId, setIsEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -101,6 +102,7 @@ export default function PackageCatalog() {
       isActive
     };
 
+    setSaving(true);
     try {
       if (isEditingId) {
         await fetchWithAuth(`/recharge/package/${isEditingId}`, {
@@ -120,6 +122,8 @@ export default function PackageCatalog() {
       loadPackages();
     } catch (err: any) {
       toast.error(err.message || 'Action failed');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -389,9 +393,17 @@ export default function PackageCatalog() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-full text-xs font-black uppercase bg-primary text-white shadow-md hover:bg-primary/80 transition cursor-pointer"
+                  disabled={saving}
+                  className="px-6 py-2.5 rounded-full text-xs font-black uppercase bg-primary text-white shadow-md hover:bg-primary/80 transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-2"
                 >
-                  Save Package
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    'Save Package'
+                  )}
                 </button>
               </div>
             </form>

@@ -1,5 +1,5 @@
 import { 
-  Tag, Plus, Search, Trash2, Edit, CheckCircle, XCircle, Percent, Gift, Truck, Key, Activity 
+  Tag, Plus, Search, Trash2, Edit, CheckCircle, XCircle, Percent, Gift, Truck, Key, Activity, Loader2 
 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -611,9 +611,16 @@ export default function PromoManager() {
                 <button 
                   type="submit" 
                   disabled={createMutation.isPending || updateMutation.isPending}
-                  className="w-1/2 py-3 bg-[#2D79A8] hover:bg-[#2D79A8]/90 text-white rounded-full font-black text-sm active:scale-95 transition-all shadow-lg shadow-[#2D79A8]/20 cursor-pointer flex items-center justify-center"
+                  className="w-1/2 py-3 bg-[#2D79A8] hover:bg-[#2D79A8]/90 text-white rounded-full font-black text-sm active:scale-95 transition-all shadow-lg shadow-[#2D79A8]/20 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Save Config'}
+                  {(createMutation.isPending || updateMutation.isPending) ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    'Save Config'
+                  )}
                 </button>
               </div>
             </form>

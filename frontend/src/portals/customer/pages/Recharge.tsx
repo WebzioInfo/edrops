@@ -502,13 +502,22 @@ export default function RechargePage() {
                 <button
                   type="submit"
                   disabled={applying || (!appliedPromo && !promoCode.trim())}
-                  className={`px-4 rounded-xl text-xs font-bold transition cursor-pointer select-none active:scale-95 ${
+                  className={`inline-flex items-center gap-1.5 px-4 rounded-xl text-xs font-bold transition cursor-pointer select-none active:scale-95 ${
                     appliedPromo 
                       ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-xs' 
                       : 'bg-[#0284C7] hover:bg-[#0369A1] text-white shadow-xs disabled:bg-[#E2E8F0] disabled:text-[#94A3B8] disabled:cursor-not-allowed'
                   }`}
                 >
-                  {applying ? '...' : appliedPromo ? 'Remove' : 'Apply'}
+                  {applying ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Applying...</span>
+                    </>
+                  ) : appliedPromo ? (
+                    'Remove'
+                  ) : (
+                    'Apply'
+                  )}
                 </button>
               </form>
 

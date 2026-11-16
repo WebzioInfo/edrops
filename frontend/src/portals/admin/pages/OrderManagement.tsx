@@ -109,9 +109,16 @@ export default function OrderManagement() {
               <button
                 disabled={selectedOrders.length === 0 || !selectedPartner || bulkAssignMutation.isPending}
                 onClick={() => bulkAssignMutation.mutate()}
-                className="w-full py-3 bg-[#2D79A8] hover:bg-[#245361] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-md shadow-[#2D79A8]/20 transition-all flex justify-center items-center gap-2 mt-4"
+                className="w-full py-3 bg-[#2D79A8] hover:bg-[#245361] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-md shadow-[#2D79A8]/20 transition-all flex justify-center items-center gap-2 mt-4 cursor-pointer"
               >
-                {bulkAssignMutation.isPending ? <LoadingSpinner size="sm" light /> : 'Assign Selected (' + selectedOrders.length + ')'}
+                {bulkAssignMutation.isPending ? (
+                  <>
+                    <LoadingSpinner size="sm" light />
+                    <span>Assigning Selected ({selectedOrders.length})...</span>
+                  </>
+                ) : (
+                  'Assign Selected (' + selectedOrders.length + ')'
+                )}
               </button>
             </div>
           </div>

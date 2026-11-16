@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Award, Truck, Route, CreditCard, CheckCircle2, History, Plus, Calendar, MapPin, Zap, X } from 'lucide-react';
+import { Package, Award, Truck, Route, CreditCard, CheckCircle2, History, Plus, Calendar, MapPin, Zap, X, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PremiumWaterJar from '../components/PremiumWaterJar';
 import { fetchWithAuth } from '../../../api/client';
@@ -244,9 +244,16 @@ export default function Dashboard() {
             <button
               onClick={handleOwnJar}
               disabled={jarDeposit.depositDue <= 0 || ownJarMutation.isPending}
-              className="w-full mt-8 h-14 rounded-[16px] bg-gradient-to-r from-[#1E88E5] to-[#1565C0] text-white font-bold text-[15px] shadow-[0_8px_20px_rgba(30,136,229,0.25)] hover:shadow-[0_12px_24px_rgba(30,136,229,0.35)] hover:-translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full mt-8 h-14 rounded-[16px] bg-gradient-to-r from-[#1E88E5] to-[#1565C0] text-white font-bold text-[15px] shadow-[0_8px_20px_rgba(30,136,229,0.25)] hover:shadow-[0_12px_24px_rgba(30,136,229,0.35)] hover:-translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 cursor-pointer"
             >
-              Own This Jar (Pay Deposit ₹200)
+              {ownJarMutation.isPending ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin text-white" />
+                  <span>Processing Deposit...</span>
+                </>
+              ) : (
+                'Own This Jar (Pay Deposit ₹200)'
+              )}
             </button>
           </div>
         </motion.section>

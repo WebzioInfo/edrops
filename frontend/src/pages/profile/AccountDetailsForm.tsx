@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Phone, Shield, Award, Edit2 } from 'lucide-react';
+import { Mail, Phone, Shield, Award, Edit2, Loader2 } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { toast } from 'react-hot-toast';
 
@@ -124,9 +124,16 @@ export default function AccountDetailsForm({ profile, onRefresh }: AccountDetail
             <button
               type="submit"
               disabled={updating}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase bg-[#0F6E8C] hover:bg-[#0F6E8C]/90 text-white transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold uppercase bg-[#0F6E8C] hover:bg-[#0F6E8C]/90 text-white transition cursor-pointer disabled:opacity-50"
             >
-              {updating ? 'Saving...' : 'Save Changes'}
+              {updating ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </button>
           </div>
         </form>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock } from 'lucide-react';
+import { Lock, Loader2 } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { toast } from 'react-hot-toast';
 
@@ -77,9 +77,16 @@ export default function ChangePasswordForm({ email }: ChangePasswordFormProps) {
             type="button"
             disabled={requestingOtp}
             onClick={handleRequestOtp}
-            className="px-5 py-3 rounded-xl bg-[#0F6E8C] text-xs font-bold uppercase text-white hover:bg-[#0F6E8C]/90 transition cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#0F6E8C] text-xs font-bold uppercase text-white hover:bg-[#0F6E8C]/90 transition cursor-pointer disabled:opacity-50"
           >
-            {requestingOtp ? 'Sending code...' : 'Request Verification OTP'}
+            {requestingOtp ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Sending Code...</span>
+              </>
+            ) : (
+              'Request Verification OTP'
+            )}
           </button>
         </div>
       ) : (
@@ -130,7 +137,14 @@ export default function ChangePasswordForm({ email }: ChangePasswordFormProps) {
               disabled={changingPassword}
               className="px-6 py-3 rounded-xl bg-[#0F6E8C] text-xs font-bold uppercase text-white hover:bg-[#0F6E8C]/90 transition cursor-pointer disabled:opacity-50 flex items-center gap-2"
             >
-              {changingPassword ? 'Updating...' : 'Confirm & Update Password'}
+              {changingPassword ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Updating...</span>
+                </>
+              ) : (
+                'Confirm & Update Password'
+              )}
             </button>
           </div>
         </form>

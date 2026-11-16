@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon, Loader2 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
 import { AdminTopbar } from '../components/AdminTopbar';
@@ -75,7 +75,14 @@ export default function BusinessSettings() {
             disabled={saving}
             className="inline-flex items-center gap-1.5 bg-[#1677C8] hover:bg-[#1262A5] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors shadow-2xs cursor-pointer active:scale-98 disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save Settings'}
+            {saving ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              'Save Settings'
+            )}
           </button>
         }
       />
@@ -220,9 +227,16 @@ export default function BusinessSettings() {
           <button
             type="submit"
             disabled={saving}
-            className="clay-btn bg-emerald-600 text-white hover:bg-emerald-700 font-black text-sm uppercase py-3.5 px-8 cursor-pointer disabled:opacity-50"
+            className="clay-btn bg-emerald-600 text-white hover:bg-emerald-700 font-black text-sm uppercase py-3.5 px-8 cursor-pointer disabled:opacity-50 inline-flex items-center gap-2"
           >
-            {saving ? 'Saving...' : 'Apply Dynamic Settings'}
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              'Apply Dynamic Settings'
+            )}
           </button>
         </div>
       </form>

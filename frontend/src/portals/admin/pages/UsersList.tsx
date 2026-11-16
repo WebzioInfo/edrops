@@ -18,7 +18,8 @@ import {
   User,
   Tag,
   MapPin,
-  Building2
+  Building2,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import LoadingSpinner from '../../../components/LoadingSpinner';
@@ -72,6 +73,7 @@ export default function UsersList() {
   const [userToEdit, setUserToEdit] = useState<UserRecord | null>(null);
   const [detailUser, setDetailUser] = useState<any | null>(null);
   const [priceEditUser, setPriceEditUser] = useState<any | null>(null);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
 
   const { data: rawUsers, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['adminUsers'],
@@ -145,6 +147,7 @@ export default function UsersList() {
 
   const handleToggleStatus = async (e: React.MouseEvent, user: any) => {
     e.stopPropagation();
+    setTogglingUserId(user.id);
     try {
       const newStatus = !user.isActive;
       await fetchWithAuth(`/admin/users/${user.id}`, {
@@ -155,6 +158,8 @@ export default function UsersList() {
       refetch();
     } catch (err: any) {
       toast.error(err.message || 'Failed to update user status');
+    } finally {
+      setTogglingUserId(null);
     }
   };
 
@@ -694,15 +699,22 @@ export default function UsersList() {
                             </button>
                             <button
                               type="button"
+                              disabled={togglingUserId === u.id}
                               onClick={(e) => handleToggleStatus(e, u)}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
                                 isActive 
                                   ? 'text-gray-400 hover:text-rose-600 hover:bg-rose-50' 
                                   : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'
                               }`}
                               title={isActive ? 'Deactivate User' : 'Activate User'}
                             >
-                              {isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                              {togglingUserId === u.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1677C8]" />
+                              ) : isActive ? (
+                                <UserX className="w-3.5 h-3.5" />
+                              ) : (
+                                <UserCheck className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           </div>
                         </td>

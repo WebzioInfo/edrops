@@ -1053,10 +1053,13 @@ export default function Checkout() {
                       type="button"
                       onClick={handleCheckout}
                       disabled={isProcessing}
-                      className="px-8 py-2.5 rounded-xl bg-[#1E88E5] text-white font-bold text-sm shadow-xs hover:bg-[#1565C0] transition-colors cursor-pointer disabled:opacity-70 flex items-center justify-center min-w-[170px]"
+                      className="px-8 py-2.5 rounded-xl bg-[#1E88E5] text-white font-bold text-sm shadow-xs hover:bg-[#1565C0] transition-colors cursor-pointer disabled:opacity-70 flex items-center justify-center gap-2 min-w-[170px]"
                     >
                       {isProcessing ? (
-                        <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <>
+                          <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Processing Order...</span>
+                        </>
                       ) : (
                         `Pay ₹${grandTotal} & Place Order`
                       )}
@@ -1122,7 +1125,10 @@ export default function Checkout() {
                 className="h-10 px-3.5 sm:px-5 rounded-xl bg-[#1E88E5] text-white font-bold text-xs sm:text-sm shadow-xs active:bg-[#1565C0] transition-colors cursor-pointer disabled:opacity-70 flex items-center justify-center gap-1.5 whitespace-nowrap w-full max-w-[210px]"
               >
                 {isProcessing ? (
-                  <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <>
+                    <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Processing...</span>
+                  </>
                 ) : (
                   <>
                     <span>Pay ₹{grandTotal}</span>

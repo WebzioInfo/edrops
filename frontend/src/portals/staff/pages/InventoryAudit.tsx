@@ -16,6 +16,7 @@ import {
   Users,
   Factory,
   Droplets,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -1523,9 +1524,16 @@ export default function InventoryAudit() {
                   <button
                     type="submit"
                     disabled={submitting || transferQty <= 0 || transferQty > compAvailable}
-                    className="px-4 py-2 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#125ea0] rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#125ea0] rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
                   >
-                    {submitting ? 'Transferring...' : 'Confirm Transfer'}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Transferring...</span>
+                      </>
+                    ) : (
+                      'Confirm Transfer'
+                    )}
                   </button>
                 </div>
               </form>
@@ -1658,9 +1666,16 @@ export default function InventoryAudit() {
                   <button
                     type="submit"
                     disabled={submitting || returnQty <= 0}
-                    className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
                   >
-                    {submitting ? 'Processing...' : 'Confirm Return'}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      'Confirm Return'
+                    )}
                   </button>
                 </div>
               </form>
@@ -1771,9 +1786,16 @@ export default function InventoryAudit() {
                   <button
                     type="submit"
                     disabled={submitting || !adjustReason.trim()}
-                    className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
                   >
-                    {submitting ? 'Applying...' : 'Apply Adjustment'}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Applying...</span>
+                      </>
+                    ) : (
+                      'Apply Adjustment'
+                    )}
                   </button>
                 </div>
               </form>
@@ -1870,9 +1892,16 @@ export default function InventoryAudit() {
                   <button
                     type="submit"
                     disabled={submitting || !compReason.trim()}
-                    className="px-4 py-2 text-xs font-bold text-white bg-[#16324F] hover:bg-[#122538] rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#16324F] hover:bg-[#122538] rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
                   >
-                    {submitting ? 'Applying...' : 'Apply Central Adjustment'}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Applying...</span>
+                      </>
+                    ) : (
+                      'Apply Central Adjustment'
+                    )}
                   </button>
                 </div>
               </form>
@@ -1996,9 +2025,16 @@ export default function InventoryAudit() {
                   <button
                     type="submit"
                     disabled={submitting || simpleQty <= 0}
-                    className="px-4 py-2 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#125ea0] rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#1677C8] hover:bg-[#125ea0] rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
                   >
-                    {submitting ? 'Processing...' : 'Confirm'}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      'Confirm'
+                    )}
                   </button>
                 </div>
               </form>
@@ -2322,9 +2358,16 @@ export default function InventoryAudit() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
                   >
-                    {submitting ? 'Issuing Materials...' : 'Confirm Issuance & Decrement Stock'}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Issuing Materials...</span>
+                      </>
+                    ) : (
+                      'Confirm Issuance & Decrement Stock'
+                    )}
                   </button>
                 </div>
               </form>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Plus, Edit2, Trash2, CheckCircle2 } from 'lucide-react';
+import { MapPin, Plus, Edit2, Trash2, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { fetchWithAuth } from '../../api/client';
 import AddressModal, { type AddressData } from './AddressModal';
@@ -20,6 +20,7 @@ export default function AddressManagementSection({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [addressToDelete, setAddressToDelete] = useState<AddressData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [settingPrimaryId, setSettingPrimaryId] = useState<string | null>(null);
 
   // Primary address is either flagged isDefault or the first address
   const primaryAddress = addresses.find((a) => a.isDefault) || addresses[0] || null;
@@ -60,6 +61,7 @@ export default function AddressManagementSection({
 
   const handleSetPrimary = async (addressId?: string) => {
     if (!addressId) return;
+    setSettingPrimaryId(addressId);
     try {
       await fetchWithAuth(`/profile/addresses/${addressId}/primary`, {
         method: 'PATCH',
@@ -68,6 +70,8 @@ export default function AddressManagementSection({
       onRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Failed to set primary address');
+    } finally {
+      setSettingPrimaryId(null);
     }
   };
 
@@ -260,10 +264,18 @@ export default function AddressManagementSection({
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
+                          disabled={settingPrimaryId === addr.id}
                           onClick={() => handleSetPrimary(addr.id)}
-                          className="text-[11px] font-bold text-[#1677C8] hover:underline cursor-pointer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#1677C8] hover:underline cursor-pointer disabled:opacity-50"
                         >
-                          Make Primary
+                          {settingPrimaryId === addr.id ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span>Updating...</span>
+                            </>
+                          ) : (
+                            'Make Primary'
+                          )}
                         </button>
                         <span className="text-slate-300">·</span>
                         <button

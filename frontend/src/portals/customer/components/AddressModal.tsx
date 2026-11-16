@@ -335,7 +335,10 @@ export default function AddressModal({ isOpen, onClose, onSuccess }: AddressModa
                 }`}
               >
                 {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    <span>Saving Address...</span>
+                  </>
                 ) : isFormUnlocked ? (
                   'Save Address'
                 ) : (

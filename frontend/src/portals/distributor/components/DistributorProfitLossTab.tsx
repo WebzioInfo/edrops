@@ -25,6 +25,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Info,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from '../../../utils/toast';
@@ -859,9 +860,16 @@ export default function DistributorProfitLossTab({
                 <button
                   type="submit"
                   disabled={submittingExpense}
-                  className="px-5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition-all shadow-xs disabled:opacity-50"
+                  className="px-5 py-2 bg-[#1677C8] hover:bg-[#125ea0] text-white rounded-xl text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  {submittingExpense ? 'Recording...' : 'Save Expense'}
+                  {submittingExpense ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Recording...</span>
+                    </>
+                  ) : (
+                    'Save Expense'
+                  )}
                 </button>
               </div>
             </form>

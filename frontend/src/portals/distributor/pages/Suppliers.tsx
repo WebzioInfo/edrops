@@ -994,9 +994,16 @@ export default function Suppliers() {
                 type="button"
                 onClick={handleDeleteSupplier}
                 disabled={isDeleting}
-                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center gap-1.5"
               >
-                {isDeleting ? 'Processing...' : 'Confirm'}
+                {isDeleting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  'Confirm'
+                )}
               </button>
             </div>
           </div>

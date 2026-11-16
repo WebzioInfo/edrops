@@ -665,7 +665,7 @@ export default function DistributorFormModal({
               className="px-5 py-1.5 rounded-lg text-xs font-bold bg-[#1677C8] hover:bg-[#125ea0] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
             >
               {loading && <RotateCw className="w-3.5 h-3.5 animate-spin" />}
-              {isEdit ? 'Save Changes' : 'Create Distributor'}
+              <span>{loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Distributor'}</span>
             </button>
           </div>
         </form>

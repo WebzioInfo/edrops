@@ -13,6 +13,7 @@ import {
   Zap,
   ShieldCheck,
   X,
+  Loader2,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from '../../../utils/toast';
@@ -583,9 +584,16 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
                 <button
                   type="submit"
                   disabled={submittingExpense}
-                  className="px-4 py-1.5 rounded-xl bg-[#1677C8] hover:bg-[#1264a8] text-white font-bold shadow-sm transition-colors cursor-pointer"
+                  className="px-4 py-1.5 rounded-xl bg-[#1677C8] hover:bg-[#1264a8] text-white font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
-                  {submittingExpense ? 'Saving...' : 'Record Expense'}
+                  {submittingExpense ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    'Record Expense'
+                  )}
                 </button>
               </div>
             </form>

@@ -687,8 +687,14 @@ export default function ServiceAreas() {
                   disabled={isSubmitting || pincode.length !== 6 || isDuplicate}
                   className="px-5 py-2.5 rounded-xl bg-[#1677C8] hover:bg-[#125ea0] text-white font-bold text-xs shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-colors"
                 >
-                  {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                  Save Pincode
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving Pincode...</span>
+                    </>
+                  ) : (
+                    'Save Pincode'
+                  )}
                 </button>
               </div>
             </form>
