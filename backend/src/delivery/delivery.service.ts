@@ -1,7 +1,8 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeliveryEngine } from '../engines/delivery.engine';
 import { OrderStatus } from '@prisma/client';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class DeliveryService {
@@ -10,7 +11,35 @@ export class DeliveryService {
   constructor(
     private prisma: PrismaService,
     private deliveryEngine: DeliveryEngine,
+    @Optional() private eventsGateway?: EventsGateway,
   ) {}
+
+  private emitOrderEvents(orderId: string, status: OrderStatus, customerId?: string) {
+    if (!this.eventsGateway) return;
+    try {
+      if (customerId) {
+        this.eventsGateway.emitOrderStatusUpdate(orderId, status, customerId);
+      }
+      this.eventsGateway.emitEvent(`order:${orderId}`, 'ORDER_STATUS_CHANGED', {
+        orderId,
+        status,
+      });
+      this.eventsGateway.emitEvent(`order-${orderId}`, 'ORDER_STATUS_CHANGED', {
+        orderId,
+        status,
+      });
+      this.eventsGateway.emitEvent('staff:orders', 'order:updated', {
+        orderId,
+        status,
+      });
+      this.eventsGateway.emitEvent('distributors:orders', 'order:updated', {
+        orderId,
+        status,
+      });
+    } catch (err) {
+      this.logger.warn(`Could not emit socket events for order ${orderId}: ${err}`);
+    }
+  }
 
   async create(data: any) {
     return this.prisma.delivery.create({
@@ -114,9 +143,10 @@ export class DeliveryService {
       // We will assume the required quantity is fully delivered for this test endpoint.
       const delivery = await this.prisma.delivery.findUnique({
         where: { id: deliveryId },
+        include: { customer: { include: { user: true } } },
       });
       const brand = await this.prisma.brand.findFirst();
-      return this.deliveryEngine.confirmDelivery(
+      const res = await this.deliveryEngine.confirmDelivery(
         deliveryId,
         brand?.id || '',
         delivery?.requiredQuantity || 1,
@@ -124,11 +154,60 @@ export class DeliveryService {
         0, // damaged
         reason || 'Marked delivered via status API',
       );
+
+      if (delivery?.orderId) {
+        try {
+          await this.prisma.order.update({
+            where: { id: delivery.orderId },
+            data: { status: OrderStatus.DELIVERED, deliveredAt: new Date() },
+          });
+          this.emitOrderEvents(delivery.orderId, OrderStatus.DELIVERED, delivery.customer?.id);
+        } catch (err) {
+          this.logger.warn(`Could not sync order status to DELIVERED: ${err}`);
+        }
+      }
+
+      return res;
+    }
+
+    if (status === OrderStatus.OUT_FOR_DELIVERY) {
+      const delivery = await this.prisma.delivery.findUnique({
+        where: { id: deliveryId },
+        include: { customer: { include: { user: true } } },
+      });
+      const res = await this.prisma.delivery.update({
+        where: { id: deliveryId },
+        data: { status },
+      });
+      if (delivery?.orderId) {
+        try {
+          await this.prisma.order.update({
+            where: { id: delivery.orderId },
+            data: { status: OrderStatus.OUT_FOR_DELIVERY },
+          });
+          this.emitOrderEvents(delivery.orderId, OrderStatus.OUT_FOR_DELIVERY, delivery.customer?.id);
+        } catch (err) {
+          this.logger.warn(`Could not sync order status to OUT_FOR_DELIVERY: ${err}`);
+        }
+      }
+      return res;
     }
 
     return this.prisma.delivery.update({
       where: { id: deliveryId },
       data: { status },
+    });
+  }
+
+  async dispatchDelivery(
+    deliveryId: string,
+    data?: { deliveredQty?: number; emptyCollected?: number; notes?: string },
+  ) {
+    return this.requestDeliveryVerification(deliveryId, {
+      deliveredQty: data?.deliveredQty || 1,
+      emptyCollected: data?.emptyCollected || 0,
+      notes: data?.notes || 'Dispatched for delivery',
+      requireVerification: true,
     });
   }
 
@@ -712,6 +791,34 @@ export class DeliveryService {
       },
     });
 
+    // Synchronize parent Order to OUT_FOR_DELIVERY and ensure Delivery OTP is ready
+    if (delivery.orderId) {
+      try {
+        await this.prisma.order.update({
+          where: { id: delivery.orderId },
+          data: { status: OrderStatus.OUT_FOR_DELIVERY },
+        });
+
+        const existingVerif = await this.prisma.orderDeliveryVerification.findUnique({
+          where: { orderId: delivery.orderId },
+        });
+        if (!existingVerif) {
+          const otp = Math.floor(1000 + Math.random() * 9000).toString();
+          await this.prisma.orderDeliveryVerification.create({
+            data: {
+              orderId: delivery.orderId,
+              otp,
+              status: 'PENDING',
+            },
+          });
+        }
+
+        this.emitOrderEvents(delivery.orderId, OrderStatus.OUT_FOR_DELIVERY, delivery.customer?.id);
+      } catch (orderErr) {
+        this.logger.warn(`Could not sync parent order ${delivery.orderId} to OUT_FOR_DELIVERY: ${orderErr}`);
+      }
+    }
+
     // Notify customer
     try {
       await this.prisma.notification.create({
@@ -832,17 +939,17 @@ export class DeliveryService {
 
   async forceVerifyByStaff(
     deliveryId: string,
-    data: { deliveredQty: number; emptyCollected: number; notes?: string },
+    data: { deliveredQty: number; emptyCollected: number; notes?: string; pin?: string },
     staffUser?: any,
   ) {
     let delivery = await this.prisma.delivery.findUnique({
       where: { id: deliveryId },
-      include: { report: true },
+      include: { report: true, customer: { include: { user: true } } },
     });
     if (!delivery) {
       delivery = await this.prisma.delivery.findFirst({
         where: { orderId: deliveryId },
-        include: { report: true },
+        include: { report: true, customer: { include: { user: true } } },
       });
     }
     // Fallback: If caller passed an order ID that doesn't have a delivery record yet, materialize it
@@ -863,11 +970,32 @@ export class DeliveryService {
             status: OrderStatus.OUT_FOR_DELIVERY,
             orderId: order.id,
           },
-          include: { report: true },
+          include: { report: true, customer: { include: { user: true } } },
         });
       }
     }
     if (!delivery) throw new BadRequestException('Delivery not found');
+
+    // Optional PIN verification against OrderDeliveryVerification
+    if (delivery.orderId && data.pin && data.pin.trim()) {
+      const verif = await this.prisma.orderDeliveryVerification.findUnique({
+        where: { orderId: delivery.orderId },
+      });
+      if (verif && verif.otp && verif.otp !== data.pin.trim()) {
+        throw new BadRequestException('Invalid delivery PIN. Please enter the correct 4-digit PIN.');
+      }
+      if (verif) {
+        await this.prisma.orderDeliveryVerification.update({
+          where: { orderId: delivery.orderId },
+          data: {
+            isVerified: true,
+            verifiedAt: new Date(),
+            verifiedByUserId: staffUser?.id || null,
+            status: 'VERIFIED',
+          },
+        });
+      }
+    }
 
     const brand = await this.prisma.brand.findFirst();
     const deliveredQty =
@@ -882,6 +1010,22 @@ export class DeliveryService {
       0,
       data.notes || 'Verified directly by staff override',
     );
+
+    // Sync parent order to DELIVERED and emit real-time event
+    if (delivery.orderId) {
+      try {
+        await this.prisma.order.update({
+          where: { id: delivery.orderId },
+          data: {
+            status: OrderStatus.DELIVERED,
+            deliveredAt: new Date(),
+          },
+        });
+        this.emitOrderEvents(delivery.orderId, OrderStatus.DELIVERED, delivery.customer?.id);
+      } catch (err) {
+        this.logger.warn(`Could not sync parent order ${delivery.orderId} to DELIVERED: ${err}`);
+      }
+    }
 
     const verificationPayload = {
       verificationStatus: 'VERIFIED',

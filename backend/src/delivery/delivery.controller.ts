@@ -81,10 +81,29 @@ export class DeliveryController {
     return this.deliveryService.verifyDeliveryByCustomer(id, body, req.user);
   }
 
+  @Post(':id/dispatch')
+  dispatch(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      deliveredQty?: number;
+      emptyCollected?: number;
+      notes?: string;
+    },
+  ) {
+    return this.deliveryService.dispatchDelivery(id, body);
+  }
+
   @Post(':id/force-verify')
   forceVerify(
     @Param('id') id: string,
-    @Body() body: { deliveredQty: number; emptyCollected: number; notes?: string },
+    @Body()
+    body: {
+      deliveredQty: number;
+      emptyCollected: number;
+      notes?: string;
+      pin?: string;
+    },
     @Request() req,
   ) {
     return this.deliveryService.forceVerifyByStaff(id, body, req.user);

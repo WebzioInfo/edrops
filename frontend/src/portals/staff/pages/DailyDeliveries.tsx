@@ -18,6 +18,7 @@ import {
   Phone,
   X,
   Package,
+  KeyRound,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -97,6 +98,14 @@ export default function DailyDeliveries() {
   const [dispatchRequireVerification, setDispatchRequireVerification] = useState(true);
   const [dispatchLoading, setDispatchLoading] = useState(false);
 
+  // Complete Delivery Modal State
+  const [completeModalDelivery, setCompleteModalDelivery] = useState<DeliveryItem | null>(null);
+  const [completePin, setCompletePin] = useState('');
+  const [completeDeliveredQty, setCompleteDeliveredQty] = useState(2);
+  const [completeEmptyCollected, setCompleteEmptyCollected] = useState(0);
+  const [completeNotes, setCompleteNotes] = useState('');
+  const [completeLoading, setCompleteLoading] = useState(false);
+
   // Load deliveries for the selected date
   const loadDailyDeliveries = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -169,52 +178,68 @@ export default function DailyDeliveries() {
     }));
   };
 
-  // Staff Action 1: Deliver & Send Verification Request to Customer
-  const handleRequestVerification = async (deliveryId: string) => {
+  // Action 1: Dispatch Delivery (Transitions to OUT_FOR_DELIVERY)
+  const handleDispatchDelivery = async (deliveryId: string) => {
     const input = rowInputs[deliveryId] || { deliveredQty: 1, emptyCollected: 0, notes: '' };
     try {
       setProcessingId(deliveryId);
-      await fetchWithAuth(`/delivery/${deliveryId}/request-verification`, {
+      await fetchWithAuth(`/delivery/${deliveryId}/dispatch`, {
         method: 'POST',
         body: JSON.stringify({
           deliveredQty: input.deliveredQty,
           emptyCollected: input.emptyCollected,
-          notes: input.notes,
-          requireVerification: true,
+          notes: input.notes || 'Dispatched for delivery',
         }),
       });
 
-      toast.success('Marked delivered! Verification request sent to customer.');
+      toast.success('Order dispatched! Moved to Out for Delivery.');
       await loadDailyDeliveries(false);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to send verification request');
+      toast.error(err?.message || 'Failed to dispatch order');
       await loadDailyDeliveries(false);
     } finally {
       setProcessingId(null);
     }
   };
 
-  // Staff Action 2: Force Verify (Staff Override without Customer Confirmation)
-  const handleForceVerify = async (deliveryId: string) => {
-    const input = rowInputs[deliveryId] || { deliveredQty: 1, emptyCollected: 0, notes: '' };
+  // Open Complete Delivery Modal
+  const openCompleteModal = (item: DeliveryItem) => {
+    const input = rowInputs[item.id] || {
+      deliveredQty: item.verification?.deliveredQty ?? item.report?.partnerDeliveredQty ?? item.requiredQuantity,
+      emptyCollected: item.verification?.emptyCollected ?? item.report?.partnerEmptyCollected ?? 0,
+      notes: '',
+    };
+    setCompleteModalDelivery(item);
+    setCompleteDeliveredQty(input.deliveredQty);
+    setCompleteEmptyCollected(input.emptyCollected);
+    setCompleteNotes(input.notes || '');
+    setCompletePin('');
+  };
+
+  // Action 2: Confirm & Complete Delivery (with optional PIN validation)
+  const handleCompleteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!completeModalDelivery) return;
+
     try {
-      setProcessingId(deliveryId);
-      await fetchWithAuth(`/delivery/${deliveryId}/force-verify`, {
+      setCompleteLoading(true);
+      await fetchWithAuth(`/delivery/${completeModalDelivery.id}/force-verify`, {
         method: 'POST',
         body: JSON.stringify({
-          deliveredQty: input.deliveredQty,
-          emptyCollected: input.emptyCollected,
-          notes: input.notes || 'Staff verified directly',
+          deliveredQty: Number(completeDeliveredQty),
+          emptyCollected: Number(completeEmptyCollected),
+          notes: completeNotes || 'Delivery confirmed by staff',
+          pin: completePin.trim() || undefined,
         }),
       });
 
-      toast.success('Delivery confirmed and verified by staff override!');
+      toast.success('Delivery completed and verified successfully!');
+      setCompleteModalDelivery(null);
       await loadDailyDeliveries(false);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to verify delivery');
-      await loadDailyDeliveries(false);
+      toast.error(err?.message || 'Failed to complete delivery');
     } finally {
-      setProcessingId(null);
+      setCompleteLoading(false);
     }
   };
 
@@ -266,7 +291,7 @@ export default function DailyDeliveries() {
       if (!matchesSearch) return false;
 
       const isDelivered = item.status === 'DELIVERED';
-      const isPendingVerif = item.verification?.verificationStatus === 'PENDING_VERIFICATION' && !isDelivered;
+      const isPendingVerif = (item.verification?.verificationStatus === 'PENDING_VERIFICATION' || item.status === 'OUT_FOR_DELIVERY') && !isDelivered;
       const isDisputed = item.verification?.verificationStatus === 'DISPUTED' || item.status === 'FAILED';
       const isPendingDispatch = !isDelivered && !isPendingVerif && !isDisputed;
 
@@ -489,24 +514,25 @@ export default function DailyDeliveries() {
                             {item.customer.customerType || 'RESIDENTIAL'}
                           </span>
 
-                          {/* Verification Status Badge */}
+                          {/* Status Badge */}
                           {isDelivered ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              Customer Verified (Delivered)
+                              Delivered
                             </span>
                           ) : isPendingVerif ? (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Awaiting Customer Verification
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
+                              <Truck className="w-3 h-3 text-sky-600 animate-pulse" />
+                              Out for Delivery
                             </span>
                           ) : isDisputed ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
                               <AlertCircle className="w-3 h-3 text-rose-600" />
-                              Customer Disputed Receipt
+                              Customer Disputed
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                              <Clock className="w-3 h-3 text-slate-400" />
                               Ready for Delivery
                             </span>
                           )}
@@ -595,51 +621,39 @@ export default function DailyDeliveries() {
                       {/* Action Buttons */}
                       <div className="flex items-center gap-1.5">
                         {!isDelivered ? (
-                          <>
-                            {/* Primary Action: Deliver & Send Verification */}
+                          isPendingVerif ? (
+                            /* Out for Delivery -> Complete Delivery Button */
                             <button
                               type="button"
-                              onClick={() => handleRequestVerification(item.id)}
+                              onClick={() => openCompleteModal(item)}
                               disabled={isProcessing}
-                              className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 ${
-                                isPendingVerif
-                                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                                  : 'bg-[#1677C8] hover:bg-[#125ea0] text-white'
-                              }`}
-                              title="Mark jars delivered and prompt customer to verify"
+                              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                              title="Enter customer PIN and complete delivery"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Complete Delivery</span>
+                            </button>
+                          ) : (
+                            /* Ready for Delivery -> Dispatch Button */
+                            <button
+                              type="button"
+                              onClick={() => handleDispatchDelivery(item.id)}
+                              disabled={isProcessing}
+                              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#1677C8] hover:bg-[#125ea0] text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                              title="Send order Out for Delivery"
                             >
                               {isProcessing ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                               ) : (
-                                <Send className="w-3.5 h-3.5" />
+                                <Truck className="w-3.5 h-3.5" />
                               )}
-                              <span>
-                                {isPendingVerif ? 'Resend Verification' : 'Deliver & Verify'}
-                              </span>
+                              <span>Dispatch (Out for Delivery)</span>
                             </button>
-
-                            {/* Secondary Action: Force Verify (Staff Override) */}
-                            <button
-                              type="button"
-                              onClick={() => handleForceVerify(item.id)}
-                              disabled={isProcessing}
-                              className="px-2.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-                              title="Directly mark delivered without waiting for customer confirmation"
-                            >
-                              {isProcessing ? (
-                                <>
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  <span>Verifying...</span>
-                                </>
-                              ) : (
-                                'Force Verify'
-                              )}
-                            </button>
-                          </>
+                          )
                         ) : (
                           <div className="flex items-center gap-1 text-emerald-700 font-bold text-xs bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200">
                             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                            <span>Completed</span>
+                            <span>Delivered</span>
                           </div>
                         )}
                       </div>
@@ -766,6 +780,122 @@ export default function DailyDeliveries() {
                 >
                   {dispatchLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   <span>{dispatchLoading ? 'Dispatching...' : 'Dispatch & Deliver'}</span>
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ─── 4. COMPLETE DELIVERY & VERIFICATION MODAL ─────────────── */}
+      {completeModalDelivery && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-800">Complete Delivery</h3>
+                  <p className="text-[11px] text-slate-500">
+                    {completeModalDelivery.customer.user.firstName} {completeModalDelivery.customer.user.lastName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompleteModalDelivery(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCompleteSubmit} className="space-y-4">
+              {/* Quantities */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                    Delivered Jars
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={completeDeliveredQty}
+                    onChange={(e) => setCompleteDeliveredQty(parseInt(e.target.value) || 1)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                    Empties Collected
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={completeEmptyCollected}
+                    onChange={(e) => setCompleteEmptyCollected(parseInt(e.target.value) || 0)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+
+              {/* Delivery PIN Input */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center gap-1">
+                  <KeyRound className="w-3 h-3 text-slate-400" />
+                  Customer Delivery PIN (Optional)
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={completePin}
+                  onChange={(e) => setCompletePin(e.target.value)}
+                  placeholder="e.g. 9843"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono font-bold tracking-widest text-slate-800 outline-none focus:border-emerald-600"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Customer can see this PIN on their order live tracking screen. Leave blank if verified in person.
+                </p>
+              </div>
+
+              {/* Delivery Notes */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                  Handover Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={completeNotes}
+                  onChange={(e) => setCompleteNotes(e.target.value)}
+                  placeholder="e.g. Handed over directly"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setCompleteModalDelivery(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={completeLoading}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {completeLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                  <span>{completeLoading ? 'Completing...' : 'Confirm Delivery'}</span>
                 </button>
               </div>
             </form>
