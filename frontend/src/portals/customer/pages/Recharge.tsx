@@ -180,7 +180,10 @@ export default function RechargePage() {
     try {
       const orderData = await fetchWithAuth('/payment/create-order', {
         method: 'POST',
-        body: JSON.stringify({ amount: totalDue })
+        body: JSON.stringify({
+          amount: totalDue,
+          description: `Package Purchase: ${selectedPack.id}`,
+        }),
       });
       
       if (!orderData || !orderData.orderId) {

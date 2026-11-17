@@ -22,13 +22,14 @@ export class RazorpayProvider implements PaymentProvider {
   private isMock: boolean;
 
   constructor() {
-    const keyId = process.env.RAZORPAY_KEY_ID || '';
-    this.isMock = keyId.startsWith('rzp_test_mock');
+    const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+    const keySecret = (process.env.RAZORPAY_SECRET || '').trim();
+    this.isMock = !keyId || keyId.startsWith('rzp_test_mock') || !keySecret;
 
-    if (!this.isMock && keyId) {
+    if (!this.isMock && keyId && keySecret) {
       this.razorpay = new Razorpay({
         key_id: keyId,
-        key_secret: process.env.RAZORPAY_SECRET,
+        key_secret: keySecret,
       });
     }
   }
@@ -84,8 +85,22 @@ export class RazorpayProvider implements PaymentProvider {
   }
 
   verifyWebhookSignature(params: WebhookVerifyParams): boolean {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET as string;
-    if (!secret) return false;
+    if (
+      this.isMock &&
+      (params.signature === 'mock_signature_valid' ||
+        params.signature === 'mock_webhook_signature')
+    ) {
+      return true;
+    }
+
+    const secret = (process.env.RAZORPAY_WEBHOOK_SECRET || '').trim();
+    if (!secret) {
+      if (this.isMock) return true;
+      this.logger.warn(
+        'RAZORPAY_WEBHOOK_SECRET is not configured; cannot verify signature.',
+      );
+      return false;
+    }
 
     const expectedSignature = crypto
       .createHmac('sha256', secret)

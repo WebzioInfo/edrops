@@ -26,9 +26,11 @@ export class WebhookController {
       throw new UnauthorizedException('Missing Razorpay signature');
     }
 
-    // In a real NestJS app, raw body is required for verification.
-    // Assuming raw body is configured or we use JSON.stringify(payload)
-    const rawPayload = JSON.stringify(payload);
+    // In NestJS with rawBody: true, req.rawBody preserves the exact incoming buffer for HMAC-SHA256 signature verification.
+    // Fall back to JSON.stringify if not present.
+    const rawPayload = req?.rawBody
+      ? req.rawBody.toString('utf8')
+      : JSON.stringify(payload);
 
     // Pass to service for async processing (return immediately to prevent timeouts)
     this.webhookService

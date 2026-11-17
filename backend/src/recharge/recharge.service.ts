@@ -136,6 +136,14 @@ export class RechargeService {
       );
     }
 
+    // Idempotency: if already processed (e.g. by webhook), return existing purchase
+    const existingPurchase = await this.prisma.packagePurchase.findUnique({
+      where: { paymentId: payment.id },
+    });
+    if (existingPurchase) {
+      return existingPurchase;
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const purchase = await this.rechargeEngine.processRecharge(
         customer.id,

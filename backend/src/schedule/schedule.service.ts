@@ -55,9 +55,6 @@ export class ScheduleService {
     return schedule;
   }
 
-    return schedule;
-  }
-
   async updateSchedule(userId: string, data: ScheduleUpdateInput) {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },

@@ -100,6 +100,29 @@ export class WalletService {
         });
       }
 
+      // Concurrency lock on Wallet row
+      await prismaTx.$executeRawUnsafe(
+        `SELECT id FROM "Wallet" WHERE id = $1 FOR UPDATE`,
+        wallet.id,
+      );
+      wallet = await prismaTx.wallet.findUnique({
+        where: { id: wallet.id },
+      });
+
+      // Idempotency check: if transaction with this referenceId already exists, do not double credit
+      if (referenceId) {
+        const existingTx = await prismaTx.walletTransaction.findFirst({
+          where: { walletId: wallet.id, referenceId, type },
+        });
+        if (existingTx) {
+          return {
+            wallet,
+            transaction: existingTx,
+            alreadyProcessed: true,
+          };
+        }
+      }
+
       const balanceBefore = wallet.balance;
       const balanceAfter = balanceBefore + amount;
 
@@ -120,7 +143,7 @@ export class WalletService {
         },
       });
 
-      return { wallet: { ...wallet, balance: balanceAfter }, transaction };
+      return { wallet: { ...wallet, balance: balanceAfter }, transaction, alreadyProcessed: false };
     };
 
     return tx ? execute(tx) : this.prisma.$transaction(execute);
@@ -344,29 +367,32 @@ export class WalletService {
       customer.id,
     );
 
-    // Credit wallet with the payment amount
+    // Credit wallet with the payment amount, using payment.id as referenceId for strict idempotency
     const result = await this.addFunds(
       userId,
       verifiedPayment.amount,
       WalletTransactionType.TOP_UP,
       `Direct Wallet Recharge (₹${verifiedPayment.amount})`,
+      verifiedPayment.id,
     );
 
-    try {
-      this.notificationService.notifyPaymentEvent({
-        paymentId: razorpayPaymentId,
-        customerId: customer.id,
-        userId,
-        amount: verifiedPayment.amount,
-        status: 'SUCCESS',
-      });
-      this.notificationService.notifyWalletRecharge({
-        customerId: customer.id,
-        amount: verifiedPayment.amount,
-        newBalance: result.wallet.balance,
-      });
-    } catch (e) {
-      console.warn('[WalletService] notification error:', e);
+    if (!result.alreadyProcessed) {
+      try {
+        this.notificationService.notifyPaymentEvent({
+          paymentId: razorpayPaymentId,
+          customerId: customer.id,
+          userId,
+          amount: verifiedPayment.amount,
+          status: 'SUCCESS',
+        });
+        this.notificationService.notifyWalletRecharge({
+          customerId: customer.id,
+          amount: verifiedPayment.amount,
+          newBalance: result.wallet.balance,
+        });
+      } catch (e) {
+        console.warn('[WalletService] notification error:', e);
+      }
     }
 
     return result;

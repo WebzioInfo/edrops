@@ -105,6 +105,18 @@ export class PaymentService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Row-lock the Payment record to ensure strict concurrency control
+      await tx.$executeRawUnsafe(
+        `SELECT id FROM "Payment" WHERE id = $1 FOR UPDATE`,
+        payment.id,
+      );
+
+      const freshPayment = await tx.payment.findUnique({
+        where: { id: payment.id },
+      });
+
+      if (!freshPayment) throw new BadRequestException('Payment not found');
+
       const existingAttempt = await tx.paymentAttempt.findFirst({
         where: {
           paymentId: payment.id,
@@ -120,6 +132,11 @@ export class PaymentService {
             status: 'SUCCESS',
           },
         });
+      }
+
+      // If already verified / completed, exit safely without duplicating side-effects
+      if (freshPayment.status === PaymentStatus.SUCCESS) {
+        return { ...freshPayment, alreadyProcessed: true };
       }
 
       const updatedPayment = await tx.payment.update({
@@ -141,7 +158,7 @@ export class PaymentService {
         data: {
           paymentId: payment.id,
           action: 'CLIENT_SIGNATURE_VERIFIED',
-          previousStatus: payment.status,
+          previousStatus: freshPayment.status,
           newStatus: PaymentStatus.SUCCESS,
           notes: `Verified Razorpay payment ${razorpay_payment_id}`,
         },
