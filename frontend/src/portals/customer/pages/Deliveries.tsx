@@ -23,6 +23,7 @@ import { useRegisterRefreshHandler } from '../../../components/pwa/PullToRefresh
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import FullScheduleCalendar from '../../../components/schedule/FullScheduleCalendar';
 import QuickOrderContactModal from '../components/QuickOrderContactModal';
+import { useSocket } from '../../../contexts/SocketContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -279,6 +280,27 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
   useRegisterRefreshHandler(async () => {
     await Promise.all([loadSchedule(), loadHistory(false)]);
   });
+
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleUpdate = () => {
+      loadHistory(false);
+      loadSchedule();
+    };
+    socket.on('ORDER_STATUS_CHANGED', handleUpdate);
+    socket.on('order:updated', handleUpdate);
+    socket.on('DELIVERY_STATUS_CHANGED', handleUpdate);
+    socket.on('delivery:updated', handleUpdate);
+
+    return () => {
+      socket.off('ORDER_STATUS_CHANGED', handleUpdate);
+      socket.off('order:updated', handleUpdate);
+      socket.off('DELIVERY_STATUS_CHANGED', handleUpdate);
+      socket.off('delivery:updated', handleUpdate);
+    };
+  }, [socket]);
 
   useEffect(() => {
     loadSchedule();
