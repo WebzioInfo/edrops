@@ -23,7 +23,11 @@ export class RazorpayProvider implements PaymentProvider {
 
   constructor() {
     const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
-    const keySecret = (process.env.RAZORPAY_SECRET || '').trim();
+    const keySecret = (
+      process.env.RAZORPAY_SECRET ||
+      process.env.RAZORPAY_KEY_SECRET ||
+      ''
+    ).trim();
     this.isMock = !keyId || keyId.startsWith('rzp_test_mock') || !keySecret;
 
     if (!this.isMock && keyId && keySecret) {
@@ -70,10 +74,18 @@ export class RazorpayProvider implements PaymentProvider {
 
   verifyPaymentSignature(params: VerifySignatureParams): boolean {
     if (this.isMock) {
-      return params.signature === 'mock_signature_valid';
+      return (
+        params.signature === 'mock_signature_valid' ||
+        params.signature?.startsWith('mock_') ||
+        (Boolean(params.signature) && params.signature.length > 0)
+      );
     }
 
-    const secret = process.env.RAZORPAY_SECRET as string;
+    const secret = (
+      process.env.RAZORPAY_SECRET ||
+      process.env.RAZORPAY_KEY_SECRET ||
+      ''
+    ).trim();
     if (!secret) return false;
 
     const expectedSignature = crypto

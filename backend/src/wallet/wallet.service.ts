@@ -101,10 +101,12 @@ export class WalletService {
       }
 
       // Concurrency lock on Wallet row
-      await prismaTx.$executeRawUnsafe(
-        `SELECT id FROM "Wallet" WHERE id = $1 FOR UPDATE`,
-        wallet.id,
-      );
+      if (typeof prismaTx.$executeRawUnsafe === 'function') {
+        await prismaTx.$executeRawUnsafe(
+          `SELECT id FROM "Wallet" WHERE id = $1 FOR UPDATE`,
+          wallet.id,
+        );
+      }
       wallet = await prismaTx.wallet.findUnique({
         where: { id: wallet.id },
       });
@@ -163,11 +165,33 @@ export class WalletService {
     if (!customer) throw new NotFoundException('Customer profile not found');
 
     const execute = async (prismaTx: any) => {
-      const wallet = await prismaTx.wallet.findUnique({
+      let wallet = await prismaTx.wallet.findUnique({
         where: { customerId: customer.id },
       });
       if (!wallet) {
         throw new NotFoundException('Wallet not found');
+      }
+
+      // Concurrency row-lock on Wallet
+      if (typeof prismaTx.$executeRawUnsafe === 'function') {
+        await prismaTx.$executeRawUnsafe(
+          `SELECT id FROM "Wallet" WHERE id = $1 FOR UPDATE`,
+          wallet.id,
+        );
+      }
+      wallet = await prismaTx.wallet.findUnique({
+        where: { id: wallet.id },
+      });
+      if (!wallet) throw new NotFoundException('Wallet not found');
+
+      // Strict idempotency: prevent deducting twice for the same reference
+      if (referenceId) {
+        const existingTx = await prismaTx.walletTransaction.findFirst({
+          where: { walletId: wallet.id, referenceId, type },
+        });
+        if (existingTx) {
+          return { wallet, transaction: existingTx, alreadyProcessed: true };
+        }
       }
 
       if (wallet.balance < amount) {
@@ -194,7 +218,7 @@ export class WalletService {
         },
       });
 
-      return { wallet: { ...wallet, balance: balanceAfter }, transaction };
+      return { wallet: { ...wallet, balance: balanceAfter }, transaction, alreadyProcessed: false };
     };
 
     return tx ? execute(tx) : this.prisma.$transaction(execute);
@@ -396,5 +420,146 @@ export class WalletService {
     }
 
     return result;
+  }
+
+  async payOrderFromWallet(userId: string, orderId: string, amount?: number) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId },
+      include: { wallet: true },
+    });
+    if (!customer) throw new NotFoundException('Customer profile not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      // Row lock the order
+      if (typeof tx.$executeRawUnsafe === 'function') {
+        await tx.$executeRawUnsafe(
+          `SELECT id FROM "Order" WHERE id = $1 FOR UPDATE`,
+          orderId,
+        );
+      }
+
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: { payments: true },
+      });
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.customerId !== customer.id) {
+        throw new BadRequestException('Order does not belong to this customer');
+      }
+
+      const totalPaid = (order.payments || [])
+        .filter(
+          (p) =>
+            p.status === PaymentStatus.PAID ||
+            p.status === PaymentStatus.SUCCESS,
+        )
+        .reduce((sum, p) => sum + p.amount, 0);
+
+      const remainingDue = Math.max(
+        0,
+        Number((order.totalAmount - totalPaid).toFixed(2)),
+      );
+      if (remainingDue <= 0.01) {
+        throw new BadRequestException('This order is already fully paid.');
+      }
+
+      const payAmount = amount ? Math.min(amount, remainingDue) : remainingDue;
+      if (payAmount <= 0) {
+        throw new BadRequestException('Payment amount must be greater than zero.');
+      }
+
+      // Ensure wallet exists and row lock it
+      let wallet = customer.wallet;
+      if (!wallet) {
+        wallet = await tx.wallet.create({
+          data: { customerId: customer.id, balance: 0.0 },
+        });
+      }
+
+      if (typeof tx.$executeRawUnsafe === 'function') {
+        await tx.$executeRawUnsafe(
+          `SELECT id FROM "Wallet" WHERE id = $1 FOR UPDATE`,
+          wallet.id,
+        );
+      }
+      const lockedWallet = await tx.wallet.findUnique({
+        where: { id: wallet.id },
+      });
+      if (!lockedWallet || lockedWallet.balance < payAmount) {
+        throw new BadRequestException(
+          `Insufficient wallet balance (₹${(lockedWallet?.balance || 0).toFixed(2)}). Need ₹${payAmount.toFixed(2)}.`,
+        );
+      }
+
+      const balanceBefore = lockedWallet.balance;
+      const balanceAfter = balanceBefore - payAmount;
+
+      await tx.wallet.update({
+        where: { id: lockedWallet.id },
+        data: { balance: balanceAfter },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: lockedWallet.id,
+          type: WalletTransactionType.DEDUCTION,
+          amount: payAmount,
+          balanceBefore,
+          balanceAfter,
+          referenceId: `ORD-${order.id}`,
+          description: `Payment for Order #${order.id.slice(0, 8)}`,
+        },
+      });
+
+      const payment = await tx.payment.create({
+        data: {
+          orderId: order.id,
+          customerId: customer.id,
+          amount: payAmount,
+          currency: 'INR',
+          status: PaymentStatus.PAID,
+          provider: 'WALLET',
+          receiptId: `WAL-${order.id}-${Date.now()}`,
+          description: `Wallet Payment for Order #${order.id.slice(0, 8)}`,
+        },
+      });
+
+      const newTotalPaid = totalPaid + payAmount;
+      const newStatus =
+        newTotalPaid >= order.totalAmount - 0.01
+          ? PaymentStatus.SUCCESS
+          : PaymentStatus.PARTIALLY_PAID;
+
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: newStatus,
+          paymentMethod:
+            order.paymentMethod === 'COD' ? 'WALLET' : order.paymentMethod,
+        },
+      });
+
+      await tx.paymentAuditLog.create({
+        data: {
+          paymentId: payment.id,
+          action: 'WALLET_PAYMENT_COLLECTED',
+          previousStatus: order.paymentStatus,
+          newStatus,
+          notes: `Paid ₹${payAmount} from wallet. Total paid: ₹${newTotalPaid}/${order.totalAmount}`,
+        },
+      });
+
+      return {
+        success: true,
+        orderId: order.id,
+        amountPaid: payAmount,
+        remainingDue: Math.max(
+          0,
+          Number((order.totalAmount - newTotalPaid).toFixed(2)),
+        ),
+        paymentStatus: newStatus,
+        walletBalance: balanceAfter,
+      };
+    });
   }
 }

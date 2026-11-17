@@ -62,4 +62,18 @@ export class WalletController {
       body.razorpaySignature,
     );
   }
+
+  @Post('pay-order')
+  @Idempotent()
+  async payOrder(
+    @Req() req,
+    @Body() body: { orderId: string; amount?: number },
+  ) {
+    const userId = req.user.sub || req.user.id;
+    return this.walletService.payOrderFromWallet(
+      userId,
+      body.orderId,
+      body.amount,
+    );
+  }
 }

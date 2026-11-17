@@ -145,13 +145,29 @@ export class PaymentService {
       });
 
       if (payment.orderId) {
-        await tx.order.update({
+        await tx.$executeRawUnsafe(
+          `SELECT id FROM "Order" WHERE id = $1 FOR UPDATE`,
+          payment.orderId,
+        );
+        const order = await tx.order.findUnique({
           where: { id: payment.orderId },
-          data: {
-            status: OrderStatus.PENDING_ASSIGNMENT,
-            paymentStatus: PaymentStatus.SUCCESS,
-          },
         });
+        if (order) {
+          const isInitialStatus =
+            order.status === OrderStatus.PENDING_PAYMENT ||
+            order.status === OrderStatus.NEW ||
+            (order.status as any) === 'PENDING' ||
+            (order.status as any) === 'CREATED';
+          await tx.order.update({
+            where: { id: payment.orderId },
+            data: {
+              ...(isInitialStatus
+                ? { status: OrderStatus.PENDING_ASSIGNMENT }
+                : {}),
+              paymentStatus: PaymentStatus.SUCCESS,
+            },
+          });
+        }
       }
 
       await tx.paymentAuditLog.create({

@@ -215,10 +215,38 @@ export class DistributorWalletService {
     const wallet = await this.getOrCreateWallet(identity.distributorId);
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Row lock on DistributorWallet
+      if (typeof tx.$executeRawUnsafe === 'function') {
+        await tx.$executeRawUnsafe(
+          `SELECT id FROM "DistributorWallet" WHERE id = $1 FOR UPDATE`,
+          wallet.id,
+        );
+      }
+
       const freshWallet = await tx.distributorWallet.findUnique({
         where: { id: wallet.id },
       });
       if (!freshWallet) throw new NotFoundException('Wallet not found');
+
+      if (
+        dto.referenceId &&
+        typeof tx.distributorWalletTransaction?.findFirst === 'function'
+      ) {
+        const existingTx = await tx.distributorWalletTransaction.findFirst({
+          where: {
+            walletId: freshWallet.id,
+            referenceId: dto.referenceId,
+            type: DistributorWalletTxType.TOP_UP,
+          },
+        });
+        if (existingTx) {
+          return {
+            wallet: freshWallet,
+            transaction: existingTx,
+            alreadyProcessed: true,
+          };
+        }
+      }
 
       const balanceBefore = freshWallet.balance;
       const balanceAfter = balanceBefore + amount;
@@ -301,6 +329,18 @@ export class DistributorWalletService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Row locks on DistributorWallet and Purchase
+      if (typeof tx.$executeRawUnsafe === 'function') {
+        await tx.$executeRawUnsafe(
+          `SELECT id FROM "DistributorWallet" WHERE id = $1 FOR UPDATE`,
+          wallet.id,
+        );
+        await tx.$executeRawUnsafe(
+          `SELECT id FROM "Purchase" WHERE id = $1 FOR UPDATE`,
+          purchase.id,
+        );
+      }
+
       const freshWallet = await tx.distributorWallet.findUnique({
         where: { id: wallet.id },
       });
@@ -397,6 +437,14 @@ export class DistributorWalletService {
     const wallet = await this.getOrCreateWallet(identity.distributorId);
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Row lock on DistributorWallet
+      if (typeof tx.$executeRawUnsafe === 'function') {
+        await tx.$executeRawUnsafe(
+          `SELECT id FROM "DistributorWallet" WHERE id = $1 FOR UPDATE`,
+          wallet.id,
+        );
+      }
+
       const freshWallet = await tx.distributorWallet.findUnique({
         where: { id: wallet.id },
       });

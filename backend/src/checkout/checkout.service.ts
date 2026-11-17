@@ -7,6 +7,7 @@ import {
 import { OrderStatus, PaymentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentService } from '../payment/payment.service';
+import { RazorpayProvider } from '../payment/providers/razorpay.provider';
 import {
   ValidateCheckoutDto,
   InitiateCheckoutDto,
@@ -28,6 +29,7 @@ export class CheckoutService {
   constructor(
     private prisma: PrismaService,
     private paymentService: PaymentService,
+    private razorpayProvider: RazorpayProvider,
     private notificationService: NotificationService,
     private promoService: PromoService,
     private auditService: AuditService,
@@ -328,11 +330,13 @@ export class CheckoutService {
       }
 
       // 2. Check wallet balance strictly inside transaction to prevent race conditions
+      let walletDeducted = 0;
       if (dto.paymentMethod === 'WALLET' || dto.paymentMethod === 'HYBRID') {
         const wallet = await tx.wallet.findUnique({ where: { customerId } });
         const currentBalance = wallet ? wallet.balance : 0;
         const requiredDeduction =
           dto.paymentMethod === 'WALLET' ? totalAmount : walletBalance;
+        walletDeducted = requiredDeduction;
 
         if (currentBalance < requiredDeduction) {
           throw new BadRequestException('Insufficient wallet balance');
@@ -414,6 +418,35 @@ export class CheckoutService {
         );
       }
 
+      // Record payment ledger row for WALLET or HYBRID wallet portion
+      if (dto.paymentMethod === 'WALLET') {
+        await tx.payment.create({
+          data: {
+            orderId: newOrder.id,
+            customerId,
+            amount: totalAmount,
+            currency: 'INR',
+            status: PaymentStatus.PAID,
+            provider: 'WALLET',
+            receiptId: `WAL-${newOrder.id}`,
+            description: `Wallet Payment for Order #${newOrder.id.slice(0, 8)}`,
+          },
+        });
+      } else if (dto.paymentMethod === 'HYBRID' && walletDeducted > 0) {
+        await tx.payment.create({
+          data: {
+            orderId: newOrder.id,
+            customerId,
+            amount: walletDeducted,
+            currency: 'INR',
+            status: PaymentStatus.PAID,
+            provider: 'WALLET',
+            receiptId: `WAL-HYB-${newOrder.id}`,
+            description: `Wallet Portion for Hybrid Order #${newOrder.id.slice(0, 8)}`,
+          },
+        });
+      }
+
       // 4. Schedule delivery if payment is instantly confirmed
       if (dto.paymentMethod === 'COD' || dto.paymentMethod === 'WALLET') {
         const requiredQuantity = items.reduce((acc, i) => acc + i.quantity, 0);
@@ -488,23 +521,34 @@ export class CheckoutService {
 
   async confirmCheckout(customerId: string, dto: ConfirmCheckoutDto) {
     if (dto.paymentMethod === 'RAZORPAY' || dto.paymentMethod === 'HYBRID') {
-      const secret = process.env.RAZORPAY_SECRET || 'mock';
-      const body = dto.razorpayOrderId + '|' + dto.razorpayPaymentId;
-      const expectedSignature = crypto
-        .createHmac('sha256', secret)
-        .update(body.toString())
-        .digest('hex');
+      if (
+        !dto.razorpayOrderId ||
+        !dto.razorpayPaymentId ||
+        !dto.razorpaySignature
+      ) {
+        throw new BadRequestException('Missing payment signature details');
+      }
 
-      const isMock = process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_mock');
-      const isMockValid =
-        isMock && dto.razorpaySignature === 'mock_signature_valid';
+      const isValid = this.razorpayProvider.verifyPaymentSignature({
+        providerOrderId: dto.razorpayOrderId,
+        providerPaymentId: dto.razorpayPaymentId,
+        signature: dto.razorpaySignature,
+      });
 
-      if (expectedSignature !== dto.razorpaySignature && !isMockValid) {
+      if (!isValid) {
         throw new BadRequestException('Invalid payment signature');
       }
 
       // Wrap updates in transaction to prevent partial delivery tracking
       const order = await this.prisma.$transaction(async (tx) => {
+        // Concurrency row-lock on Order
+        if (typeof tx.$executeRawUnsafe === 'function') {
+          await tx.$executeRawUnsafe(
+            `SELECT id FROM "Order" WHERE id = $1 FOR UPDATE`,
+            dto.orderId,
+          );
+        }
+
         const updatedOrder = await tx.order.update({
           where: { id: dto.orderId },
           data: {
@@ -513,6 +557,53 @@ export class CheckoutService {
           },
           include: { items: true },
         });
+
+        // Update Payment record created during initiateCheckout to SUCCESS
+        const paymentRecord = await tx.payment.findFirst({
+          where: {
+            OR: [
+              { providerId: dto.razorpayOrderId },
+              { orderId: dto.orderId, provider: 'RAZORPAY' },
+            ],
+          },
+        });
+
+        if (paymentRecord) {
+          await tx.payment.update({
+            where: { id: paymentRecord.id },
+            data: {
+              status: PaymentStatus.SUCCESS,
+              receiptId: dto.razorpayPaymentId,
+            },
+          });
+
+          const existingAttempt = await tx.paymentAttempt.findFirst({
+            where: {
+              paymentId: paymentRecord.id,
+              providerId: dto.razorpayPaymentId,
+            },
+          });
+
+          if (!existingAttempt) {
+            await tx.paymentAttempt.create({
+              data: {
+                paymentId: paymentRecord.id,
+                providerId: dto.razorpayPaymentId,
+                status: 'SUCCESS',
+              },
+            });
+          }
+
+          await tx.paymentAuditLog.create({
+            data: {
+              paymentId: paymentRecord.id,
+              action: 'CLIENT_SIGNATURE_VERIFIED',
+              previousStatus: paymentRecord.status,
+              newStatus: PaymentStatus.SUCCESS,
+              notes: `Order #${dto.orderId} verified via Razorpay ID ${dto.razorpayPaymentId}`,
+            },
+          });
+        }
 
         const requiredQuantity = updatedOrder.items.reduce(
           (acc, i) => acc + i.quantity,

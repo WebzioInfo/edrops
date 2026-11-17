@@ -585,13 +585,55 @@ export class DeliveryEngine {
       });
 
       if (delivery.orderId) {
-        await tx.order.update({
+        const parentOrder = await tx.order.findUnique({
           where: { id: delivery.orderId },
-          data: {
+          include: { payments: true },
+        });
+
+        if (parentOrder) {
+          const isCOD =
+            parentOrder.paymentMethod === 'COD' ||
+            parentOrder.paymentMethod === 'CASH' ||
+            parentOrder.paymentMethod === 'CASH_ON_DELIVERY';
+
+          const updateOrderData: any = {
             status: OrderStatus.DELIVERED,
             deliveredAt: new Date(),
-          },
-        });
+          };
+
+          if (
+            isCOD &&
+            parentOrder.paymentStatus !== PaymentStatus.SUCCESS &&
+            parentOrder.paymentStatus !== PaymentStatus.PAID
+          ) {
+            updateOrderData.paymentStatus = PaymentStatus.SUCCESS;
+
+            const hasPayment = parentOrder.payments.some(
+              (p) =>
+                p.status === PaymentStatus.SUCCESS ||
+                p.status === PaymentStatus.PAID,
+            );
+            if (!hasPayment) {
+              await tx.payment.create({
+                data: {
+                  orderId: parentOrder.id,
+                  customerId: delivery.customerId,
+                  amount: parentOrder.totalAmount,
+                  currency: 'INR',
+                  status: PaymentStatus.PAID,
+                  provider: 'CASH',
+                  receiptId: `COD-${delivery.id}`,
+                  description: `Cash on Delivery collected by delivery partner`,
+                },
+              });
+            }
+          }
+
+          await tx.order.update({
+            where: { id: delivery.orderId },
+            data: updateOrderData,
+          });
+        }
       }
 
       return tx.delivery.update({

@@ -23,10 +23,12 @@ import {
   Receipt,
   X,
   Loader2,
+  Wallet,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useSocket } from '../../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
+import { injectMockRazorpay } from '../../../utils/MockRazorpay';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import {
   formatOrderId,
@@ -45,8 +47,36 @@ export default function OrderDetails() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [payModalOpen, setPayModalOpen] = useState(false);
-  const [payMethod, setPayMethod] = useState('UPI');
+  const [payMethod, setPayMethod] = useState<'RAZORPAY' | 'WALLET'>('RAZORPAY');
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [isPaying, setIsPaying] = useState(false);
+
+  useEffect(() => {
+    fetchWithAuth('/wallet')
+      .then((res: any) => {
+        if (res && typeof res.balance === 'number') {
+          setWalletBalance(res.balance);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      if (injectMockRazorpay()) {
+        return resolve(true);
+      }
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   const fetchOrder = async (isManual = false) => {
     if (!orderId) return;
@@ -82,20 +112,84 @@ export default function OrderDetails() {
 
     try {
       setIsPaying(true);
-      const idempotencyKey = `PAY-CUST-${order.id}-${Date.now()}`;
-      await fetchWithAuth(`/orders/${order.id}/payments`, {
+
+      // 1. Pay via Wallet
+      if (payMethod === 'WALLET') {
+        if (walletBalance !== null && walletBalance < pst.due) {
+          toast.error(
+            `Insufficient wallet balance (₹${walletBalance.toFixed(2)}). Please use Online Payment or recharge wallet.`,
+          );
+          setIsPaying(false);
+          return;
+        }
+
+        await fetchWithAuth('/wallet/pay-order', {
+          method: 'POST',
+          body: JSON.stringify({
+            orderId: order.id,
+            amount: pst.due,
+          }),
+        });
+
+        toast.success(`Paid ₹${pst.due} successfully using your wallet!`);
+        setPayModalOpen(false);
+        fetchOrder(true);
+        return;
+      }
+
+      // 2. Pay via Razorpay Gateway (UPI / Card / Netbanking)
+      const orderData = await fetchWithAuth('/payment/create-order', {
         method: 'POST',
         body: JSON.stringify({
           amount: pst.due,
-          paymentMethod: payMethod,
-          notes: 'Customer online payment',
-          idempotencyKey,
+          orderId: order.id,
+          description: `Order Payment #${order.id.slice(0, 8)}`,
         }),
       });
 
-      toast.success(`Payment of ₹${pst.due} processed successfully!`);
-      setPayModalOpen(false);
-      fetchOrder(true);
+      if (!orderData || !orderData.orderId) {
+        throw new Error('Failed to initiate payment gateway order.');
+      }
+
+      const isLoaded = await loadRazorpay();
+      if (!isLoaded) {
+        throw new Error(
+          'Razorpay SDK failed to load. Please check your internet connection.',
+        );
+      }
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_mockkey12345',
+        amount: Math.round(orderData.amount * 100),
+        currency: 'INR',
+        name: 'eDrops',
+        description: `Order Payment #${order.id.slice(0, 8)}`,
+        order_id: orderData.orderId,
+        handler: async function (response: any) {
+          try {
+            await fetchWithAuth('/payment/verify', {
+              method: 'POST',
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+            toast.success(`Payment of ₹${pst.due} completed successfully!`);
+            setPayModalOpen(false);
+            fetchOrder(true);
+          } catch (err: any) {
+            toast.error(err.message || 'Payment verification failed');
+          }
+        },
+        theme: { color: '#0284C7' },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', () =>
+        toast.error('Payment failed or was cancelled.'),
+      );
+      rzp.open();
     } catch (err: any) {
       toast.error(err.message || 'Payment processing failed');
     } finally {
@@ -1107,28 +1201,40 @@ export default function OrderDetails() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Select Payment Method
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'UPI', label: 'UPI / QR' },
-                      { id: 'RAZORPAY', label: 'Online' },
-                      { id: 'CARD', label: 'Card' },
-                    ].map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setPayMethod(m.id)}
-                        className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
-                          payMethod === m.id
-                            ? 'border-[#1E88E5] bg-blue-50/70 text-[#1E88E5] shadow-2xs'
-                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setPayMethod('RAZORPAY')}
+                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                        payMethod === 'RAZORPAY'
+                          ? 'border-[#0284C7] bg-sky-50/80 text-[#0284C7] shadow-xs ring-1 ring-[#0284C7]/20'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4 text-[#0284C7]" />
+                      <span>Online (UPI / Card)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPayMethod('WALLET')}
+                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                        payMethod === 'WALLET'
+                          ? 'border-[#0284C7] bg-sky-50/80 text-[#0284C7] shadow-xs ring-1 ring-[#0284C7]/20'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Wallet className="w-4 h-4 text-[#0284C7]" />
+                      <span>Wallet Balance</span>
+                      {walletBalance !== null && (
+                        <span className="text-[10px] font-semibold text-slate-500">
+                          (₹{walletBalance.toFixed(2)})
+                        </span>
+                      )}
+                    </button>
                   </div>
                 </div>
 
