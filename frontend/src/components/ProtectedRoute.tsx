@@ -7,7 +7,7 @@ type ProtectedRouteProps = {
 };
 
 const ROLE_PATHS: Record<string, string> = {
-  CUSTOMER: '/customer/shop',
+  CUSTOMER: '/customer/dashboard',
   STAFF: '/staff',
   ADMIN: '/admin',
   DELIVERY_PARTNER: '/delivery-partner',
@@ -40,7 +40,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   // 3. User is authenticated, but role is not allowed for this route: safely route to their portal
   if (allowedRoles && !allowedRoles.includes(actualUser.role)) {
-    const defaultPortal = ROLE_PATHS[actualUser.role] ?? '/customer/shop';
+    const defaultPortal = ROLE_PATHS[actualUser.role] ?? '/customer/dashboard';
     return <Navigate to={defaultPortal} replace />;
   }
 

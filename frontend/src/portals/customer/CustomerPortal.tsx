@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, LifeBuoy, LogIn } from 'lucide-react';
+import { History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, LifeBuoy, LogIn, ShoppingBag } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -25,10 +25,10 @@ const OrderSuccess = React.lazy(() => import('./pages/OrderSuccess'));
 
 // Desktop specific groupings
 const centerNavItems = [
+  { to: '/customer/dashboard', label: 'Dashboard' },
   { to: '/customer/shop', label: 'Shop' },
   { to: '/customer/orders', label: 'Orders' },
   { to: '/customer/deliveries', label: 'Deliveries' },
-  { to: '/customer/dashboard', label: 'Dashboard' },
 ];
 
 const secondaryActions = [
@@ -38,10 +38,10 @@ const secondaryActions = [
 
 // Mobile specific groupings
 const mobileBottomNavItems = [
-  { to: '/customer/shop', label: 'Shop', icon: Home },
+  { to: '/customer/dashboard', label: 'Home', icon: Home },
+  { to: '/customer/shop', label: 'Shop', icon: ShoppingBag },
   { to: '/customer/orders', label: 'Orders', icon: Package },
   { to: '/customer/deliveries', label: 'Deliveries', icon: Truck },
-  { to: '/customer/profile', label: 'Profile', icon: User },
 ];
 
 
@@ -90,7 +90,7 @@ export default function CustomerPortal() {
         <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
           
           {/* Logo */}
-          <NavLink to="/customer/shop" className="flex items-center gap-3 mr-8 shrink-0">
+          <NavLink to="/customer/dashboard" className="flex items-center gap-3 mr-8 shrink-0">
             <EdropsLogo variant="blue" className="h-8 w-auto" />
           </NavLink>
 
@@ -220,8 +220,8 @@ export default function CustomerPortal() {
               <Route path="referrals" element={<ReferPage />} />
             </Route>
             <Route path="support" element={<SupportPage />} />
-            <Route path="" element={<Navigate to="shop" replace />} />
-            <Route path="*" element={<Navigate to="shop" replace />} />
+            <Route path="" element={<Navigate to="dashboard" replace />} />
+            <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
         </Suspense>
       </main>

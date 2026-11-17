@@ -485,7 +485,7 @@ export function getPortalSidebarConfig(
       return {
         portalKey: 'customer',
         portalLabel: 'CUSTOMER',
-        homePath: '/customer/shop',
+        homePath: '/customer/dashboard',
         profilePath: '/customer/profile',
         sections: [
           {

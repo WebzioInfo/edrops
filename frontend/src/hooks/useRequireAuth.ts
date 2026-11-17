@@ -27,7 +27,7 @@ export function useRequireAuth() {
       }
 
       const currentPath = location.pathname + location.search;
-      const targetRedirect = options?.redirect || currentPath || '/customer/shop';
+      const targetRedirect = options?.redirect || currentPath || '/customer/dashboard';
       const reason = options?.reason || 'purchase';
 
       const searchParams = new URLSearchParams();

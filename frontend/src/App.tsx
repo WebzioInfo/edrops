@@ -56,7 +56,7 @@ function RootRedirect() {
     if (user.role === 'DISTRIBUTOR') return <Navigate to="/distributor" replace />;
   }
 
-  return <Navigate to="/customer/shop" replace />;
+  return <Navigate to="/customer/dashboard" replace />;
 }
 
 export default function App() {

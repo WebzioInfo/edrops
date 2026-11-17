@@ -18,7 +18,7 @@ export const AccessDenied: React.FC = () => {
     } else if (user?.role === 'DELIVERY_PARTNER') {
       navigate('/delivery-partner');
     } else {
-      navigate('/customer/shop');
+      navigate('/customer/dashboard');
     }
   };
 

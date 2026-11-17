@@ -42,7 +42,7 @@ const forgotSchema = Yup.object({
 });
 
 const ROLE_PATHS: Record<string, string> = {
-  CUSTOMER: '/customer/shop',
+  CUSTOMER: '/customer/dashboard',
   STAFF: '/staff',
   ADMIN: '/admin',
   DELIVERY_PARTNER: '/delivery-partner',
@@ -214,7 +214,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
 
   const isPathAllowedForRole = (role?: string, path?: string): boolean => {
     if (!path || !role) return false;
-    if (path === '/' || path === '/customer/shop') return true;
+    if (path === '/' || path === '/customer/shop' || path === '/customer/dashboard') return true;
     if (role === 'ADMIN') return path.startsWith('/admin');
     if (role === 'DELIVERY_PARTNER') return path.startsWith('/delivery-partner');
     if (role === 'STAFF') return path.startsWith('/staff');
@@ -224,7 +224,7 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
   };
 
   const handleSuccessRedirect = (targetUser: any) => {
-    const roleDefault = ROLE_PATHS[targetUser?.role] ?? '/customer/shop';
+    const roleDefault = ROLE_PATHS[targetUser?.role] ?? '/customer/dashboard';
     let target = roleDefault;
     if (redirectParam) {
       const decoded = decodeURIComponent(redirectParam);
