@@ -19,6 +19,7 @@ import {
   MapPin,
   Award,
   ShieldCheck,
+  MessageSquare,
 } from 'lucide-react';
 
 export interface SidebarNavItem {
@@ -400,6 +401,11 @@ export function getPortalSidebarConfig(
               icon: ShoppingCart,
             },
             {
+              to: '/staff/chat',
+              label: 'Live Chat',
+              icon: MessageSquare,
+            },
+            {
               to: '/staff/daily-deliveries',
               label: 'Daily Deliveries',
               icon: ShieldCheck,
@@ -542,6 +548,11 @@ export function getPortalSidebarConfig(
                 to: '/customer/profile',
                 label: 'Profile',
                 icon: User,
+              },
+              {
+                to: '/customer/chat',
+                label: 'Live Chat',
+                icon: MessageSquare,
               },
               {
                 to: '/customer/support',

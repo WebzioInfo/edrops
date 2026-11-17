@@ -12,7 +12,8 @@ import {
   RefreshCw,
   ChevronRight,
   Bot,
-  FileText
+  FileText,
+  MessageSquare,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -31,13 +32,14 @@ interface ChatMessage {
 }
 
 const QUICK_ACTIONS = [
+  { id: 'livechat', label: '💬 Live Chat with Staff', icon: MessageSquare },
   { id: 'track', label: '🚚 Track Delivery', icon: Truck },
   { id: 'balance', label: '💧 Jar & Wallet Balance', icon: Wallet },
   { id: 'schedule', label: '📅 My Schedule', icon: Calendar },
   { id: 'order', label: '🛒 Order Water', icon: ShoppingBag },
   { id: 'empties', label: '🔄 Empty Jar Rules', icon: RefreshCw },
   { id: 'ticket', label: '🎫 Support Ticket', icon: FileText },
-  { id: 'whatsapp', label: '💬 WhatsApp Help', icon: Phone },
+  { id: 'whatsapp', label: '📞 WhatsApp Help', icon: Phone },
 ];
 
 export default function CustomerChatbot() {
@@ -170,7 +172,11 @@ export default function CustomerChatbot() {
 
   // Quick Action Handler
   const handleQuickAction = async (actionId: string) => {
-    if (actionId === 'track') {
+    if (actionId === 'livechat') {
+      addUserMessage('Connect me with Live Support Staff');
+      setIsOpen(false);
+      navigate('/customer/chat');
+    } else if (actionId === 'track') {
       addUserMessage('Track my delivery');
       handleTrackingQuery();
     } else if (actionId === 'balance') {

@@ -160,6 +160,46 @@ export class EventsGateway
     }
   }
 
+  @SubscribeMessage('join-ticket')
+  handleJoinTicket(client: Socket, ticketId: string) {
+    if (ticketId) {
+      client.join(`ticket_${ticketId}`);
+      client.join(`ticket:${ticketId}`);
+      this.logger.debug(`Client ${client.id} joined ticket room ticket_${ticketId}`);
+    }
+  }
+
+  @SubscribeMessage('leave-ticket')
+  handleLeaveTicket(client: Socket, ticketId: string) {
+    if (ticketId) {
+      client.leave(`ticket_${ticketId}`);
+      client.leave(`ticket:${ticketId}`);
+      this.logger.debug(`Client ${client.id} left ticket room ticket_${ticketId}`);
+    }
+  }
+
+  // Real-time broadcast for support and customer live chat
+  emitSupportReply(ticketId: string, customerId?: string | null, messageData?: any) {
+    const payload = {
+      ticketId,
+      message: messageData,
+      customerId,
+    };
+
+    // 1. Dedicated ticket room for active chat windows
+    this.server.to(`ticket_${ticketId}`).emit('NEW_SUPPORT_MESSAGE', payload);
+    this.server.to(`ticket:${ticketId}`).emit('NEW_SUPPORT_MESSAGE', payload);
+
+    // 2. Staff operations room so active staff chat list and badge counters update in real time
+    this.server.to('staff-notifications').emit('NEW_SUPPORT_MESSAGE', payload);
+
+    // 3. Customer rooms
+    if (customerId) {
+      this.server.to(`customer-${customerId}`).emit('NEW_SUPPORT_MESSAGE', payload);
+      this.server.to(`customer:${customerId}`).emit('NEW_SUPPORT_MESSAGE', payload);
+    }
+  }
+
   // Real-time broadcast when an order is created
   emitNewOrder(orderData: any, notification?: any) {
     this.server.to('staff-notifications').emit('NEW_ORDER', {

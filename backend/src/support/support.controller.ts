@@ -18,6 +18,16 @@ import { Param } from '@nestjs/common';
 export class SupportController {
   constructor(private readonly supportService: SupportService) {}
 
+  @Get('live-chat')
+  getLiveChat(@Req() req) {
+    if (!req.user.customerId) {
+      throw new BadRequestException(
+        'Only customer accounts can access customer live chat',
+      );
+    }
+    return this.supportService.getOrCreateCustomerLiveChat(req.user.customerId);
+  }
+
   @Get('tickets')
   findMyTickets(@Req() req) {
     if (!req.user.customerId) {

@@ -17,6 +17,7 @@ const PackageManagement = React.lazy(() => import('./pages/PackageManagement'));
 const Catalog = React.lazy(() => import('./pages/Catalog'));
 const InventoryAudit = React.lazy(() => import('./pages/InventoryAudit'));
 const SupportManagement = React.lazy(() => import('./pages/SupportManagement'));
+const LiveChat = React.lazy(() => import('./pages/LiveChat'));
 const StaffReports = React.lazy(() => import('./pages/Reports'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 const CustomerForm = React.lazy(() => import('../../pages/CustomerManagement/CustomerForm'));
@@ -52,6 +53,7 @@ export default function StaffPortal() {
     if (path.includes('/packages') || path.includes('/memberships')) return 'Membership Management';
     if (path.includes('/inventory')) return 'Inventory Audit';
     if (path.includes('/reports')) return 'Reports';
+    if (path.includes('/chat')) return 'Live Customer Chat';
     if (path.includes('/support')) return 'Support Management';
     if (path.includes('/profile')) return 'Staff Profile';
     return 'Staff Operations';
@@ -192,6 +194,7 @@ export default function StaffPortal() {
                 <Route path="catalog/*" element={<Catalog />} />
                 <Route path="inventory" element={<InventoryAudit />} />
                 <Route path="reports" element={<StaffReports />} />
+                <Route path="chat" element={<LiveChat />} />
                 <Route path="support" element={<SupportManagement />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="" element={<Navigate to="/staff/orders" replace />} />

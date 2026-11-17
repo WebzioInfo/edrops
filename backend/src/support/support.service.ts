@@ -9,13 +9,86 @@ import { TicketStatus } from '@prisma/client';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { NotificationService } from '../notification/notification.service';
 import { ReplyTicketDto } from './dto/reply-ticket.dto';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class SupportService {
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
+    private eventsGateway: EventsGateway,
   ) {}
+
+  async getOrCreateCustomerLiveChat(customerId: string) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      include: { user: true },
+    });
+    if (!customer) {
+      throw new NotFoundException('Customer profile not found');
+    }
+
+    let ticket = await this.prisma.supportTicket.findFirst({
+      where: {
+        customerId,
+        category: 'LIVE_CHAT',
+        status: {
+          in: [
+            TicketStatus.OPEN,
+            TicketStatus.ASSIGNED,
+            TicketStatus.IN_PROGRESS,
+            TicketStatus.WAITING_FOR_CUSTOMER,
+          ],
+        },
+      },
+      include: {
+        customer: { include: { user: true } },
+        assignedTo: true,
+        messages: {
+          include: { user: true, attachments: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    if (!ticket) {
+      const newTicket = await this.prisma.supportTicket.create({
+        data: {
+          customerId,
+          subject: 'Live Support Chat',
+          description: `Customer live chat initiated by ${customer.user?.firstName || 'Customer'}`,
+          category: 'LIVE_CHAT',
+          priority: TicketPriority.MEDIUM,
+          status: TicketStatus.OPEN,
+        },
+      });
+
+      // Send initial welcome message from staff/system
+      await this.prisma.supportMessage.create({
+        data: {
+          ticketId: newTicket.id,
+          userId: customer.userId,
+          message: 'Hello! I need assistance with my water delivery service.',
+          isInternal: false,
+        },
+      });
+
+      ticket = await this.prisma.supportTicket.findUnique({
+        where: { id: newTicket.id },
+        include: {
+          customer: { include: { user: true } },
+          assignedTo: true,
+          messages: {
+            include: { user: true, attachments: true },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+    }
+
+    return ticket;
+  }
 
   async findMyTickets(customerId: string) {
     return this.prisma.supportTicket.findMany({
@@ -130,17 +203,24 @@ export class SupportService {
       },
     });
 
-    // Update ticket updatedAt
+    // Update ticket updatedAt and reopen if customer sends a message on resolved ticket
+    const shouldReopen = userRole === 'CUSTOMER' && ticket.status === TicketStatus.RESOLVED;
     await this.prisma.supportTicket.update({
       where: { id: ticketId },
-      data: { updatedAt: new Date() },
+      data: {
+        updatedAt: new Date(),
+        ...(shouldReopen ? { status: TicketStatus.OPEN } : {}),
+      },
     });
 
-    // Emit event
+    // Emit event via notification service
     this.notificationService.notifySupportReply({
       ticketId,
       message,
     });
+
+    // Direct multi-room broadcast
+    this.eventsGateway.emitSupportReply(ticketId, ticket.customerId, message);
 
     return message;
   }
@@ -176,8 +256,16 @@ export class SupportService {
       include: {
         customer: { include: { user: true } },
         assignedTo: true,
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: { user: true },
+        },
+        _count: {
+          select: { messages: true },
+        },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 

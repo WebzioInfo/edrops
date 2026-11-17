@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, LifeBuoy, LogIn, ShoppingBag } from 'lucide-react';
+import { History, Home, Plus, Truck, Package, User, LogOut, ChevronDown, Menu, LifeBuoy, LogIn, ShoppingBag, MessageSquare } from 'lucide-react';
 import { fetchWithAuth } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -19,6 +19,7 @@ const DeliveriesPage = React.lazy(() => import('./pages/Deliveries'));
 const RechargePage = React.lazy(() => import('./pages/Recharge'));
 const ReferPage = React.lazy(() => import('./pages/Refer'));
 const SupportPage = React.lazy(() => import('./pages/Support'));
+const CustomerLiveChat = React.lazy(() => import('./pages/LiveChat'));
 const Profile = React.lazy(() => import('../../pages/Profile'));
 const Orders = React.lazy(() => import('./pages/Orders'));
 const OrderDetails = React.lazy(() => import('./pages/OrderDetails'));
@@ -33,6 +34,7 @@ const centerNavItems = [
 ];
 
 const secondaryActions = [
+  { to: '/customer/chat', label: 'Live Chat', icon: MessageSquare },
   { to: '/customer/recharge', label: 'Recharge', icon: Plus },
   { to: '/customer/wallet', label: 'Wallet', icon: History },
 ];
@@ -175,6 +177,9 @@ export default function CustomerPortal() {
                     <NavLink to="/customer/profile" onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#2D79A8] transition-colors">
                       <User className="h-4 w-4" /> Profile
                     </NavLink>
+                    <NavLink to="/customer/chat" onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#2D79A8] transition-colors">
+                      <MessageSquare className="h-4 w-4" /> Live Chat
+                    </NavLink>
                     <NavLink to="/customer/orders" onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] hover:text-[#2D79A8] transition-colors">
                       <Package className="h-4 w-4" /> My Orders
                     </NavLink>
@@ -219,6 +224,7 @@ export default function CustomerPortal() {
               <Route path="order-success" element={<OrderSuccess />} />
               <Route path="recharge" element={<RechargePage />} />
               <Route path="referrals" element={<ReferPage />} />
+              <Route path="chat" element={<CustomerLiveChat />} />
             </Route>
             <Route path="support" element={<SupportPage />} />
             <Route path="" element={<Navigate to="dashboard" replace />} />
