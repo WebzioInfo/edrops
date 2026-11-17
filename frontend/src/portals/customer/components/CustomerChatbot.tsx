@@ -522,7 +522,7 @@ export default function CustomerChatbot() {
   return (
     <>
       {/* ── 1. FLOATING ACTION TRIGGER BUTTON ── */}
-      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40">
+      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50">
         <motion.button
           type="button"
           whileHover={{ scale: 1.05 }}
@@ -566,7 +566,7 @@ export default function CustomerChatbot() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-36 right-4 sm:bottom-20 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[400px] h-[540px] max-h-[80vh] bg-white rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden"
+            className="fixed bottom-24 right-4 sm:bottom-20 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[400px] h-[520px] max-h-[75vh] bg-white rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="px-5 py-4 bg-gradient-to-r from-[#16324F] to-[#2D79A8] text-white flex items-center justify-between shrink-0 shadow-xs">
