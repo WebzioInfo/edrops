@@ -124,7 +124,7 @@ export default function FullScheduleCalendar({
   const [currentMonth, setCurrentMonth] = useState(today.getMonth()); // 0-indexed
 
   // View mode: 'CALENDAR' | 'WEEKLY'
-  const [viewMode, setViewMode] = useState<'CALENDAR' | 'WEEKLY'>('CALENDAR');
+  const [viewMode, setViewMode] = useState<'CALENDAR' | 'WEEKLY'>('WEEKLY');
 
   // Selected preset state
   const [activePresetId, setActivePresetId] = useState<string>('1-jar-1-gap');
