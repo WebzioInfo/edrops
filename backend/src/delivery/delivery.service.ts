@@ -1066,25 +1066,34 @@ export class DeliveryService {
     }
     if (!delivery) throw new BadRequestException('Delivery not found');
 
-    // Optional PIN verification against OrderDeliveryVerification
-    if (delivery.orderId && data.pin && data.pin.trim()) {
-      const verif = await this.prisma.orderDeliveryVerification.findUnique({
-        where: { orderId: delivery.orderId },
-      });
-      if (verif && verif.otp && verif.otp !== data.pin.trim()) {
-        throw new BadRequestException('Invalid delivery PIN. Please enter the correct 4-digit PIN.');
-      }
-      if (verif) {
-        await this.prisma.orderDeliveryVerification.update({
+    // Mark OrderDeliveryVerification as verified (by PIN or by instant staff authorization)
+    if (delivery.orderId && this.prisma.orderDeliveryVerification) {
+      if (data.pin && data.pin.trim()) {
+        const verif = await this.prisma.orderDeliveryVerification.findUnique({
           where: { orderId: delivery.orderId },
-          data: {
-            isVerified: true,
-            verifiedAt: new Date(),
-            verifiedByUserId: staffUser?.id || null,
-            status: 'VERIFIED',
-          },
         });
+        if (verif && verif.otp && verif.otp !== data.pin.trim()) {
+          throw new BadRequestException('Invalid delivery PIN. Please enter the correct 4-digit PIN.');
+        }
       }
+
+      await this.prisma.orderDeliveryVerification.upsert({
+        where: { orderId: delivery.orderId },
+        create: {
+          orderId: delivery.orderId,
+          otp: data.pin?.trim() || 'STAFF_VERIFIED',
+          isVerified: true,
+          verifiedAt: new Date(),
+          verifiedByUserId: staffUser?.id || null,
+          status: 'VERIFIED',
+        },
+        update: {
+          isVerified: true,
+          verifiedAt: new Date(),
+          verifiedByUserId: staffUser?.id || null,
+          status: 'VERIFIED',
+        },
+      });
     }
 
     const brand = await this.prisma.brand.findFirst();
