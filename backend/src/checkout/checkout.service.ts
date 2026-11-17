@@ -453,29 +453,17 @@ export class CheckoutService {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
-        const existingDelivery = await tx.delivery.findFirst({
-          where: { customerId, scheduledFor: today },
+        // Always create a dedicated delivery row linked to this order
+        await tx.delivery.create({
+          data: {
+            orderId: newOrder.id,
+            customerId,
+            addressId: dto.addressId,
+            scheduledFor: today,
+            requiredQuantity: requiredQuantity || 1,
+            status: OrderStatus.ORDER_PLACED,
+          },
         });
-
-        if (existingDelivery) {
-          await tx.delivery.update({
-            where: { id: existingDelivery.id },
-            data: {
-              requiredQuantity:
-                existingDelivery.requiredQuantity + requiredQuantity,
-            },
-          });
-        } else {
-          await tx.delivery.create({
-            data: {
-              customerId,
-              addressId: dto.addressId,
-              scheduledFor: today,
-              requiredQuantity,
-              status: OrderStatus.ORDER_PLACED,
-            },
-          });
-        }
       }
 
       return newOrder;
@@ -612,29 +600,17 @@ export class CheckoutService {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
-        const existingDelivery = await tx.delivery.findFirst({
-          where: { customerId, scheduledFor: today },
+        // Always create a dedicated delivery row linked to this order
+        await tx.delivery.create({
+          data: {
+            orderId: updatedOrder.id,
+            customerId,
+            addressId: updatedOrder.deliveryAddressId,
+            scheduledFor: today,
+            requiredQuantity: requiredQuantity || 1,
+            status: OrderStatus.ORDER_PLACED,
+          },
         });
-
-        if (existingDelivery) {
-          await tx.delivery.update({
-            where: { id: existingDelivery.id },
-            data: {
-              requiredQuantity:
-                existingDelivery.requiredQuantity + requiredQuantity,
-            },
-          });
-        } else {
-          await tx.delivery.create({
-            data: {
-              customerId,
-              addressId: updatedOrder.deliveryAddressId,
-              scheduledFor: today,
-              requiredQuantity,
-              status: OrderStatus.ORDER_PLACED,
-            },
-          });
-        }
         return updatedOrder;
       });
 

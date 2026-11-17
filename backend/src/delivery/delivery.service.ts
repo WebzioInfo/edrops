@@ -617,6 +617,96 @@ export class DeliveryService {
         };
       });
 
+    // Also auto-materialize and include any orders created for this date that don't have a Delivery row yet
+    try {
+      const unlinkedOrders = await this.prisma.order.findMany({
+        where: {
+          createdAt: {
+            gte: startRange,
+            lte: endRange,
+          },
+          delivery: null,
+        },
+        include: {
+          customer: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  phone: true,
+                  email: true,
+                  isActive: true,
+                },
+              },
+              addresses: true,
+              jarBalances: true,
+              jarDeposits: true,
+              jarOwnerships: true,
+            },
+          },
+          address: true,
+          items: { include: { product: true } },
+        },
+      });
+
+      for (const ord of unlinkedOrders) {
+        if (!matchesTarget(new Date(ord.createdAt))) continue;
+        const targetAddressId = ord.deliveryAddressId || ord.address?.id || ord.customer?.addresses?.[0]?.id;
+        if (!targetAddressId || !ord.customerId) continue;
+
+        const jarItem = ord.items?.find((i) => i.product?.isJar);
+        const jarQty = jarItem ? jarItem.quantity : ord.items?.reduce((s, i) => s + (i.quantity || 1), 0);
+
+        try {
+          const newDel = await this.prisma.delivery.create({
+            data: {
+              orderId: ord.id,
+              customerId: ord.customerId,
+              addressId: targetAddressId,
+              scheduledFor: ord.scheduledDate || ord.createdAt,
+              requiredQuantity: jarQty || 1,
+              status: ord.status || OrderStatus.ORDER_PLACED,
+            },
+            include: {
+              customer: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      phone: true,
+                      email: true,
+                      isActive: true,
+                    },
+                  },
+                  addresses: true,
+                  jarBalances: true,
+                  jarDeposits: true,
+                  jarOwnerships: true,
+                },
+              },
+              address: true,
+              assignment: {
+                include: { deliveryPartner: { include: { user: true } } },
+              },
+              report: true,
+            },
+          });
+          deliveries.push({
+            ...newDel,
+            verification: null,
+          });
+        } catch {
+          // Ignore unique race condition
+        }
+      }
+    } catch (unlinkedErr) {
+      this.logger.warn(`Could not sync unlinked orders into daily deliveries: ${unlinkedErr}`);
+    }
+
     const metrics = {
       total: deliveries.length,
       delivered: deliveries.filter((d) => d.status === OrderStatus.DELIVERED).length,
