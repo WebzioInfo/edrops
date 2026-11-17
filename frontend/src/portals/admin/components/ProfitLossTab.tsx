@@ -11,7 +11,6 @@ import {
   Users,
   Wrench,
   Zap,
-  ShieldCheck,
   X,
   Loader2,
 } from 'lucide-react';
@@ -206,9 +205,9 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
       {/* ─── ACTION BAR ────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200">
         <div>
-          <h2 className="text-sm font-bold text-slate-800">Executive Income Statement (P&L)</h2>
+          <h2 className="text-sm font-bold text-slate-800">Profit & Loss Statement (P&L)</h2>
           <p className="text-[11px] text-slate-500">
-            Realized operating revenue, Aquzio production COGS, and overhead expenses
+            Revenue, cost of goods sold, and operating expenses
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -237,7 +236,7 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
         {/* Net Revenue */}
         <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Net Operating Revenue</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Net Revenue</span>
             <DollarSign className="w-4 h-4 text-sky-500" />
           </div>
           <div className="text-xl font-black text-slate-900">{formatINR(data.summary.totalNetRevenue)}</div>
@@ -254,7 +253,7 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
           </div>
           <div className="text-xl font-black text-amber-600">-{formatINR(data.summary.totalCogs)}</div>
           <p className="text-[11px] text-slate-500 mt-1">
-            {data.revenueBreakdown.totalWaterJarsSold} Jars @ ₹20 from Aquzio plant
+            {data.revenueBreakdown.totalWaterJarsSold} Jars delivered
           </p>
         </div>
 
@@ -267,7 +266,7 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
             </span>
           </div>
           <div className="text-xl font-black text-emerald-700">{formatINR(data.summary.grossProfit)}</div>
-          <p className="text-[11px] text-slate-500 mt-1">Revenue minus production costs</p>
+          <p className="text-[11px] text-slate-500 mt-1">Gross margin</p>
         </div>
 
         {/* Total OPEX */}
@@ -277,7 +276,7 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
             <Receipt className="w-4 h-4 text-rose-500" />
           </div>
           <div className="text-xl font-black text-rose-600">-{formatINR(data.summary.totalOpex)}</div>
-          <p className="text-[11px] text-slate-500 mt-1">Overhead (Fuel, Rent, Wages)</p>
+          <p className="text-[11px] text-slate-500 mt-1">Logged expenses</p>
         </div>
 
         {/* Net Operating Profit / Loss */}
@@ -306,18 +305,7 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
             {isNetProfit ? '+' : ''}
             {formatINR(data.summary.netOperatingProfit)}
           </div>
-          <p className="text-[11px] text-slate-600 mt-1">Bottom line business earnings</p>
-        </div>
-      </div>
-
-      {/* ─── DEPOSIT LIABILITY NOTICE BANNER ────────────────────── */}
-      <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 flex items-start gap-3">
-        <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        <div className="text-xs text-amber-900 leading-relaxed">
-          <strong className="font-bold">Accounting Compliance:</strong> Customer Jar Deposit Liability of{' '}
-          <strong className="underline font-bold">{formatINR(data.summary.customerJarDepositLiability)}</strong> is
-          strictly separated from revenue and held as a balance sheet liability. Refundable deposits are never recognized
-          as operating income.
+          <p className="text-[11px] text-slate-600 mt-1">Net income</p>
         </div>
       </div>
 
@@ -336,19 +324,21 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
               <span className="font-bold text-slate-900 uppercase text-[11px]">1. Operating Revenue</span>
             </div>
             <div className="px-4 py-2 flex justify-between text-slate-600">
-              <span className="pl-3">• Packaged Water & Retail Orders ({data.revenueBreakdown.totalOrdersCount} orders)</span>
+              <span className="pl-3">• Retail Orders ({data.revenueBreakdown.totalOrdersCount} orders)</span>
               <span className="font-semibold text-slate-800">{formatINR(data.revenueBreakdown.netOperatingOrderRevenue)}</span>
             </div>
             <div className="px-4 py-2 flex justify-between text-slate-600">
-              <span className="pl-3">• Subscription & Package Deliveries ({data.revenueBreakdown.totalSubscriptionsCount} purchases)</span>
+              <span className="pl-3">• Subscriptions & Packages ({data.revenueBreakdown.totalSubscriptionsCount} purchases)</span>
               <span className="font-semibold text-slate-800">{formatINR(data.revenueBreakdown.subscriptionRevenue)}</span>
             </div>
-            <div className="px-4 py-2 flex justify-between text-slate-400 italic text-[11px]">
-              <span className="pl-3">Less: Customer Refundable Jar Deposits (Held as Liability)</span>
-              <span>({formatINR(data.revenueBreakdown.customerJarDepositLiability)})</span>
-            </div>
+            {data.revenueBreakdown.customerJarDepositLiability > 0 && (
+              <div className="px-4 py-2 flex justify-between text-slate-400 italic text-[11px]">
+                <span className="pl-3">Less: Refundable Jar Deposits</span>
+                <span>({formatINR(data.revenueBreakdown.customerJarDepositLiability)})</span>
+              </div>
+            )}
             <div className="px-4 py-2.5 flex justify-between font-bold text-sky-800 bg-sky-50/40">
-              <span>= Total Net Operating Revenue</span>
+              <span>= Net Revenue</span>
               <span>{formatINR(data.summary.totalNetRevenue)}</span>
             </div>
 
@@ -358,39 +348,36 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
             </div>
             <div className="px-4 py-2 flex justify-between text-slate-600">
               <span className="pl-3">
-                • 20L Commercial Water Jars ({data.revenueBreakdown.totalWaterJarsSold} Jars @ ₹20 Aquzio Plant Cost)
+                • Water Jars Production Cost ({data.revenueBreakdown.totalWaterJarsSold} Jars)
               </span>
               <span className="font-semibold text-amber-700">-{formatINR(data.cogsBreakdown.waterJarsCost)}</span>
             </div>
             {Boolean(data.cogsBreakdown.subscriptionJarsDelivered && data.cogsBreakdown.subscriptionJarsDelivered > 0) && (
               <div className="px-4 py-1 flex justify-between text-[11px] text-slate-500 bg-slate-50/30">
-                <span className="pl-6 font-medium">↳ Subscription deliveries fulfilled ({data.cogsBreakdown.subscriptionJarsDelivered} Jars)</span>
+                <span className="pl-6 font-medium">- Subscription deliveries ({data.cogsBreakdown.subscriptionJarsDelivered} Jars)</span>
                 <span className="text-amber-700">-{formatINR(data.cogsBreakdown.subscriptionJarsCost || 0)}</span>
               </div>
             )}
             {Boolean(data.cogsBreakdown.retailJarsDelivered && data.cogsBreakdown.retailJarsDelivered > 0) && (
               <div className="px-4 py-1 flex justify-between text-[11px] text-slate-500 bg-slate-50/30">
-                <span className="pl-6 font-medium">↳ Retail orders fulfilled ({data.cogsBreakdown.retailJarsDelivered} Jars)</span>
+                <span className="pl-6 font-medium">- Retail orders ({data.cogsBreakdown.retailJarsDelivered} Jars)</span>
                 <span className="text-amber-700">-{formatINR(data.cogsBreakdown.retailJarsCost || 0)}</span>
               </div>
             )}
             {data.cogsBreakdown.otherGoodsCost > 0 && (
               <div className="px-4 py-2 flex justify-between text-slate-600">
-                <span className="pl-3">• Other Finished Products Procurement Cost</span>
+                <span className="pl-3">• Other Products Procurement Cost</span>
                 <span className="font-semibold text-amber-700">-{formatINR(data.cogsBreakdown.otherGoodsCost)}</span>
               </div>
             )}
-            <div className="px-4 py-2 text-[11px] text-slate-500 bg-slate-50/60 pl-7 leading-relaxed">
-              💡 <em>Plant COGS note:</em> Every 20L jar delivered costs ₹20.00 from the Aquzio plant. Promotional / free trial jars (₹0 order total) legitimately reflect this ₹20 manufacturing cost as customer acquisition overhead.
-            </div>
             <div className="px-4 py-2.5 flex justify-between font-bold text-amber-900 bg-amber-50/40">
-              <span>= Total COGS</span>
+              <span>= Cost of Goods Sold</span>
               <span>-{formatINR(data.summary.totalCogs)}</span>
             </div>
 
             {/* GROSS PROFIT */}
             <div className="px-4 py-3 flex justify-between font-black text-emerald-800 bg-emerald-50/60 text-sm">
-              <span>= GROSS PROFIT ({data.summary.grossMarginPercent}% Margin)</span>
+              <span>= Gross Profit ({data.summary.grossMarginPercent}%)</span>
               <span>{formatINR(data.summary.grossProfit)}</span>
             </div>
 
@@ -416,7 +403,7 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
               </div>
             )}
             <div className="px-4 py-2.5 flex justify-between font-bold text-rose-900 bg-rose-50/40">
-              <span>= Total Operating Expenses</span>
+              <span>= Total Expenses</span>
               <span>-{formatINR(data.summary.totalOpex)}</span>
             </div>
 
@@ -426,7 +413,7 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
                 isNetProfit ? 'text-emerald-900 bg-emerald-100/70' : 'text-rose-900 bg-rose-100/70'
               }`}
             >
-              <span>= NET OPERATING PROFIT / (LOSS)</span>
+              <span>= Net Profit / (Loss)</span>
               <span>
                 {isNetProfit ? '+' : ''}
                 {formatINR(data.summary.netOperatingProfit)}
@@ -443,17 +430,23 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
               <span className="text-[11px] font-bold text-slate-500">{formatINR(data.summary.totalOpex)}</span>
             </div>
             <div className="space-y-2">
-              {Object.entries(data.opexBreakdown.categories).map(([catKey, cat]) => (
-                <div key={catKey} className="flex items-center justify-between text-xs py-1 border-b border-slate-50 last:border-0">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    {getCategoryIcon(catKey)}
-                    <span>{cat.label.split('&')[0].trim()}</span>
-                  </div>
-                  <span className={`font-bold ${cat.amount > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                    {formatINR(cat.amount)}
-                  </span>
-                </div>
-              ))}
+              {Object.entries(data.opexBreakdown.categories).filter(([_, cat]) => cat.amount > 0).length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-2">No overhead recorded</p>
+              ) : (
+                Object.entries(data.opexBreakdown.categories)
+                  .filter(([_, cat]) => cat.amount > 0)
+                  .map(([catKey, cat]) => (
+                    <div key={catKey} className="flex items-center justify-between text-xs py-1 border-b border-slate-50 last:border-0">
+                      <div className="flex items-center gap-2 text-slate-600">
+                        {getCategoryIcon(catKey)}
+                        <span>{cat.label.split('&')[0].trim()}</span>
+                      </div>
+                      <span className="font-bold text-slate-800">
+                        {formatINR(cat.amount)}
+                      </span>
+                    </div>
+                  ))
+              )}
             </div>
           </div>
 

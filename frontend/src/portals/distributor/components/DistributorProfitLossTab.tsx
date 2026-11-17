@@ -294,7 +294,7 @@ export default function DistributorProfitLossTab({
     );
   }
 
-  const { summary, revenueBreakdown, cogsBreakdown, opexBreakdown, recentExpenses, auditFlags, distributor } = data;
+  const { summary, revenueBreakdown, cogsBreakdown, opexBreakdown, recentExpenses, distributor } = data;
   const isNetProfitPositive = summary.netProfitBeforeTax >= 0;
 
   return (
@@ -720,23 +720,6 @@ export default function DistributorProfitLossTab({
             </table>
           </div>
         )}
-      </div>
-
-      {/* ── AUDIT INTEGRITY & ACCOUNTING TRANSPARENCY NOTICE ── */}
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 space-y-1">
-        <div className="flex items-center gap-1.5 font-bold text-slate-700">
-          <Info className="w-4 h-4 text-[#1677C8]" />
-          <span>Accounting Architecture & Balance Sheet Separation:</span>
-        </div>
-        <p className="pl-5 leading-relaxed">
-          • <strong>Customer Jar Deposits:</strong> {auditFlags.customerDepositsIsolated}
-        </p>
-        <p className="pl-5 leading-relaxed">
-          • <strong>Wholesale COGS:</strong> {auditFlags.cogsEstimationNote}
-        </p>
-        <p className="pl-5 leading-relaxed">
-          • <strong>Prepaid Subscriptions:</strong> {auditFlags.subscriptionRevenueExcluded}
-        </p>
       </div>
 
       {/* ── RECORD EXPENSE MODAL ── */}
