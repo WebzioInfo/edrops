@@ -11,13 +11,13 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
   Send,
   Loader2,
   MapPin,
   Phone,
   X,
   Package,
+  ChevronDown,
 } from 'lucide-react';
 import { fetchWithAuth } from '../../../api/client';
 import { toast } from 'react-hot-toast';
@@ -169,48 +169,46 @@ export default function DailyDeliveries() {
     }));
   };
 
-  // Action 1: Dispatch Delivery (Transitions to OUT_FOR_DELIVERY)
-  const handleDispatchDelivery = async (deliveryId: string) => {
+  // Unified Status Change Handler (Dropdown Selector)
+  const handleStatusChange = async (deliveryId: string, newStatus: string) => {
     const input = rowInputs[deliveryId] || { deliveredQty: 1, emptyCollected: 0, notes: '' };
     try {
       setProcessingId(deliveryId);
-      await fetchWithAuth(`/delivery/${deliveryId}/dispatch`, {
-        method: 'POST',
-        body: JSON.stringify({
-          deliveredQty: input.deliveredQty,
-          emptyCollected: input.emptyCollected,
-          notes: input.notes || 'Dispatched for delivery',
-        }),
-      });
 
-      toast.success('Order dispatched! Moved to Out for Delivery.');
+      if (newStatus === 'OUT_FOR_DELIVERY') {
+        await fetchWithAuth(`/delivery/${deliveryId}/dispatch`, {
+          method: 'POST',
+          body: JSON.stringify({
+            deliveredQty: input.deliveredQty,
+            emptyCollected: input.emptyCollected,
+            notes: input.notes || 'Dispatched for delivery',
+          }),
+        });
+        toast.success('Status updated: Out for Delivery');
+      } else if (newStatus === 'DELIVERED') {
+        await fetchWithAuth(`/delivery/${deliveryId}/force-verify`, {
+          method: 'POST',
+          body: JSON.stringify({
+            deliveredQty: input.deliveredQty,
+            emptyCollected: input.emptyCollected,
+            notes: input.notes || 'Instant staff verified',
+          }),
+        });
+        toast.success('Status updated: Delivered');
+      } else if (newStatus === 'READY') {
+        await fetchWithAuth(`/delivery/${deliveryId}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            status: 'PENDING_ASSIGNMENT',
+            reason: 'Reset to ready for delivery',
+          }),
+        });
+        toast.success('Reset to Ready for Delivery');
+      }
+
       await loadDailyDeliveries(false);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to dispatch order');
-      await loadDailyDeliveries(false);
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  // Action 2: Instant Staff Delivery Completion (Direct 1-Click Verification)
-  const handleInstantComplete = async (deliveryId: string) => {
-    const input = rowInputs[deliveryId] || { deliveredQty: 1, emptyCollected: 0, notes: '' };
-    try {
-      setProcessingId(deliveryId);
-      await fetchWithAuth(`/delivery/${deliveryId}/force-verify`, {
-        method: 'POST',
-        body: JSON.stringify({
-          deliveredQty: input.deliveredQty,
-          emptyCollected: input.emptyCollected,
-          notes: input.notes || 'Instant staff verified',
-        }),
-      });
-
-      toast.success('Delivery confirmed and verified by staff!');
-      await loadDailyDeliveries(false);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to complete delivery');
+      toast.error(err?.message || 'Failed to update status');
       await loadDailyDeliveries(false);
     } finally {
       setProcessingId(null);
@@ -495,8 +493,8 @@ export default function DailyDeliveries() {
                               Delivered
                             </span>
                           ) : isPendingVerif ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
-                              <Truck className="w-3 h-3 text-sky-600 animate-pulse" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              <Truck className="w-3 h-3 text-amber-600 animate-pulse" />
                               Out for Delivery
                             </span>
                           ) : isDisputed ? (
@@ -592,46 +590,39 @@ export default function DailyDeliveries() {
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
+                      {/* Status Change Dropdown */}
                       <div className="flex items-center gap-1.5">
-                        {!isDelivered ? (
-                          isPendingVerif ? (
-                            /* Out for Delivery -> Complete Delivery Button (Instant Staff Verification) */
-                            <button
-                              type="button"
-                              onClick={() => handleInstantComplete(item.id)}
-                              disabled={isProcessing}
-                              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
-                              title="Instant staff verification: mark as Delivered"
-                            >
-                              {isProcessing ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                              )}
-                              <span>Complete Delivery</span>
-                            </button>
-                          ) : (
-                            /* Ready for Delivery -> Dispatch Button */
-                            <button
-                              type="button"
-                              onClick={() => handleDispatchDelivery(item.id)}
-                              disabled={isProcessing}
-                              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#1677C8] hover:bg-[#125ea0] text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
-                              title="Send order Out for Delivery"
-                            >
-                              {isProcessing ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Truck className="w-3.5 h-3.5" />
-                              )}
-                              <span>Dispatch (Out for Delivery)</span>
-                            </button>
-                          )
+                        {isProcessing ? (
+                          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Updating...</span>
+                          </div>
                         ) : (
-                          <div className="flex items-center gap-1 text-emerald-700 font-bold text-xs bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200">
-                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                            <span>Delivered</span>
+                          <div className="relative">
+                            <select
+                              value={
+                                isDelivered
+                                  ? 'DELIVERED'
+                                  : isPendingVerif
+                                  ? 'OUT_FOR_DELIVERY'
+                                  : 'READY'
+                              }
+                              onChange={(e) => handleStatusChange(item.id, e.target.value)}
+                              className={`appearance-none text-xs font-extrabold rounded-xl pl-3 pr-8 py-2 border outline-none cursor-pointer transition shadow-2xs ${
+                                isDelivered
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70'
+                                  : isPendingVerif
+                                  ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100/70'
+                                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >
+                              <option value="READY">⏳ Ready for Delivery</option>
+                              <option value="OUT_FOR_DELIVERY">🚚 Out for Delivery</option>
+                              <option value="DELIVERED">✅ Delivered</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-500">
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </div>
                           </div>
                         )}
                       </div>
