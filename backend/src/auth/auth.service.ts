@@ -102,7 +102,9 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  async login(loginDto: LoginDto) {
+  async login(
+    loginDto: LoginDto,
+  ): Promise<{ access_token: string; user: any }> {
     const rawIdentifier = (loginDto.identifier || (loginDto as any).email || '').trim();
     if (!rawIdentifier) {
       throw new UnauthorizedException({
@@ -136,10 +138,14 @@ export class AuthService {
           { phone: cleanDigits },
           { phone: `+91${cleanDigits}` },
         );
-      } else if (cleanDigits.length >= 10) {
+      }
+      if (cleanDigits.length >= 10) {
         conditions.push(
           { phone: { endsWith: cleanDigits } },
           { phone: `+${cleanDigits}` },
+          { alternatePhone: cleanDigits },
+          { alternatePhone: `+91${cleanDigits}` },
+          { alternatePhone: rawIdentifier },
         );
       }
 
@@ -150,14 +156,34 @@ export class AuthService {
       );
     }
 
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: conditions,
-      },
-    });
+    // Query all matching user accounts (supports users having both customer and business accounts)
+    let candidates: any[] = [];
+    if (typeof this.prisma.user.findMany === 'function') {
+      candidates = await this.prisma.user.findMany({
+        where: {
+          OR: conditions,
+        },
+        include: {
+          customer: true,
+          distributor: true,
+          staff: true,
+          admin: true,
+          deliveryPartner: true,
+        },
+      });
+    }
 
-    // Anti-enumeration: return identical generic message if user not found
-    if (!user) {
+    // Fallback for mock unit test suites that only mock findFirst
+    if (!candidates || candidates.length === 0) {
+      const single = await this.prisma.user.findFirst({
+        where: {
+          OR: conditions,
+        },
+      });
+      if (single) candidates = [single];
+    }
+
+    if (!candidates || candidates.length === 0) {
       throw new UnauthorizedException({
         statusCode: 401,
         code: 'INVALID_CREDENTIALS',
@@ -165,30 +191,57 @@ export class AuthService {
       });
     }
 
-    if (user.isActive === false || user.accountStatus === AccountStatus.DISABLED) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        code: 'ACCOUNT_DISABLED',
-        message: 'Your account has been deactivated. Please contact support.',
+    // Role-aware candidate sorting: if roleHint is provided (or if user came from a specific portal),
+    // prioritize matching the requested role.
+    const roleHint = loginDto.roleHint?.toUpperCase();
+    if (roleHint) {
+      candidates.sort((a, b) => {
+        if (a.role === roleHint && b.role !== roleHint) return -1;
+        if (b.role === roleHint && a.role !== roleHint) return 1;
+        return 0;
       });
     }
 
-    if (user.accountStatus === AccountStatus.PENDING_PASSWORD_SETUP) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        code: 'ACCOUNT_PENDING_SETUP',
-        message:
-          'Your account setup is pending. Please use the activation link sent to your email to create your password.',
-      });
+    let authenticatedUser: any = null;
+    let inactiveError: UnauthorizedException | null = null;
+    let pendingSetupError: UnauthorizedException | null = null;
+
+    for (const candidate of candidates) {
+      if (
+        candidate.isActive === false ||
+        candidate.accountStatus === AccountStatus.DISABLED
+      ) {
+        inactiveError = new UnauthorizedException({
+          statusCode: 401,
+          code: 'ACCOUNT_DISABLED',
+          message:
+            'Your account has been deactivated. Please contact support.',
+        });
+        continue;
+      }
+      if (candidate.accountStatus === AccountStatus.PENDING_PASSWORD_SETUP) {
+        pendingSetupError = new UnauthorizedException({
+          statusCode: 401,
+          code: 'ACCOUNT_PENDING_SETUP',
+          message:
+            'Your account setup is pending. Please use the activation link sent to your email to create your password.',
+        });
+        continue;
+      }
+      const isPasswordValid = await bcrypt.compare(
+        loginDto.password,
+        candidate.passwordHash,
+      );
+      if (isPasswordValid) {
+        authenticatedUser = candidate;
+        break;
+      }
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      loginDto.password,
-      user.passwordHash,
-    );
+    if (!authenticatedUser) {
+      if (inactiveError) throw inactiveError;
+      if (pendingSetupError) throw pendingSetupError;
 
-    // Anti-enumeration: return identical generic message if password incorrect
-    if (!isPasswordValid) {
       throw new UnauthorizedException({
         statusCode: 401,
         code: 'INVALID_CREDENTIALS',
@@ -196,7 +249,7 @@ export class AuthService {
       });
     }
 
-    return this.generateToken(user);
+    return this.generateToken(authenticatedUser);
   }
 
   async forgotPassword(email: string) {

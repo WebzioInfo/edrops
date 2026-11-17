@@ -36,9 +36,19 @@ export default function Login() {
     setGlobalError('');
     try {
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      let roleHint: string | undefined = undefined;
+      if (from) {
+        const lower = from.toLowerCase();
+        if (lower.startsWith('/distributor')) roleHint = 'DISTRIBUTOR';
+        else if (lower.startsWith('/admin')) roleHint = 'ADMIN';
+        else if (lower.startsWith('/staff')) roleHint = 'STAFF';
+        else if (lower.startsWith('/delivery-partner')) roleHint = 'DELIVERY_PARTNER';
+        else if (lower.startsWith('/customer')) roleHint = 'CUSTOMER';
+      }
+
       const response = await fetchWithAuth(endpoint, {
         method: 'POST',
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, roleHint }),
       });
 
       login(response.access_token, response.user);

@@ -12,4 +12,8 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password: string;
+
+  @IsString()
+  @IsOptional()
+  roleHint?: string; // Optional preferred role (e.g. 'DISTRIBUTOR', 'CUSTOMER', 'STAFF', 'ADMIN')
 }

@@ -12,6 +12,7 @@ import { UpdateDistributorDto } from './dto/update-distributor.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { normalizePhoneNumber } from '../common/phone-utils';
 
 @Injectable()
 export class StaffService {
@@ -211,7 +212,7 @@ export class StaffService {
   }
 
   async createDistributor(dto: CreateDistributorDto, staffUserId?: string) {
-    const cleanPhone = dto.phone.trim();
+    const cleanPhone = normalizePhoneNumber(dto.phone) || dto.phone.trim();
     const cleanEmail = dto.email?.trim() || null;
     const cleanRefCode = dto.referralCode.trim().toUpperCase();
 

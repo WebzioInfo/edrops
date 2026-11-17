@@ -382,9 +382,27 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
 
   const handleLoginSubmit = async (values: any, { setSubmitting }: any) => {
     try {
+      const redirectParam =
+        searchParams.get('redirect') ||
+        (location.state as any)?.redirect ||
+        (location.state as any)?.from?.pathname;
+      let roleHint: string | undefined = undefined;
+      if (redirectParam) {
+        const lower = decodeURIComponent(redirectParam).toLowerCase();
+        if (lower.startsWith('/distributor')) roleHint = 'DISTRIBUTOR';
+        else if (lower.startsWith('/admin')) roleHint = 'ADMIN';
+        else if (lower.startsWith('/staff')) roleHint = 'STAFF';
+        else if (lower.startsWith('/delivery-partner')) roleHint = 'DELIVERY_PARTNER';
+        else if (lower.startsWith('/customer')) roleHint = 'CUSTOMER';
+      }
+
       const response = await fetchWithAuth('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ identifier: values.identifier, password: values.password }),
+        body: JSON.stringify({
+          identifier: values.identifier,
+          password: values.password,
+          roleHint,
+        }),
       });
       login(response.access_token, response.user);
       if (values.rememberMe) localStorage.setItem('edrops_remember', 'true');

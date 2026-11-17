@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { showToast } from '../utils/toast';
+import { queryClient } from '../api/queryClient';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -188,6 +189,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = useCallback((newToken: string, newUser: User) => {
+    // Purge any stale queries from previous account to prevent cross-account cache bleed
+    queryClient.clear();
+
     setToken(newToken);
     setUser(newUser);
     setAuthStatus('authenticated');
@@ -229,6 +233,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   const logout = useCallback(() => {
+    // Purge cached query data immediately
+    queryClient.clear();
+
     setToken(null);
     setUser(null);
     setAuthStatus('unauthenticated');
