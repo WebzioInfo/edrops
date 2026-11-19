@@ -12,6 +12,12 @@ import {
   getISTMidnight,
   isSameISTDay,
 } from '../common/timezone.util';
+import {
+  calculateDeliveryFundingAllocation,
+  revertOrderFunding,
+  parseFundingMeta,
+  OrderFundingMeta,
+} from '../common/funding.util';
 
 @Injectable()
 export class DeliveryEngine {
@@ -427,25 +433,77 @@ export class DeliveryEngine {
         });
       }
 
-      // 2. Perform math calculations
-      let alreadyDeductedPrepaidJars = 0;
+      // 2. Perform math calculations & funding allocation
+      let parentOrder: any = null;
+      let fundingMeta: OrderFundingMeta | null = null;
+
       if (delivery.orderId) {
-        const parentOrder = await tx.order.findUnique({
+        parentOrder = await tx.order.findUnique({
           where: { id: delivery.orderId },
-          select: { adminNotes: true, paymentMethod: true },
+          include: { payments: true },
         });
         if (parentOrder?.adminNotes) {
-          try {
-            const parsed = JSON.parse(parentOrder.adminNotes);
-            if (parsed.prepaidJars) {
-              alreadyDeductedPrepaidJars = Number(parsed.prepaidJars);
-            }
-          } catch {}
+          fundingMeta = parseFundingMeta(parentOrder.adminNotes);
         }
       }
 
-      // Quantity remaining to deduct from jar balance
-      const jarsToDeduct = Math.max(0, confirmedDeliveredQty - alreadyDeductedPrepaidJars);
+      // Calculate allocation across Prepaid -> Wallet -> COD tiers
+      const allocation = calculateDeliveryFundingAllocation({
+        fundingMeta,
+        confirmedDeliveredQty,
+        paymentMethod: parentOrder?.paymentMethod,
+      });
+
+      // Partial Delivery Refund: If customer prepaid more jars than were delivered
+      if (allocation.prepaidToRefund > 0) {
+        const refundBalBefore = jarBalance.availableJars;
+        const refundBalAfter = refundBalBefore + allocation.prepaidToRefund;
+        await tx.jarBalance.update({
+          where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
+          data: { availableJars: refundBalAfter },
+        });
+
+        await tx.transaction.create({
+          data: {
+            customerId,
+            type: TransactionType.REFUND,
+            amountJars: allocation.prepaidToRefund,
+            balanceBefore: refundBalBefore,
+            balanceAfter: refundBalAfter,
+            referenceId: delivery.id,
+            description: `Refunded ${allocation.prepaidToRefund} undelivered prepaid jar(s) for delivery ${delivery.id}`,
+          },
+        });
+        jarBalance.availableJars = refundBalAfter;
+      }
+
+      // Partial Delivery Refund: If wallet funds were pre-deducted for undelivered jars
+      if (allocation.walletToRefund > 0) {
+        const wallet = await tx.wallet.findUnique({ where: { customerId } });
+        if (wallet) {
+          const wBalBefore = Number(wallet.balance);
+          const wBalAfter = wBalBefore + allocation.walletToRefund;
+          await tx.wallet.update({
+            where: { customerId },
+            data: { balance: wBalAfter },
+          });
+
+          await tx.walletTransaction.create({
+            data: {
+              walletId: wallet.id,
+              type: WalletTransactionType.REFUND,
+              amount: allocation.walletToRefund,
+              balanceBefore: wBalBefore,
+              balanceAfter: wBalAfter,
+              description: `Refund for undelivered jars on delivery ${delivery.id}`,
+              referenceId: `PARTIAL-DEL-${delivery.id}`,
+            },
+          });
+        }
+      }
+
+      // Additional jars to deduct from jar balance (Only applicable for non-pre-deducted legacy prepaid orders)
+      const jarsToDeduct = allocation.jarsToDeductFromBalance;
       const balanceBefore = jarBalance.availableJars;
       const balanceAfter = Math.max(0, balanceBefore - jarsToDeduct);
 
@@ -486,7 +544,7 @@ export class DeliveryEngine {
             balanceBefore,
             balanceAfter,
             referenceId: delivery.id,
-            description: `Confirmed delivery of ${confirmedDeliveredQty} jars (${alreadyDeductedPrepaidJars} previously funded, ${jarsToDeduct} deducted now)`,
+            description: `Confirmed delivery of ${confirmedDeliveredQty} jars (${jarsToDeduct} deducted from balance)`,
           },
         });
       }
@@ -594,22 +652,22 @@ export class DeliveryEngine {
           const isCOD =
             parentOrder.paymentMethod === 'COD' ||
             parentOrder.paymentMethod === 'CASH' ||
-            parentOrder.paymentMethod === 'CASH_ON_DELIVERY';
+            parentOrder.paymentMethod === 'CASH_ON_DELIVERY' ||
+            parentOrder.hybridSecondaryMethod === 'CASH';
 
           const updateOrderData: any = {
             status: OrderStatus.DELIVERED,
             deliveredAt: new Date(),
           };
 
-          if (
-            isCOD &&
-            parentOrder.paymentStatus !== PaymentStatus.SUCCESS &&
-            parentOrder.paymentStatus !== PaymentStatus.PAID
-          ) {
+          // Reconcile COD collection: if fundingMeta exists, collect only for delivered COD jars
+          const codToCollect = fundingMeta ? allocation.actualCODDue : Number(parentOrder.totalAmount);
+
+          if (isCOD && codToCollect > 0) {
             updateOrderData.paymentStatus = PaymentStatus.SUCCESS;
 
             const hasPayment = parentOrder.payments.some(
-              (p) =>
+              (p: any) =>
                 p.status === PaymentStatus.SUCCESS ||
                 p.status === PaymentStatus.PAID,
             );
@@ -618,15 +676,18 @@ export class DeliveryEngine {
                 data: {
                   orderId: parentOrder.id,
                   customerId: delivery.customerId,
-                  amount: parentOrder.totalAmount,
+                  amount: codToCollect,
                   currency: 'INR',
                   status: PaymentStatus.PAID,
                   provider: 'CASH',
                   receiptId: `COD-${delivery.id}`,
-                  description: `Cash on Delivery collected by delivery partner`,
+                  description: `Cash on Delivery collected by delivery partner for ${allocation.codDelivered} jar(s)`,
                 },
               });
             }
+          } else if (parentOrder.paymentStatus !== PaymentStatus.SUCCESS) {
+            // If fully prepaid or wallet covered, mark payment status success
+            updateOrderData.paymentStatus = PaymentStatus.SUCCESS;
           }
 
           await tx.order.update({
@@ -667,61 +728,13 @@ export class DeliveryEngine {
 
       // Check if order had reserved wallet cash or prepaid jars
       if (delivery.order && delivery.order.adminNotes) {
-        try {
-          const meta = JSON.parse(delivery.order.adminNotes);
-
-          // 1. Symmetrically restore reserved wallet cash
-          if (meta.walletDeducted && meta.walletDeducted > 0) {
-            const wallet = await tx.wallet.findUnique({ where: { customerId } });
-            if (wallet) {
-              const newBalance = Number(wallet.balance) + Number(meta.walletDeducted);
-              await tx.wallet.update({
-                where: { customerId },
-                data: { balance: newBalance },
-              });
-              await tx.walletTransaction.create({
-                data: {
-                  walletId: wallet.id,
-                  type: WalletTransactionType.REFUND,
-                  amount: meta.walletDeducted,
-                  balanceBefore: wallet.balance,
-                  balanceAfter: newBalance,
-                  description: `Refund for failed delivery ${delivery.id}: ${reason}`,
-                  referenceId: delivery.id,
-                },
-              });
-            }
-          }
-
-          // 2. Symmetrically restore reserved prepaid jars
-          if (meta.prepaidJars && meta.prepaidJars > 0) {
-            const jarBalance = await tx.jarBalance.findFirst({
-              where: { customerId },
-            });
-            if (jarBalance) {
-              const newAvail = jarBalance.availableJars + meta.prepaidJars;
-              await tx.jarBalance.update({
-                where: { id: jarBalance.id },
-                data: { availableJars: newAvail },
-              });
-              await tx.transaction.create({
-                data: {
-                  customerId,
-                  type: TransactionType.REFUND,
-                  amountJars: meta.prepaidJars,
-                  balanceBefore: jarBalance.availableJars,
-                  balanceAfter: newAvail,
-                  referenceId: delivery.id,
-                  description: `Restored ${meta.prepaidJars} jars from failed delivery: ${reason}`,
-                },
-              });
-            }
-          }
-        } catch (e) {
-          this.logger.warn(
-            `Failed to parse adminNotes on order ${delivery.orderId}: ${e}`,
-          );
-        }
+        await revertOrderFunding(tx, {
+          orderId: delivery.order.id,
+          customerId,
+          reason: `Failed delivery ${delivery.id}: ${reason}`,
+          referenceId: `FAIL-DEL-${delivery.id}`,
+          adminNotes: delivery.order.adminNotes,
+        });
 
         if (delivery.orderId) {
           await tx.order.update({

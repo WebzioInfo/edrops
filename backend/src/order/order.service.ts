@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, ConflictException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { EventsGateway } from '../events/events.gateway';
@@ -19,6 +19,7 @@ import { isValidTransition, isPartnerAllowedTransition, VALID_ORDER_TRANSITIONS 
 import { generateDeliveryOtp } from './utils/delivery-otp.util';
 import { calculateDeliveryAmount, calculateMultiItemDelivery } from './utils/delivery-calculation.util';
 import { SettingsService } from '../settings/settings.service';
+import { revertOrderFunding } from '../common/funding.util';
 
 @Injectable()
 export class OrderService {
@@ -26,7 +27,7 @@ export class OrderService {
     private prisma: PrismaService,
     private notificationService: NotificationService,
     private eventsGateway: EventsGateway,
-    private settingsService?: SettingsService,
+    @Optional() private settingsService?: SettingsService,
   ) {}
 
   async findAll(customerId: string) {
@@ -1187,6 +1188,17 @@ export class OrderService {
 
       // Close active distributor assignment if cancelled
       if (newStatus === OrderStatus.CANCELLED) {
+        // Revert any reserved funding (prepaid jars or wallet cash) atomically and idempotently
+        if (order.adminNotes) {
+          await revertOrderFunding(tx, {
+            orderId: order.id,
+            customerId: order.customerId,
+            reason: reason?.trim() || 'Order cancelled by staff',
+            referenceId: `CANCEL-ORD-${order.id}`,
+            adminNotes: order.adminNotes,
+          });
+        }
+
         await tx.distributorOrderAssignment.updateMany({
           where: { orderId, status: 'ACCEPTED' },
           data: {
@@ -2410,6 +2422,16 @@ export class OrderService {
             },
           });
         }
+      }
+
+      if (dto.status === OrderStatus.CANCELLED && freshOrder.adminNotes) {
+        await revertOrderFunding(tx, {
+          orderId: freshOrder.id,
+          customerId: freshOrder.customerId,
+          reason: dto.reason?.trim() || 'Order cancelled by distributor',
+          referenceId: `CANCEL-ORD-${freshOrder.id}`,
+          adminNotes: freshOrder.adminNotes,
+        });
       }
 
       const currentPaid = (freshOrder.payments || [])

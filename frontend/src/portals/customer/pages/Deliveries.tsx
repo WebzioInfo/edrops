@@ -181,6 +181,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
     customerData?.jarBalances?.[0]?.availableJars ??
     customerData?.jarBalance?.availableJars ??
     0;
+  const walletBalance = Number(customerData?.wallet?.balance ?? 0);
   const jarsHeldCount =
     customerData?.jarsAtCustomer ??
     customerData?.jarOwnerships?.[0]?.companyJarsHeld ??
@@ -734,6 +735,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
               onSaveSchedule={handleSaveScheduleFromCalendar}
               saving={savingSchedule}
               availableJarBalance={availableJarCount}
+              walletBalance={walletBalance}
               onRechargeClick={() => navigate('/customer/recharge')}
             />
           </div>

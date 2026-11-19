@@ -41,6 +41,7 @@ interface FullScheduleCalendarProps {
   ) => Promise<void>;
   saving?: boolean;
   availableJarBalance?: number;
+  walletBalance?: number;
   onRechargeClick?: () => void;
 }
 
@@ -111,6 +112,7 @@ export default function FullScheduleCalendar({
   onSaveSchedule,
   saving = false,
   availableJarBalance = 0,
+  walletBalance = 0,
   onRechargeClick,
 }: FullScheduleCalendarProps) {
   // Calendar viewing month/year state
@@ -692,7 +694,7 @@ export default function FullScheduleCalendar({
         )}
       </div>
 
-      {/* ── 1.5. PREPAID BALANCE LOW NOTICE (MINIMAL & CLEAN) ── */}
+      {/* ── 1.5. PREPAID BALANCE & COD FALLBACK NOTICE (CLEAR & REASSURING) ── */}
       {currentMonthStats.hasDeficit && currentMonthStats.isWithinOneWeek && !isBannerDismissed && (
         <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-2xs animate-in fade-in">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -700,12 +702,34 @@ export default function FullScheduleCalendar({
               <AlertTriangle className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-amber-950 truncate">
-                Prepaid balance running low ({availableJarBalance} jar{availableJarBalance === 1 ? '' : 's'} remaining)
-              </p>
-              <p className="text-[11px] text-amber-900/80 truncate">
-                Deliveries marked in orange need recharge before dispatch.
-              </p>
+              {availableJarBalance === 0 && (!walletBalance || walletBalance <= 0) ? (
+                <>
+                  <p className="text-xs font-bold text-amber-950 truncate">
+                    No prepaid jars or wallet balance remaining (Cash on Delivery active)
+                  </p>
+                  <p className="text-[11px] text-amber-900/80 truncate">
+                    Scheduled deliveries will be fulfilled via Cash on Delivery (COD) upon handover. Recharge to enjoy automatic cashless deliveries.
+                  </p>
+                </>
+              ) : availableJarBalance === 0 && walletBalance && walletBalance > 0 ? (
+                <>
+                  <p className="text-xs font-bold text-amber-950 truncate">
+                    Prepaid jars depleted (₹{walletBalance.toFixed(2)} active in wallet)
+                  </p>
+                  <p className="text-[11px] text-amber-900/80 truncate">
+                    Upcoming deliveries will automatically deduct from your available wallet balance.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-bold text-amber-950 truncate">
+                    Prepaid balance running low ({availableJarBalance} jar{availableJarBalance === 1 ? '' : 's'} remaining)
+                  </p>
+                  <p className="text-[11px] text-amber-900/80 truncate">
+                    Recharge your water pack or wallet to avoid fallback to Cash on Delivery.
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
