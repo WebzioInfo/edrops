@@ -261,11 +261,19 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
         <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gross Profit</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+              data.summary.grossProfit >= 0
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200'
+            }`}>
               {data.summary.grossMarginPercent}%
             </span>
           </div>
-          <div className="text-xl font-black text-emerald-700">{formatINR(data.summary.grossProfit)}</div>
+          <div className={`text-xl font-black ${
+            data.summary.grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'
+          }`}>
+            {formatINR(data.summary.grossProfit)}
+          </div>
           <p className="text-[11px] text-slate-500 mt-1">Gross margin</p>
         </div>
 
@@ -376,7 +384,11 @@ export default function ProfitLossTab({ preset, customStart, customEnd }: Profit
             </div>
 
             {/* GROSS PROFIT */}
-            <div className="px-4 py-3 flex justify-between font-black text-emerald-800 bg-emerald-50/60 text-sm">
+            <div className={`px-4 py-3 flex justify-between font-black text-sm ${
+              data.summary.grossProfit >= 0
+                ? 'text-emerald-800 bg-emerald-50/60'
+                : 'text-rose-800 bg-rose-50/60'
+            }`}>
               <span>= Gross Profit ({data.summary.grossMarginPercent}%)</span>
               <span>{formatINR(data.summary.grossProfit)}</span>
             </div>

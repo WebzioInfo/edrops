@@ -1233,12 +1233,16 @@ export class ReportService {
       }
     }
 
-    // 1. Fetch Orders with items, products, package purchases, delivered subscription deliveries, and approved expenses in period
-    const [orders, purchases, expenses, subscriptionDeliveries] = await Promise.all([
+    // 1. Fetch Orders with items, products, package purchases, delivered subscription deliveries, approved expenses, and deposit refunds
+    const [orders, purchases, expenses, subscriptionDeliveries, depositRefunds] = await Promise.all([
       this.prisma.order.findMany({
         where: {
           createdAt: { gte: rangeStart, lte: rangeEnd },
-          status: { not: 'CANCELLED' },
+          status: { notIn: ['CANCELLED', 'FAILED', 'RETURNED'] },
+          OR: [
+            { paymentStatus: { in: ['PAID', 'SUCCESS'] } },
+            { status: { in: ['DELIVERED', 'COMPLETED'] } },
+          ],
         },
         include: {
           items: {
@@ -1252,7 +1256,7 @@ export class ReportService {
       this.prisma.packagePurchase.findMany({
         where: {
           createdAt: { gte: rangeStart, lte: rangeEnd },
-          paymentStatus: 'SUCCESS',
+          paymentStatus: { in: ['SUCCESS', 'PAID'] },
         },
         include: {
           package: true,
@@ -1273,6 +1277,15 @@ export class ReportService {
         },
         include: {
           report: true,
+        },
+      }),
+      this.prisma.depositTransaction.aggregate({
+        where: {
+          type: 'DEPOSIT_REFUNDED',
+          createdAt: { gte: rangeStart, lte: rangeEnd },
+        },
+        _sum: {
+          amount: true,
         },
       }),
     ]);
@@ -1308,13 +1321,17 @@ export class ReportService {
       }
     }
 
+    // Adjust customer jar deposit liability by subtracting refunded deposits in this period
+    const totalDepositRefunded = Number(depositRefunds._sum?.amount) || 0;
+    const netDepositLiability = Math.max(0, customerJarDepositLiability - totalDepositRefunded);
+
     // Subscriptions Revenue
     let subscriptionRevenue = 0;
     for (const p of purchases) {
       subscriptionRevenue += Number(p.amount) || 0;
     }
 
-    // Subscription Delivered Jars COGS (Edge Case 3: Links fulfillment to deferred manufacturing cost)
+    // Subscription Delivered Jars COGS (Links fulfillment to deferred manufacturing cost)
     let subscriptionDeliveredJars = 0;
     for (const del of subscriptionDeliveries) {
       const deliveredQty =
@@ -1328,10 +1345,24 @@ export class ReportService {
     totalCogs += subscriptionDeliveredCogs;
     totalWaterJarsSold += subscriptionDeliveredJars;
 
+    // Fulfillment matching: If short window (like TODAY or YESTERDAY) has deliveries from prepaid plans
+    // but no new plan purchase happened on that exact day, recognize delivery fulfillment value (at ₹40 standard jar rate)
+    // so operating profit accurately reflects delivered margin instead of distorting to an artificial loss.
+    const fulfilledSubscriptionValue = subscriptionDeliveredJars * 40;
+    const effectiveSubscriptionRevenue = subscriptionRevenue > 0
+      ? subscriptionRevenue
+      : (preset === 'TODAY' || preset === 'YESTERDAY')
+        ? fulfilledSubscriptionValue
+        : subscriptionRevenue;
+
     // Total Net Operating Revenue (Excludes customer refundable jar deposits)
-    const totalNetRevenue = Number((netOperatingOrderRevenue + subscriptionRevenue).toFixed(2));
+    const totalNetRevenue = Number((netOperatingOrderRevenue + effectiveSubscriptionRevenue).toFixed(2));
     const grossProfit = Number((totalNetRevenue - totalCogs).toFixed(2));
-    const grossMarginPercent = totalNetRevenue > 0 ? Number(((grossProfit / totalNetRevenue) * 100).toFixed(1)) : 0;
+    const grossMarginPercent = totalNetRevenue > 0
+      ? Number(((grossProfit / totalNetRevenue) * 100).toFixed(1))
+      : grossProfit < 0
+        ? -100
+        : 0;
 
     // Expenses (OPEX)
     const categoryBreakdown: Record<string, { label: string; amount: number; count: number }> = {
@@ -1360,7 +1391,11 @@ export class ReportService {
     }
 
     const netOperatingProfit = Number((grossProfit - totalOpex).toFixed(2));
-    const netProfitMarginPercent = totalNetRevenue > 0 ? Number(((netOperatingProfit / totalNetRevenue) * 100).toFixed(1)) : 0;
+    const netProfitMarginPercent = totalNetRevenue > 0
+      ? Number(((netOperatingProfit / totalNetRevenue) * 100).toFixed(1))
+      : netOperatingProfit < 0
+        ? -100
+        : 0;
 
     return {
       period: {
@@ -1376,12 +1411,15 @@ export class ReportService {
         totalOpex: Number(totalOpex.toFixed(2)),
         netOperatingProfit,
         netProfitMarginPercent,
-        customerJarDepositLiability: Number(customerJarDepositLiability.toFixed(2)),
+        customerJarDepositLiability: Number(netDepositLiability.toFixed(2)),
+        customerJarDepositRefunded: Number(totalDepositRefunded.toFixed(2)),
       },
       revenueBreakdown: {
         netOperatingOrderRevenue: Number(netOperatingOrderRevenue.toFixed(2)),
         subscriptionRevenue: Number(subscriptionRevenue.toFixed(2)),
-        customerJarDepositLiability: Number(customerJarDepositLiability.toFixed(2)),
+        effectiveSubscriptionRevenue: Number(effectiveSubscriptionRevenue.toFixed(2)),
+        customerJarDepositLiability: Number(netDepositLiability.toFixed(2)),
+        customerJarDepositRefunded: Number(totalDepositRefunded.toFixed(2)),
         totalWaterJarsSold,
         totalOrdersCount: orders.length,
         totalSubscriptionsCount: purchases.length,
