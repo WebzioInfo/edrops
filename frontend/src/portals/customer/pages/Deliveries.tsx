@@ -737,6 +737,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
               availableJarBalance={availableJarCount}
               walletBalance={walletBalance}
               onRechargeClick={() => navigate('/customer/recharge')}
+              deliveries={weeks.flatMap((w) => w.deliveries || [])}
             />
           </div>
 

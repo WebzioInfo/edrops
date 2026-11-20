@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   AlertCircle,
   X,
+  Check,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -43,6 +44,13 @@ interface FullScheduleCalendarProps {
   availableJarBalance?: number;
   walletBalance?: number;
   onRechargeClick?: () => void;
+  deliveries?: Array<{
+    id?: string;
+    scheduledFor: string;
+    status: string;
+    quantity?: number;
+    requiredQuantity?: number;
+  }>;
 }
 
 // Preset definitions for easy one-click selection
@@ -114,6 +122,7 @@ export default function FullScheduleCalendar({
   availableJarBalance = 0,
   walletBalance = 0,
   onRechargeClick,
+  deliveries = [],
 }: FullScheduleCalendarProps) {
   // Calendar viewing month/year state
   const today = useMemo(() => {
@@ -484,7 +493,20 @@ export default function FullScheduleCalendar({
       let isExceedingBalance = false;
       let cumulativeAtCell = 0;
 
-      if (!cell.isPast && cell.qty > 0) {
+      const cellDateStr = `${cell.date.getFullYear()}-${String(cell.date.getMonth() + 1).padStart(2, '0')}-${String(cell.date.getDate()).padStart(2, '0')}`;
+      const matchingDelivery = deliveries?.find((d) => {
+        if (!d.scheduledFor) return false;
+        const dDate = new Date(d.scheduledFor);
+        const dStr = `${dDate.getFullYear()}-${String(dDate.getMonth() + 1).padStart(2, '0')}-${String(dDate.getDate()).padStart(2, '0')}`;
+        return dStr === cellDateStr;
+      });
+
+      // A delivery is DELIVERED if confirmed in records or fulfilled in past without cancellation
+      const isDelivered =
+        matchingDelivery?.status === 'DELIVERED' ||
+        (cell.isPast && cell.qty > 0 && matchingDelivery?.status !== 'CANCELLED' && matchingDelivery?.status !== 'SKIPPED');
+
+      if (!isDelivered && !cell.isPast && cell.qty > 0) {
         runningUpcomingJars += cell.qty;
         cumulativeAtCell = runningUpcomingJars;
         if (runningUpcomingJars > availableJarBalance) {
@@ -494,11 +516,12 @@ export default function FullScheduleCalendar({
 
       return {
         ...cell,
+        isDelivered,
         isExceedingBalance,
         cumulativeAtCell,
       };
     });
-  }, [currentYear, currentMonth, today, intervalRule, dateOverrides, weeklyQtys, availableJarBalance]);
+  }, [currentYear, currentMonth, today, intervalRule, dateOverrides, weeklyQtys, availableJarBalance, deliveries]);
 
   // Current Month Stats
   const currentMonthStats = useMemo(() => {
@@ -893,17 +916,23 @@ export default function FullScheduleCalendar({
                       {hasDelivery ? (
                         <div
                           className={`inline-flex items-center justify-center gap-0.5 sm:gap-1 px-1 sm:px-2 py-0.5 rounded-md sm:rounded-lg text-white shadow-2xs max-w-full ${
-                            isExceeding
+                            (cell as any).isDelivered
+                              ? 'bg-emerald-600 hover:bg-emerald-700'
+                              : isExceeding
                               ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-                              : 'bg-[#1E88E5]'
+                              : 'bg-[#1E88E5] hover:bg-blue-600'
                           }`}
                           title={
-                            isExceeding
+                            (cell as any).isDelivered
+                              ? `Delivered: ${cell.qty} jar(s) completed`
+                              : isExceeding
                               ? `Delivery of ${cell.qty} jar(s) exceeds prepaid balance (${availableJarBalance} available). Recharge needed.`
                               : `Covered by prepaid balance (Cumulative: ${(cell as any).cumulativeAtCell}/${availableJarBalance})`
                           }
                         >
-                          {isExceeding ? (
+                          {(cell as any).isDelivered ? (
+                            <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-100 shrink-0" />
+                          ) : isExceeding ? (
                             <AlertCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-100 shrink-0" />
                           ) : (
                             <Droplets className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-sky-200 shrink-0" />
@@ -929,9 +958,13 @@ export default function FullScheduleCalendar({
             {/* Clean Legend Under Calendar */}
             <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 font-medium text-xs text-slate-600">
+                <span className="inline-flex items-center gap-1.5 font-medium text-xs text-slate-700">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block shrink-0" />
+                  Delivered (Completed)
+                </span>
+                <span className="inline-flex items-center gap-1.5 font-medium text-xs text-slate-700">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#1E88E5] inline-block shrink-0" />
-                  Scheduled ({currentMonthStats.coveredUpcomingJars} Jars)
+                  Scheduled ({currentMonthStats.coveredUpcomingJars} Jars Covered)
                 </span>
                 {currentMonthStats.hasDeficit && (
                   <span className="inline-flex items-center gap-1.5 font-medium text-xs text-amber-800 font-semibold">

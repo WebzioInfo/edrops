@@ -42,6 +42,39 @@ const QUICK_ACTIONS = [
   { id: 'whatsapp', label: '📞 WhatsApp Help', icon: Phone },
 ];
 
+function getLocalDateStr(dInput: string | Date): string {
+  const d = new Date(dInput);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function formatDeliveryStatus(status: string): string {
+  switch (status?.toUpperCase()) {
+    case 'PENDING':
+    case 'ORDER_PLACED':
+      return 'Pending Assignment';
+    case 'ASSIGNED':
+      return 'Assigned to Driver';
+    case 'CONFIRMED':
+      return 'Confirmed';
+    case 'PROCESSING':
+      return 'Processing';
+    case 'OUT_FOR_DELIVERY':
+    case 'IN_TRANSIT':
+      return 'Out for Delivery';
+    case 'DELIVERED':
+      return 'Delivered';
+    case 'SKIPPED':
+      return 'Skipped';
+    case 'FAILED':
+      return 'Missed';
+    case 'CANCELLED':
+      return 'Cancelled';
+    default:
+      return status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replace(/_/g, ' ') : 'Scheduled';
+  }
+}
+
 export default function CustomerChatbot() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -94,10 +127,15 @@ export default function CustomerChatbot() {
   // Load account context on initial chat open
   const loadAccountContext = async () => {
     try {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      const todayStr = getLocalDateStr(now);
+
       const [profileRes, ordersRes, weeklyRes] = await Promise.allSettled([
         fetchWithAuth('/auth/me'),
         fetchWithAuth('/order'),
-        fetchWithAuth('/delivery/weekly-summary'),
+        fetchWithAuth(`/delivery/weekly-summary?year=${currentYear}&month=${currentMonth}`),
       ]);
 
       const profile = profileRes.status === 'fulfilled' ? profileRes.value : null;
@@ -105,10 +143,9 @@ export default function CustomerChatbot() {
       
       let todayDel = null;
       if (weeklyRes.status === 'fulfilled' && weeklyRes.value?.weeks) {
-        const todayStr = new Date().toISOString().split('T')[0];
         for (const w of weeklyRes.value.weeks) {
           for (const d of w.deliveries || []) {
-            if (d.scheduledFor && d.scheduledFor.startsWith(todayStr)) {
+            if (d.scheduledFor && getLocalDateStr(d.scheduledFor) === todayStr) {
               todayDel = d;
               break;
             }
@@ -238,22 +275,91 @@ export default function CustomerChatbot() {
   };
 
   // Specific query builders
-  const handleTrackingQuery = () => {
-    const orders = accountData.orders;
-    const todayDel = accountData.todayDelivery;
+  const handleTrackingQuery = async () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const todayStr = getLocalDateStr(now);
 
-    const activeOrder = orders.find((o) =>
+    let orders = accountData.orders;
+    let todayDel = accountData.todayDelivery;
+
+    // Fetch fresh live delivery & orders data on every tracking query
+    try {
+      const [ordersRes, weeklyRes] = await Promise.allSettled([
+        fetchWithAuth('/order'),
+        fetchWithAuth(`/delivery/weekly-summary?year=${currentYear}&month=${currentMonth}`),
+      ]);
+
+      if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) {
+        orders = ordersRes.value;
+      }
+
+      if (weeklyRes.status === 'fulfilled' && weeklyRes.value?.weeks) {
+        let foundTodayDel = null;
+        for (const w of weeklyRes.value.weeks) {
+          for (const d of w.deliveries || []) {
+            if (d.scheduledFor && getLocalDateStr(d.scheduledFor) === todayStr) {
+              foundTodayDel = d;
+              break;
+            }
+          }
+          if (foundTodayDel) break;
+        }
+        todayDel = foundTodayDel;
+      }
+
+      setAccountData((prev) => ({
+        ...prev,
+        todayDelivery: todayDel,
+        orders: orders || prev.orders,
+      }));
+    } catch {
+      // Fall back to cached data
+    }
+
+    const activeOrder = orders?.find((o) =>
       ['PENDING', 'ORDER_PLACED', 'CONFIRMED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'IN_TRANSIT'].includes(
         o.status?.toUpperCase()
       )
     );
 
-    if (activeOrder) {
+    // Case 1: Both an instant order and scheduled daily jars for today
+    if (activeOrder && todayDel) {
       const orderNum = activeOrder.orderNumber || activeOrder.id?.slice(0, 8);
       const pinText = activeOrder.deliveryVerificationPin
         ? `\n🔐 **Handover PIN:** ${activeOrder.deliveryVerificationPin}`
         : '';
-      const statusText = activeOrder.status?.replace(/_/g, ' ');
+      const activeStatus = formatDeliveryStatus(activeOrder.status);
+      const schedStatus = formatDeliveryStatus(todayDel.status);
+      const schedQty = todayDel.requiredQuantity || todayDel.quantity || 1;
+
+      addBotMessage(
+        `📦 **You have 2 deliveries active today:**\n\n1️⃣ **Instant Order #${orderNum}**\n• Status: **${activeStatus}**\n• Items: ${activeOrder.orderItems?.length || 1} Jar(s)${pinText}\n\n2️⃣ **Daily Subscription Delivery:**\n• Quantity: **${schedQty} Jar(s)**\n• Status: **${schedStatus}**\n• Delivery Window: **6:00 AM – 9:00 AM**`,
+        [
+          {
+            label: `View Order #${orderNum}`,
+            action: () => {
+              setIsOpen(false);
+              navigate(`/customer/orders/${activeOrder.id}`);
+            },
+            primary: true,
+          },
+          {
+            label: 'View Deliveries Calendar 📅',
+            action: () => {
+              setIsOpen(false);
+              navigate('/customer/deliveries');
+            },
+          },
+        ]
+      );
+    } else if (activeOrder) {
+      const orderNum = activeOrder.orderNumber || activeOrder.id?.slice(0, 8);
+      const pinText = activeOrder.deliveryVerificationPin
+        ? `\n🔐 **Handover PIN:** ${activeOrder.deliveryVerificationPin}`
+        : '';
+      const statusText = formatDeliveryStatus(activeOrder.status);
 
       addBotMessage(
         `📦 **Active Order #${orderNum}**\n• Status: **${statusText}**\n• Items: ${activeOrder.orderItems?.length || 1} Jar(s)${pinText}\n\nOur driver will verify handover with you upon arrival.`,
@@ -276,23 +382,37 @@ export default function CustomerChatbot() {
         ]
       );
     } else if (todayDel) {
-      const statusText = todayDel.status?.replace(/_/g, ' ');
+      const statusText = formatDeliveryStatus(todayDel.status);
+      const qty = todayDel.requiredQuantity || todayDel.quantity || 1;
+      const formattedDate = new Date(todayDel.scheduledFor).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+
       addBotMessage(
-        `🚚 **Today's Scheduled Delivery:**\n• Quantity: **${todayDel.requiredQuantity} Jar(s)**\n• Status: **${statusText}**\n• Slot: 6:00 AM - 9:00 AM`,
+        `🚚 **Today's Scheduled Delivery:**\n• Quantity: **${qty} Jar(s)**\n• Status: **${statusText}**\n• Scheduled Date: **Today (${formattedDate})**\n• Delivery Window: **6:00 AM – 9:00 AM**\n\nYour driver will be assigned during the scheduled morning route.`,
         [
           {
-            label: 'View Deliveries Calendar',
+            label: 'View Deliveries Calendar 📅',
             action: () => {
               setIsOpen(false);
               navigate('/customer/deliveries');
             },
             primary: true,
           },
+          {
+            label: 'Live Chat with Staff 💬',
+            action: () => {
+              setIsOpen(false);
+              navigate('/customer/chat');
+            },
+          },
         ]
       );
     } else {
       addBotMessage(
-        'You currently have no active orders in transit for today. Would you like to schedule a delivery or place an instant order?',
+        'You currently have no deliveries scheduled or active orders in transit for today. Would you like to schedule a delivery or place an instant order?',
         [
           {
             label: 'Order Water Now 🛒',

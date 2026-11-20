@@ -313,7 +313,7 @@ export default function CustomerLiveChat() {
 
           {/* Messages */}
           {ticket?.messages
-            ?.filter((msg) => !msg.isInternal && !!msg.message && typeof msg.message === 'string')
+            ?.filter((msg) => !msg.isInternal && !!msg.message && typeof msg.message === 'string' && msg.message.trim().length > 0)
             .map((msg, index) => {
               const isCustomer = msg.user?.role === 'CUSTOMER';
               const isMe = msg.userId === user?.id;

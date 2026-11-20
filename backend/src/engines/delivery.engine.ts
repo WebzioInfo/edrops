@@ -403,6 +403,16 @@ export class DeliveryEngine {
       let jarBalance = await tx.jarBalance.findUnique({
         where: { customerId_brandId: { customerId, brandId: effectiveBrandId } },
       });
+      if (!jarBalance || jarBalance.availableJars === 0) {
+        const existingBalance = await tx.jarBalance.findFirst({
+          where: { customerId, availableJars: { gt: 0 } },
+          orderBy: { availableJars: 'desc' },
+        });
+        if (existingBalance) {
+          jarBalance = existingBalance;
+          effectiveBrandId = existingBalance.brandId;
+        }
+      }
       if (!jarBalance) {
         jarBalance = await tx.jarBalance.create({
           data: { customerId, brandId: effectiveBrandId, availableJars: 0, totalPurchased: 0 },
@@ -502,8 +512,15 @@ export class DeliveryEngine {
         }
       }
 
-      // Additional jars to deduct from jar balance (Only applicable for non-pre-deducted legacy prepaid orders)
-      const jarsToDeduct = allocation.jarsToDeductFromBalance;
+      // Additional jars to deduct from jar balance
+      let jarsToDeduct = allocation.jarsToDeductFromBalance;
+
+      // If no pre-deductions occurred upfront (e.g. daily subscription deliveries or manual staff delivery)
+      // and customer has prepaid jars in their balance, deduct confirmed delivered jars directly:
+      if ((!fundingMeta || fundingMeta.prepaidJars === 0) && jarsToDeduct === 0 && jarBalance.availableJars > 0) {
+        jarsToDeduct = Math.min(jarBalance.availableJars, confirmedDeliveredQty);
+      }
+
       const balanceBefore = jarBalance.availableJars;
       const balanceAfter = Math.max(0, balanceBefore - jarsToDeduct);
 
