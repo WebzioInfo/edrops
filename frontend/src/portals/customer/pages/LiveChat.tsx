@@ -91,32 +91,79 @@ export default function CustomerLiveChat() {
     }
 
     const handleNewMessage = (payload: any) => {
-      const message = payload.message || payload;
-      const ticketId = payload.ticketId || message.ticketId;
+      if (!payload) return;
+
+      // Extract message entity properly whether it is wrapped ({ ticketId, message }) or raw
+      const messageObj: Message | null =
+        payload.message && typeof payload.message === 'object'
+          ? payload.message
+          : payload.id && typeof payload.message === 'string'
+          ? payload
+          : null;
+
+      if (!messageObj || !messageObj.id || typeof messageObj.message !== 'string') {
+        return; // Ignore malformed or non-message payloads
+      }
+
+      const ticketId = payload.ticketId || messageObj.ticketId;
+
+      // Privacy safeguard: Never display internal staff notes to customer
+      if (messageObj.isInternal) return;
 
       if (ticket && ticket.id === ticketId) {
         setTicket((prev) => {
           if (!prev) return null;
-          const exists = prev.messages.some((m) => m.id === message.id);
+          const exists = prev.messages.some((m) => m.id === messageObj.id);
           if (exists) return prev;
           return {
             ...prev,
-            messages: [...prev.messages, message],
+            messages: [...prev.messages, messageObj],
           };
         });
         setTimeout(scrollToBottom, 80);
       }
     };
 
+    const handleMessageDeleted = (payload: any) => {
+      const { ticketId, messageId } = payload;
+      if (ticket && ticket.id === ticketId) {
+        setTicket((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            messages: prev.messages.filter((m) => m.id !== messageId),
+          };
+        });
+      }
+    };
+
+    const handleStatusChanged = (payload: any) => {
+      const ticketId = payload.id || payload.ticketId;
+      if (ticket && ticket.id === ticketId && payload.status) {
+        setTicket((prev) => (prev ? { ...prev, status: payload.status } : null));
+      }
+    };
+
     socket.on('NEW_SUPPORT_MESSAGE', handleNewMessage);
+    socket.on('SUPPORT_MESSAGE_DELETED', handleMessageDeleted);
+    socket.on('TICKET_STATUS_CHANGED', handleStatusChanged);
 
     return () => {
       if (ticket?.id) {
         socket.emit('leave-ticket', ticket.id);
       }
       socket.off('NEW_SUPPORT_MESSAGE', handleNewMessage);
+      socket.off('SUPPORT_MESSAGE_DELETED', handleMessageDeleted);
+      socket.off('TICKET_STATUS_CHANGED', handleStatusChanged);
     };
   }, [socket, isConnected, ticket?.id]);
+
+  // Reconnection recovery: resync message history if disconnected then reconnected
+  useEffect(() => {
+    if (isConnected && ticket?.id) {
+      loadChatSession(true);
+    }
+  }, [isConnected]);
 
   const handleSendMessage = async (customText?: string) => {
     const textToSend = (customText || inputMessage).trim();
@@ -252,31 +299,47 @@ export default function CustomerLiveChat() {
             </div>
           </div>
 
-          {/* Messages */}
-          {ticket?.messages.map((msg, index) => {
-            const isCustomer = msg.user?.role === 'CUSTOMER';
-            const isMe = msg.userId === user?.id;
+          {/* Ticket status banner */}
+          {ticket?.status === 'RESOLVED' && (
+            <div className="max-w-md mx-auto bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center text-xs text-emerald-800 shadow-2xs">
+              <span className="font-semibold">This conversation was marked resolved.</span> You can send a message anytime to reopen it.
+            </div>
+          )}
+          {ticket?.status === 'CLOSED' && (
+            <div className="max-w-md mx-auto bg-slate-100 border border-slate-200 rounded-xl p-3 text-center text-xs text-slate-700 shadow-2xs">
+              <span className="font-semibold">This support session has been closed.</span> Sending a new message will automatically reopen a live support request.
+            </div>
+          )}
 
-            return (
-              <div
-                key={msg.id || index}
-                className={`flex flex-col ${
-                  isMe || isCustomer ? 'items-end' : 'items-start'
-                }`}
-              >
-                {/* Sender badge & time */}
-                <div className="text-[10px] text-slate-400 mb-1 px-1 font-medium flex items-center gap-1.5">
-                  <span className="font-semibold text-slate-600">
-                    {isMe || isCustomer ? 'You' : `Staff (${msg.user?.firstName || 'Support'})`}
-                  </span>
-                  <span>•</span>
-                  <span>
-                    {new Date(msg.createdAt).toLocaleTimeString([], {
+          {/* Messages */}
+          {ticket?.messages
+            ?.filter((msg) => !msg.isInternal && !!msg.message && typeof msg.message === 'string')
+            .map((msg, index) => {
+              const isCustomer = msg.user?.role === 'CUSTOMER';
+              const isMe = msg.userId === user?.id;
+              const formattedTime =
+                msg.createdAt && !isNaN(new Date(msg.createdAt).getTime())
+                  ? new Date(msg.createdAt).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
-                    })}
-                  </span>
-                </div>
+                    })
+                  : 'Just now';
+
+              return (
+                <div
+                  key={msg.id || index}
+                  className={`flex flex-col ${
+                    isMe || isCustomer ? 'items-end' : 'items-start'
+                  }`}
+                >
+                  {/* Sender badge & time */}
+                  <div className="text-[10px] text-slate-400 mb-1 px-1 font-medium flex items-center gap-1.5">
+                    <span className="font-semibold text-slate-600">
+                      {isMe || isCustomer ? 'You' : `Staff (${msg.user?.firstName || 'Support'})`}
+                    </span>
+                    <span>•</span>
+                    <span>{formattedTime}</span>
+                  </div>
 
                 {/* Message Bubble */}
                 <div

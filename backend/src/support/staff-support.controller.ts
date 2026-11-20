@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -40,5 +41,10 @@ export class StaffSupportController {
     @Body('staffId') staffId: string,
   ) {
     return this.supportService.assignTicket(id, staffId, req.user.id);
+  }
+
+  @Delete('messages/:id')
+  deleteMessage(@Req() req, @Param('id') id: string) {
+    return this.supportService.deleteStaffMessage(id, req.user.id, req.user.role);
   }
 }

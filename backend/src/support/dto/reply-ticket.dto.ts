@@ -3,9 +3,11 @@ import {
   IsOptional,
   IsBoolean,
   IsArray,
+  IsString,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 class AttachmentDto {
   @IsNotEmpty()
@@ -20,6 +22,9 @@ class AttachmentDto {
 
 export class ReplyTicketDto {
   @IsNotEmpty()
+  @IsString()
+  @MaxLength(4000, { message: 'Message cannot exceed 4000 characters' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   message: string;
 
   @IsOptional()

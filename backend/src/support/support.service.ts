@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -45,6 +46,7 @@ export class SupportService {
         customer: { include: { user: true } },
         assignedTo: true,
         messages: {
+          where: { isInternal: false },
           include: { user: true, attachments: true },
           orderBy: { createdAt: 'asc' },
         },
@@ -80,11 +82,16 @@ export class SupportService {
           customer: { include: { user: true } },
           assignedTo: true,
           messages: {
+            where: { isInternal: false },
             include: { user: true, attachments: true },
             orderBy: { createdAt: 'asc' },
           },
         },
       });
+    }
+
+    if (ticket?.messages) {
+      ticket.messages = ticket.messages.filter((m) => !m.isInternal);
     }
 
     return ticket;
@@ -177,6 +184,11 @@ export class SupportService {
     customerId: string | null,
     dto: ReplyTicketDto,
   ) {
+    const cleanText = dto.message?.trim();
+    if (!cleanText) {
+      throw new BadRequestException('Message content cannot be empty');
+    }
+
     const ticket = await this.getTicketById(ticketId, customerId);
 
     // If it's a customer, they can only send public messages
@@ -186,7 +198,7 @@ export class SupportService {
       data: {
         ticketId,
         userId,
-        message: dto.message,
+        message: cleanText,
         isInternal,
         attachments: {
           create:
@@ -203,8 +215,11 @@ export class SupportService {
       },
     });
 
-    // Update ticket updatedAt and reopen if customer sends a message on resolved ticket
-    const shouldReopen = userRole === 'CUSTOMER' && ticket.status === TicketStatus.RESOLVED;
+    // Update ticket updatedAt and reopen if customer sends a message on resolved or closed ticket
+    const shouldReopen =
+      userRole === 'CUSTOMER' &&
+      (ticket.status === TicketStatus.RESOLVED || ticket.status === TicketStatus.CLOSED);
+
     await this.prisma.supportTicket.update({
       where: { id: ticketId },
       data: {
@@ -212,6 +227,13 @@ export class SupportService {
         ...(shouldReopen ? { status: TicketStatus.OPEN } : {}),
       },
     });
+
+    if (shouldReopen) {
+      this.notificationService.notifySupportStatusUpdate({
+        ticketId,
+        status: TicketStatus.OPEN,
+      });
+    }
 
     // Emit event via notification service
     this.notificationService.notifySupportReply({
@@ -318,6 +340,36 @@ export class SupportService {
     });
 
     return ticket;
+  }
+
+  async deleteStaffMessage(messageId: string, userId: string, userRole: string) {
+    const message = await this.prisma.supportMessage.findUnique({
+      where: { id: messageId },
+    });
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    // Admins can delete any message. Staff can delete any internal note or their own message.
+    if (userRole !== 'ADMIN' && message.userId !== userId && !message.isInternal) {
+      throw new ForbiddenException('You do not have permission to delete this message');
+    }
+
+    await this.prisma.supportMessage.delete({
+      where: { id: messageId },
+    });
+
+    // Notify staff in real time
+    this.eventsGateway.emitEvent('staff-notifications', 'SUPPORT_MESSAGE_DELETED', {
+      ticketId: message.ticketId,
+      messageId,
+    });
+    this.eventsGateway.emitEvent(`ticket_${message.ticketId}`, 'SUPPORT_MESSAGE_DELETED', {
+      ticketId: message.ticketId,
+      messageId,
+    });
+
+    return { success: true, messageId, ticketId: message.ticketId };
   }
 
   async getAdminAnalytics() {

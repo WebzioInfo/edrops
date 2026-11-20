@@ -186,6 +186,13 @@ export class EventsGateway
       customerId,
     };
 
+    // If message is an internal staff note, ONLY emit to staff notifications!
+    // Never emit to customer rooms or shared ticket rooms.
+    if (messageData?.isInternal) {
+      this.server.to('staff-notifications').emit('NEW_SUPPORT_MESSAGE', payload);
+      return;
+    }
+
     // 1. Dedicated ticket room for active chat windows
     this.server.to(`ticket_${ticketId}`).emit('NEW_SUPPORT_MESSAGE', payload);
     this.server.to(`ticket:${ticketId}`).emit('NEW_SUPPORT_MESSAGE', payload);

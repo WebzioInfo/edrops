@@ -648,14 +648,19 @@ export class NotificationService {
   }
 
   notifySupportReply(data: { ticketId: string; message: any }) {
+    const isInternal = !!data.message?.isInternal;
+    // Live chat real-time socket events are broadcast cleanly by eventsGateway.emitSupportReply.
+    // Database and push channels are handled here to avoid duplicate socket emissions.
     this.dispatcher.dispatch({
       id: crypto.randomUUID(),
       type: 'NEW_SUPPORT_MESSAGE',
-      title: 'New Reply on Ticket',
-      message: `New message on ticket #${data.ticketId.substring(0, 8)}`,
-      channels: [NotificationChannel.SOCKET],
-      recipients: { socketRoom: `ticket_${data.ticketId}` },
-      data: data.message,
+      title: isInternal ? 'New Internal Staff Note' : 'New Reply on Ticket',
+      message: isInternal
+        ? `Internal note added on ticket #${data.ticketId.substring(0, 8)}`
+        : `New message on ticket #${data.ticketId.substring(0, 8)}`,
+      channels: [NotificationChannel.DATABASE],
+      recipients: { socketRoom: isInternal ? 'staff-notifications' : `ticket_${data.ticketId}` },
+      data: { ticketId: data.ticketId, message: data.message },
     });
   }
 
@@ -680,6 +685,16 @@ export class NotificationService {
       channels: [NotificationChannel.SOCKET],
       recipients: { socketRoom: `ticket_${data.ticketId}` },
       data: data.ticket,
+    });
+    // Also broadcast to staff-notifications so all staff dashboards update in real time
+    this.dispatcher.dispatch({
+      id: crypto.randomUUID(),
+      type: 'TICKET_STATUS_CHANGED',
+      title: 'Ticket Assigned',
+      message: `Ticket #${data.ticketId.substring(0, 8)} assigned`,
+      channels: [NotificationChannel.SOCKET],
+      recipients: { socketRoom: 'staff-notifications' },
+      data: { id: data.ticketId, status: data.ticket.status, assignedTo: data.ticket.assignedTo },
     });
   }
 

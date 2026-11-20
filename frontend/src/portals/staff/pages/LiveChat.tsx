@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
-  ChevronLeft
+  ChevronLeft,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSocket } from '../../../contexts/SocketContext';
@@ -128,19 +129,31 @@ export default function StaffLiveChat() {
     }
 
     const handleNewMessage = (payload: any) => {
-      const message = payload.message || payload;
-      const ticketId = payload.ticketId || message.ticketId;
+      if (!payload) return;
+
+      const messageObj: Message | null =
+        payload.message && typeof payload.message === 'object'
+          ? payload.message
+          : payload.id && typeof payload.message === 'string'
+          ? payload
+          : null;
+
+      if (!messageObj || !messageObj.id || typeof messageObj.message !== 'string') {
+        return;
+      }
+
+      const ticketId = payload.ticketId || messageObj.ticketId;
 
       // Update current active chat
       if (selectedTicket && selectedTicket.id === ticketId) {
         setSelectedTicket((prev) => {
           if (!prev) return null;
           // Avoid duplicate messages
-          const exists = prev.messages?.some((m) => m.id === message.id);
+          const exists = prev.messages?.some((m) => m.id === messageObj.id);
           if (exists) return prev;
           return {
             ...prev,
-            messages: [...(prev.messages || []), message],
+            messages: [...(prev.messages || []), messageObj],
           };
         });
         setTimeout(scrollToBottom, 80);
@@ -157,7 +170,7 @@ export default function StaffLiveChat() {
         const updatedTicket = {
           ...prev[index],
           updatedAt: new Date().toISOString(),
-          messages: [message],
+          messages: [messageObj],
         };
         const newList = [...prev];
         newList.splice(index, 1);
@@ -175,8 +188,22 @@ export default function StaffLiveChat() {
       }
     };
 
+    const handleMessageDeleted = (payload: any) => {
+      const { ticketId, messageId } = payload;
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            messages: prev.messages?.filter((m) => m.id !== messageId),
+          };
+        });
+      }
+    };
+
     socket.on('NEW_SUPPORT_MESSAGE', handleNewMessage);
     socket.on('TICKET_STATUS_CHANGED', handleStatusChanged);
+    socket.on('SUPPORT_MESSAGE_DELETED', handleMessageDeleted);
 
     return () => {
       if (selectedTicket) {
@@ -184,6 +211,7 @@ export default function StaffLiveChat() {
       }
       socket.off('NEW_SUPPORT_MESSAGE', handleNewMessage);
       socket.off('TICKET_STATUS_CHANGED', handleStatusChanged);
+      socket.off('SUPPORT_MESSAGE_DELETED', handleMessageDeleted);
     };
   }, [socket, isConnected, selectedTicket?.id]);
 
@@ -278,6 +306,25 @@ export default function StaffLiveChat() {
       toast.success('Conversation assigned to you');
     } catch {
       toast.error('Failed to assign conversation');
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!window.confirm('Are you sure you want to delete this internal staff note?')) return;
+    try {
+      await fetchWithAuth(`/staff/support/messages/${messageId}`, {
+        method: 'DELETE',
+      });
+      setSelectedTicket((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          messages: prev.messages?.filter((m) => m.id !== messageId),
+        };
+      });
+      toast.success('Internal note deleted');
+    } catch {
+      toast.error('Failed to delete internal note');
     }
   };
 
@@ -548,17 +595,36 @@ export default function StaffLiveChat() {
                 </div>
 
                 {/* Messages List */}
-                {selectedTicket.messages?.map((msg, index) => {
+                {selectedTicket.messages
+                  ?.filter((msg) => !!msg.message && typeof msg.message === 'string')
+                  .map((msg, index) => {
                   const isStaff = msg.user?.role !== 'CUSTOMER';
                   const isMyMessage = msg.userId === user?.id;
+                  const formattedTime =
+                    msg.createdAt && !isNaN(new Date(msg.createdAt).getTime())
+                      ? new Date(msg.createdAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Just now';
 
                   if (msg.isInternal) {
                     return (
-                      <div key={msg.id || index} className="flex justify-center my-2">
-                        <div className="max-w-[85%] bg-amber-50 border border-amber-200/90 rounded-xl p-3 text-xs text-amber-900 shadow-2xs space-y-1">
-                          <div className="flex items-center gap-1.5 font-bold text-[11px] text-amber-800">
-                            <Lock className="w-3 h-3" />
-                            Internal Staff Note • {msg.user?.firstName || 'Staff'} ({new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                      <div key={msg.id || index} className="flex justify-center my-2 group">
+                        <div className="max-w-[85%] bg-amber-50 border border-amber-200/90 rounded-xl p-3 text-xs text-amber-900 shadow-2xs space-y-1 relative">
+                          <div className="flex items-center justify-between gap-3 font-bold text-[11px] text-amber-800">
+                            <span className="flex items-center gap-1.5">
+                              <Lock className="w-3 h-3 text-amber-600" />
+                              Internal Staff Note • {msg.user?.firstName || 'Staff'} ({formattedTime})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="text-amber-500 hover:text-rose-600 p-1 rounded hover:bg-amber-100 transition-colors cursor-pointer"
+                              title="Delete internal note"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                           <p className="whitespace-pre-wrap">{msg.message}</p>
                         </div>
@@ -579,12 +645,7 @@ export default function StaffLiveChat() {
                           {isStaff ? (isMyMessage ? 'You (Staff)' : `${msg.user?.firstName || 'Staff'}`) : `${selectedTicket.customer?.user?.firstName || 'Customer'}`}
                         </span>
                         <span>•</span>
-                        <span>
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
+                        <span>{formattedTime}</span>
                       </div>
 
                       {/* Bubble */}
