@@ -208,6 +208,11 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
   const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth() + 1);
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
+  const handleCalendarMonthChange = (year: number, month: number) => {
+    setSelectedYear(year);
+    setSelectedMonth(month);
+  };
+
   // ── Load Schedule Data ──
   const loadSchedule = async () => {
     try {
@@ -736,6 +741,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
               onRechargeClick={() => navigate('/customer/recharge')}
               deliveries={weeks.flatMap((w) => w.deliveries || [])}
               accountStartDate={accountStartDate}
+              onMonthChange={handleCalendarMonthChange}
             />
           </div>
 

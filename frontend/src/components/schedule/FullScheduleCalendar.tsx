@@ -53,6 +53,7 @@ interface FullScheduleCalendarProps {
     requiredQuantity?: number;
   }>;
   accountStartDate?: Date | string | null;
+  onMonthChange?: (year: number, month: number) => void;
 }
 
 // Preset definitions for easy one-click selection
@@ -126,6 +127,7 @@ export default function FullScheduleCalendar({
   onRechargeClick,
   deliveries = [],
   accountStartDate,
+  onMonthChange,
 }: FullScheduleCalendarProps) {
   // Calendar viewing month/year state
   const today = useMemo(() => {
@@ -286,26 +288,37 @@ export default function FullScheduleCalendar({
 
   // Month navigation
   const handlePrevMonth = () => {
+    let newM = currentMonth - 1;
+    let newY = currentYear;
     if (currentMonth === 0) {
+      newM = 11;
+      newY = currentYear - 1;
       setCurrentMonth(11);
-      setCurrentYear((y) => y - 1);
+      setCurrentYear(newY);
     } else {
-      setCurrentMonth((m) => m - 1);
+      setCurrentMonth(newM);
     }
+    onMonthChange?.(newY, newM + 1);
   };
 
   const handleNextMonth = () => {
+    let newM = currentMonth + 1;
+    let newY = currentYear;
     if (currentMonth === 11) {
+      newM = 0;
+      newY = currentYear + 1;
       setCurrentMonth(0);
-      setCurrentYear((y) => y + 1);
+      setCurrentYear(newY);
     } else {
-      setCurrentMonth((m) => m + 1);
+      setCurrentMonth(newM);
     }
+    onMonthChange?.(newY, newM + 1);
   };
 
   const handleGoToday = () => {
     setCurrentMonth(today.getMonth());
     setCurrentYear(today.getFullYear());
+    onMonthChange?.(today.getFullYear(), today.getMonth() + 1);
   };
 
   // Helper to compute jar quantity on any target date
@@ -526,35 +539,19 @@ export default function FullScheduleCalendar({
       let cellQty = cell.qty;
       let isDelivered = false;
 
-      // ── PAST DATES (Strictly historical: only show actual delivered records) ──
-      if (cell.isPast && !cell.isToday) {
-        if (matchingDelivery && matchingDelivery.status === 'DELIVERED') {
-          isDelivered = true;
-          cellQty = matchingDelivery.requiredQuantity || matchingDelivery.quantity || cell.qty || 1;
-        } else {
-          // If no recorded delivery exists in the database for this past date, do NOT show ghost jars
-          cellQty = 0;
-          isDelivered = false;
-        }
-      } else if (cell.isToday) {
-        // ── TODAY ──
-        if (matchingDelivery?.status === 'DELIVERED') {
-          isDelivered = true;
-          cellQty = matchingDelivery.requiredQuantity || matchingDelivery.quantity || cell.qty || 1;
-        } else {
-          if (matchingDelivery) {
-            cellQty = matchingDelivery.requiredQuantity || matchingDelivery.quantity || cell.qty;
-          }
-          if (cellQty > 0) {
-            runningUpcomingJars += cellQty;
-            cumulativeAtCell = runningUpcomingJars;
-            if (runningUpcomingJars > availableJarBalance) {
-              isExceedingBalance = true;
-            }
-          }
-        }
+      // ── RULE 1: Any delivery with status DELIVERED (past, today, or advance delivery like 21 or 22) is GREEN ──
+      if (matchingDelivery && (matchingDelivery.status === 'DELIVERED' || (matchingDelivery.status as string) === 'COMPLETED')) {
+        isDelivered = true;
+        cellQty = matchingDelivery.requiredQuantity || matchingDelivery.quantity || cell.qty || 1;
+      } else if (cell.isPast && !cell.isToday) {
+        // ── RULE 2: Past dates without a completed delivery record are clean off days (no ghost jars) ──
+        cellQty = 0;
+        isDelivered = false;
       } else {
-        // ── FUTURE DATES ──
+        // ── RULE 3: Today or upcoming future delivery needing fulfillment ──
+        if (matchingDelivery) {
+          cellQty = matchingDelivery.requiredQuantity || matchingDelivery.quantity || cell.qty;
+        }
         if (cellQty > 0) {
           runningUpcomingJars += cellQty;
           cumulativeAtCell = runningUpcomingJars;
