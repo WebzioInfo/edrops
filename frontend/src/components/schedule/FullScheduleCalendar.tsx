@@ -68,27 +68,27 @@ interface CadencePreset {
 
 const CADENCE_PRESETS: CadencePreset[] = [
   {
+    id: '1-jar-daily',
+    label: '1 Jar • Daily',
+    jars: 1,
+    gapDays: 0,
+    description: '1 jar delivered every single day',
+    badge: 'Popular',
+  },
+  {
+    id: '2-jar-daily',
+    label: '2 Jars • Daily',
+    jars: 2,
+    gapDays: 0,
+    description: '2 jars delivered every single day',
+    badge: 'Families',
+  },
+  {
     id: '1-jar-1-gap',
     label: '1 Jar • 1-Day Gap',
     jars: 1,
     gapDays: 1,
     description: '1 jar every alternate day (Every 2 days)',
-    badge: 'Popular',
-  },
-  {
-    id: '2-jar-2-gap',
-    label: '2 Jars • 2-Day Gap',
-    jars: 2,
-    gapDays: 2,
-    description: '2 jars every 3 days (2 rest days between deliveries)',
-    badge: 'Families',
-  },
-  {
-    id: '1-jar-2-gap',
-    label: '1 Jar • 2-Day Gap',
-    jars: 1,
-    gapDays: 2,
-    description: '1 jar every 3 days (Light consumption)',
   },
   {
     id: '2-jar-1-gap',
@@ -98,11 +98,18 @@ const CADENCE_PRESETS: CadencePreset[] = [
     description: '2 jars every alternate day (Heavy consumption)',
   },
   {
-    id: '1-jar-daily',
-    label: '1 Jar • Daily',
+    id: '1-jar-2-gap',
+    label: '1 Jar • 2-Day Gap',
     jars: 1,
-    gapDays: 0,
-    description: '1 jar delivered every single day',
+    gapDays: 2,
+    description: '1 jar every 3 days (Light consumption)',
+  },
+  {
+    id: '2-jar-2-gap',
+    label: '2 Jars • 2-Day Gap',
+    jars: 2,
+    gapDays: 2,
+    description: '2 jars every 3 days (2 rest days between deliveries)',
   },
 ];
 
@@ -187,13 +194,63 @@ export default function FullScheduleCalendar({
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const [isCadenceExpanded, setIsCadenceExpanded] = useState(false);
 
+  // Helper to project weekly quantities from an interval cadence pattern
+  const calculateWeeklyQtysFromInterval = (
+    jars: number,
+    gapDays: number,
+    startDate: Date,
+  ): Record<number, number> => {
+    const qtys: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    if (gapDays === 0) {
+      for (let i = 0; i < 7; i++) {
+        qtys[i] = jars;
+      }
+      return qtys;
+    }
+
+    const interval = gapDays + 1;
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    for (let offset = 0; offset < 7; offset++) {
+      const cur = new Date(start);
+      cur.setDate(start.getDate() + offset);
+      const diffTime = cur.getTime() - start.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      const dayIndex = cur.getDay();
+      if (diffDays % interval === 0) {
+        qtys[dayIndex] = jars;
+      } else {
+        qtys[dayIndex] = 0;
+      }
+    }
+    return qtys;
+  };
+
   const currentCadenceLabel = useMemo(() => {
     if (activePresetId === 'custom' || showCustomInterval) {
+      if (customGapDays === 0) {
+        return `${customJars} Jar(s) • Daily`;
+      }
       return `${customJars} Jar(s) • ${customGapDays}-Day Gap`;
     }
     const found = CADENCE_PRESETS.find((p) => p.id === activePresetId);
-    return found ? found.label : 'Standard Cadence';
-  }, [activePresetId, showCustomInterval, customJars, customGapDays]);
+    if (found) return found.label;
+
+    if (intervalRule.enabled && intervalRule.gapDays === 0) {
+      return `${intervalRule.jars} Jar(s) • Daily`;
+    }
+    if (intervalRule.enabled) {
+      return `${intervalRule.jars} Jar(s) • ${intervalRule.gapDays}-Day Gap`;
+    }
+
+    const vals = Object.values(weeklyQtys);
+    if (vals.length === 7 && vals.every((v) => v === vals[0]) && vals[0] > 0) {
+      return `${vals[0]} Jar(s) • Daily`;
+    }
+
+    return 'Custom Weekly';
+  }, [activePresetId, showCustomInterval, customJars, customGapDays, intervalRule, weeklyQtys]);
 
   // Parse incoming schedule
   useEffect(() => {
@@ -229,6 +286,9 @@ export default function FullScheduleCalendar({
           setCustomGapDays(gap);
           setShowCustomInterval(true);
         }
+
+        // Initialize weeklyQtys to match the interval rule
+        setWeeklyQtys(calculateWeeklyQtysFromInterval(jars, gap, sDate));
       } else {
         // Parse WEEKLY rules
         const qtys: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
@@ -239,7 +299,20 @@ export default function FullScheduleCalendar({
         });
         setWeeklyQtys(qtys);
         setIntervalRule((prev) => ({ ...prev, enabled: false }));
-        setActivePresetId('');
+
+        const vals = Object.values(qtys);
+        if (vals.length === 7 && vals.every((v) => v === vals[0]) && vals[0] > 0) {
+          const match = CADENCE_PRESETS.find((p) => p.jars === vals[0] && p.gapDays === 0);
+          if (match) {
+            setActivePresetId(match.id);
+          } else {
+            setActivePresetId('custom');
+            setCustomJars(vals[0]);
+            setCustomGapDays(0);
+          }
+        } else {
+          setActivePresetId('');
+        }
       }
 
       // Load saved date overrides from schedule
@@ -266,6 +339,9 @@ export default function FullScheduleCalendar({
       gapDays: preset.gapDays,
       startDate: today,
     });
+    // Immediately sync weeklyQtys so "Days of Week" matches this cadence
+    const updatedWeekly = calculateWeeklyQtysFromInterval(preset.jars, preset.gapDays, today);
+    setWeeklyQtys(updatedWeekly);
     // Clear manual overrides to let preset pattern shine
     setDateOverrides({});
     setIsDirty(true);
@@ -281,9 +357,12 @@ export default function FullScheduleCalendar({
       gapDays: customGapDays,
       startDate: today,
     });
+    // Immediately sync weeklyQtys so "Days of Week" matches this interval
+    const updatedWeekly = calculateWeeklyQtysFromInterval(customJars, customGapDays, today);
+    setWeeklyQtys(updatedWeekly);
     setDateOverrides({});
     setIsDirty(true);
-    toast.success(`Applied ${customJars} Jar(s) with ${customGapDays}-Day Gap`);
+    toast.success(`Applied ${customJars} Jar(s) with ${customGapDays === 0 ? 'Daily' : `${customGapDays}-Day Gap`}`);
   };
 
   // Month navigation
@@ -383,12 +462,28 @@ export default function FullScheduleCalendar({
 
   // Stepper on weekly day
   const handleWeeklyQtyChange = (dayIndex: number, delta: number) => {
-    setWeeklyQtys((prev) => ({
-      ...prev,
-      [dayIndex]: Math.max(0, Math.min(10, (prev[dayIndex] || 0) + delta)),
-    }));
+    const updatedQty = Math.max(0, Math.min(10, (weeklyQtys[dayIndex] || 0) + delta));
+    const nextQtys = {
+      ...weeklyQtys,
+      [dayIndex]: updatedQty,
+    };
+    setWeeklyQtys(nextQtys);
     setIntervalRule((prev) => ({ ...prev, enabled: false }));
-    setActivePresetId('');
+
+    const vals = Object.values(nextQtys);
+    if (vals.length === 7 && vals.every((v) => v === vals[0]) && vals[0] > 0) {
+      const match = CADENCE_PRESETS.find((p) => p.jars === vals[0] && p.gapDays === 0);
+      if (match) {
+        setActivePresetId(match.id);
+      } else {
+        setActivePresetId('custom');
+        setCustomJars(vals[0]);
+        setCustomGapDays(0);
+      }
+    } else {
+      setActivePresetId('');
+    }
+
     setIsDirty(true);
   };
 
