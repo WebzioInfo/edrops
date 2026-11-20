@@ -31,6 +31,7 @@ export interface Schedule {
   isActive: boolean;
   rules: ScheduleRule[];
   overrides?: Array<{ id?: string; targetDate: string; quantity: number; reason?: string }>;
+  createdAt?: string | Date;
 }
 
 interface FullScheduleCalendarProps {
@@ -51,6 +52,7 @@ interface FullScheduleCalendarProps {
     quantity?: number;
     requiredQuantity?: number;
   }>;
+  accountStartDate?: Date | string | null;
 }
 
 // Preset definitions for easy one-click selection
@@ -123,6 +125,7 @@ export default function FullScheduleCalendar({
   walletBalance = 0,
   onRechargeClick,
   deliveries = [],
+  accountStartDate,
 }: FullScheduleCalendarProps) {
   // Calendar viewing month/year state
   const today = useMemo(() => {
@@ -130,6 +133,17 @@ export default function FullScheduleCalendar({
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
+
+  const effectiveStartDate = useMemo(() => {
+    const candidate =
+      accountStartDate ||
+      schedule?.rules?.[0]?.startDate ||
+      (deliveries?.length > 0 ? deliveries[0].scheduledFor : null);
+    if (!candidate) return null;
+    const d = new Date(candidate);
+    d.setHours(0, 0, 0, 0);
+    return isNaN(d.getTime()) ? null : d;
+  }, [accountStartDate, schedule, deliveries]);
 
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth()); // 0-indexed
@@ -296,6 +310,14 @@ export default function FullScheduleCalendar({
 
   // Helper to compute jar quantity on any target date
   const getQtyForDate = (date: Date): number => {
+    const target = new Date(date);
+    target.setHours(0, 0, 0, 0);
+
+    // Never project recurring subscription jars before the account or subscription was created
+    if (effectiveStartDate && target.getTime() < effectiveStartDate.getTime()) {
+      return 0;
+    }
+
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     
     // Check manual override first
@@ -501,27 +523,56 @@ export default function FullScheduleCalendar({
         return dStr === cellDateStr;
       });
 
-      // A delivery is DELIVERED if confirmed in records or fulfilled in past without cancellation
-      const isDelivered =
-        matchingDelivery?.status === 'DELIVERED' ||
-        (cell.isPast && cell.qty > 0 && matchingDelivery?.status !== 'CANCELLED' && matchingDelivery?.status !== 'SKIPPED');
+      let cellQty = cell.qty;
+      let isDelivered = false;
 
-      if (!isDelivered && !cell.isPast && cell.qty > 0) {
-        runningUpcomingJars += cell.qty;
-        cumulativeAtCell = runningUpcomingJars;
-        if (runningUpcomingJars > availableJarBalance) {
-          isExceedingBalance = true;
+      // ── PAST DATES (Strictly historical: only show actual delivered records) ──
+      if (cell.isPast && !cell.isToday) {
+        if (matchingDelivery && matchingDelivery.status === 'DELIVERED') {
+          isDelivered = true;
+          cellQty = matchingDelivery.requiredQuantity || matchingDelivery.quantity || cell.qty || 1;
+        } else {
+          // If no recorded delivery exists in the database for this past date, do NOT show ghost jars
+          cellQty = 0;
+          isDelivered = false;
+        }
+      } else if (cell.isToday) {
+        // ── TODAY ──
+        if (matchingDelivery?.status === 'DELIVERED') {
+          isDelivered = true;
+          cellQty = matchingDelivery.requiredQuantity || matchingDelivery.quantity || cell.qty || 1;
+        } else {
+          if (matchingDelivery) {
+            cellQty = matchingDelivery.requiredQuantity || matchingDelivery.quantity || cell.qty;
+          }
+          if (cellQty > 0) {
+            runningUpcomingJars += cellQty;
+            cumulativeAtCell = runningUpcomingJars;
+            if (runningUpcomingJars > availableJarBalance) {
+              isExceedingBalance = true;
+            }
+          }
+        }
+      } else {
+        // ── FUTURE DATES ──
+        if (cellQty > 0) {
+          runningUpcomingJars += cellQty;
+          cumulativeAtCell = runningUpcomingJars;
+          if (runningUpcomingJars > availableJarBalance) {
+            isExceedingBalance = true;
+          }
         }
       }
 
       return {
         ...cell,
+        qty: cellQty,
         isDelivered,
         isExceedingBalance,
         cumulativeAtCell,
       };
     });
-  }, [currentYear, currentMonth, today, intervalRule, dateOverrides, weeklyQtys, availableJarBalance, deliveries]);
+  }, [currentYear, currentMonth, today, intervalRule, dateOverrides, weeklyQtys, availableJarBalance, deliveries, effectiveStartDate]);
 
   // Current Month Stats
   const currentMonthStats = useMemo(() => {

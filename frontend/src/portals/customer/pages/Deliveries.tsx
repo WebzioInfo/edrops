@@ -21,26 +21,13 @@ import { fetchWithAuth } from '../../../api/client';
 import { useDialog } from '../../../hooks/useDialog';
 import { useRegisterRefreshHandler } from '../../../components/pwa/PullToRefresh';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import FullScheduleCalendar from '../../../components/schedule/FullScheduleCalendar';
+import FullScheduleCalendar, { type Schedule, type ScheduleRule } from '../../../components/schedule/FullScheduleCalendar';
 import QuickOrderContactModal from '../components/QuickOrderContactModal';
 import { useSocket } from '../../../contexts/SocketContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-
-interface ScheduleRule {
-  id?: string;
-  type: 'WEEKLY';
-  dayOfWeek?: number;
-  quantity?: number;
-}
-
-interface Schedule {
-  id: string;
-  isActive: boolean;
-  rules: ScheduleRule[];
-}
 
 interface Delivery {
   id: string;
@@ -196,6 +183,16 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [isTogglingSchedule, setIsTogglingSchedule] = useState(false);
   const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
+
+  const accountStartDate = useMemo(() => {
+    return (
+      schedule?.rules?.[0]?.startDate ||
+      (schedule as any)?.createdAt ||
+      customerData?.createdAt ||
+      userProfile?.createdAt ||
+      null
+    );
+  }, [schedule, customerData, userProfile]);
 
   // ── Delivery History State ──
   const [weeks, setWeeks] = useState<WeekData[]>([]);
@@ -738,6 +735,7 @@ export default function DeliveriesPage({ customerId }: { isAdmin?: boolean; cust
               walletBalance={walletBalance}
               onRechargeClick={() => navigate('/customer/recharge')}
               deliveries={weeks.flatMap((w) => w.deliveries || [])}
+              accountStartDate={accountStartDate}
             />
           </div>
 
