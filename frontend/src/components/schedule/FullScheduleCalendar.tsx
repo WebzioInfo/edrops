@@ -1030,70 +1030,121 @@ export default function FullScheduleCalendar({
         )}
 
         {/* ── VIEW 2: WEEKLY BREAKDOWN VIEW ── */}
-        {viewMode === 'WEEKLY' && (
-          <div className="divide-y divide-slate-100">
-            {FULL_WEEKDAY_NAMES.map((name, dayIndex) => {
-              const qty = weeklyQtys[dayIndex] || 0;
-              const isDelivery = qty > 0;
-              return (
-                <div
-                  key={name}
-                  className={`px-4 sm:px-5 py-3 flex items-center justify-between gap-3 transition-colors ${
-                    isDelivery ? 'bg-sky-50/30' : 'bg-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
-                        isDelivery
-                          ? 'bg-[#1E88E5] text-white shadow-2xs'
-                          : 'bg-slate-100 text-slate-400'
-                      }`}
-                    >
-                      {WEEKDAY_NAMES[dayIndex]}
+        {viewMode === 'WEEKLY' && (() => {
+          // Calculate upcoming weekday deficit chronologically starting from today
+          const todayDayIndex = today.getDay();
+          let cumJars = 0;
+          const weekdayDeficitMap: Record<number, boolean> = {};
+
+          for (let offset = 0; offset < 7; offset++) {
+            const dIndex = (todayDayIndex + offset) % 7;
+            const dayQty = weeklyQtys[dIndex] || 0;
+            if (dayQty > 0) {
+              cumJars += dayQty;
+              if (cumJars > availableJarBalance) {
+                weekdayDeficitMap[dIndex] = true;
+              }
+            }
+          }
+
+          return (
+            <div className="divide-y divide-slate-100">
+              {FULL_WEEKDAY_NAMES.map((name, dayIndex) => {
+                const qty = weeklyQtys[dayIndex] || 0;
+                const isDelivery = qty > 0;
+                const isDeficit = isDelivery && !!weekdayDeficitMap[dayIndex];
+
+                return (
+                  <div
+                    key={name}
+                    className={`px-4 sm:px-5 py-3 flex items-center justify-between gap-3 transition-colors ${
+                      !isDelivery
+                        ? 'bg-white'
+                        : isDeficit
+                        ? 'bg-amber-50/40 border-l-4 border-l-amber-500'
+                        : 'bg-sky-50/30 border-l-4 border-l-[#1E88E5]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
+                          !isDelivery
+                            ? 'bg-slate-100 text-slate-400'
+                            : isDeficit
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-2xs'
+                            : 'bg-[#1E88E5] text-white shadow-2xs'
+                        }`}
+                      >
+                        {WEEKDAY_NAMES[dayIndex]}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-900 block">
+                            {name}
+                          </span>
+                          {isDelivery && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                isDeficit
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-blue-100 text-[#1677C8]'
+                              }`}
+                            >
+                              {isDeficit ? 'Needs Recharge' : 'Prepaid Covered'}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                          {isDelivery ? (
+                            isDeficit ? (
+                              <span className="text-amber-700 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                                {qty} Jar(s) scheduled • Exceeds prepaid balance (COD fallback)
+                              </span>
+                            ) : (
+                              <span className="text-sky-700 flex items-center gap-1">
+                                <Droplets className="w-3 h-3 text-[#1E88E5] shrink-0" />
+                                {qty} Jar(s) scheduled • Covered by prepaid balance
+                              </span>
+                            )
+                          ) : (
+                            'No recurring delivery (Off day)'
+                          )}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-sm font-bold text-slate-900 block">
-                        {name}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {isDelivery ? `${qty} Jar(s) scheduled every ${name}` : 'No recurring delivery'}
-                      </span>
+
+                    {/* Stepper */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-2xs p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleWeeklyQtyChange(dayIndex, -1)}
+                          disabled={qty === 0}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="w-8 text-center font-bold text-sm text-slate-900">
+                          {qty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleWeeklyQtyChange(dayIndex, 1)}
+                          disabled={qty >= 10}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
-                  {/* Stepper */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-2xs p-0.5">
-                      <button
-                        type="button"
-                        onClick={() => handleWeeklyQtyChange(dayIndex, -1)}
-                        disabled={qty === 0}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="w-8 text-center font-bold text-sm text-slate-900">
-                        {qty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleWeeklyQtyChange(dayIndex, 1)}
-                        disabled={qty >= 10}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── CARD FOOTER: MONTH SUMMARY & SAVE BUTTON ── */}
-        <div className="px-3 sm:px-5 py-3 sm:py-3.5 bg-slate-50 border-t border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* ── CARD FOOTER: MINIMAL SUMMARY & SAVE ACTION ── */}
         <div className="px-3 sm:px-5 py-3 sm:py-3.5 bg-slate-50 border-t border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-600">
@@ -1139,7 +1190,6 @@ export default function FullScheduleCalendar({
               )}
             </button>
           </div>
-        </div>
         </div>
       </div>
     </div>
