@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notification/notification.service';
 import {
   OrderStatus,
   PaymentStatus,
@@ -19,7 +20,10 @@ import {
 export class SubscriptionScheduler {
   private readonly logger = new Logger(SubscriptionScheduler.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
   /**
    * Runs daily at midnight IST to generate subscription orders for the day.
@@ -342,5 +346,73 @@ export class SubscriptionScheduler {
       `Completed daily subscription generation: ${generatedCount} generated ` +
         `(${prepaidCount} prepaid, ${walletCount} wallet, ${splitCount} split, ${codCount} cash/pending)`,
     );
+
+    // Run predictive plan renewal check after daily deductions
+    await this.checkPredictivePlanRenewals();
+  }
+
+  /**
+   * Daily Predictive Renewal Alert Job:
+   * Calculates consumption rate from active schedule rules, determines days remaining:
+   * - 2 days remaining (T-2): Send renewal alert recommending Starter Pack (₹800).
+   * - 1 day remaining (T-1): Send urgent renewal alert to avoid next-day delivery halt.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_9AM)
+  async checkPredictivePlanRenewals() {
+    this.logger.log('Running daily predictive plan renewal alert check...');
+    try {
+      const activeSchedules = await this.prisma.deliverySchedule.findMany({
+        where: { isActive: true },
+        include: {
+          rules: true,
+          customer: {
+            include: {
+              jarBalances: true,
+            },
+          },
+        },
+      });
+
+      // Get standard starter pack info if exists
+      const starterPack = await this.prisma.package.findFirst({
+        where: { name: { contains: 'Starter', mode: 'insensitive' } },
+      });
+      const suggestedPlanName = starterPack?.name || 'Starter Pack';
+      const suggestedPlanPrice = starterPack?.price || 800;
+
+      for (const schedule of activeSchedules) {
+        if (!schedule.customerId) continue;
+
+        // Calculate active weekly rule jars
+        const weeklyJars = schedule.rules
+          .filter((r) => r.type === 'WEEKLY')
+          .reduce((sum, r) => sum + r.quantity, 0);
+
+        // Daily burn rate (if weekly rules exist, average per day, min 1)
+        const dailyRate = weeklyJars > 0 ? Math.max(1, Math.round(weeklyJars / 7)) : 2;
+
+        const totalAvailableJars = schedule.customer?.jarBalances?.reduce(
+          (sum, b) => sum + Math.max(0, b.availableJars),
+          0,
+        ) || 0;
+
+        if (totalAvailableJars > 0) {
+          const daysRemaining = Math.ceil(totalAvailableJars / dailyRate);
+
+          if (daysRemaining <= 2) {
+            await this.notificationService.notifyPlanExpiring({
+              customerId: schedule.customerId,
+              availableJars: totalAvailableJars,
+              daysRemaining,
+              dailyRate,
+              suggestedPlanName,
+              suggestedPlanPrice,
+            });
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.error('Error in checkPredictivePlanRenewals:', err?.message || err);
+    }
   }
 }

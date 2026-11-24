@@ -521,7 +521,7 @@ export function getPortalSidebarConfig(
             items: [
               {
                 to: '/customer/wallet',
-                label: 'Wallet',
+                label: 'Wallet & Billing',
                 icon: Wallet,
               },
               {

@@ -76,4 +76,44 @@ export class WalletController {
       body.amount,
     );
   }
+
+  @Get('all-history')
+  async getAllHistory(@Req() req) {
+    const userId = req.user.sub || req.user.id;
+    return this.walletService.getAllBillingHistory(userId);
+  }
+
+  @Post('pay-deposit-wallet')
+  @Idempotent()
+  async payDepositFromWallet(@Req() req, @Body() body: { amount?: number }) {
+    const userId = req.user.sub || req.user.id;
+    return this.walletService.payDepositFromWallet(userId, body.amount);
+  }
+
+  @Post('pay-deposit-online/initiate')
+  @Idempotent()
+  async initiateDepositOnline(@Req() req, @Body() body: { amount?: number }) {
+    const userId = req.user.sub || req.user.id;
+    return this.walletService.initiateDepositOnline(userId, body.amount);
+  }
+
+  @Post('pay-deposit-online/confirm')
+  @Idempotent()
+  async confirmDepositOnline(
+    @Req() req,
+    @Body()
+    body: {
+      razorpayOrderId: string;
+      razorpayPaymentId: string;
+      razorpaySignature: string;
+    },
+  ) {
+    const userId = req.user.sub || req.user.id;
+    return this.walletService.confirmDepositOnline(
+      userId,
+      body.razorpayOrderId,
+      body.razorpayPaymentId,
+      body.razorpaySignature,
+    );
+  }
 }

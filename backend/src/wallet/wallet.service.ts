@@ -562,4 +562,313 @@ export class WalletService {
       };
     });
   }
+
+  async getAllBillingHistory(userId: string) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId },
+      include: {
+        wallet: {
+          include: {
+            transactions: { orderBy: { createdAt: 'desc' }, take: 50 },
+          },
+        },
+        packagePurchases: {
+          include: { package: true },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+        orders: {
+          include: { items: true },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+        depositTransactions: {
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+        jarDeposits: true,
+      },
+    });
+
+    if (!customer) throw new NotFoundException('Customer profile not found');
+
+    const items: Array<{
+      id: string;
+      category: 'SUBSCRIPTION' | 'WALLET' | 'ORDER' | 'DEPOSIT';
+      title: string;
+      description: string;
+      amount: number;
+      jars?: number;
+      status: string;
+      direction: 'CREDIT' | 'DEBIT';
+      createdAt: Date | string;
+      referenceId?: string;
+    }> = [];
+
+    // 1. Subscriptions & Packages
+    for (const p of customer.packagePurchases || []) {
+      items.push({
+        id: p.id,
+        category: 'SUBSCRIPTION',
+        title: p.package?.name || 'Prepaid Water Plan',
+        description: `${p.package?.jarCount || 0} Jars Package Plan`,
+        amount: p.amount,
+        jars: p.package?.jarCount || 0,
+        status: p.paymentStatus,
+        direction: 'CREDIT',
+        createdAt: p.createdAt,
+        referenceId: p.paymentId || p.id,
+      });
+    }
+
+    // 2. Orders (Single orders / items)
+    for (const o of customer.orders || []) {
+      items.push({
+        id: o.id,
+        category: 'ORDER',
+        title: `Order #${o.id.substring(0, 8).toUpperCase()}`,
+        description: o.orderType === 'SUBSCRIPTION_ORDER' ? 'Scheduled Water Drop' : 'One-time Water / Accessories',
+        amount: o.totalAmount || o.subTotal,
+        status: o.paymentStatus || o.status,
+        direction: 'DEBIT',
+        createdAt: o.createdAt,
+        referenceId: o.id,
+      });
+    }
+
+    // 3. Wallet Transactions
+    for (const w of customer.wallet?.transactions || []) {
+      items.push({
+        id: w.id,
+        category: 'WALLET',
+        title: w.type === 'TOP_UP' ? 'Wallet Top-Up' : w.type === 'REFUND' ? 'Wallet Refund' : 'Wallet Payment',
+        description: w.description || (w.type === 'TOP_UP' ? 'Money added via UPI/Card' : 'Paid from wallet balance'),
+        amount: w.amount,
+        status: 'SUCCESS',
+        direction: w.type === 'TOP_UP' || w.type === 'REFUND' ? 'CREDIT' : 'DEBIT',
+        createdAt: w.createdAt,
+        referenceId: w.referenceId || w.id,
+      });
+    }
+
+    // 4. Deposit Transactions
+    for (const d of customer.depositTransactions || []) {
+      items.push({
+        id: d.id,
+        category: 'DEPOSIT',
+        title: d.type === 'DEPOSIT_PAID' ? 'Jar Security Deposit' : 'Deposit Refunded',
+        description: d.description || `${d.jarsAffected || 0} Company Can(s) Deposit`,
+        amount: d.amount,
+        jars: d.jarsAffected,
+        status: 'SUCCESS',
+        direction: d.type === 'DEPOSIT_PAID' ? 'DEBIT' : 'CREDIT',
+        createdAt: d.createdAt,
+        referenceId: d.referenceId || d.id,
+      });
+    }
+
+    items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const activeDeposit = customer.jarDeposits?.[0] || {
+      maxActiveJars: 0,
+      depositPaid: 0,
+      depositDue: 0,
+    };
+
+    return {
+      walletBalance: customer.wallet?.balance || 0,
+      depositPaid: activeDeposit.depositPaid,
+      depositDue: activeDeposit.depositDue,
+      maxActiveJars: activeDeposit.maxActiveJars,
+      transactions: items,
+    };
+  }
+
+  async payDepositFromWallet(userId: string, amountToPay?: number) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId },
+      include: {
+        wallet: true,
+        jarDeposits: true,
+        jarOwnerships: true,
+      },
+    });
+
+    if (!customer) throw new NotFoundException('Customer profile not found');
+
+    const jarDeposit = customer.jarDeposits?.[0];
+    if (!jarDeposit || jarDeposit.depositDue <= 0) {
+      throw new BadRequestException('No outstanding jar deposit due.');
+    }
+
+    const payAmount = amountToPay && amountToPay > 0
+      ? Math.min(amountToPay, jarDeposit.depositDue)
+      : jarDeposit.depositDue;
+
+    let wallet = customer.wallet;
+    if (!wallet) {
+      wallet = await this.prisma.wallet.create({
+        data: { customerId: customer.id, balance: 0.0 },
+      });
+    }
+
+    if (wallet.balance < payAmount) {
+      throw new BadRequestException(
+        `Insufficient wallet balance. You have ₹${wallet.balance}, but ₹${payAmount} is required. Please top up your wallet or pay online.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const balanceBefore = wallet.balance;
+      const balanceAfter = balanceBefore - payAmount;
+
+      await tx.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: balanceAfter },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          type: WalletTransactionType.DEDUCTION,
+          amount: payAmount,
+          balanceBefore,
+          balanceAfter,
+          description: `Jar Security Deposit Payment (${jarDeposit.maxActiveJars} cans)`,
+        },
+      });
+
+      const newDepositPaid = jarDeposit.depositPaid + payAmount;
+      const newDepositDue = Math.max(0, jarDeposit.depositDue - payAmount);
+
+      await tx.jarDeposit.update({
+        where: { id: jarDeposit.id },
+        data: {
+          depositPaid: newDepositPaid,
+          depositDue: newDepositDue,
+        },
+      });
+
+      await tx.depositTransaction.create({
+        data: {
+          customerId: customer.id,
+          type: DepositTransactionType.DEPOSIT_PAID,
+          amount: payAmount,
+          jarsAffected: jarDeposit.maxActiveJars,
+          balanceBefore: jarDeposit.depositDue,
+          balanceAfter: newDepositDue,
+          description: `Paid ₹${payAmount} jar security deposit from wallet balance`,
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          customerId: customer.id,
+          type: TransactionType.DEPOSIT_PAYMENT,
+          amountMoney: payAmount,
+          balanceBefore: 0,
+          balanceAfter: 0,
+          description: `Jar security deposit paid via wallet (₹${payAmount})`,
+        },
+      });
+
+      return {
+        success: true,
+        amountPaid: payAmount,
+        depositPaid: newDepositPaid,
+        depositDue: newDepositDue,
+        walletBalance: balanceAfter,
+      };
+    });
+  }
+
+  async initiateDepositOnline(userId: string, amountToPay?: number) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId },
+      include: { jarDeposits: true },
+    });
+    if (!customer) throw new NotFoundException('Customer profile not found');
+
+    const jarDeposit = customer.jarDeposits?.[0];
+    if (!jarDeposit || jarDeposit.depositDue <= 0) {
+      throw new BadRequestException('No outstanding jar deposit due.');
+    }
+
+    const payAmount = amountToPay && amountToPay > 0
+      ? Math.min(amountToPay, jarDeposit.depositDue)
+      : jarDeposit.depositDue;
+
+    const intent = await this.paymentService.createPaymentIntent({
+      customerId: customer.id,
+      amount: payAmount,
+      description: `Jar Security Deposit Payment (₹${payAmount})`,
+    });
+
+    return {
+      paymentId: intent.paymentId,
+      razorpayOrderId: intent.orderId,
+      amount: intent.amount,
+      currency: 'INR',
+    };
+  }
+
+  async confirmDepositOnline(
+    userId: string,
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string,
+  ) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId },
+      include: { jarDeposits: true },
+    });
+    if (!customer) throw new NotFoundException('Customer profile not found');
+
+    const verifiedPayment = await this.paymentService.verifyPayment(
+      {
+        razorpay_order_id: razorpayOrderId,
+        razorpay_payment_id: razorpayPaymentId,
+        razorpay_signature: razorpaySignature,
+      },
+      customer.id,
+    );
+
+    const jarDeposit = customer.jarDeposits?.[0];
+    if (!jarDeposit) throw new NotFoundException('Jar deposit record not found');
+
+    const payAmount = verifiedPayment.amount;
+
+    return this.prisma.$transaction(async (tx) => {
+      const newDepositPaid = jarDeposit.depositPaid + payAmount;
+      const newDepositDue = Math.max(0, jarDeposit.depositDue - payAmount);
+
+      await tx.jarDeposit.update({
+        where: { id: jarDeposit.id },
+        data: {
+          depositPaid: newDepositPaid,
+          depositDue: newDepositDue,
+        },
+      });
+
+      await tx.depositTransaction.create({
+        data: {
+          customerId: customer.id,
+          type: DepositTransactionType.DEPOSIT_PAID,
+          amount: payAmount,
+          jarsAffected: jarDeposit.maxActiveJars,
+          balanceBefore: jarDeposit.depositDue,
+          balanceAfter: newDepositDue,
+          referenceId: razorpayPaymentId,
+          description: `Paid ₹${payAmount} jar deposit online via Razorpay`,
+        },
+      });
+
+      return {
+        success: true,
+        amountPaid: payAmount,
+        depositPaid: newDepositPaid,
+        depositDue: newDepositDue,
+      };
+    });
+  }
 }

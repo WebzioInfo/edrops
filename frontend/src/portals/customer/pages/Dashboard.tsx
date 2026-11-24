@@ -153,8 +153,8 @@ export default function Dashboard() {
 
           {/* Card 4: Security Deposit Status */}
           <div
-            onClick={() => navigate('/customer/deliveries')}
-            className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs hover:border-blue-300 transition-colors cursor-pointer flex flex-col justify-between"
+            onClick={() => navigate('/customer/wallet?action=pay-deposit')}
+            className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs hover:border-amber-300 transition-colors cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">

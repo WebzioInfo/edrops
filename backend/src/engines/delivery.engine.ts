@@ -690,13 +690,41 @@ export class DeliveryEngine {
       );
 
       // Fire notifications outside transaction context
-      setImmediate(() => {
+      setImmediate(async () => {
         if (balanceAfter <= lowBalanceThreshold) {
           this.notificationService.notifyLowBalance({
             customerId,
             balance: balanceAfter,
           });
         }
+
+        // Predictive plan expiry check (T-2 and T-1 days remaining)
+        try {
+          const schedule = await this.prisma.deliverySchedule.findFirst({
+            where: { customerId, isActive: true },
+            include: { rules: true },
+          });
+
+          const weeklyJars = schedule?.rules
+            ?.filter((r) => r.type === 'WEEKLY')
+            ?.reduce((sum, r) => sum + r.quantity, 0) || 0;
+          const dailyRate = weeklyJars > 0 ? Math.max(1, Math.round(weeklyJars / 7)) : 2;
+
+          const daysRemaining = Math.ceil(balanceAfter / dailyRate);
+          if (daysRemaining <= 2) {
+            await this.notificationService.notifyPlanExpiring({
+              customerId,
+              availableJars: balanceAfter,
+              daysRemaining,
+              dailyRate,
+              suggestedPlanName: 'Starter Pack',
+              suggestedPlanPrice: 800,
+            });
+          }
+        } catch (e) {
+          // ignore background predictive notification error
+        }
+
         if (newCompanyJarsHeld >= 4) {
           this.notificationService.notifyEmptyJarsThreshold({
             customerId,

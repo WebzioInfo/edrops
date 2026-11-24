@@ -21,6 +21,11 @@ export default function Shop() {
     queryFn: () => fetchWithAuth('/catalog/categories'),
   });
 
+  // Customer shop filter: only display "Accessories" alongside "All Products"
+  const displayCategories = categories?.filter((cat: any) =>
+    cat.name.toLowerCase().includes('accessories')
+  ) || [];
+
   const { data: products, isLoading: prodLoading, refetch: refetchProducts } = useQuery({
     queryKey: ['products', selectedCategory, search],
     queryFn: () => {
@@ -74,7 +79,7 @@ export default function Shop() {
             >
               All Products
             </button>
-            {categories?.map((cat: any) => (
+            {displayCategories.map((cat: any) => (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
@@ -84,7 +89,7 @@ export default function Shop() {
                     : 'bg-white text-[#1E88E5] border border-[#E2E8F0]'
                 }`}
               >
-                {cat.name}
+                Accessories
               </button>
             ))}
           </div>
@@ -97,9 +102,9 @@ export default function Shop() {
               className="w-full h-[42px] pl-3.5 pr-10 rounded-xl border border-[#E2E8F0] bg-white shadow-xs focus:border-[#1E88E5] focus:outline-none focus:ring-1 focus:ring-[#1E88E5] appearance-none text-[13px] font-medium text-[#0F172A]"
             >
               <option value="">All Products</option>
-              {categories?.map((cat: any) => (
+              {displayCategories.map((cat: any) => (
                 <option key={cat.id} value={cat.id}>
-                  {cat.name}
+                  Accessories
                 </option>
               ))}
             </select>

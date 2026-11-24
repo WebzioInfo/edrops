@@ -36,7 +36,7 @@ const centerNavItems = [
 const secondaryActions = [
   { to: '/customer/chat', label: 'Live Chat', icon: MessageSquare },
   { to: '/customer/recharge', label: 'Recharge', icon: Plus },
-  { to: '/customer/wallet', label: 'Wallet', icon: History },
+  { to: '/customer/wallet', label: 'Wallet & Billing', icon: History },
 ];
 
 // Mobile specific groupings

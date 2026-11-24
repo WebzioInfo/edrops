@@ -723,6 +723,75 @@ export class NotificationService {
     }
   }
 
+  /**
+   * Predictive 2-day and 1-day notification alert before prepaid plan runs out.
+   * Recommends renewal (e.g. Starter Pack ₹800).
+   */
+  async notifyPlanExpiring(data: {
+    customerId: string;
+    availableJars: number;
+    daysRemaining: number;
+    dailyRate?: number;
+    suggestedPlanName?: string;
+    suggestedPlanPrice?: number;
+  }) {
+    try {
+      const cust = await this.prisma.customer.findUnique({
+        where: { id: data.customerId },
+        include: { user: true },
+      });
+      if (!cust?.userId) return;
+
+      const days = data.daysRemaining;
+      const jars = data.availableJars;
+      const planName = data.suggestedPlanName || 'Starter Pack';
+      const planPrice = data.suggestedPlanPrice || 800;
+
+      let title = 'Prepaid Water Plan Expiring Soon';
+      let message = `You have ${jars} prepaid jar(s) remaining (~${days} day(s) of water). Recharge your plan (${planName} - ₹${planPrice}) to continue smooth doorstep deliveries.`;
+
+      if (days <= 1) {
+        title = 'Urgent: 1 Day of Water Remaining!';
+        message = `Your prepaid water plan will run out tomorrow! You have only ${jars} jar(s) left. Reorder your ${planName} (₹${planPrice}) now so tomorrow's delivery is not interrupted.`;
+      } else if (days === 2) {
+        title = 'Reminder: 2 Days of Water Remaining';
+        message = `You have ${jars} jar(s) remaining in your prepaid plan (~2 days left). Renew now with our ${planName} (₹${planPrice}) for seamless daily deliveries.`;
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const eventKey = `plan_expiring_${data.customerId}_days_${days}_${todayStr}`;
+
+      this.dispatcher.dispatch({
+        id: crypto.randomUUID(),
+        type: 'LOW_BALANCE',
+        title,
+        message,
+        channels: [
+          NotificationChannel.SOCKET,
+          NotificationChannel.DATABASE,
+          NotificationChannel.PUSH,
+          NotificationChannel.WHATSAPP,
+        ],
+        recipients: {
+          userId: cust.userId,
+          phone: cust.user?.phone,
+          socketRoom: `customer-${data.customerId}`,
+        },
+        data: {
+          availableJars: jars,
+          daysRemaining: days,
+          dailyRate: data.dailyRate,
+          suggestedPlanName: planName,
+          suggestedPlanPrice: planPrice,
+          eventKey,
+          link: '/customer/recharge',
+        },
+      });
+    } catch (e: any) {
+      console.warn('[NotificationService] notifyPlanExpiring error:', e?.message || e);
+    }
+  }
+
   async notifyEmptyJarsThreshold(data: {
     customerId: string;
     jarsAtCustomer: number;
