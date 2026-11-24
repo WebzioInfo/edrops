@@ -16,6 +16,8 @@ type User = {
   permissions?: string[];
   isActive?: boolean;
   createdAt?: string;
+  isNewUser?: boolean;
+  isNewCustomer?: boolean;
   deliveryPartner?: {
     id?: string;
     vehicleType?: string;

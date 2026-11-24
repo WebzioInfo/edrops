@@ -40,7 +40,10 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   // 3. User is authenticated, but role is not allowed for this route: safely route to their portal
   if (allowedRoles && !allowedRoles.includes(actualUser.role)) {
-    const defaultPortal = ROLE_PATHS[actualUser.role] ?? '/customer/dashboard';
+    let defaultPortal = ROLE_PATHS[actualUser.role] ?? '/customer/dashboard';
+    if (actualUser.role === 'CUSTOMER') {
+      defaultPortal = (actualUser.isNewUser || actualUser.isNewCustomer) ? '/customer/shop' : '/customer/dashboard';
+    }
     return <Navigate to={defaultPortal} replace />;
   }
 

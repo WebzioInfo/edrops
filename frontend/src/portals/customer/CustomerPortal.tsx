@@ -56,6 +56,26 @@ function CustomerLoader() {
   );
 }
 
+function CustomerIndexRedirect() {
+  const { user, token, authStatus, isLoading } = useAuth();
+
+  if (isLoading || authStatus === 'loading') {
+    return <CustomerLoader />;
+  }
+
+  const isAuthenticated = Boolean(
+    (token || localStorage.getItem('edrops_token')) &&
+    (user || localStorage.getItem('edrops_user'))
+  );
+
+  // New or guest users are directed to Shop; returning users to Dashboard
+  if (!isAuthenticated || user?.isNewUser || user?.isNewCustomer) {
+    return <Navigate to="/customer/shop" replace />;
+  }
+
+  return <Navigate to="/customer/dashboard" replace />;
+}
+
 export default function CustomerPortal() {
   const { user, token, logout } = useAuth();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -93,7 +113,10 @@ export default function CustomerPortal() {
         <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
           
           {/* Logo */}
-          <NavLink to="/customer/dashboard" className="flex items-center gap-3 mr-8 shrink-0">
+          <NavLink
+            to={(!isAuthenticated || user?.isNewUser || user?.isNewCustomer) ? "/customer/shop" : "/customer/dashboard"}
+            className="flex items-center gap-3 mr-8 shrink-0"
+          >
             <EdropsLogo variant="blue" className="h-8 w-auto" />
           </NavLink>
 
@@ -227,8 +250,8 @@ export default function CustomerPortal() {
               <Route path="chat" element={<CustomerLiveChat />} />
             </Route>
             <Route path="support" element={<SupportPage />} />
-            <Route path="" element={<Navigate to="dashboard" replace />} />
-            <Route path="*" element={<Navigate to="dashboard" replace />} />
+            <Route path="" element={<CustomerIndexRedirect />} />
+            <Route path="*" element={<CustomerIndexRedirect />} />
           </Routes>
         </Suspense>
       </main>

@@ -54,9 +54,16 @@ function RootRedirect() {
     if (user.role === 'ADMIN') return <Navigate to="/admin" replace />;
     if (user.role === 'STAFF') return <Navigate to="/staff" replace />;
     if (user.role === 'DISTRIBUTOR') return <Navigate to="/distributor" replace />;
+
+    // Customer: new user directly to Shop, returning/old user to Dashboard
+    if (user.isNewUser || user.isNewCustomer) {
+      return <Navigate to="/customer/shop" replace />;
+    }
+    return <Navigate to="/customer/dashboard" replace />;
   }
 
-  return <Navigate to="/customer/dashboard" replace />;
+  // Guest / new unauthenticated user: direct to Shop
+  return <Navigate to="/customer/shop" replace />;
 }
 
 export default function App() {

@@ -224,7 +224,12 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
   };
 
   const handleSuccessRedirect = (targetUser: any) => {
-    const roleDefault = ROLE_PATHS[targetUser?.role] ?? '/customer/dashboard';
+    let roleDefault = ROLE_PATHS[targetUser?.role] ?? '/customer/dashboard';
+    if (targetUser?.role === 'CUSTOMER') {
+      const isNew = targetUser?.isNewUser || targetUser?.isNewCustomer || state === 'signup';
+      roleDefault = isNew ? '/customer/shop' : '/customer/dashboard';
+    }
+
     let target = roleDefault;
     if (redirectParam) {
       const decoded = decodeURIComponent(redirectParam);

@@ -99,7 +99,11 @@ export class AuthService {
       this.logger.warn(`Failed to send welcome email: ${(e as Error).message}`);
     }
 
-    return this.generateToken(user);
+    return await this.generateToken({
+      ...user,
+      isNewCustomer: true,
+      isNewUser: true,
+    });
   }
 
   async login(
@@ -249,7 +253,7 @@ export class AuthService {
       });
     }
 
-    return this.generateToken(authenticatedUser);
+    return await this.generateToken(authenticatedUser);
   }
 
   async forgotPassword(email: string) {
@@ -401,6 +405,13 @@ export class AuthService {
               },
             },
             addresses: true,
+            _count: {
+              select: {
+                orders: true,
+                packagePurchases: true,
+                deliveries: true,
+              },
+            },
           },
         },
         staff: {
@@ -432,7 +443,18 @@ export class AuthService {
       (user.deliveryPartner as any).jarUnitPrice = Number(user.deliveryPartner.jarUnitPrice);
     }
 
-    return user;
+    const totalOrders = user.customer?._count?.orders ?? 0;
+    const totalPackages = user.customer?._count?.packagePurchases ?? 0;
+    const totalDeliveries = user.customer?._count?.deliveries ?? 0;
+    const hasJars = user.customer?.jarBalances?.some((jb) => Number(jb.availableJars || 0) > 0) ?? false;
+
+    const isNewCustomer = totalOrders === 0 && totalPackages === 0 && totalDeliveries === 0 && !hasJars;
+
+    return {
+      ...user,
+      isNewCustomer,
+      isNewUser: isNewCustomer,
+    };
   }
 
   async updateProfile(
@@ -725,7 +747,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found or inactive');
     }
 
-    return this.generateToken(user);
+    return await this.generateToken(user);
   }
 
   async googleAuth(idToken: string) {
@@ -832,7 +854,7 @@ export class AuthService {
     if (hasValidPhone) {
       return {
         status: 'authenticated',
-        ...this.generateToken(user),
+        ...(await this.generateToken(user)),
       };
     }
 
@@ -902,17 +924,35 @@ export class AuthService {
 
     return {
       status: 'authenticated',
-      ...this.generateToken(updatedUser),
+      ...(await this.generateToken(updatedUser)),
     };
   }
 
-  private generateToken(user: any) {
+  private async generateToken(user: any) {
+    let isNewCustomer = false;
+    if (user.role === 'CUSTOMER') {
+      if (user.isNewCustomer !== undefined) {
+        isNewCustomer = Boolean(user.isNewCustomer);
+      } else {
+        const [orderCount, packageCount] = await Promise.all([
+          this.prisma.order.count({
+            where: { customer: { userId: user.id } },
+          }),
+          this.prisma.packagePurchase.count({
+            where: { customer: { userId: user.id } },
+          }),
+        ]);
+        isNewCustomer = orderCount === 0 && packageCount === 0;
+      }
+    }
+
     const payload = {
       sub: user.id,
       role: user.role,
       email: user.email,
       phone: user.phone,
       permissions: user.permissions || [],
+      isNewUser: isNewCustomer,
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -925,6 +965,8 @@ export class AuthService {
         role: user.role,
         permissions: user.permissions || [],
         avatarUrl: user.avatarUrl || null,
+        isNewUser: isNewCustomer,
+        isNewCustomer,
       },
     };
   }
