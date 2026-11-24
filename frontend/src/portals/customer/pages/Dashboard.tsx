@@ -1,21 +1,23 @@
 import { Package, Award, Truck, CreditCard, ChevronRight, Droplets, Calendar, Plus, ShoppingBag } from 'lucide-react';
+import { useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithAuth } from '../../../api/client';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { formatOrderId } from '../../../utils/orderFormatters';
 import { getOrderStatusConfig } from '../../../utils/orderStateMachine';
+import { useRegisterRefreshHandler } from '../../../components/pwa/PullToRefresh';
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const { data: userProfile, isLoading: profileLoading } = useQuery({
+  const { data: userProfile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
     queryKey: ['userProfile'],
     queryFn: () => fetchWithAuth('/auth/me'),
     refetchInterval: 15000,
   });
 
-  const { data: ordersData } = useQuery({
+  const { data: ordersData, refetch: refetchOrders } = useQuery({
     queryKey: ['customerRecentOrders'],
     queryFn: async () => {
       const res = await fetchWithAuth('/order');
@@ -23,6 +25,26 @@ export default function Dashboard() {
     },
     refetchInterval: 15000,
   });
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([refetchProfile(), refetchOrders()]);
+  }, [refetchProfile, refetchOrders]);
+
+  useRegisterRefreshHandler(handleRefresh);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        handleRefresh();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, [handleRefresh]);
 
   if (profileLoading) {
     return <LoadingSpinner fullPage label="Loading dashboard..." />;

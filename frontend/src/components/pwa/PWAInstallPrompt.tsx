@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, Sparkles } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import usePWAInstall from '../../hooks/usePWAInstall';
 import IOSInstallInstructions from './IOSInstallInstructions';
 
@@ -11,8 +11,8 @@ export default function PWAInstallPrompt() {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (isInstallable && isIOS) {
-      // 3-second delay on initial load for premium user experience
+    if (isInstallable) {
+      // 3-second delay on initial load for smooth user experience
       const timer = setTimeout(() => {
         setIsVisible(true);
       }, 3000);
@@ -20,7 +20,7 @@ export default function PWAInstallPrompt() {
     } else {
       setIsVisible(false);
     }
-  }, [isInstallable, isIOS]);
+  }, [isInstallable]);
 
   // Handle escape key listener for accessibility
   useEffect(() => {
@@ -113,7 +113,7 @@ export default function PWAInstallPrompt() {
               {/* Title & Description */}
               <div className="flex flex-col gap-1.5">
                 <h3 id="pwa-install-title" className="text-xl font-bold text-[#245361] flex items-center justify-center gap-1.5">
-                  Install Edrops <Sparkles size={16} className="text-[#33BFD0] fill-[#33BFD0]/20" />
+                  Install Edrops
                 </h3>
                 <p id="pwa-install-description" className="text-sm text-slate-500 leading-relaxed max-w-sm">
                   Add Edrops to your home screen or desktop. Get instant updates, full-screen offline workspace support, and streamlined logistics tracking.

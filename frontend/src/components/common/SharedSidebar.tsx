@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, LogOut, X, LogIn } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, X, LogIn, Download } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { EdropsLogo } from '../Logo';
 import MobileSidebarDrawer from './MobileSidebarDrawer';
 import type { SidebarNavSection } from './sidebarConfig';
@@ -269,6 +270,7 @@ export function SharedMobileDrawer({
 }: SharedMobileDrawerProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const { isInstallable, showInstallPrompt } = usePWAInstall();
 
   const isItemActive = (defaultActive: boolean, itemTo: string) => {
     if (itemTo.includes('?')) {
@@ -370,6 +372,23 @@ export function SharedMobileDrawer({
           </div>
         ))}
       </nav>
+
+      {/* PWA Install Button (Mobile) */}
+      {isInstallable && (
+        <div className="px-4 pb-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              showInstallPrompt();
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#00AEEF]/10 hover:bg-[#00AEEF]/20 text-[#0284C7] text-xs font-bold transition-colors cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            <span>Install App on Device</span>
+          </button>
+        </div>
+      )}
 
       {/* Drawer User Profile Footer */}
       <div className="p-4 border-t border-[#E2E8F0] bg-slate-50/50 shrink-0">
