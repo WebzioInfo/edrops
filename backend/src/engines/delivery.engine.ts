@@ -557,20 +557,39 @@ export class DeliveryEngine {
       const balanceBefore = jarBalance.availableJars;
       const balanceAfter = Math.max(0, balanceBefore - jarsToDeduct);
 
+      // Check if customer has an active subscription delivery schedule
+      const customerSchedule = await tx.deliverySchedule.findUnique({
+        where: { customerId },
+        include: { rules: true },
+      });
+
+      let subscriptionRotationJars = 0;
+      if (customerSchedule && customerSchedule.isActive && customerSchedule.rules.length > 0) {
+        subscriptionRotationJars = customerSchedule.rules.reduce(
+          (max, r) => Math.max(max, r.quantity || 0),
+          0,
+        );
+      }
+
       // Jars in possession updates:
-      // companyJarsHeld = companyJarsHeld + delivered - emptyCollected
-      const newCompanyJarsHeld = Math.max(
-        0,
-        jarOwnership.companyJarsHeld +
-          confirmedDeliveredQty -
-          confirmedEmptyCollected,
-      );
+      // For subscription customers, physical jars held is their active daily rotation quota (e.g. 2 jars).
+      // For retail / ad-hoc orders, it is companyJarsHeld + delivered - emptyCollected.
+      const newCompanyJarsHeld = subscriptionRotationJars > 0
+        ? subscriptionRotationJars
+        : Math.max(
+            0,
+            jarOwnership.companyJarsHeld +
+              confirmedDeliveredQty -
+              confirmedEmptyCollected,
+          );
 
       // maxActiveJars is the peak active jars in customer possession
-      const newMaxActiveJars = Math.max(
-        jarDeposit.maxActiveJars,
-        newCompanyJarsHeld,
-      );
+      const newMaxActiveJars = subscriptionRotationJars > 0
+        ? subscriptionRotationJars
+        : Math.max(
+            jarDeposit.maxActiveJars,
+            newCompanyJarsHeld,
+          );
 
       // Fetch deposit amount from settings (defaults to ₹300)
       const depositAmountPerJar = await this.settingsService.getDepositAmountPerJar();
