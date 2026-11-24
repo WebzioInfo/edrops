@@ -2,6 +2,7 @@ import React, { useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import GlobalRefreshButton from './GlobalRefreshButton';
 
 export interface AdminTopbarProps {
   title: string | React.ReactNode;
@@ -77,12 +78,11 @@ const TopbarContent: React.FC<AdminTopbarProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Page-Specific Actions */}
-        {actions && (
-          <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap ml-auto shrink-0">
-            {actions}
-          </div>
-        )}
+        {/* Right Side: Page-Specific Actions + Global Sync */}
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap ml-auto shrink-0">
+          <GlobalRefreshButton />
+          {actions}
+        </div>
       </div>
 
       {/* Optional Secondary Row */}

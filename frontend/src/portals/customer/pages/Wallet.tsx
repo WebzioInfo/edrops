@@ -5,7 +5,6 @@ import {
   History,
   ArrowUpRight,
   ArrowDownLeft,
-  Sparkles,
   Loader2,
   Receipt,
   Award,
@@ -293,8 +292,8 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-24">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-6">
+    <div className="min-h-screen bg-[#F8FAFC] pb-28 sm:pb-24">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8 lg:px-8 space-y-5 sm:space-y-6">
         
         {/* ─── 1. PAGE HEADER ────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
@@ -307,7 +306,7 @@ export default function WalletPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => navigate('/customer/recharge')}
@@ -348,7 +347,7 @@ export default function WalletPage() {
                 </span>
               </div>
               <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-cyan-100">
-                <Sparkles className="h-3 w-3" /> Auto-Debit
+                <CheckCircle2 className="h-3 w-3 text-cyan-200" /> Auto-Debit Ready
               </span>
             </div>
 
@@ -487,7 +486,7 @@ export default function WalletPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#0284C7]" />
+                <Wallet className="w-4 h-4 text-[#0284C7]" />
                 <span>Top-Up Wallet Instantly</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -585,7 +584,7 @@ export default function WalletPage() {
             </div>
 
             {/* Category Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-semibold no-scrollbar">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-semibold no-scrollbar scroll-smooth touch-pan-x">
               {(
                 [
                   { id: 'ALL', label: 'All Transactions' },
@@ -602,7 +601,7 @@ export default function WalletPage() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveCategory(tab.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                       isActive
                         ? 'bg-slate-900 text-white shadow-2xs'
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
@@ -634,12 +633,12 @@ export default function WalletPage() {
                 return (
                   <div
                     key={tx.id}
-                    className="p-3.5 sm:px-5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors"
+                    className="p-3 sm:p-4 sm:px-5 flex items-center justify-between gap-2.5 sm:gap-3 hover:bg-slate-50/80 transition-colors"
                   >
                     {/* Left: Category Icon + Description */}
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                       <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-xl shrink-0 ${
+                        className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl shrink-0 ${
                           isSub
                             ? 'bg-blue-50 text-blue-600 border border-blue-100'
                             : isDeposit
@@ -652,25 +651,25 @@ export default function WalletPage() {
                         }`}
                       >
                         {isSub ? (
-                          <Package className="h-4.5 w-4.5" />
+                          <Package className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                         ) : isDeposit ? (
-                          <Award className="h-4.5 w-4.5" />
+                          <Award className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                         ) : isOrder ? (
-                          <Receipt className="h-4.5 w-4.5" />
+                          <Receipt className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                         ) : isCredit ? (
-                          <ArrowUpRight className="h-4.5 w-4.5" />
+                          <ArrowUpRight className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                         ) : (
-                          <ArrowDownLeft className="h-4.5 w-4.5" />
+                          <ArrowDownLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                         )}
                       </span>
 
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                          <p className="text-xs sm:text-sm font-bold text-slate-900 truncate max-w-[140px] xs:max-w-[210px] sm:max-w-none">
                             {tx.title}
                           </p>
                           <span
-                            className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md ${
+                            className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md shrink-0 ${
                               isSub
                                 ? 'bg-blue-100 text-blue-800'
                                 : isDeposit
@@ -684,11 +683,11 @@ export default function WalletPage() {
                           </span>
                         </div>
 
-                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        <p className="text-[11px] text-slate-500 truncate max-w-[180px] xs:max-w-[260px] sm:max-w-none mt-0.5">
                           {tx.description}
                         </p>
 
-                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 flex-wrap">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[10px] text-slate-400 flex-wrap">
                           <span>
                             {new Date(tx.createdAt).toLocaleDateString('en-IN', {
                               month: 'short',
@@ -705,7 +704,7 @@ export default function WalletPage() {
                             <>
                               <span>•</span>
                               <span className="font-mono text-[9px] text-slate-400">
-                                Ref: {tx.referenceId.slice(0, 12)}
+                                Ref: {tx.referenceId.slice(0, 10)}
                               </span>
                             </>
                           )}
@@ -714,7 +713,7 @@ export default function WalletPage() {
                     </div>
 
                     {/* Right: Amount & Status */}
-                    <div className="text-right shrink-0 pl-3">
+                    <div className="text-right shrink-0 pl-2 sm:pl-3 whitespace-nowrap">
                       <p
                         className={`text-xs sm:text-sm font-black ${
                           isCredit ? 'text-emerald-600' : 'text-slate-900'

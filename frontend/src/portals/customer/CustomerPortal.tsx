@@ -9,7 +9,6 @@ import { SharedMobileDrawer } from '../../components/common/SharedSidebar';
 import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import CustomerNotificationDropdown from './components/CustomerNotificationDropdown';
-import CustomerChatbot from './components/CustomerChatbot';
 
 const Shop = React.lazy(() => import('./pages/Shop'));
 const Checkout = React.lazy(() => import('./pages/Checkout'));
@@ -318,9 +317,6 @@ export default function CustomerPortal() {
           </button>
         </div>
       </nav>
-
-      {/* Floating In-App Customer Support Assistant */}
-      <CustomerChatbot />
     </div>
   );
 }

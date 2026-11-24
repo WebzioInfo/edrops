@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, LogOut, X, LogIn } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { EdropsLogo } from '../Logo';
@@ -47,6 +47,19 @@ export function SharedSidebar({
   className = '',
 }: SharedSidebarProps) {
   const { user, logout } = useAuth();
+  const location = useLocation();
+
+  const isItemActive = (defaultActive: boolean, itemTo: string) => {
+    if (itemTo.includes('?')) {
+      const currentFull = location.pathname + location.search;
+      if (currentFull === itemTo) return true;
+      if (location.pathname === itemTo.split('?')[0] && !location.search && itemTo.includes('tab=catalogue')) {
+        return true;
+      }
+      return false;
+    }
+    return defaultActive;
+  };
 
   const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || portalLabel : portalLabel;
   const userInitials = user
@@ -127,7 +140,9 @@ export function SharedSidebar({
                   to={item.to}
                   end={item.end}
                   title={collapsed ? item.label : undefined}
-                  className={({ isActive }) => `
+                  className={({ isActive: defaultActive }) => {
+                    const isActive = isItemActive(defaultActive, item.to);
+                    return `
                     group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
                     ${collapsed ? 'justify-center px-0 h-10 w-10 mx-auto' : ''}
                     ${
@@ -135,31 +150,35 @@ export function SharedSidebar({
                         ? 'bg-[#1677C8]/10 text-[#1677C8] font-semibold shadow-2xs'
                         : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
                     }
-                  `}
+                  `;
+                  }}
                 >
-                  {({ isActive }) => (
-                    <>
-                      <Icon
-                        className={`w-5 h-5 shrink-0 transition-colors ${
-                          isActive ? 'text-[#1677C8]' : 'text-[#64748B] group-hover:text-[#16324F]'
-                        }`}
-                      />
-                      {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-                      {!collapsed && hasBadge && (
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            item.badgeVariant === 'rose'
-                              ? 'bg-rose-500 text-white'
-                              : isActive
-                              ? 'bg-[#1677C8] text-white'
-                              : 'bg-slate-100 text-[#64748B]'
+                  {({ isActive: defaultActive }) => {
+                    const isActive = isItemActive(defaultActive, item.to);
+                    return (
+                      <>
+                        <Icon
+                          className={`w-5 h-5 shrink-0 transition-colors ${
+                            isActive ? 'text-[#1677C8]' : 'text-[#64748B] group-hover:text-[#16324F]'
                           }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </>
-                  )}
+                        />
+                        {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                        {!collapsed && hasBadge && (
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              item.badgeVariant === 'rose'
+                                ? 'bg-rose-500 text-white'
+                                : isActive
+                                ? 'bg-[#1677C8] text-white'
+                                : 'bg-slate-100 text-[#64748B]'
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </>
+                    );
+                  }}
                 </NavLink>
               );
             })}
@@ -249,6 +268,19 @@ export function SharedMobileDrawer({
   profilePath,
 }: SharedMobileDrawerProps) {
   const { user, logout } = useAuth();
+  const location = useLocation();
+
+  const isItemActive = (defaultActive: boolean, itemTo: string) => {
+    if (itemTo.includes('?')) {
+      const currentFull = location.pathname + location.search;
+      if (currentFull === itemTo) return true;
+      if (location.pathname === itemTo.split('?')[0] && !location.search && itemTo.includes('tab=catalogue')) {
+        return true;
+      }
+      return false;
+    }
+    return defaultActive;
+  };
 
   const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || portalLabel : portalLabel;
   const userInitials = user
@@ -298,34 +330,40 @@ export function SharedMobileDrawer({
                   to={item.to}
                   end={item.end}
                   onClick={onClose}
-                  className={({ isActive }) => `
+                  className={({ isActive: defaultActive }) => {
+                    const isActive = isItemActive(defaultActive, item.to);
+                    return `
                     group flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition-colors
                     ${
                       isActive
                         ? 'bg-[#1677C8]/10 text-[#1677C8] font-semibold'
                         : 'text-[#64748B] hover:text-[#16324F] hover:bg-slate-50'
                     }
-                  `}
+                  `;
+                  }}
                 >
-                  {({ isActive }) => (
-                    <>
-                      <Icon className={`w-5 h-5 ${isActive ? 'text-[#1677C8]' : 'text-[#64748B]'}`} />
-                      <span className="flex-1 truncate">{item.label}</span>
-                      {hasBadge && (
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            item.badgeVariant === 'rose'
-                              ? 'bg-rose-500 text-white'
-                              : isActive
-                              ? 'bg-[#1677C8] text-white'
-                              : 'bg-slate-100 text-[#64748B]'
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </>
-                  )}
+                  {({ isActive: defaultActive }) => {
+                    const isActive = isItemActive(defaultActive, item.to);
+                    return (
+                      <>
+                        <Icon className={`w-5 h-5 ${isActive ? 'text-[#1677C8]' : 'text-[#64748B]'}`} />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        {hasBadge && (
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              item.badgeVariant === 'rose'
+                                ? 'bg-rose-500 text-white'
+                                : isActive
+                                ? 'bg-[#1677C8] text-white'
+                                : 'bg-slate-100 text-[#64748B]'
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </>
+                    );
+                  }}
                 </NavLink>
               );
             })}

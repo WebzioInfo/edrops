@@ -6,6 +6,7 @@ import { EdropsLogo } from '../../components/Logo';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { SharedSidebar, SharedMobileDrawer } from '../../components/common/SharedSidebar';
 import { getPortalSidebarConfig } from '../../components/common/sidebarConfig';
+import GlobalRefreshButton from './components/GlobalRefreshButton';
 
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const CatalogManager = React.lazy(() => import('./pages/CatalogManager'));
@@ -113,17 +114,20 @@ export default function AdminPortal() {
             </div>
           </div>
 
-          <NavLink
-            to="/admin/profile"
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs overflow-hidden"
-            title="Profile"
-          >
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
-            ) : (
-              adminInitials
-            )}
-          </NavLink>
+          <div className="flex items-center gap-2">
+            <GlobalRefreshButton compact />
+            <NavLink
+              to="/admin/profile"
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1677C8]/10 text-[#1677C8] font-bold text-xs overflow-hidden"
+              title="Profile"
+            >
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+              ) : (
+                adminInitials
+              )}
+            </NavLink>
+          </div>
         </header>
 
         {/* ─── STANDARDIZED SHARED ADMIN TOPBAR MOUNT ────────────── */}

@@ -8,9 +8,10 @@ import { AdminUsersController, AdminDeliveryPartnersController } from './admin-u
 import { AdminUsersService } from './admin-users.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CheckoutModule } from '../checkout/checkout.module';
+import { EventsModule } from '../events/events.module';
 
 @Module({
-  imports: [PrismaModule, CheckoutModule],
+  imports: [PrismaModule, CheckoutModule, EventsModule],
   controllers: [
     AdminController,
     AdminCheckoutController,

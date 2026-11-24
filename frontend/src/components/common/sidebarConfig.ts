@@ -252,9 +252,39 @@ export function getPortalSidebarConfig(
             title: 'BIODROPS ECOSYSTEM',
             items: [
               {
-                to: '/admin/biodrops',
-                label: 'Biodrops Ecosystem',
+                to: '/admin/biodrops?tab=catalogue',
+                label: 'Product Catalogue',
+                icon: Package,
+              },
+              {
+                to: '/admin/biodrops?tab=bulk_pricing',
+                label: 'Bulk Pricing & Analytics',
+                icon: BarChart3,
+              },
+              {
+                to: '/admin/biodrops?tab=procurement',
+                label: 'Vendors & Purchases',
+                icon: ShoppingCart,
+              },
+              {
+                to: '/admin/biodrops?tab=manufacturing',
+                label: 'Contract Manufacturing & QC',
+                icon: Building2,
+              },
+              {
+                to: '/admin/biodrops?tab=distributor_sales',
+                label: 'Distributor Sales',
+                icon: Truck,
+              },
+              {
+                to: '/admin/biodrops?tab=jar_ownership',
+                label: 'Jar Ownership Ledger',
                 icon: ShieldCheck,
+              },
+              {
+                to: '/admin/biodrops?tab=accessories',
+                label: 'Accessory Store',
+                icon: ShoppingBag,
               },
             ],
           },

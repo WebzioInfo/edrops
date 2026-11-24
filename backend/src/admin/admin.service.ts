@@ -1,11 +1,35 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(AdminService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private eventsGateway: EventsGateway,
+  ) {}
+
+  async triggerGlobalRefresh(user?: any) {
+    const payload = {
+      timestamp: new Date().toISOString(),
+      triggeredBy: user?.name || user?.email || 'Super Admin',
+      message: 'System data synchronized by administrator',
+    };
+
+    this.logger.log(`Broadcasting SYSTEM_GLOBAL_REFRESH triggered by ${payload.triggeredBy}`);
+    // Emit to all connected sockets across the entire cluster
+    this.eventsGateway.server.emit('system:global-refresh', payload);
+
+    return {
+      success: true,
+      broadcastMessage: 'Global refresh broadcast emitted to all connected users, distributors, and staff.',
+      ...payload,
+    };
+  }
 
   create(createAdminDto: CreateAdminDto) {
     return this.prisma.admin.create({ data: createAdminDto as any });

@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { queryClient } from '../api/queryClient';
+import { toast } from 'react-hot-toast';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -61,6 +63,13 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       if (err?.code === 'TOKEN_EXPIRED') {
         newSocket.disconnect();
       }
+    });
+
+    // Real-Time System Global Refresh triggered by Super Admin
+    newSocket.on('system:global-refresh', (payload: any) => {
+      queryClient.invalidateQueries();
+      window.dispatchEvent(new CustomEvent('system:global-refresh', { detail: payload }));
+      toast.success(payload?.message || 'System data synchronized by administrator');
     });
 
     setSocket(newSocket);

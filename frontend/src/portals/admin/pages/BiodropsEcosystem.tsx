@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
-  Package,
-  Layers,
-  ShieldCheck,
-  FileText,
-  DollarSign,
   Plus,
   RefreshCw,
   CheckCircle,
-  Building2,
-  ShoppingCart,
   Boxes,
   Percent,
   X,
@@ -30,6 +24,9 @@ import type {
 import { toast } from '../../../utils/toast';
 
 export default function BiodropsEcosystem() {
+  const [searchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab') as any;
+
   const [activeTab, setActiveTab] = useState<
     | 'catalogue'
     | 'bulk_pricing'
@@ -40,7 +37,13 @@ export default function BiodropsEcosystem() {
     | 'accessories'
     | 'subscriptions'
     | 'reports'
-  >('catalogue');
+  >(urlTab || 'catalogue');
+
+  useEffect(() => {
+    if (urlTab && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+  }, [urlTab]);
 
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<BiodropsProduct[]>([]);
@@ -248,6 +251,12 @@ export default function BiodropsEcosystem() {
 
   useEffect(() => {
     loadData();
+
+    const handleGlobalRefresh = () => {
+      loadData();
+    };
+    window.addEventListener('system:global-refresh', handleGlobalRefresh);
+    return () => window.removeEventListener('system:global-refresh', handleGlobalRefresh);
   }, []);
 
   const handleCreateBulkTier = async (e: React.FormEvent) => {
@@ -598,38 +607,6 @@ export default function BiodropsEcosystem() {
           </div>
         </div>
       )}
-
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200 overflow-x-auto space-x-1">
-        {[
-          { id: 'catalogue', label: 'Product Catalogue', icon: Package },
-          { id: 'bulk_pricing', label: 'Bulk Pricing & Analytics', icon: TrendingUp },
-          { id: 'procurement', label: 'Vendors & Purchases', icon: ShoppingCart },
-          { id: 'manufacturing', label: 'Contract Manufacturing & QC', icon: Building2 },
-          { id: 'distributor_sales', label: 'Distributor Sales (₹28 / ₹35)', icon: DollarSign },
-          { id: 'jar_ownership', label: 'Empty Jar Ownership Ledger', icon: ShieldCheck },
-          { id: 'accessories', label: 'Accessory Store', icon: Boxes },
-          { id: 'subscriptions', label: 'Subscriptions', icon: Layers },
-          { id: 'reports', label: 'GST & Financial Ledgers', icon: FileText },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 py-3 px-4 font-semibold text-xs border-b-2 cursor-pointer transition-colors whitespace-nowrap ${
-                isActive
-                  ? 'border-[#1677C8] text-[#1677C8] bg-[#1677C8]/5'
-                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
 
       {/* TAB 1: PRODUCT CATALOGUE */}
       {activeTab === 'catalogue' && (

@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from '@prisma/client';
@@ -20,6 +21,11 @@ import { UpdateAdminDto } from './dto/update-admin.dto';
 @Roles(UserRole.ADMIN)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
+
+  @Post('global-refresh')
+  globalRefresh(@Req() req: any) {
+    return this.adminService.triggerGlobalRefresh(req.user);
+  }
 
   @Post()
   create(@Body() createAdminDto: CreateAdminDto) {
