@@ -341,7 +341,7 @@ export class MailService {
         Hi <strong>${firstName}</strong>,
       </p>
       <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-        You requested to change your password. Use the verification code below to confirm this change:
+        You requested to change your password. Your verification code is: <strong style="color: #0284C7; letter-spacing: 2px;">${otp}</strong>. Use the code below to confirm this change:
       </p>
 
       <!-- Verification Code Box with One-Click Select & Copy -->
@@ -377,7 +377,8 @@ export class MailService {
     try {
       await this.mailerService.sendMail({
         to: user.email,
-        subject: 'Your eDrops Password Verification Code',
+        subject: `[eDrops] Your verification code is ${otp}`,
+        text: `Your eDrops password verification code is: ${otp}\n\nThis code is valid for 10 minutes. If you did not request this, please ignore this email.`,
         html,
       });
       this.logger.log(`Password OTP sent to ${user.email}`);
@@ -404,7 +405,7 @@ export class MailService {
         Hi <strong>${firstName}</strong>,
       </p>
       <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-        A request was made to update your eDrops account profile details. Please use the verification code below to authorize this change:
+        A request was made to update your eDrops account profile details. Your verification code is: <strong style="color: #0284C7; letter-spacing: 2px;">${otp}</strong>. Use the code below to authorize this change:
       </p>
 
       <!-- Verification Code Box with One-Click Select & Copy -->
@@ -449,7 +450,8 @@ export class MailService {
     try {
       await this.mailerService.sendMail({
         to: user.email,
-        subject: 'Your eDrops Profile Verification Code',
+        subject: `[eDrops] Your verification code is ${otp}`,
+        text: `Your eDrops verification code is: ${otp}\n\nThis code is valid for 5 minutes. Do not share this code with anyone.\n\nIf you did not request this change, please contact eDrops support immediately.`,
         html,
       });
       this.logger.log(`Profile update OTP sent to ${user.email}`);
