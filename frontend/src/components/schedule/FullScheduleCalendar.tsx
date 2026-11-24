@@ -417,6 +417,11 @@ export default function FullScheduleCalendar({
       return dateOverrides[key];
     }
 
+    // If auto-deliveries are paused, do not project recurring intervals or weekly days
+    if (!isActive) {
+      return 0;
+    }
+
     if (intervalRule.enabled) {
       const start = new Date(intervalRule.startDate);
       start.setHours(0, 0, 0, 0);
@@ -617,8 +622,35 @@ export default function FullScheduleCalendar({
       });
     }
 
-    // Calculate running upcoming jars chronologically from today onwards
+    // Calculate running upcoming jars chronologically from today onwards.
+    // If the month view starts AFTER today (e.g. browsing future months like December or January),
+    // seed runningUpcomingJars with the upcoming jars between today and days[0].date so deficit carries over seamlessly!
     let runningUpcomingJars = 0;
+    if (days.length > 0 && days[0].date.getTime() > today.getTime()) {
+      const cursor = new Date(today);
+      while (cursor.getTime() < days[0].date.getTime()) {
+        const cursorStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+        const match = deliveries?.find((d) => {
+          if (!d.scheduledFor) return false;
+          const dDate = new Date(d.scheduledFor);
+          const dStr = `${dDate.getFullYear()}-${String(dDate.getMonth() + 1).padStart(2, '0')}-${String(dDate.getDate()).padStart(2, '0')}`;
+          return dStr === cursorStr;
+        });
+
+        if (match && (match.status === 'DELIVERED' || (match.status as string) === 'COMPLETED')) {
+          // Delivered jars already fulfilled, do not count against remaining balance
+        } else if (dateOverrides[cursorStr] !== undefined) {
+          runningUpcomingJars += dateOverrides[cursorStr];
+        } else if (match) {
+          runningUpcomingJars += match.requiredQuantity || match.quantity || 0;
+        } else {
+          runningUpcomingJars += getQtyForDate(cursor);
+        }
+
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+
     return days.map((cell) => {
       let isExceedingBalance = false;
       let cumulativeAtCell = 0;
@@ -644,7 +676,9 @@ export default function FullScheduleCalendar({
         isDelivered = false;
       } else {
         // ── RULE 3: Today or upcoming future delivery needing fulfillment ──
-        if (matchingDelivery) {
+        if (dateOverrides[cellDateStr] !== undefined) {
+          cellQty = dateOverrides[cellDateStr];
+        } else if (matchingDelivery) {
           cellQty = matchingDelivery.requiredQuantity || matchingDelivery.quantity || cell.qty;
         }
         if (cellQty > 0) {
@@ -664,7 +698,7 @@ export default function FullScheduleCalendar({
         cumulativeAtCell,
       };
     });
-  }, [currentYear, currentMonth, today, intervalRule, dateOverrides, weeklyQtys, availableJarBalance, deliveries, effectiveStartDate]);
+  }, [currentYear, currentMonth, today, intervalRule, dateOverrides, weeklyQtys, availableJarBalance, deliveries, effectiveStartDate, isActive]);
 
   // Current Month Stats
   const currentMonthStats = useMemo(() => {
@@ -1128,11 +1162,23 @@ export default function FullScheduleCalendar({
         {viewMode === 'WEEKLY' && (() => {
           // Calculate upcoming weekday deficit chronologically starting from today
           const todayDayIndex = today.getDay();
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          const isTodayDelivered = deliveries?.some((d) => {
+            if (!d.scheduledFor) return false;
+            const dDate = new Date(d.scheduledFor);
+            const dStr = `${dDate.getFullYear()}-${String(dDate.getMonth() + 1).padStart(2, '0')}-${String(dDate.getDate()).padStart(2, '0')}`;
+            return dStr === todayStr && (d.status === 'DELIVERED' || (d.status as string) === 'COMPLETED');
+          });
+
           let cumJars = 0;
           const weekdayDeficitMap: Record<number, boolean> = {};
 
           for (let offset = 0; offset < 7; offset++) {
             const dIndex = (todayDayIndex + offset) % 7;
+            // If today's delivery has already been fulfilled and delivered, its jars were already deducted from available balance
+            if (offset === 0 && isTodayDelivered) {
+              continue;
+            }
             const dayQty = weeklyQtys[dIndex] || 0;
             if (dayQty > 0) {
               cumJars += dayQty;
