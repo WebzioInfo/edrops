@@ -504,25 +504,6 @@ export default function FullScheduleCalendar({
         quantity: intervalRule.jars,
         startDate: intervalRule.startDate,
       });
-
-      // Also save any specific day-of-week anchors or active days as mirror WEEKLY rules for legacy schedulers
-      // Calculate active days in the pattern
-      const sampleDays: Record<number, number> = {};
-      for (let i = 0; i < 14; i++) {
-        const d = new Date(intervalRule.startDate);
-        d.setDate(d.getDate() + i);
-        const q = getQtyForDate(d);
-        if (q > 0) {
-          sampleDays[d.getDay()] = Math.max(sampleDays[d.getDay()] || 0, q);
-        }
-      }
-      Object.entries(sampleDays).forEach(([dayStr, q]) => {
-        rules.push({
-          type: 'WEEKLY',
-          dayOfWeek: parseInt(dayStr, 10),
-          quantity: q,
-        });
-      });
     } else {
       // Pure WEEKLY rules
       Object.entries(weeklyQtys).forEach(([dayKey, qty]) => {
