@@ -200,8 +200,10 @@ export class AuthService {
     const roleHint = loginDto.roleHint?.toUpperCase();
     if (roleHint) {
       candidates.sort((a, b) => {
-        if (a.role === roleHint && b.role !== roleHint) return -1;
-        if (b.role === roleHint && a.role !== roleHint) return 1;
+        const isMatchA = a.role === roleHint || (roleHint === 'STAFF' && (a.role === 'ADMIN' || a.role === 'SUPER_ADMIN'));
+        const isMatchB = b.role === roleHint || (roleHint === 'STAFF' && (b.role === 'ADMIN' || b.role === 'SUPER_ADMIN'));
+        if (isMatchA && !isMatchB) return -1;
+        if (isMatchB && !isMatchA) return 1;
         return 0;
       });
     }

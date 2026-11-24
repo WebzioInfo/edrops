@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchWithAuth } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 import CustomerProfileView from '../components/profile/views/CustomerProfileView';
@@ -17,102 +16,31 @@ export default function Profile() {
   const location = useLocation();
   const { user, updateUser } = useAuth();
   const userId = user?.id;
+  const userRole = user?.role;
+  const queryClient = useQueryClient();
 
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  // Track user ID whose profile has successfully loaded
-  const loadedUserRef = useRef<string | null>(null);
-
-  // Stable profile fetching function (callable on-demand by refresh actions)
-  const fetchProfileData = useCallback(async (signal?: AbortSignal) => {
-    try {
-      setLoading(true);
-      let data: any = null;
+  const {
+    data: profile,
+    isLoading: loading,
+    refetch,
+  } = useQuery({
+    queryKey: ['profile', userId, userRole],
+    queryFn: async () => {
       try {
-        data = await fetchWithAuth('/profile', { signal });
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        data = await fetchWithAuth('/auth/me', { signal });
+        return await fetchWithAuth('/profile');
+      } catch {
+        return await fetchWithAuth('/auth/me');
       }
-
-      if (data) {
-        setProfile(data);
-        if (userId) {
-          loadedUserRef.current = userId;
-        }
-      }
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
-      toast.error(err.message ?? 'Failed to load profile data');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    // If profile is already loaded for this authenticated user, avoid redundant refetch
-    if (loadedUserRef.current === userId && profile) return;
-
-    let isMounted = true;
-    const controller = new AbortController();
-
-    const loadInitialProfile = async () => {
-      try {
-        setLoading(true);
-        let data: any = null;
-        try {
-          data = await fetchWithAuth('/profile', { signal: controller.signal });
-        } catch (err: any) {
-          if (err.name === 'AbortError') return;
-          data = await fetchWithAuth('/auth/me', { signal: controller.signal });
-        }
-
-        if (isMounted && data) {
-          setProfile(data);
-          loadedUserRef.current = userId;
-        }
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        if (isMounted) {
-          toast.error(err.message ?? 'Failed to load profile data');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadInitialProfile();
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [userId]);
-
-  const queryClient = useQueryClient();
+    },
+    enabled: Boolean(userId),
+    staleTime: 0,
+  });
 
   // Controlled, intentional refresh handler (passed to Address CRUD and EditProfileModal)
   const handleRefresh = useCallback(async (updatedData?: any) => {
     if (updatedData) {
-      setProfile((prev: any) => ({
-        ...prev,
-        ...updatedData,
-        firstName: updatedData.firstName ?? prev?.firstName,
-        lastName: updatedData.lastName ?? prev?.lastName,
-        customer: {
-          ...prev?.customer,
-          ...updatedData.customer,
-        },
-      }));
       updateUser({
         firstName: updatedData.firstName,
         lastName: updatedData.lastName,
@@ -121,19 +49,19 @@ export default function Profile() {
       });
     }
 
-    // Invalidate React Query caches for Dashboard, Header, and Customer portal
+    // Invalidate React Query caches for Dashboard, Header, and Profile
+    queryClient.invalidateQueries({ queryKey: ['profile', userId, userRole] });
     queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-    queryClient.invalidateQueries({ queryKey: ['profile'] });
     queryClient.invalidateQueries({ queryKey: ['customerProfile'] });
-
-    await fetchProfileData();
-  }, [fetchProfileData, queryClient, updateUser]);
+    await refetch();
+  }, [userId, userRole, queryClient, updateUser, refetch]);
 
   // Local avatar update without unnecessary network refetch
   const handleAvatarUpdated = useCallback((newUrl: string | null) => {
-    setProfile((prev: any) => (prev ? { ...prev, avatarUrl: newUrl } : null));
     updateUser({ avatarUrl: newUrl });
-  }, [updateUser]);
+    queryClient.invalidateQueries({ queryKey: ['profile', userId, userRole] });
+    refetch();
+  }, [userId, userRole, queryClient, updateUser, refetch]);
 
   if (loading) {
     return <LoadingSpinner fullPage label="Loading profile..." />;
@@ -145,10 +73,7 @@ export default function Profile() {
         <p className="text-base font-bold text-slate-800">Profile could not be loaded</p>
         <button
           type="button"
-          onClick={() => {
-            setLoading(true);
-            fetchProfileData();
-          }}
+          onClick={() => refetch()}
           className="mt-3 px-4 py-2 rounded-xl bg-[#1677C8] text-white text-xs font-bold shadow-xs hover:bg-[#125ea0] transition cursor-pointer"
         >
           Try Again

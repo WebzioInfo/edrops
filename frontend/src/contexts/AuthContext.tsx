@@ -238,6 +238,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Purge cached query data immediately
     queryClient.clear();
 
+    const currentPath = window.location.pathname.toLowerCase();
+    let portalParam = '';
+    if (currentPath.startsWith('/distributor')) {
+      portalParam = '?portal=distributor&redirect=%2Fdistributor';
+    } else if (currentPath.startsWith('/staff')) {
+      portalParam = '?portal=staff&redirect=%2Fstaff';
+    } else if (currentPath.startsWith('/admin')) {
+      portalParam = '?portal=admin&redirect=%2Fadmin';
+    } else if (currentPath.startsWith('/delivery-partner')) {
+      portalParam = '?portal=delivery&redirect=%2Fdelivery-partner';
+    }
+
     setToken(null);
     setUser(null);
     setAuthStatus('unauthenticated');
@@ -248,7 +260,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('edrops_banner_closed');
     sessionStorage.removeItem(SESSION_WELCOME_KEY);
     sessionStorage.removeItem('dashboard_greeting_dismissed');
-    window.location.href = '/login';
+    window.location.href = `/login${portalParam}`;
   }, []);
 
   const isAuthenticated = authStatus === 'authenticated' && Boolean(token && user);
