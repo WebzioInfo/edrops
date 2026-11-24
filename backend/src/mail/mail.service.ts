@@ -356,13 +356,8 @@ export class MailService {
                 ${otp}
               </span>
             </div>
-            <div style="margin-top: 18px;">
-              <a href="${frontendUrl}/customer/profile?otp=${otp}" style="display: inline-block; background-color: #0284C7; color: #ffffff; font-size: 13px; font-weight: 700; text-decoration: none; padding: 10px 24px; border-radius: 10px; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);">
-                Open & Verify Code in App &rarr;
-              </a>
-            </div>
             <p style="font-size: 11px; color: #64748B; margin: 10px 0 0 0;">
-              Or double-tap the code above to copy manually
+              Double-tap or long-press the code above to copy
             </p>
           </td>
         </tr>
@@ -425,13 +420,8 @@ export class MailService {
                 ${otp}
               </span>
             </div>
-            <div style="margin-top: 18px;">
-              <a href="${frontendUrl}/customer/profile?otp=${otp}" style="display: inline-block; background-color: #0284C7; color: #ffffff; font-size: 13px; font-weight: 700; text-decoration: none; padding: 10px 24px; border-radius: 10px; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);">
-                Open & Verify Code in App &rarr;
-              </a>
-            </div>
             <p style="font-size: 11px; color: #64748B; margin: 10px 0 0 0;">
-              Or double-tap the code above to copy manually
+              Double-tap or long-press the code above to copy
             </p>
           </td>
         </tr>
@@ -461,7 +451,7 @@ export class MailService {
       await this.mailerService.sendMail({
         to: user.email,
         subject: `[eDrops] Your verification code is ${otp}`,
-        text: `Your eDrops verification code is: ${otp}\n\nVerify directly in app: ${frontendUrl}/customer/profile?otp=${otp}\n\nThis code is valid for 5 minutes. Do not share this code with anyone.\n\nIf you did not request this change, please contact eDrops support immediately.`,
+        text: `Your eDrops verification code is: ${otp}\n\nThis code is valid for 5 minutes. Do not share this code with anyone.\n\nIf you did not request this change, please contact eDrops support immediately.`,
         html,
       });
       this.logger.log(`Profile update OTP sent to ${user.email}`);
