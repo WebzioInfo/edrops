@@ -351,16 +351,14 @@ export class MailService {
             <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0284C7; letter-spacing: 1px; margin-bottom: 10px;">
               Your 6-Digit Verification Code
             </div>
-            <div style="display: inline-block; padding: 12px 28px; background-color: #ffffff; border: 1px solid #BAE6FD; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 174, 239, 0.12); cursor: pointer; user-select: all; -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all;">
-              <span style="font-size: 34px; font-weight: 900; letter-spacing: 8px; color: #0284C7; font-family: 'Courier New', Courier, monospace; display: inline-block; user-select: all; -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all;">
+            <div style="display: inline-block; padding: 12px 28px; background-color: #ffffff; border: 1px solid #BAE6FD; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 174, 239, 0.12); user-select: all; -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all;">
+              <span style="font-size: 34px; font-weight: 900; letter-spacing: 6px; color: #0284C7; font-family: 'Courier New', Courier, monospace; display: inline-block; user-select: all; -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all;">
                 ${otp}
               </span>
             </div>
-            <div style="margin-top: 14px;">
-              <span style="display: inline-block; font-size: 12px; font-weight: 600; color: #0369A1; background-color: #E0F2FE; border: 1px solid #BAE6FD; padding: 5px 14px; border-radius: 9999px;">
-                📋 Tap or double-click code to copy
-              </span>
-            </div>
+            <p style="font-size: 11px; color: #64748B; margin: 10px 0 0 0;">
+              Double-tap or long-press the code above to copy
+            </p>
           </td>
         </tr>
       </table>
@@ -416,16 +414,14 @@ export class MailService {
             <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0284C7; letter-spacing: 1px; margin-bottom: 10px;">
               Your 6-Digit Verification Code
             </div>
-            <div style="display: inline-block; padding: 12px 28px; background-color: #ffffff; border: 1px solid #BAE6FD; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 174, 239, 0.12); cursor: pointer; user-select: all; -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all;">
-              <span style="font-size: 34px; font-weight: 900; letter-spacing: 8px; color: #0284C7; font-family: 'Courier New', Courier, monospace; display: inline-block; user-select: all; -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all;">
+            <div style="display: inline-block; padding: 12px 28px; background-color: #ffffff; border: 1px solid #BAE6FD; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 174, 239, 0.12); user-select: all; -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all;">
+              <span style="font-size: 34px; font-weight: 900; letter-spacing: 6px; color: #0284C7; font-family: 'Courier New', Courier, monospace; display: inline-block; user-select: all; -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all;">
                 ${otp}
               </span>
             </div>
-            <div style="margin-top: 14px;">
-              <span style="display: inline-block; font-size: 12px; font-weight: 600; color: #0369A1; background-color: #E0F2FE; border: 1px solid #BAE6FD; padding: 5px 14px; border-radius: 9999px;">
-                📋 Tap or double-click code to copy
-              </span>
-            </div>
+            <p style="font-size: 11px; color: #64748B; margin: 10px 0 0 0;">
+              Double-tap or long-press the code above to copy
+            </p>
           </td>
         </tr>
       </table>
