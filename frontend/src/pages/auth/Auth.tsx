@@ -198,20 +198,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
   const [state, setState] = useState<AuthState>(getInitial);
   const [searchParams] = useSearchParams();
   const { user, authStatus, isLoading, login } = useAuth();
-  
-  const getInitialPortal = (): string => {
-    const portal = searchParams.get('portal')?.toUpperCase();
-    if (portal && ['CUSTOMER', 'DISTRIBUTOR', 'STAFF', 'ADMIN', 'DELIVERY_PARTNER'].includes(portal)) {
-      return portal === 'ADMIN' ? 'STAFF' : portal;
-    }
-    const redirect = (searchParams.get('redirect') || (location.state as any)?.redirect || '')?.toLowerCase();
-    if (redirect.startsWith('/distributor')) return 'DISTRIBUTOR';
-    if (redirect.startsWith('/staff') || redirect.startsWith('/admin')) return 'STAFF';
-    if (redirect.startsWith('/delivery-partner')) return 'DELIVERY_PARTNER';
-    return 'CUSTOMER';
-  };
-
-  const [selectedPortal, setSelectedPortal] = useState<string>(getInitialPortal);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [phoneGateState, setPhoneGateState] = useState<{
     tempToken: string;
@@ -404,8 +390,8 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
         searchParams.get('redirect') ||
         (location.state as any)?.redirect ||
         (location.state as any)?.from?.pathname;
-      let roleHint: string | undefined = selectedPortal;
-      if (!roleHint && redirectParam) {
+      let roleHint: string | undefined = undefined;
+      if (redirectParam) {
         const lower = decodeURIComponent(redirectParam).toLowerCase();
         if (lower.startsWith('/distributor')) roleHint = 'DISTRIBUTOR';
         else if (lower.startsWith('/admin')) roleHint = 'ADMIN';
@@ -638,48 +624,6 @@ export default function Auth({ initialMode }: { initialMode?: AuthState }) {
                 >
                   {({ isSubmitting }) => (
                     <Form>
-                      {state === 'signin' && (
-                        <div className="mb-3.5">
-                          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                            Login Portal
-                          </label>
-                          <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200/70">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedPortal('CUSTOMER')}
-                              className={`py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                                selectedPortal === 'CUSTOMER'
-                                  ? 'bg-white text-[#0088CC] shadow-xs'
-                                  : 'text-slate-500 hover:text-slate-800'
-                              }`}
-                            >
-                              Customer
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedPortal('DISTRIBUTOR')}
-                              className={`py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                                selectedPortal === 'DISTRIBUTOR'
-                                  ? 'bg-white text-indigo-600 shadow-xs'
-                                  : 'text-slate-500 hover:text-slate-800'
-                              }`}
-                            >
-                              Distributor
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedPortal('STAFF')}
-                              className={`py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                                selectedPortal === 'STAFF'
-                                  ? 'bg-white text-slate-900 shadow-xs'
-                                  : 'text-slate-500 hover:text-slate-800'
-                              }`}
-                            >
-                              Staff / Admin
-                            </button>
-                          </div>
-                        </div>
-                      )}
                       <Field
                         name="identifier"
                         component={ArimoInput}
