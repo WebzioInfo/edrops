@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useCallback, useEffect } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { fetchWithAuth } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -20,6 +21,19 @@ export default function Profile() {
   const queryClient = useQueryClient();
 
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const otpFromUrl = searchParams.get('otp') || '';
+
+  // Auto-copy OTP from email link and open edit modal
+  useEffect(() => {
+    if (otpFromUrl && otpFromUrl.length === 6) {
+      try {
+        navigator.clipboard.writeText(otpFromUrl);
+        toast.success(`Verification code ${otpFromUrl} copied to clipboard!`, { id: 'otp-auto-copied' });
+      } catch {}
+      setEditModalOpen(true);
+    }
+  }, [otpFromUrl]);
 
   const {
     data: profile,
@@ -131,6 +145,7 @@ export default function Profile() {
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         profile={profile}
+        initialOtp={otpFromUrl}
         onSuccess={handleRefresh}
       />
     </>

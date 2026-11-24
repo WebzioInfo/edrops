@@ -6,6 +6,7 @@ interface ProfileOtpVerificationModalProps {
   onClose: () => void;
   maskedEmail?: string;
   verificationId: string;
+  initialOtp?: string;
   onVerify: (otp: string) => Promise<void>;
   onResend: () => Promise<string | void>;
 }
@@ -15,6 +16,7 @@ export default function ProfileOtpVerificationModal({
   onClose,
   maskedEmail,
   verificationId,
+  initialOtp,
   onVerify,
   onResend,
 }: ProfileOtpVerificationModalProps) {
@@ -30,15 +32,23 @@ export default function ProfileOtpVerificationModal({
   // Reset state when opened or verificationId changes
   useEffect(() => {
     if (isOpen) {
-      setDigits(['', '', '', '', '', '']);
+      if (initialOtp && initialOtp.length === 6) {
+        setDigits(initialOtp.split(''));
+      } else {
+        setDigits(['', '', '', '', '', '']);
+      }
       setError(null);
       setLoading(false);
       setCountdown(60);
       setTimeout(() => {
-        inputRefs.current[0]?.focus();
+        if (initialOtp && initialOtp.length === 6) {
+          inputRefs.current[5]?.focus();
+        } else {
+          inputRefs.current[0]?.focus();
+        }
       }, 100);
     }
-  }, [isOpen, verificationId]);
+  }, [isOpen, verificationId, initialOtp]);
 
   // Countdown timer for resend
   useEffect(() => {

@@ -10,6 +10,7 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   profile: any;
+  initialOtp?: string;
   onSuccess: (updatedData?: any) => void;
 }
 
@@ -17,6 +18,7 @@ export default function EditProfileModal({
   isOpen,
   onClose,
   profile,
+  initialOtp,
   onSuccess,
 }: EditProfileModalProps) {
   const { updateUser } = useAuth();
@@ -616,6 +618,7 @@ export default function EditProfileModal({
         onClose={() => setOtpModalOpen(false)}
         maskedEmail={maskedEmail}
         verificationId={verificationId}
+        initialOtp={initialOtp}
         onVerify={handleVerifyOtp}
         onResend={handleResendOtp}
       />
