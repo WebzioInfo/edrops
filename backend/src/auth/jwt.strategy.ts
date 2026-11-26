@@ -1,6 +1,7 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { AccountStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -19,8 +20,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       include: { customer: true },
     });
 
-    if (!user) {
-      throw new UnauthorizedException();
+    if (!user || !user.isActive || user.accountStatus === AccountStatus.DISABLED) {
+      throw new UnauthorizedException('Account is inactive or disabled');
     }
 
     return {

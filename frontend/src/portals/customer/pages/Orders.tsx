@@ -59,7 +59,7 @@ export default function Orders() {
           setWalletBalance(res.balance);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const fetchCustomerOrders = useCallback(async (): Promise<any[]> => {
@@ -99,14 +99,16 @@ export default function Orders() {
       }
     };
 
+    const handleNewOrder = () => loadOrders(true);
+
     socket.on('ORDER_STATUS_CHANGED', handleStatusChanged);
     socket.on('order:updated', handleOrderUpdated);
-    socket.on('NEW_ORDER', () => loadOrders(true));
+    socket.on('NEW_ORDER', handleNewOrder);
 
     return () => {
       socket.off('ORDER_STATUS_CHANGED', handleStatusChanged);
       socket.off('order:updated', handleOrderUpdated);
-      socket.off('NEW_ORDER');
+      socket.off('NEW_ORDER', handleNewOrder);
     };
   }, [socket, loadOrders, setOrders]);
 
@@ -165,6 +167,7 @@ export default function Orders() {
 
         toast.success(`Paid ₹${pst.due} successfully using your wallet!`);
         setPayModalOrder(null);
+        setIsSubmittingPay(false);
         loadOrders(true);
         return;
       }
@@ -212,19 +215,24 @@ export default function Orders() {
             loadOrders(true);
           } catch (err: any) {
             toast.error(err.message || 'Payment verification failed');
+          } finally {
+            setIsSubmittingPay(false);
           }
+        },
+        modal: {
+          ondismiss: () => setIsSubmittingPay(false),
         },
         theme: { color: '#0284C7' },
       };
 
       const rzp = new (window as any).Razorpay(options);
-      rzp.on('payment.failed', () =>
-        toast.error('Payment failed or was cancelled.'),
-      );
+      rzp.on('payment.failed', () => {
+        setIsSubmittingPay(false);
+        toast.error('Payment failed or was cancelled.');
+      });
       rzp.open();
     } catch (err: any) {
       toast.error(err.message || 'Payment processing failed. Please try again.');
-    } finally {
       setIsSubmittingPay(false);
     }
   };
@@ -321,7 +329,7 @@ export default function Orders() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] font-sans antialiased pb-20 sm:pb-12">
       <div className="w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6">
-        
+
         {/* ─── DESKTOP HEADER & BREADCRUMB ───────────────────────── */}
         <div className="hidden lg:flex items-center justify-between pb-4 border-b border-[#E2E8F0] mb-6">
           <div className="flex items-center gap-2">
@@ -409,11 +417,10 @@ export default function Orders() {
             <button
               type="button"
               onClick={() => setMobileFilterOpen(true)}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border shadow-2xs transition cursor-pointer shrink-0 ${
-                activeFiltersCount > 0
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border shadow-2xs transition cursor-pointer shrink-0 ${activeFiltersCount > 0
                   ? 'bg-[#1E88E5] text-white border-[#1E88E5]'
                   : 'bg-white text-slate-700 border-[#E2E8F0] hover:bg-slate-50'
-              }`}
+                }`}
             >
               <Filter className="w-3.5 h-3.5" />
               <span>Filters</span>
@@ -464,7 +471,7 @@ export default function Orders() {
 
         {/* ─── MAIN CONTENT: DESKTOP 2-COLUMN / MOBILE FULL WIDTH ── */}
         <div className="lg:grid lg:grid-cols-[240px_1fr] gap-6 items-start">
-          
+
           {/* ─── DESKTOP LEFT FILTER PANEL ───────────────────────── */}
           <div className="hidden lg:block bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-5 shadow-2xs sticky top-20">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
@@ -552,7 +559,7 @@ export default function Orders() {
 
           {/* ─── RIGHT / MAIN ORDER LIST FEED ────────────────────── */}
           <div className="space-y-3">
-            
+
             {/* Desktop Top Search Bar */}
             <div className="hidden lg:block bg-white border border-[#E2E8F0] rounded-xl p-2 shadow-2xs">
               <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
@@ -645,7 +652,7 @@ export default function Orders() {
                   const primaryItem = itemsList[0];
                   const totalItemsCount = itemsList.length;
                   const totalJarsCount = itemsList.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0);
-                  
+
                   const primaryName = primaryItem?.product?.name || 'Edrops 20L Water Jar';
                   const otherItemsText = totalItemsCount > 1 ? ` + ${totalItemsCount - 1} other item${totalItemsCount > 2 ? 's' : ''}` : '';
                   const fullTitle = `${primaryName}${otherItemsText}`;
@@ -661,10 +668,10 @@ export default function Orders() {
                   const statusColorClass = cfg.label === 'Delivered'
                     ? 'text-emerald-700'
                     : cfg.label === 'Out for Delivery'
-                    ? 'text-purple-700'
-                    : cfg.label === 'Confirmed'
-                    ? 'text-blue-700'
-                    : 'text-amber-800';
+                      ? 'text-purple-700'
+                      : cfg.label === 'Confirmed'
+                        ? 'text-blue-700'
+                        : 'text-amber-800';
                   const statusDotClass = cfg.dotColor;
                   const pst = getOrderPaymentState(order);
                   return (
@@ -710,9 +717,8 @@ export default function Orders() {
                               />
                             ) : null}
                             <div
-                              className={`order-img-fallback-mob flex items-center justify-center text-[#94A3B8] ${
-                                productImageUrl ? 'hidden' : 'flex'
-                              }`}
+                              className={`order-img-fallback-mob flex items-center justify-center text-[#94A3B8] ${productImageUrl ? 'hidden' : 'flex'
+                                }`}
                             >
                               <ShoppingBag className="w-6 h-6 text-[#94A3B8]" />
                             </div>
@@ -826,9 +832,8 @@ export default function Orders() {
                               />
                             ) : null}
                             <div
-                              className={`order-img-fallback flex items-center justify-center text-[#94A3B8] ${
-                                productImageUrl ? 'hidden' : 'flex'
-                              }`}
+                              className={`order-img-fallback flex items-center justify-center text-[#94A3B8] ${productImageUrl ? 'hidden' : 'flex'
+                                }`}
                             >
                               <ShoppingBag className="w-6 h-6 text-[#94A3B8]" />
                             </div>
@@ -988,7 +993,7 @@ export default function Orders() {
                 <span className="text-center sm:text-left">
                   Showing <strong>{(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredOrders.length)}</strong> of <strong>{filteredOrders.length}</strong> orders
                 </span>
-                
+
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -1075,11 +1080,10 @@ export default function Orders() {
                       setStatusFilter(item.key as StatusFilterType);
                       setCurrentPage(1);
                     }}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition ${
-                      statusFilter === item.key
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition ${statusFilter === item.key
                         ? 'border-[#1E88E5] bg-blue-50/70 text-[#1E88E5]'
                         : 'border-[#E2E8F0] bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     <span>{item.label}</span>
                     <span className="text-[10px] opacity-70">({item.count})</span>
@@ -1107,11 +1111,10 @@ export default function Orders() {
                       setTimeFilter(item.key as TimeFilterType);
                       setCurrentPage(1);
                     }}
-                    className={`px-3 py-2.5 rounded-xl border text-left transition ${
-                      timeFilter === item.key
+                    className={`px-3 py-2.5 rounded-xl border text-left transition ${timeFilter === item.key
                         ? 'border-[#1E88E5] bg-blue-50/70 text-[#1E88E5]'
                         : 'border-[#E2E8F0] bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     {item.label}
                   </button>
@@ -1183,11 +1186,10 @@ export default function Orders() {
                     <button
                       type="button"
                       onClick={() => setPayMethod('RAZORPAY')}
-                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                        payMethod === 'RAZORPAY'
+                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${payMethod === 'RAZORPAY'
                           ? 'border-[#0284C7] bg-sky-50/80 text-[#0284C7] shadow-xs ring-1 ring-[#0284C7]/20'
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <CreditCard className="w-4 h-4 text-[#0284C7]" />
                       <span>Online (UPI / Card)</span>
@@ -1196,11 +1198,10 @@ export default function Orders() {
                     <button
                       type="button"
                       onClick={() => setPayMethod('WALLET')}
-                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                        payMethod === 'WALLET'
+                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${payMethod === 'WALLET'
                           ? 'border-[#0284C7] bg-sky-50/80 text-[#0284C7] shadow-xs ring-1 ring-[#0284C7]/20'
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <Wallet className="w-4 h-4 text-[#0284C7]" />
                       <span>Wallet Balance</span>

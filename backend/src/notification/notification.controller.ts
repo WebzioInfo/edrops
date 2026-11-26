@@ -16,6 +16,8 @@ import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { SubscribePushDto, UnsubscribePushDto } from './dto/push-subscription.dto';
 import { WebPushService } from './web-push.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard, Roles } from '../auth/roles.guard';
+import { UserRole } from '@prisma/client';
 
 @Controller(['notification', 'notifications'])
 export class NotificationController {
@@ -106,21 +108,29 @@ export class NotificationController {
   // =========================================================================
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   create(@Body() createNotificationDto: CreateNotificationDto) {
     return this.notificationService.create(createNotificationDto);
   }
 
   @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   findAll() {
     return this.notificationService.findAll();
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   findOne(@Param('id') id: string) {
     return this.notificationService.findOne(id);
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   update(
     @Param('id') id: string,
     @Body() updateNotificationDto: UpdateNotificationDto,
@@ -129,6 +139,8 @@ export class NotificationController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   remove(@Param('id') id: string) {
     return this.notificationService.remove(id);
   }

@@ -21,7 +21,7 @@ export class WalletService {
     private settingsService: SettingsService,
     private paymentService: PaymentService,
     private notificationService: NotificationService,
-  ) {}
+  ) { }
 
   async getWallet(userId: string) {
     const customer = await this.prisma.customer.findUnique({
@@ -85,6 +85,9 @@ export class WalletService {
     referenceId?: string,
     tx?: any,
   ) {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Amount must be positive');
+    }
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
     });
@@ -159,6 +162,9 @@ export class WalletService {
     referenceId?: string,
     tx?: any,
   ) {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Amount must be positive');
+    }
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
     });
@@ -839,11 +845,39 @@ export class WalletService {
     const payAmount = verifiedPayment.amount;
 
     return this.prisma.$transaction(async (tx) => {
-      const newDepositPaid = jarDeposit.depositPaid + payAmount;
-      const newDepositDue = Math.max(0, jarDeposit.depositDue - payAmount);
+      if (typeof tx.$executeRawUnsafe === 'function') {
+        await tx.$executeRawUnsafe(
+          `SELECT id FROM "JarDeposit" WHERE id = $1 FOR UPDATE`,
+          jarDeposit.id,
+        );
+      }
+
+      const existingDepositTx = await tx.depositTransaction.findFirst({
+        where: { customerId: customer.id, referenceId: razorpayPaymentId },
+      });
+      const lockedDeposit = await tx.jarDeposit.findUnique({
+        where: { id: jarDeposit.id },
+      });
+      if (!lockedDeposit) throw new NotFoundException('Jar deposit record not found');
+
+      if (
+        ('alreadyProcessed' in verifiedPayment && verifiedPayment.alreadyProcessed) ||
+        existingDepositTx
+      ) {
+        return {
+          success: true,
+          alreadyProcessed: true,
+          amountPaid: payAmount,
+          depositPaid: lockedDeposit.depositPaid,
+          depositDue: lockedDeposit.depositDue,
+        };
+      }
+
+      const newDepositPaid = lockedDeposit.depositPaid + payAmount;
+      const newDepositDue = Math.max(0, lockedDeposit.depositDue - payAmount);
 
       await tx.jarDeposit.update({
-        where: { id: jarDeposit.id },
+        where: { id: lockedDeposit.id },
         data: {
           depositPaid: newDepositPaid,
           depositDue: newDepositDue,
@@ -855,8 +889,8 @@ export class WalletService {
           customerId: customer.id,
           type: DepositTransactionType.DEPOSIT_PAID,
           amount: payAmount,
-          jarsAffected: jarDeposit.maxActiveJars,
-          balanceBefore: jarDeposit.depositDue,
+          jarsAffected: lockedDeposit.maxActiveJars,
+          balanceBefore: lockedDeposit.depositDue,
           balanceAfter: newDepositDue,
           referenceId: razorpayPaymentId,
           description: `Paid ₹${payAmount} jar deposit online via Razorpay`,

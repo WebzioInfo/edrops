@@ -30,7 +30,7 @@ import { UserRole } from '@prisma/client';
 @Controller(['order', 'orders'])
 @UseGuards(JwtAuthGuard)
 export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(private readonly orderService: OrderService) { }
 
   // =========================================================================
   // DISTRIBUTOR ORDER ENDPOINTS
@@ -356,7 +356,6 @@ export class OrderController {
     UserRole.MANAGER,
     UserRole.STAFF,
     UserRole.DISTRIBUTOR,
-    UserRole.CUSTOMER,
     UserRole.DELIVERY_PARTNER,
   )
   recordOrderPayment(

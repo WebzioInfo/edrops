@@ -106,15 +106,15 @@ export default function RechargePage() {
           isRecharge: true
         })
       })
-      .then((res) => {
-        setDiscount(res.calculatedDiscount || res.discountValue || 0);
-        setPromoError('');
-      })
-      .catch((err) => {
-        setAppliedPromo(null);
-        setDiscount(0);
-        setPromoError(err.message || 'Coupon is no longer valid for this pack');
-      });
+        .then((res) => {
+          setDiscount(res.calculatedDiscount || res.discountValue || 0);
+          setPromoError('');
+        })
+        .catch((err) => {
+          setAppliedPromo(null);
+          setDiscount(0);
+          setPromoError(err.message || 'Coupon is no longer valid for this pack');
+        });
     }
   }, [selectedPack?.id]);
 
@@ -142,9 +142,9 @@ export default function RechargePage() {
     }
     const totalDue = Math.max(0, selectedPack.price - discount);
 
-    // 1. Pay via Wallet
-    if (paymentMethod === 'WALLET') {
-      if (walletBalance !== null && walletBalance < totalDue) {
+    // 1. Pay via Wallet (or ₹0 free promo)
+    if (paymentMethod === 'WALLET' || totalDue === 0) {
+      if (totalDue > 0 && walletBalance !== null && walletBalance < totalDue) {
         toast.error(`Insufficient wallet balance (₹${walletBalance.toFixed(2)}). Switch to Online payment or top up your wallet.`);
         return;
       }
@@ -185,7 +185,7 @@ export default function RechargePage() {
           description: `Package Purchase: ${selectedPack.id}`,
         }),
       });
-      
+
       if (!orderData || !orderData.orderId) {
         throw new Error('Failed to initiate payment');
       }
@@ -234,6 +234,9 @@ export default function RechargePage() {
             setPurchasing(false);
           }
         },
+        modal: {
+          ondismiss: () => setPurchasing(false),
+        },
         theme: {
           color: '#0284C7'
         }
@@ -241,13 +244,13 @@ export default function RechargePage() {
 
       const rzp = new (window as any).Razorpay(options);
       rzp.on('payment.failed', function (response: any) {
+        setPurchasing(false);
         toast.error(response.error.description || 'Payment failed');
       });
       rzp.open();
-      
+
     } catch (err: any) {
       toast.error(err.message || 'Payment failed.');
-    } finally {
       setPurchasing(false);
     }
   };
@@ -299,8 +302,8 @@ export default function RechargePage() {
     const discountText = pack.discountPercent
       ? `Save ${pack.discountPercent}%`
       : savings > 0
-      ? `Save ₹${Math.round(savings)}`
-      : null;
+        ? `Save ₹${Math.round(savings)}`
+        : null;
 
     const subtitle = discountText || '';
 
@@ -314,7 +317,7 @@ export default function RechargePage() {
   return (
     <div className="min-h-screen bg-[#F7FAFC] pb-32 lg:pb-12 text-[#0F172A]">
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 space-y-5">
-        
+
         {/* Page Header */}
         <div className="border-b border-slate-200/80 pb-3">
           <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
@@ -343,7 +346,7 @@ export default function RechargePage() {
               {packs.map((pack) => {
                 const isSelected = selectedPack?.id === pack.id;
                 const { isRecommended, topBadge, subtitle, savings } = getPackCardInfo(pack);
-                
+
                 // Styling classes for card states
                 let cardStateStyle = '';
                 if (isSelected) {
@@ -434,11 +437,10 @@ export default function RechargePage() {
                       </div>
 
                       {/* Radio Selection Indicator */}
-                      <span className={`h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                        isSelected
+                      <span className={`h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
                           ? 'border-[#0284C7] bg-[#0284C7] text-white shadow-xs'
                           : 'border-slate-300 bg-white'
-                      }`}>
+                        }`}>
                         {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
                       </span>
                     </div>
@@ -474,11 +476,10 @@ export default function RechargePage() {
                 <button
                   type="submit"
                   disabled={applying || (!appliedPromo && !promoCode.trim())}
-                  className={`inline-flex items-center gap-1.5 px-4 rounded-xl text-xs font-bold transition cursor-pointer select-none active:scale-95 ${
-                    appliedPromo 
-                      ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-xs' 
+                  className={`inline-flex items-center gap-1.5 px-4 rounded-xl text-xs font-bold transition cursor-pointer select-none active:scale-95 ${appliedPromo
+                      ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-xs'
                       : 'bg-[#0284C7] hover:bg-[#0369A1] text-white shadow-xs disabled:bg-[#E2E8F0] disabled:text-[#94A3B8] disabled:cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   {applying ? (
                     <>
@@ -535,7 +536,7 @@ export default function RechargePage() {
                       <span>-₹{discount.toFixed(2)}</span>
                     </div>
                   )}
-                  
+
                   {selectedPack && (
                     <div className="flex justify-between items-center text-xs text-[#94A3B8]">
                       <span>GST (18% Included)</span>
@@ -561,20 +562,18 @@ export default function RechargePage() {
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('WALLET')}
-                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
-                        paymentMethod === 'WALLET'
+                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${paymentMethod === 'WALLET'
                           ? 'border-[#0284C7] bg-sky-50/60 ring-2 ring-[#0284C7]/20 shadow-xs'
                           : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between w-full mb-1">
                         <span className="flex items-center gap-1.5 text-xs font-bold text-[#0F172A]">
                           <Wallet className="w-3.5 h-3.5 text-[#0284C7]" />
                           Wallet
                         </span>
-                        <span className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center ${
-                          paymentMethod === 'WALLET' ? 'border-[#0284C7] bg-[#0284C7]' : 'border-slate-300'
-                        }`}>
+                        <span className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'WALLET' ? 'border-[#0284C7] bg-[#0284C7]' : 'border-slate-300'
+                          }`}>
                           {paymentMethod === 'WALLET' && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
                         </span>
                       </div>
@@ -592,20 +591,18 @@ export default function RechargePage() {
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('ONLINE')}
-                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
-                        paymentMethod === 'ONLINE'
+                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${paymentMethod === 'ONLINE'
                           ? 'border-[#0284C7] bg-sky-50/60 ring-2 ring-[#0284C7]/20 shadow-xs'
                           : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between w-full mb-1">
                         <span className="flex items-center gap-1.5 text-xs font-bold text-[#0F172A]">
                           <CreditCard className="w-3.5 h-3.5 text-[#0284C7]" />
                           Online
                         </span>
-                        <span className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center ${
-                          paymentMethod === 'ONLINE' ? 'border-[#0284C7] bg-[#0284C7]' : 'border-slate-300'
-                        }`}>
+                        <span className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'ONLINE' ? 'border-[#0284C7] bg-[#0284C7]' : 'border-slate-300'
+                          }`}>
                           {paymentMethod === 'ONLINE' && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
                         </span>
                       </div>
@@ -622,11 +619,10 @@ export default function RechargePage() {
                 type="button"
                 onClick={handleCheckout}
                 disabled={!selectedPack || purchasing}
-                className={`w-full mt-6 py-3.5 px-4 rounded-xl text-sm font-bold transition-all flex flex-col items-center justify-center gap-0.5 select-none ${
-                  selectedPack && !purchasing
+                className={`w-full mt-6 py-3.5 px-4 rounded-xl text-sm font-bold transition-all flex flex-col items-center justify-center gap-0.5 select-none ${selectedPack && !purchasing
                     ? 'bg-[#0284C7] hover:bg-[#0369A1] text-white shadow-md shadow-[#0284C7]/25 cursor-pointer active:scale-[0.98]'
                     : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed shadow-none'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   {purchasing ? (
@@ -640,8 +636,8 @@ export default function RechargePage() {
                     {purchasing
                       ? 'Processing...'
                       : paymentMethod === 'WALLET'
-                      ? `Pay ₹${selectedPack ? Math.max(0, selectedPack.price - discount).toFixed(2) : '0'} via Wallet`
-                      : 'Secure Recharge Checkout'}
+                        ? `Pay ₹${selectedPack ? Math.max(0, selectedPack.price - discount).toFixed(2) : '0'} via Wallet`
+                        : 'Secure Recharge Checkout'}
                   </span>
                 </div>
                 <span className={`text-[10px] font-medium ${selectedPack && !purchasing ? 'text-white/80' : 'text-[#94A3B8]'}`}>
@@ -668,11 +664,10 @@ export default function RechargePage() {
             type="button"
             onClick={handleCheckout}
             disabled={!selectedPack || purchasing}
-            className={`flex-1 py-3 px-5 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-2 select-none ${
-              selectedPack && !purchasing
+            className={`flex-1 py-3 px-5 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-2 select-none ${selectedPack && !purchasing
                 ? 'bg-[#0284C7] hover:bg-[#0369A1] text-white shadow-md shadow-[#0284C7]/25 cursor-pointer active:scale-95'
                 : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed shadow-none'
-            }`}
+              }`}
           >
             {purchasing ? (
               <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -685,8 +680,8 @@ export default function RechargePage() {
               {purchasing
                 ? 'Processing...'
                 : paymentMethod === 'WALLET'
-                ? 'Pay via Wallet'
-                : 'Checkout Now'}
+                  ? 'Pay via Wallet'
+                  : 'Checkout Now'}
             </span>
           </button>
         </div>

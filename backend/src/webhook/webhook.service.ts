@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RazorpayProvider } from '../payment/providers/razorpay.provider';
 import { NotificationService } from '../notification/notification.service';
@@ -20,24 +21,33 @@ export class WebhookService {
     private readonly rechargeEngine: RechargeEngine,
   ) {}
 
-  async handleEvent(rawPayload: string, payload: any, signature: string) {
+  async handleEvent(
+    rawPayload: string,
+    payload: any,
+    signature: string,
+    headerEventId?: string,
+  ) {
+    // 1. Verify Signature securely
+    const isValid = this.razorpayProvider.verifyWebhookSignature({
+      signature,
+      payload: rawPayload,
+    });
+
+    if (!isValid) {
+      this.logger.error(
+        `Invalid webhook signature for event ${payload?.event}`,
+      );
+      return false;
+    }
+
+    const eventId =
+      headerEventId ||
+      payload['x-razorpay-event-id'] ||
+      payload.id ||
+      crypto.createHash('sha256').update(rawPayload).digest('hex');
+    const eventType = payload.event || 'unknown';
+
     try {
-      // 1. Verify Signature securely
-      const isValid = this.razorpayProvider.verifyWebhookSignature({
-        signature,
-        payload: rawPayload,
-      });
-
-      if (!isValid) {
-        this.logger.error(
-          `Invalid webhook signature for event ${payload?.event}`,
-        );
-        return;
-      }
-
-      const eventId = payload['x-razorpay-event-id'] || payload.id;
-      const eventType = payload.event;
-
       // 2. Persist the event idempotently
       // If the eventId already exists, Prisma will throw a unique constraint error
       // which we will catch and ignore (idempotency safety).
@@ -58,14 +68,17 @@ export class WebhookService {
           err,
         );
       });
+      return true;
     } catch (error: any) {
       // P2002 is Prisma's unique constraint violation code
       if (error.code === 'P2002') {
         this.logger.warn(
-          `Webhook event ${payload?.id} already exists. Skipping duplicate.`,
+          `Webhook event ${eventId} already exists. Skipping duplicate.`,
         );
+        return true;
       } else {
         this.logger.error('Failed to store webhook event', error);
+        throw error;
       }
     }
   }

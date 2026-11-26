@@ -46,7 +46,9 @@ export default function Checkout() {
 
   const productId = searchParams.get('productId');
   const rawDeposit = Number(searchParams.get('depositAmount'));
-  const isJarParam = searchParams.get('isJar') === 'true' || Boolean(searchParams.get('name')?.toLowerCase().includes('jar'));
+  const isJarParam = searchParams.has('isJar')
+    ? searchParams.get('isJar') === 'true'
+    : Boolean(searchParams.get('name')?.toLowerCase().includes('jar'));
   const initialItems = productId ? [{
     id: productId,
     name: searchParams.get('name') || '',
@@ -83,7 +85,7 @@ export default function Checkout() {
           }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       isMounted = false;
     };
@@ -162,11 +164,11 @@ export default function Checkout() {
       if (data?.customer?.wallet) {
         setWalletBalance(data.customer.wallet.balance);
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     fetchWithAuth('/catalog/brands').then((data) => {
       setBrands(data || []);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const subTotal = useMemo(
@@ -200,7 +202,7 @@ export default function Checkout() {
       }
     });
     return total;
-  }, [checkoutItems, itemReturns]);
+  }, [checkoutItems, itemReturns, dynamicDepositRate]);
 
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -215,7 +217,7 @@ export default function Checkout() {
         const parsed = JSON.parse(saved);
         setPromoInput(parsed.code);
         setAppliedPromo(parsed);
-      } catch (e) {}
+      } catch (e) { }
     }
   }, []);
 
@@ -341,7 +343,7 @@ export default function Checkout() {
       } else {
         setSelectedAddressId('');
       }
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   useEffect(() => {
@@ -349,7 +351,7 @@ export default function Checkout() {
     fetchWithAuth('/checkout/slots').then((data) => {
       setSlots(data);
       if (data.length > 0) setSelectedSlot(data[0].id);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const handleDeleteAddress = async (e: React.MouseEvent, id: string) => {
@@ -416,6 +418,7 @@ export default function Checkout() {
       if (initiateRes.status === 'SUCCESS') {
         toast.success('Order placed successfully. Delivery verification PIN created. View order details.');
         localStorage.removeItem('edrops_promo');
+        setIsProcessing(false);
         window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
         return;
       }
@@ -437,30 +440,43 @@ export default function Checkout() {
             contact: user?.phone,
           },
           handler: async function (response: any) {
-            await fetchWithAuth('/checkout/confirm', {
-              method: 'POST',
-              body: JSON.stringify({
-                orderId: initiateRes.orderId,
-                paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : paymentMethod,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-              }),
-            });
-            toast.success('Order placed successfully. Delivery verification PIN created. View order details.');
-            localStorage.removeItem('edrops_promo');
-            window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
+            try {
+              await fetchWithAuth('/checkout/confirm', {
+                method: 'POST',
+                body: JSON.stringify({
+                  orderId: initiateRes.orderId,
+                  paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : paymentMethod,
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpaySignature: response.razorpay_signature,
+                }),
+              });
+              toast.success('Order placed successfully. Delivery verification PIN created. View order details.');
+              localStorage.removeItem('edrops_promo');
+              window.location.href = `/customer/order-success?id=${initiateRes.orderId}`;
+            } catch (confirmErr: any) {
+              toast.error(confirmErr.message || 'Payment confirmation failed. Please contact support if amount was deducted.');
+            } finally {
+              setIsProcessing(false);
+            }
+          },
+          modal: {
+            ondismiss: () => setIsProcessing(false),
           },
           theme: { color: '#1E88E5' },
         };
 
         const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', () => toast.error('Payment failed. Please try again.'));
+        rzp.on('payment.failed', () => {
+          setIsProcessing(false);
+          toast.error('Payment failed. Please try again.');
+        });
         rzp.open();
+        return;
       }
+      setIsProcessing(false);
     } catch (err: any) {
       toast.error(err.message || 'Checkout failed');
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -559,17 +575,16 @@ export default function Checkout() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-[calc(148px+env(safe-area-inset-bottom,0px))] lg:pb-12 text-[#0F172A]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        
+
         {/* 2-Step Header: Delivery → Payment */}
         <div className="mb-4 sm:mb-6">
           <div className="flex items-center justify-between max-w-xl mx-auto bg-white rounded-2xl border border-[#E2E8F0] p-2 sm:p-3 shadow-xs">
             <button
               onClick={() => setCurrentStep(1)}
-              className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                currentStep === 1
+              className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${currentStep === 1
                   ? 'bg-[#1E88E5] text-white shadow-xs'
                   : 'text-[#1E88E5] hover:bg-[#EBF5FB]'
-              }`}
+                }`}
             >
               {currentStep > 1 ? (
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -584,11 +599,10 @@ export default function Checkout() {
             <span className="text-[#CBD5E1] px-2 font-bold">›</span>
 
             <div
-              className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                currentStep === 2
+              className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${currentStep === 2
                   ? 'bg-[#1E88E5] text-white shadow-xs'
                   : 'text-[#64748B]'
-              }`}
+                }`}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep === 2 ? 'bg-white text-[#1E88E5]' : 'bg-[#E2E8F0] text-[#64748B]'}`}>
                 2
@@ -600,10 +614,10 @@ export default function Checkout() {
 
         {/* Two-Column Grid (Desktop) / Single-Column (Mobile) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start w-full">
-          
+
           {/* LEFT COLUMN: Active Step Content (~60-65% width on desktop) */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-4">
-            
+
             {/* Mobile Order Summary Card with Quantity Controls (Visible on mobile on Delivery stage) */}
             {currentStep === 1 && (
               <div className="lg:hidden mb-4">
@@ -663,15 +677,13 @@ export default function Checkout() {
                                 setSelectedAddressId(addr.id);
                               }
                             }}
-                            className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all relative ${
-                              selectedAddressId === addr.id
+                            className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all relative ${selectedAddressId === addr.id
                                 ? 'border-[#1E88E5] bg-[#EBF5FB]/60 ring-1 ring-[#1E88E5]'
                                 : 'border-[#E2E8F0] bg-white hover:border-slate-300'
-                            }`}
+                              }`}
                           >
-                            <div className={`mt-0.5 flex items-center justify-center w-4 h-4 rounded-full border shrink-0 transition-colors ${
-                              selectedAddressId === addr.id ? 'border-[#1E88E5] bg-[#1E88E5]' : 'border-[#CBD5E1] bg-white'
-                            }`}>
+                            <div className={`mt-0.5 flex items-center justify-center w-4 h-4 rounded-full border shrink-0 transition-colors ${selectedAddressId === addr.id ? 'border-[#1E88E5] bg-[#1E88E5]' : 'border-[#CBD5E1] bg-white'
+                              }`}>
                               {selectedAddressId === addr.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                             </div>
                             <div className="flex-1 min-w-0 pr-8">
@@ -720,11 +732,10 @@ export default function Checkout() {
                       {slots.map((slot) => (
                         <label
                           key={slot.id}
-                          className={`flex items-center justify-center min-h-[38px] px-2.5 py-1.5 rounded-xl border text-center cursor-pointer transition-all ${
-                            selectedSlot === slot.id
+                          className={`flex items-center justify-center min-h-[38px] px-2.5 py-1.5 rounded-xl border text-center cursor-pointer transition-all ${selectedSlot === slot.id
                               ? 'border-[#1E88E5] bg-[#1E88E5] text-white font-bold shadow-xs'
                               : 'border-[#E2E8F0] bg-white text-[#64748B] font-semibold text-xs hover:bg-[#F8FAFC]'
-                          }`}
+                            }`}
                         >
                           <input
                             type="radio"
@@ -946,11 +957,10 @@ export default function Checkout() {
                     <div className="space-y-2.5">
                       {/* Online Payment */}
                       <label
-                        className={`flex items-center gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all ${
-                          paymentMethod === 'ONLINE'
+                        className={`flex items-center gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'ONLINE'
                             ? 'border-[#1E88E5] bg-[#EBF5FB]/60 ring-1 ring-[#1E88E5]'
                             : 'border-[#E2E8F0] bg-white hover:border-slate-300'
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"
@@ -975,11 +985,10 @@ export default function Checkout() {
 
                       {/* Wallet Option */}
                       <label
-                        className={`flex items-center gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all ${
-                          paymentMethod === 'WALLET'
+                        className={`flex items-center gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'WALLET'
                             ? 'border-[#1E88E5] bg-[#EBF5FB]/60 ring-1 ring-[#1E88E5]'
                             : 'border-[#E2E8F0] bg-white hover:border-slate-300'
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"
@@ -1011,11 +1020,10 @@ export default function Checkout() {
 
                       {/* Cash on Delivery */}
                       <label
-                        className={`flex items-center gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all ${
-                          paymentMethod === 'COD'
+                        className={`flex items-center gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'COD'
                             ? 'border-[#1E88E5] bg-[#EBF5FB]/60 ring-1 ring-[#1E88E5]'
                             : 'border-[#E2E8F0] bg-white hover:border-slate-300'
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"

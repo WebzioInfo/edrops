@@ -25,9 +25,18 @@ export const AquzioProtectedRoute: React.FC = () => {
   }
 
   const actualToken = token || localStorage.getItem('edrops_token');
-  const storedUserStr = localStorage.getItem('edrops_user');
-  const actualUser =
-    user || (storedUserStr ? JSON.parse(storedUserStr) : null);
+  let actualUser = user;
+  if (!actualUser) {
+    const storedUserStr = localStorage.getItem('edrops_user');
+    if (storedUserStr) {
+      try {
+        actualUser = JSON.parse(storedUserStr);
+      } catch {
+        localStorage.removeItem('edrops_user');
+        actualUser = null;
+      }
+    }
+  }
 
   // Unauthenticated: redirect to login
   if (authStatus === 'unauthenticated' || !actualToken || !actualUser) {

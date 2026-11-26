@@ -29,7 +29,18 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   // Fallback to localStorage to prevent race conditions during fast SPA navigations
   const actualToken = token || localStorage.getItem('edrops_token');
-  const actualUser = user || (localStorage.getItem('edrops_user') ? JSON.parse(localStorage.getItem('edrops_user') as string) : null);
+  let actualUser: any = user;
+  if (!actualUser) {
+    const rawUser = localStorage.getItem('edrops_user');
+    if (rawUser) {
+      try {
+        actualUser = JSON.parse(rawUser);
+      } catch {
+        localStorage.removeItem('edrops_user');
+        actualUser = null;
+      }
+    }
+  }
 
   const target = encodeURIComponent(location.pathname + location.search);
 

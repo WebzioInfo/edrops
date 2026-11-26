@@ -33,6 +33,7 @@ export class CheckoutController {
         'Only customer accounts can validate checkout',
       );
     }
+    dto.adminOverride = undefined;
     return this.checkoutService.validateCheckout(req.user.customerId, dto);
   }
 
@@ -44,6 +45,7 @@ export class CheckoutController {
         'Only customer accounts can initialize checkout',
       );
     }
+    dto.adminOverride = undefined;
     return this.checkoutService.initiateCheckout(req.user.customerId, dto);
   }
 

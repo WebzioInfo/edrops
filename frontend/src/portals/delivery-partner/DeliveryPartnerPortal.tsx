@@ -66,7 +66,14 @@ export default function DeliveryPartnerPortal() {
   }, []);
 
   const syncOfflineQueue = useCallback(async () => {
-    const queue = JSON.parse(localStorage.getItem('offline_delivery_reports') || '[]');
+    let queue: any[] = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem('offline_delivery_reports') || '[]');
+      queue = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      localStorage.removeItem('offline_delivery_reports');
+      queue = [];
+    }
     if (queue.length === 0) {
       setOfflineQueueCount(0);
       return;
@@ -162,7 +169,13 @@ export default function DeliveryPartnerPortal() {
     } catch (err: any) {
       // Offline fallback: store in localStorage queue
       if (!window.navigator.onLine || err.message === 'Failed to fetch' || err.status === 0) {
-        const queue = JSON.parse(localStorage.getItem('offline_delivery_reports') || '[]');
+        let queue: any[] = [];
+        try {
+          const parsed = JSON.parse(localStorage.getItem('offline_delivery_reports') || '[]');
+          queue = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          queue = [];
+        }
         queue.push(reportData);
         localStorage.setItem('offline_delivery_reports', JSON.stringify(queue));
         setOfflineQueueCount(queue.length);

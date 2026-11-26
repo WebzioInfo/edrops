@@ -36,7 +36,7 @@ export class CheckoutService {
     private eventsGateway: EventsGateway,
     private addressService: AddressService,
     private settingsService: SettingsService,
-  ) {}
+  ) { }
 
   private async notifyNewOrder(
     orderId: string,
@@ -160,6 +160,11 @@ export class CheckoutService {
     const defaultDepositAmount = await this.settingsService.getDepositAmountPerJar();
 
     for (const item of items) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        throw new BadRequestException(
+          `Invalid quantity for product ${item.product.name}`,
+        );
+      }
       if (item.product.status !== 'ACTIVE') {
         throw new BadRequestException(
           `Product ${item.product.name} is no longer active`,
@@ -276,9 +281,9 @@ export class CheckoutService {
     const orderId = crypto.randomUUID();
     let razorpayOrderId: string | undefined;
 
-    // Validate that the selected address pincode is serviceable
+    // Validate that the selected address belongs to customer and pincode is serviceable
     const deliveryAddress = await this.prisma.address.findFirst({
-      where: { id: dto.addressId },
+      where: { id: dto.addressId, customerId },
       select: { zipCode: true },
     });
     if (!deliveryAddress) {
@@ -290,7 +295,7 @@ export class CheckoutService {
     if (!serviceability.serviceable) {
       throw new BadRequestException(
         `Delivery is not available for the pincode of your selected address (${deliveryAddress.zipCode}). ` +
-          `Please update your delivery address.`,
+        `Please update your delivery address.`,
       );
     }
 
@@ -329,9 +334,15 @@ export class CheckoutService {
         );
       }
 
-      // 2. Check wallet balance strictly inside transaction to prevent race conditions
+      // 2. Check wallet balance strictly inside transaction with row lock to prevent race conditions
       let walletDeducted = 0;
       if (dto.paymentMethod === 'WALLET' || dto.paymentMethod === 'HYBRID') {
+        if (typeof tx.$executeRawUnsafe === 'function') {
+          await tx.$executeRawUnsafe(
+            `SELECT id FROM "Wallet" WHERE "customerId" = $1 FOR UPDATE`,
+            customerId,
+          );
+        }
         const wallet = await tx.wallet.findUnique({ where: { customerId } });
         const currentBalance = wallet ? wallet.balance : 0;
         const requiredDeduction =
@@ -537,6 +548,32 @@ export class CheckoutService {
           );
         }
 
+        const existingOrder = await tx.order.findUnique({
+          where: { id: dto.orderId },
+          include: { items: true },
+        });
+        if (!existingOrder || existingOrder.customerId !== customerId) {
+          throw new BadRequestException('Order not found for this customer');
+        }
+        if (existingOrder.paymentStatus === PaymentStatus.SUCCESS) {
+          return existingOrder;
+        }
+
+        // Verify Payment record belongs to this customer, order, and Razorpay order
+        const paymentRecord = await tx.payment.findFirst({
+          where: {
+            providerId: dto.razorpayOrderId,
+            orderId: dto.orderId,
+            customerId,
+            provider: 'RAZORPAY',
+          },
+        });
+        if (!paymentRecord) {
+          throw new BadRequestException(
+            'Payment record does not match this order or customer',
+          );
+        }
+
         const updatedOrder = await tx.order.update({
           where: { id: dto.orderId },
           data: {
@@ -544,16 +581,6 @@ export class CheckoutService {
             paymentStatus: PaymentStatus.SUCCESS,
           },
           include: { items: true },
-        });
-
-        // Update Payment record created during initiateCheckout to SUCCESS
-        const paymentRecord = await tx.payment.findFirst({
-          where: {
-            OR: [
-              { providerId: dto.razorpayOrderId },
-              { orderId: dto.orderId, provider: 'RAZORPAY' },
-            ],
-          },
         });
 
         if (paymentRecord) {

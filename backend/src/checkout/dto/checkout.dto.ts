@@ -5,27 +5,32 @@ import {
   IsArray,
   ValidateNested,
   IsNumber,
+  IsInt,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BuyNowItemDto {
   @IsString()
   productId: string;
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   quantity: number;
 }
 
 export class ItemReturnDto {
   @IsString()
   productId: string;
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   quantity: number;
 }
 
 export class AdditionalReturnDto {
   @IsString()
   brandId: string;
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   quantity: number;
 }
 
@@ -40,6 +45,7 @@ export class AdminOverrideDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   customDiscount?: number;
 
   @IsOptional()

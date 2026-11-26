@@ -20,6 +20,7 @@ export class WebhookController {
   async handleRazorpayWebhook(
     @Body() payload: any,
     @Headers('x-razorpay-signature') signature: string,
+    @Headers('x-razorpay-event-id') eventId: string,
     @Req() req: RawBodyRequest<Request>,
   ) {
     if (!signature) {
@@ -32,13 +33,15 @@ export class WebhookController {
       ? req.rawBody.toString('utf8')
       : JSON.stringify(payload);
 
-    // Pass to service for async processing (return immediately to prevent timeouts)
-    this.webhookService
-      .handleEvent(rawPayload, payload, signature)
-      .catch((err) => {
-        // Log errors but don't block the 200 OK response
-        console.error('Webhook async processing failed', err);
-      });
+    const accepted = await this.webhookService.handleEvent(
+      rawPayload,
+      payload,
+      signature,
+      eventId,
+    );
+    if (accepted === false) {
+      throw new UnauthorizedException('Invalid Razorpay webhook signature');
+    }
 
     return { status: 'received' };
   }

@@ -146,6 +146,7 @@ export default function WalletPage() {
       const isLoaded = await loadRazorpay();
       if (!isLoaded) {
         toast.error('Razorpay SDK failed to load');
+        setRechargeLoading(false);
         return;
       }
 
@@ -171,17 +172,24 @@ export default function WalletPage() {
             loadData();
           } catch (confirmErr: any) {
             toast.error(confirmErr.message || 'Payment verification failed');
+          } finally {
+            setRechargeLoading(false);
           }
+        },
+        modal: {
+          ondismiss: () => setRechargeLoading(false),
         },
         theme: { color: '#0284C7' },
       };
 
       const rzp = new (window as any).Razorpay(options);
-      rzp.on('payment.failed', () => toast.error('Payment failed or cancelled.'));
+      rzp.on('payment.failed', () => {
+        setRechargeLoading(false);
+        toast.error('Payment failed or cancelled.');
+      });
       rzp.open();
     } catch (err: any) {
       toast.error(err.message || 'Failed to initiate recharge');
-    } finally {
       setRechargeLoading(false);
     }
   };
@@ -200,6 +208,7 @@ export default function WalletPage() {
       if (depositPayMethod === 'WALLET') {
         if (balance < depositDue) {
           toast.error(`Insufficient wallet balance. You have ₹${balance}, but ₹${depositDue} is required.`);
+          setIsPayingDeposit(false);
           return;
         }
 
@@ -213,6 +222,7 @@ export default function WalletPage() {
           setIsDepositModalOpen(false);
           loadData();
         }
+        setIsPayingDeposit(false);
       } else {
         // Online Payment via Razorpay
         const initiateRes = await fetchWithAuth('/wallet/pay-deposit-online/initiate', {
@@ -223,6 +233,7 @@ export default function WalletPage() {
         const isLoaded = await loadRazorpay();
         if (!isLoaded) {
           toast.error('Payment gateway failed to load');
+          setIsPayingDeposit(false);
           return;
         }
 
@@ -248,18 +259,25 @@ export default function WalletPage() {
               loadData();
             } catch (confirmErr: any) {
               toast.error(confirmErr.message || 'Deposit verification failed');
+            } finally {
+              setIsPayingDeposit(false);
             }
+          },
+          modal: {
+            ondismiss: () => setIsPayingDeposit(false),
           },
           theme: { color: '#0284C7' },
         };
 
         const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', () => toast.error('Payment cancelled or failed.'));
+        rzp.on('payment.failed', () => {
+          setIsPayingDeposit(false);
+          toast.error('Payment cancelled or failed.');
+        });
         rzp.open();
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to process deposit payment');
-    } finally {
       setIsPayingDeposit(false);
     }
   };
@@ -294,7 +312,7 @@ export default function WalletPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-28 sm:pb-24">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8 lg:px-8 space-y-5 sm:space-y-6">
-        
+
         {/* ─── 1. PAGE HEADER ────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
           <div>
@@ -330,7 +348,7 @@ export default function WalletPage() {
 
         {/* ─── 2. THREE-CARD SUMMARY STRIP ───────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
+
           {/* Card 1: Available Wallet Balance */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -386,11 +404,10 @@ export default function WalletPage() {
                 </span>
               </div>
               <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  depositDue > 0
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${depositDue > 0
                     ? 'bg-amber-100 text-amber-800'
                     : 'bg-emerald-100 text-emerald-800'
-                }`}
+                  }`}
               >
                 {depositDue > 0 ? 'Payment Due' : 'Paid & Settled'}
               </span>
@@ -503,11 +520,10 @@ export default function WalletPage() {
                     setSelectedAmount(amt);
                     setCustomAmount('');
                   }}
-                  className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    selectedAmount === amt && !customAmount
+                  className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${selectedAmount === amt && !customAmount
                       ? 'bg-[#0284C7] text-white shadow-2xs border border-[#0284C7]'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                  }`}
+                    }`}
                 >
                   +₹{amt}
                 </button>
@@ -601,17 +617,15 @@ export default function WalletPage() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveCategory(tab.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-                      isActive
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${isActive
                         ? 'bg-slate-900 text-white shadow-2xs'
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                    }`}
+                      }`}
                   >
                     <span>{tab.label}</span>
                     <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                      }`}
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                        }`}
                     >
                       {count}
                     </span>
@@ -638,17 +652,16 @@ export default function WalletPage() {
                     {/* Left: Category Icon + Description */}
                     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                       <span
-                        className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl shrink-0 ${
-                          isSub
+                        className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl shrink-0 ${isSub
                             ? 'bg-blue-50 text-blue-600 border border-blue-100'
                             : isDeposit
-                            ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                            : isOrder
-                            ? 'bg-purple-50 text-purple-600 border border-purple-100'
-                            : isCredit
-                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                            : 'bg-slate-100 text-slate-600 border border-slate-200'
-                        }`}
+                              ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                              : isOrder
+                                ? 'bg-purple-50 text-purple-600 border border-purple-100'
+                                : isCredit
+                                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
                       >
                         {isSub ? (
                           <Package className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
@@ -669,15 +682,14 @@ export default function WalletPage() {
                             {tx.title}
                           </p>
                           <span
-                            className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md shrink-0 ${
-                              isSub
+                            className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md shrink-0 ${isSub
                                 ? 'bg-blue-100 text-blue-800'
                                 : isDeposit
-                                ? 'bg-amber-100 text-amber-800'
-                                : isOrder
-                                ? 'bg-purple-100 text-purple-800'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : isOrder
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-slate-100 text-slate-700'
+                              }`}
                           >
                             {tx.category}
                           </span>
@@ -715,9 +727,8 @@ export default function WalletPage() {
                     {/* Right: Amount & Status */}
                     <div className="text-right shrink-0 pl-2 sm:pl-3 whitespace-nowrap">
                       <p
-                        className={`text-xs sm:text-sm font-black ${
-                          isCredit ? 'text-emerald-600' : 'text-slate-900'
-                        }`}
+                        className={`text-xs sm:text-sm font-black ${isCredit ? 'text-emerald-600' : 'text-slate-900'
+                          }`}
                       >
                         {isCredit ? '+' : '-'}₹{Number(tx.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </p>
@@ -815,11 +826,10 @@ export default function WalletPage() {
                     {/* Method 1: Wallet Balance */}
                     <div
                       onClick={() => setDepositPayMethod('WALLET')}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
-                        depositPayMethod === 'WALLET'
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${depositPayMethod === 'WALLET'
                           ? 'border-blue-500 bg-blue-50/50 shadow-2xs'
                           : 'border-slate-200 hover:border-slate-300'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
@@ -847,11 +857,10 @@ export default function WalletPage() {
                     {/* Method 2: Online via UPI / Card */}
                     <div
                       onClick={() => setDepositPayMethod('ONLINE')}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
-                        depositPayMethod === 'ONLINE'
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${depositPayMethod === 'ONLINE'
                           ? 'border-blue-500 bg-blue-50/50 shadow-2xs'
                           : 'border-slate-200 hover:border-slate-300'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">

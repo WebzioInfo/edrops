@@ -27,7 +27,7 @@ export class AuthService {
     private jwtService: JwtService,
     private mailService: MailService,
     private cloudinaryService: CloudinaryService,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto) {
     const normalizedPhone = normalizePhoneNumber(registerDto.phone);
@@ -797,8 +797,15 @@ export class AuthService {
           throw new UnauthorizedException('Invalid Google ID token');
         }
         const data = await response.json();
-        if (data.aud !== expectedClientId && !expectedClientId.includes(data.aud)) {
-          this.logger.warn(`Google token aud mismatch: ${data.aud} vs ${expectedClientId}`);
+        if (
+          expectedClientId &&
+          data.aud !== expectedClientId &&
+          !expectedClientId.split(',').map((s) => s.trim()).includes(data.aud)
+        ) {
+          throw new UnauthorizedException('Invalid Google token audience');
+        }
+        if (data.email_verified !== true && data.email_verified !== 'true') {
+          throw new UnauthorizedException('Google email is not verified');
         }
         if (!data.email) {
           throw new UnauthorizedException('Google account has no email address');
@@ -844,6 +851,10 @@ export class AuthService {
           },
         },
       });
+    }
+
+    if (!user.isActive || user.accountStatus === AccountStatus.DISABLED) {
+      throw new UnauthorizedException('Your account has been disabled. Please contact support.');
     }
 
     // Check if user has a valid verified phone number on file

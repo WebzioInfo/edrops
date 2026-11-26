@@ -58,7 +58,7 @@ export default function OrderDetails() {
           setWalletBalance(res.balance);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadRazorpay = () => {
@@ -133,6 +133,7 @@ export default function OrderDetails() {
 
         toast.success(`Paid ₹${pst.due} successfully using your wallet!`);
         setPayModalOpen(false);
+        setIsPaying(false);
         fetchOrder(true);
         return;
       }
@@ -180,19 +181,24 @@ export default function OrderDetails() {
             fetchOrder(true);
           } catch (err: any) {
             toast.error(err.message || 'Payment verification failed');
+          } finally {
+            setIsPaying(false);
           }
+        },
+        modal: {
+          ondismiss: () => setIsPaying(false),
         },
         theme: { color: '#0284C7' },
       };
 
       const rzp = new (window as any).Razorpay(options);
-      rzp.on('payment.failed', () =>
-        toast.error('Payment failed or was cancelled.'),
-      );
+      rzp.on('payment.failed', () => {
+        setIsPaying(false);
+        toast.error('Payment failed or was cancelled.');
+      });
       rzp.open();
     } catch (err: any) {
       toast.error(err.message || 'Payment processing failed');
-    } finally {
       setIsPaying(false);
     }
   };
@@ -305,7 +311,7 @@ export default function OrderDetails() {
   const dv = order.deliveryVerification;
   const hasDeliverySettlement = Boolean(
     order.hasDeliverySettlement ||
-      (isDelivered && (order.settlement || dv?.isVerified || (dv?.calculatedTotal !== null && dv?.calculatedTotal !== undefined)))
+    (isDelivered && (order.settlement || dv?.isVerified || (dv?.calculatedTotal !== null && dv?.calculatedTotal !== undefined)))
   );
 
   const totalOrderedCount = (order.items || []).reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
@@ -355,12 +361,12 @@ export default function OrderDetails() {
 
   const completedAtFormatted = deliveryData?.completedAt
     ? new Date(deliveryData.completedAt).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      })
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
     : null;
 
   const timelineSteps = [
@@ -394,7 +400,7 @@ export default function OrderDetails() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24 lg:pb-12 text-[#0F172A]">
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-3.5 sm:py-6">
-        
+
         {/* Navigation & Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
@@ -451,10 +457,10 @@ export default function OrderDetails() {
 
         {/* Two-Column Tracking & Order Details Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
+
           {/* LEFT COLUMN: Status Timeline, Delivery Info, Items (8 cols) */}
           <div className="lg:col-span-8 space-y-6">
-            
+
             {/* Live Order Status Timeline Card */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -509,19 +515,17 @@ export default function OrderDetails() {
                           {/* Left: Icon and connecting vertical line */}
                           <div className="relative flex flex-col items-center">
                             <div
-                              className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 shadow-2xs z-10 ${
-                                isComplete
+                              className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 shadow-2xs z-10 ${isComplete
                                   ? 'bg-[#1E88E5] text-white'
                                   : 'bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0]'
-                              } ${isCurrent ? 'ring-4 ring-sky-100 scale-105' : ''}`}
+                                } ${isCurrent ? 'ring-4 ring-sky-100 scale-105' : ''}`}
                             >
                               {isComplete ? <CheckCircle2 className="w-5 h-5" /> : idx + 1}
                             </div>
                             {!isLast && (
                               <div
-                                className={`w-0.5 absolute top-9 bottom-[-20px] left-1/2 -translate-x-1/2 transition-colors duration-300 ${
-                                  isLineComplete ? 'bg-[#1E88E5]' : 'bg-[#E2E8F0]'
-                                }`}
+                                className={`w-0.5 absolute top-9 bottom-[-20px] left-1/2 -translate-x-1/2 transition-colors duration-300 ${isLineComplete ? 'bg-[#1E88E5]' : 'bg-[#E2E8F0]'
+                                  }`}
                               />
                             )}
                           </div>
@@ -550,19 +554,17 @@ export default function OrderDetails() {
                         <div key={idx} className="flex flex-col items-start text-left">
                           <div className="flex items-center w-full mb-3">
                             <div
-                              className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 shadow-2xs ${
-                                isComplete
+                              className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 shadow-2xs ${isComplete
                                   ? 'bg-[#1E88E5] text-white'
                                   : 'bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0]'
-                              } ${isCurrent ? 'ring-4 ring-sky-100 scale-105' : ''}`}
+                                } ${isCurrent ? 'ring-4 ring-sky-100 scale-105' : ''}`}
                             >
                               {isComplete ? <CheckCircle2 className="w-5 h-5" /> : idx + 1}
                             </div>
                             {idx < timelineSteps.length - 1 && (
                               <div
-                                className={`flex-1 h-1 mx-2 rounded-full transition-all ${
-                                  stepIndex > idx ? 'bg-[#1E88E5]' : 'bg-[#E2E8F0]'
-                                }`}
+                                className={`flex-1 h-1 mx-2 rounded-full transition-all ${stepIndex > idx ? 'bg-[#1E88E5]' : 'bg-[#E2E8F0]'
+                                  }`}
                               />
                             )}
                           </div>
@@ -849,7 +851,7 @@ export default function OrderDetails() {
 
           {/* RIGHT COLUMN: Payment Breakdown & Quick Actions (4 cols) */}
           <div className="lg:col-span-4 space-y-6">
-            
+
             {/* Delivery Verification PIN Card (Before Delivery) */}
             {order.deliveryVerification?.otp && !isCancelled && order.status !== 'DELIVERED' && order.status !== 'COMPLETED' && (
               <div className="bg-gradient-to-br from-sky-50 via-white to-blue-50/40 rounded-2xl border-2 border-sky-200 p-5 shadow-xs">
@@ -1208,11 +1210,10 @@ export default function OrderDetails() {
                     <button
                       type="button"
                       onClick={() => setPayMethod('RAZORPAY')}
-                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                        payMethod === 'RAZORPAY'
+                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${payMethod === 'RAZORPAY'
                           ? 'border-[#0284C7] bg-sky-50/80 text-[#0284C7] shadow-xs ring-1 ring-[#0284C7]/20'
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <CreditCard className="w-4 h-4 text-[#0284C7]" />
                       <span>Online (UPI / Card)</span>
@@ -1221,11 +1222,10 @@ export default function OrderDetails() {
                     <button
                       type="button"
                       onClick={() => setPayMethod('WALLET')}
-                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                        payMethod === 'WALLET'
+                      className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${payMethod === 'WALLET'
                           ? 'border-[#0284C7] bg-sky-50/80 text-[#0284C7] shadow-xs ring-1 ring-[#0284C7]/20'
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <Wallet className="w-4 h-4 text-[#0284C7]" />
                       <span>Wallet Balance</span>
